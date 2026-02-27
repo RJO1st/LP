@@ -1,0 +1,117 @@
+"use client";
+import React, { useState } from "react";
+
+// IMPORTANT: In your local Next.js project, uncomment the line below to connect to your real database.
+// import { supabase } from "../../lib/supabase";
+
+// --- PREVIEW ENVIRONMENT MOCK ---
+// Remove this mock object in your local project so it uses the real import above.
+const supabase = {
+  from: (table) => ({
+    insert: async (data) => {
+      console.log(`[Mock] Inserting ${data.length} rows into ${table}...`);
+      return new Promise(resolve => setTimeout(() => resolve({ data, error: null }), 1500));
+    }
+  })
+};
+// --------------------------------
+
+export default function AdminSeeder() {
+  const [status, setStatus] = useState("Ready to upload");
+  const [loading, setLoading] = useState(false);
+
+  const seedDatabase = async () => {
+    setLoading(true);
+    setStatus("Uploading to Supabase Vault...");
+
+    // I have extracted these exactly from your uploaded Word Document!
+    const questionsToUpload = [
+      {
+        subject: "english",
+        year_level: 3,
+        topic: "comprehension",
+        question_text: "Where did Sarah find the puppy?",
+        options: ["In a park", "Behind a hedge", "In her garden", "At school"],
+        correct_index: 1,
+        explanation: "The text states 'she heard a soft whimpering sound coming from behind a hedge'.",
+        passage: "Sarah was walking home from school when she heard a soft whimpering sound coming from behind a hedge. She stopped and peered through the leaves. There, trembling and covered in mud, was a small golden puppy with big brown eyes."
+      },
+      {
+        subject: "english",
+        year_level: 4,
+        topic: "grammar",
+        question_text: "Identify the part of speech of the capitalized word: The QUICK brown fox jumped over the lazy dog.",
+        options: ["Noun", "Verb", "Adjective", "Adverb"],
+        correct_index: 2,
+        explanation: "Adjective (it describes the noun 'fox').",
+        passage: null
+      },
+      {
+        subject: "verbal",
+        year_level: 5,
+        topic: "synonyms",
+        question_text: "Choose the word that is closest in meaning to: ANCIENT",
+        options: ["modern", "new", "old", "young"],
+        correct_index: 2,
+        explanation: "Ancient means belonging to the very distant past and no longer in existence (old).",
+        passage: null
+      },
+      {
+        subject: "english",
+        year_level: 5,
+        topic: "vocabulary",
+        question_text: "The explorers embarked on a(n) _____ journey through the Amazon rainforest.",
+        options: ["easy", "perilous", "short", "boring"],
+        correct_index: 1,
+        explanation: "Perilous means full of danger or risk, which fits an Amazon expedition.",
+        passage: null
+      },
+      {
+        subject: "maths",
+        year_level: 4,
+        topic: "arithmetic",
+        question_text: "Calculate: 4,567 + 3,892",
+        options: ["8,459", "8,359", "7,459", "8,559"],
+        correct_index: 0,
+        explanation: "Working: 4,567 + 3,892 = 8,459",
+        passage: null
+      }
+    ];
+
+    try {
+      const { data, error } = await supabase.from('question_bank').insert(questionsToUpload);
+      
+      if (error) throw error;
+      
+      setStatus("✅ Success! 5 Questions safely secured in the Vault.");
+    } catch (error) {
+      console.error(error);
+      setStatus(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-900 font-sans">
+      <div className="bg-white p-10 rounded-[32px] shadow-xl max-w-xl w-full text-center border-2 border-indigo-100">
+        <h1 className="text-3xl font-black mb-4 text-slate-800">Vault Database Seeder</h1>
+        <p className="text-slate-500 font-bold mb-8 leading-relaxed">
+          Skip Excel! Click the button below to push the first batch of your 11+ Word Document directly into your Supabase database.
+        </p>
+
+        <button 
+          onClick={seedDatabase} 
+          disabled={loading}
+          className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xl hover:bg-indigo-700 shadow-lg transition-all w-full mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Uploading to Vault..." : "Push Questions to Database"}
+        </button>
+
+        <div className={`p-5 rounded-2xl font-bold transition-colors duration-300 ${status.includes("Success") ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-200" : status.includes("Error") ? "bg-rose-50 text-rose-700 border-2 border-rose-200" : "bg-slate-100 text-slate-600 border-2 border-slate-200"}`}>
+          {status}
+        </div>
+      </div>
+    </div>
+  );
+}
