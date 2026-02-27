@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
 
-// IMPORTANT: In your local Next.js project, uncomment the line below to connect to your real database.
+// IMPORTANT: When pushing to GitHub or running locally, uncomment the line below:
 // import { supabase } from "../../lib/supabase";
 
 // --- PREVIEW ENVIRONMENT MOCK ---
-// Remove this mock object in your local project so it uses the real import above.
+// Remove this block in your local code so it uses the real import above!
 const supabase = {
   from: (table) => ({
     insert: async (data) => {
