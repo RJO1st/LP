@@ -54,10 +54,8 @@ export default function ParentDashboard() {
   const [error, setError] = useState(null);
 
   const router = useRouter();
-  const supabase = createBrowserClient(
-    "mock_url",
-    "mock_key"
-  );
+  
+  const supabase = createBrowserClient();
 
   useEffect(() => {
     fetchUserData();
@@ -73,9 +71,6 @@ export default function ParentDashboard() {
         return;
       }
       setUserEmail(user.email);
-
-      // In a real app, you'd check a 'subscriptions' table here to set isPro
-      // setIsPro(user.subscription_status === 'active');
 
       const { data, error } = await supabase
         .from("students")
@@ -120,7 +115,7 @@ export default function ParentDashboard() {
       setYearLevel("4");
       setShowAddModal(false);
       
-      // Manually add the student to local state for the preview environment
+      // Update locally for the preview
       setStudents(prev => [...prev, { id: Date.now(), username, pin_code: pinCode, year_level: parseInt(yearLevel) }]);
       
     } catch (err) {
@@ -136,11 +131,7 @@ export default function ParentDashboard() {
   };
 
   const handleSubscribe = async () => {
-    // In production, this would call your Next.js API route to create a Stripe Checkout session
     alert("Redirecting to Stripe Checkout...");
-    // const res = await fetch('/api/checkout', { method: 'POST' });
-    // const { url } = await res.json();
-    // window.location.href = url;
   };
 
   return (
@@ -245,7 +236,7 @@ export default function ParentDashboard() {
                 </div>
               )}
 
-              {/* TAB 2: ANALYTICS (Mocked Data for now) */}
+              {/* TAB 2: ANALYTICS */}
               {activeTab === "analytics" && (
                 <div className="animate-in fade-in">
                   <h2 className="text-3xl font-black text-slate-800 mb-2">Progress Analytics</h2>
