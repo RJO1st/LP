@@ -2,19 +2,34 @@
 import React, { useState } from "react";
 
 // --- MOCKS FOR PREVIEW ENVIRONMENT ---
-// These mocks allow the component to render in the preview without external dependencies.
+// These allow the component to render in the browser preview without external dependencies.
 const useRouter = () => ({
-  push: (path) => console.log(`Navigating to: ${path}`),
+  push: (path) => {
+    console.log(`Navigating to: ${path}`);
+    if (typeof window !== "undefined") {
+      const msg = document.createElement('div');
+      msg.className = "fixed bottom-4 right-4 bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl font-black z-[9999] animate-in slide-in-from-bottom";
+      msg.innerText = `Successfully signed in! (Redirecting to Dashboard...)`;
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 3000);
+    }
+  },
 });
 
 const createBrowserClient = () => ({
   auth: {
-    signUp: async () => ({ error: null }),
-    signInWithPassword: async () => ({ error: null }),
+    signUp: async ({ email }) => {
+      console.log("Mock signing up:", email);
+      return { data: { user: { email } }, error: null };
+    },
+    signInWithPassword: async ({ email }) => {
+      console.log("Mock signing in:", email);
+      return { data: { user: { email } }, error: null };
+    }
   }
 });
 
-// Inline Icons to resolve import errors
+// --- INLINED ICONS ---
 const TrophyIcon = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
 );
@@ -46,8 +61,12 @@ const StarIcon = ({ size = 24 }) => (
 const XCircleIcon = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
 );
-// -------------------------------------
 
+const CheckCircleIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+);
+
+// --- COMPONENT ---
 export default function Gateway() {
   const [activeModal, setActiveModal] = useState(null); 
   const [email, setEmail] = useState("");
@@ -69,12 +88,9 @@ export default function Gateway() {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
         });
         if (signUpError) throw signUpError;
-        alert("Welcome to Quest Academy! Check your email to verify your account.");
+        alert("Success! Welcome to Quest Academy.");
         setActiveModal(null);
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -94,7 +110,10 @@ export default function Gateway() {
   const handleStudentAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
-    router.push("/student");
+    setTimeout(() => {
+      router.push("/student");
+      setLoading(false);
+    }, 1000);
   };
 
   return (
@@ -197,23 +216,43 @@ export default function Gateway() {
             {(activeModal === 'parent_login' || activeModal === 'parent_signup') && (
               <form onSubmit={handleParentAuth} className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Email Address</label>
+                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider text-slate-400">Email Address</label>
                   <input type="email" required className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Password</label>
+                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider text-slate-400">Password</label>
                   <input type="password" required className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50">
-                  {loading ? "Authenticating..." : activeModal === 'parent_signup' ? "Create Account" : "Secure Sign In"}
+                <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 mt-4">
+                  {loading ? "Authenticating..." : activeModal === 'parent_signup' ? "Sign Up" : "Secure Sign In"}
                 </button>
+                <div className="text-center pt-2">
+                   <button 
+                     type="button"
+                     onClick={() => setActiveModal(activeModal === 'parent_signup' ? 'parent_login' : 'parent_signup')}
+                     className="text-indigo-600 font-bold text-sm hover:underline"
+                   >
+                     {activeModal === 'parent_signup' ? "Already a member? Sign In" : "New to Quest Academy? Sign Up"}
+                   </button>
+                </div>
               </form>
             )}
 
             {activeModal === 'student_login' && (
               <form onSubmit={handleStudentAuth} className="p-6 space-y-6">
-                <input type="text" required maxLength={6} className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-center text-2xl tracking-[0.5em] focus:border-indigo-500 outline-none transition-all uppercase" placeholder="XXXXXX" value={scholarCode} onChange={(e) => setScholarCode(e.target.value)} />
-                <button type="submit" disabled={loading || scholarCode.length < 4} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                <div className="text-center">
+                   <label className="block text-sm font-black text-slate-400 mb-4 uppercase tracking-widest">Scholar Access Code</label>
+                   <input 
+                     type="text" 
+                     required 
+                     maxLength={6} 
+                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-center text-2xl tracking-[0.5em] focus:border-indigo-500 outline-none transition-all uppercase" 
+                     placeholder="XXXXXX" 
+                     value={scholarCode} 
+                     onChange={(e) => setScholarCode(e.target.value)} 
+                   />
+                </div>
+                <button type="submit" disabled={loading || scholarCode.length < 4} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {loading ? "Loading..." : "Enter Academy"} <ArrowRightIcon size={20} />
                 </button>
               </form>
