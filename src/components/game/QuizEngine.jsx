@@ -9,6 +9,10 @@ const ZapIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={s
 const ArrowRightIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>);
 const EyeIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>);
 const ArrowLeftIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>);
+const TrophyIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>);
+const FlameIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>);
+const StarIcon = ({ size = 24, className = "" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>);
+
 
 // --- PROCEDURAL ENGINE LOGIC (Inlined for standalone compilation) ---
 const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
@@ -154,23 +158,19 @@ const PlaceValueChart = ({ computed, step }) => {
   if (!computed) return null;
   const { a, b, carry, answer, operation } = computed;
 
-  // Step 0: Calculate Units. Step 1: Write Units/Carry. Step 2: Calculate Tens. Step 3: Write Tens.
   const isUnitsActive = step === 0 || step === 1;
   const isTensActive = step === 2 || step === 3;
   
-  // Dynamically pad strings based on the largest number to align columns safely
   const maxLen = Math.max(String(a).length, String(b).length, String(answer).length, 2);
   const aStr = String(a).padStart(maxLen, ' ');
   const bStr = String(b).padStart(maxLen, ' ');
   const ansStr = String(answer).padStart(maxLen, ' ');
 
-  // Extract the specific digits being worked on (right-to-left indexing)
-  const leftIdx = maxLen - 2; // Tens place
-  const rightIdx = maxLen - 1; // Units place
+  const leftIdx = maxLen - 2;
+  const rightIdx = maxLen - 1;
 
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-inner border-2 border-slate-100 font-mono text-4xl md:text-5xl font-black w-full max-w-sm mx-auto">
-      {/* Carry Row */}
       <div className="flex w-full mb-2 text-indigo-400 text-2xl h-8">
         <div className="flex-1"></div>
         <div className={`flex-1 text-center transition-all ${isTensActive && step >= 2 && carry ? 'opacity-100 scale-110 text-rose-500' : 'opacity-0'}`}>
@@ -178,22 +178,16 @@ const PlaceValueChart = ({ computed, step }) => {
         </div>
         <div className="flex-1 text-center"></div>
       </div>
-
-      {/* Top Number (A) */}
       <div className="flex w-full text-slate-700 mb-2">
         <div className="flex-1 text-center text-transparent">-</div>
         <div className={`flex-1 text-center transition-colors ${isTensActive ? 'text-indigo-600' : ''}`}>{aStr[leftIdx] !== ' ' ? aStr[leftIdx] : ''}</div>
         <div className={`flex-1 text-center transition-colors ${isUnitsActive ? 'text-indigo-600' : ''}`}>{aStr[rightIdx]}</div>
       </div>
-
-      {/* Bottom Number (B) & Operator */}
       <div className="flex w-full text-slate-700 mb-4 pb-4 border-b-4 border-slate-300">
         <div className="flex-1 text-center text-slate-400">{operation}</div>
         <div className={`flex-1 text-center transition-colors ${isTensActive ? 'text-indigo-600' : ''}`}>{bStr[leftIdx] !== ' ' ? bStr[leftIdx] : ''}</div>
         <div className={`flex-1 text-center transition-colors ${isUnitsActive ? 'text-indigo-600' : ''}`}>{bStr[rightIdx]}</div>
       </div>
-
-      {/* Answer Row */}
       <div className="flex w-full text-slate-800">
         <div className="flex-1"></div>
         <div className={`flex-1 text-center transition-all ${step >= 3 ? 'opacity-100 text-emerald-600 transform scale-110' : 'opacity-0'}`}>{ansStr[leftIdx] !== ' ' ? ansStr[leftIdx] : ''}</div>
@@ -204,16 +198,22 @@ const PlaceValueChart = ({ computed, step }) => {
 };
 
 // --- MAIN QUIZ ENGINE ---
-export default function QuizEngine({ world, student, subject, onClose, onComplete }) {
+export default function QuizEngine({ world, student, subject, onClose, onComplete, questionCount = 10 }) {
   const [sessionQuestions, setSessionQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [timeLeft, setTimeLeft] = useState(45);
   const [generating, setGenerating] = useState(true);
+  
+  // Continuous Checkpoint State & Gamification
   const [finished, setFinished] = useState(false);
+  const [totalScore, setTotalScore] = useState(0); // Cumulative points
+  const [streak, setStreak] = useState(0); // Current correct streak
+  const [sessionCount, setSessionCount] = useState(0); // Quests completed this sitting
+  
   const [results, setResults] = useState({ score: 0, answers: [] });
   
-  // Explanation & Interactive Stepper State
+  // Scaffolding State
   const [showInteractiveExplanation, setShowInteractiveExplanation] = useState(false);
   const [explanationStep, setExplanationStep] = useState(0);
   const [explanationData, setExplanationData] = useState(null);
@@ -224,19 +224,39 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
 
   const timerRef = useRef(null);
 
-  useEffect(() => {
+  // Fetch logic abstracted so we can re-call it for continuous journeys
+  const fetchQuestions = useCallback(() => {
     setGenerating(true);
     generateSessionQuestions(
       student?.year || 4, 
       student?.region || "UK", 
-      5, 
+      questionCount, 
       student?.proficiency || 50, 
       subject || "maths"
     ).then(qs => {
       setSessionQuestions(qs); 
+      setQIdx(0);
+      setSelected(null);
+      setExplanationData(null);
+      setShowInteractiveExplanation(false);
+      setExplanationStep(0);
+      setEibText("");
+      setEibFeedback("");
+      setTimeLeft(45);
       setGenerating(false);
     });
-  }, [student?.year, student?.region, student?.proficiency, subject]);
+  }, [student?.year, student?.region, student?.proficiency, subject, questionCount]);
+
+  // Solution 1: Reset state when props change (re-mounts & topic switches)
+  useEffect(() => {
+    setFinished(false);
+    setResults({ score: 0, answers: [] });
+    // Resetting score/streak on prop change keeps it tied to the current specific session parameters
+    setTotalScore(0);
+    setStreak(0);
+    setSessionCount(0);
+    fetchQuestions();
+  }, [student?.year, student?.region, student?.proficiency, subject, questionCount, fetchQuestions]);
 
   const handlePick = useCallback((idx) => {
     if (selected !== null) return;
@@ -244,11 +264,15 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
     setSelected(idx);
     
     const currQ = sessionQuestions[qIdx];
+    const isCorrect = idx === currQ.a;
     
-    if (idx === currQ.a) {
+    if (isCorrect) {
        setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, { q: currQ.q, correct: true }] }));
+       setTotalScore(prev => prev + 10); // Award 10 points
+       setStreak(prev => prev + 1); // Increase streak
     } else {
        setResults(r => ({ ...r, answers: [...r.answers, { q: currQ.q, correct: false }] }));
+       setStreak(0); // Reset streak
        
        const expData = getExplanationForQuestion(currQ);
        if (expData) setExplanationData(expData);
@@ -275,65 +299,139 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
 
   const next = () => {
     if (qIdx < sessionQuestions.length - 1) {
-      setQIdx(qIdx + 1); setSelected(null); setTimeLeft(45);
-      setExplanationData(null); setShowInteractiveExplanation(false); setExplanationStep(0);
-      setEibText(""); setEibFeedback("");
+      setQIdx(qIdx + 1); 
+      setSelected(null); 
+      setTimeLeft(45);
+      setExplanationData(null); 
+      setShowInteractiveExplanation(false); 
+      setExplanationStep(0);
+      setEibText(""); 
+      setEibFeedback("");
     } else {
+      setSessionCount(prev => prev + 1);
       setFinished(true);
-      if (onComplete) onComplete(results);
     }
   };
 
-  if (generating) return <div className="p-10 text-center text-xl font-black text-slate-400">Loading Quest...</div>;
-  if (finished) return <div className="p-10 text-center text-3xl font-black text-indigo-600">Quest Complete!</div>;
+  if (generating) return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[40px] p-10 text-center max-w-sm w-full shadow-2xl animate-pulse">
+         <BrainIcon size={64} className="mx-auto text-indigo-500 mb-6" />
+         <h3 className="text-2xl font-black text-slate-800 mb-2">Preparing Quest...</h3>
+         <p className="text-slate-500 font-bold">Summoning new challenges.</p>
+      </div>
+    </div>
+  );
+
+  // --- Solution 2: The Continuous Checkpoint Screen ---
+  if (finished) return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[40px] p-8 md:p-12 text-center max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
+        
+        {/* Century Club Badge Celebration */}
+        {totalScore >= 100 && (
+           <div className="absolute top-0 left-0 right-0 bg-amber-400 text-amber-900 font-black py-2 uppercase tracking-widest text-xs flex justify-center items-center gap-2 shadow-sm">
+             <StarIcon size={14}/> Century Club Achieved! <StarIcon size={14}/>
+           </div>
+        )}
+
+        <TrophyIcon size={80} className={`mx-auto mb-6 drop-shadow-md mt-4 ${totalScore >= 100 ? 'text-amber-500' : 'text-indigo-400'}`} />
+        <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">Checkpoint Reached!</h2>
+        
+        <p className="text-slate-500 font-bold mb-6 text-lg">
+          You scored {results.score} out of {sessionQuestions.length} this round.
+        </p>
+
+        <div className="flex justify-center gap-4 mb-8">
+           <div className="bg-amber-50 px-4 py-2 rounded-xl border border-amber-200 flex items-center gap-2">
+              <FlameIcon size={20} className="text-amber-500"/>
+              <div className="text-left leading-tight">
+                 <div className="text-[10px] font-black uppercase text-amber-600 tracking-wider">Current Streak</div>
+                 <div className="font-black text-amber-700 text-xl">{streak}</div>
+              </div>
+           </div>
+           <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200 flex items-center gap-2">
+              <StarIcon size={20} className="text-emerald-500"/>
+              <div className="text-left leading-tight">
+                 <div className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Total Points</div>
+                 <div className="font-black text-emerald-700 text-xl">{totalScore}</div>
+              </div>
+           </div>
+        </div>
+        
+        <div className="flex flex-col gap-4">
+          <button 
+            onClick={() => {
+              setFinished(false);
+              setResults({ score: 0, answers: [] });
+              fetchQuestions(); // Retains totalScore and streak for continuous play!
+            }} 
+            className="w-full bg-indigo-600 text-white font-black py-5 rounded-[24px] hover:bg-indigo-700 hover:scale-[1.02] transition-all text-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            Practice Again <ArrowRightIcon size={24}/>
+          </button>
+          
+          <button 
+            onClick={() => onClose ? onClose() : null} 
+            className="w-full bg-slate-100 text-slate-600 font-black py-4 rounded-[24px] hover:bg-slate-200 transition-all text-lg"
+          >
+            Change Topic / Exit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const q = sessionQuestions[qIdx];
+  if (!q) return null;
 
-  // Derive if the user is allowed to proceed to the next question yet
-  const isCorrect = selected === q.a;
+  const isCorrectAnswer = selected === q.a;
   const finishedExplanation = showInteractiveExplanation && explanationData && explanationStep === explanationData.steps.length - 1;
   const hasEIBFeedback = !!eibFeedback;
-  const canProceed = isCorrect || (selected !== null && !isCorrect && (hasEIBFeedback || finishedExplanation));
+  const canProceed = isCorrectAnswer || (selected !== null && !isCorrectAnswer && (hasEIBFeedback || finishedExplanation));
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-4 md:p-8 text-slate-900">
       <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] relative">
         
-        {/* Progress Bar */}
         <div className="h-3 bg-slate-100 shrink-0">
           <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${((qIdx + 1) / sessionQuestions.length) * 100}%` }} />
         </div>
 
-        {/* Content Viewport with explicit bottom padding to prevent hidden buttons */}
         <div className="p-6 md:p-10 pb-24 flex-1 overflow-y-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-             <span className="font-black text-indigo-500 uppercase tracking-widest text-sm bg-indigo-50 px-4 py-2 rounded-xl">Q{qIdx + 1} of {sessionQuestions.length}</span>
+          {/* Enhanced Header with Live Stats */}
+          <div className="flex justify-between items-center mb-8 border-b-2 border-slate-100 pb-6">
+             <div className="flex items-center gap-3">
+               <span className="font-black text-indigo-500 uppercase tracking-widest text-sm bg-indigo-50 px-4 py-2 rounded-xl">Q{qIdx + 1} of {sessionQuestions.length}</span>
+               
+               {/* Live Gamification HUD */}
+               <div className="hidden md:flex items-center gap-4 ml-4 px-4 py-2 border-l-2 border-slate-200">
+                 <div className="flex items-center gap-1 font-black text-amber-500 text-sm"><FlameIcon size={18}/> {streak}</div>
+                 <div className="flex items-center gap-1 font-black text-emerald-500 text-sm"><StarIcon size={18}/> {totalScore}</div>
+               </div>
+             </div>
              
              <div className="flex items-center gap-4">
                <div className={`text-2xl font-black ${timeLeft < 5 ? "text-rose-500 animate-pulse" : "text-slate-800"}`}>00:{timeLeft.toString().padStart(2, '0')}</div>
-               <button onClick={onClose} className="text-slate-400 hover:text-rose-500 transition-colors p-2" title="Close Quest">
-                 <XCircleIcon size={28}/>
+               <button onClick={onClose} className="text-slate-400 hover:text-rose-500 transition-colors p-2 bg-slate-50 rounded-full" title="Save & Exit">
+                 <XCircleIcon size={24}/>
                </button>
              </div>
           </div>
 
-          {/* Question Text */}
           <h3 className="text-3xl md:text-5xl font-black leading-tight text-slate-800 mb-10">{q.q}</h3>
 
-          {/* Optional Initial Visualizer */}
           {q.visual && <div className="mb-8 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200 text-center text-4xl tracking-widest">{q.visual}</div>}
 
-          {/* Options Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {q.opts.map((opt, i) => {
               const isSelected = selected === i;
-              const isCorrectAnswer = i === q.a;
+              const isOptionCorrect = i === q.a;
               const isAnswered = selected !== null;
 
               let btnClasses = "bg-white border-slate-200 hover:border-indigo-500 text-slate-700";
               if (isAnswered) {
-                if (isCorrectAnswer) btnClasses = "bg-emerald-50 border-emerald-500 text-emerald-700 ring-4 ring-emerald-100 z-10 scale-[1.02]";
+                if (isOptionCorrect) btnClasses = "bg-emerald-50 border-emerald-500 text-emerald-700 ring-4 ring-emerald-100 z-10 scale-[1.02]";
                 else if (isSelected) btnClasses = "bg-rose-50 border-rose-500 text-rose-700 ring-4 ring-rose-100 z-10 scale-[1.02]";
                 else btnClasses = "bg-white border-slate-200 opacity-40 grayscale";
               }
@@ -342,15 +440,14 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
                 <button key={i} disabled={isAnswered} onClick={() => handlePick(i)} className={`w-full text-left p-6 md:p-8 rounded-[24px] font-black border-2 transition-all duration-300 text-2xl relative ${btnClasses}`}>
                   <div className="flex justify-between items-center">
                     <span>{opt}</span>
-                    {isAnswered && isCorrectAnswer && <CheckCircleIcon className="text-emerald-500" size={32} />}
-                    {isAnswered && isSelected && !isCorrectAnswer && <XCircleIcon className="text-rose-500" size={32} />}
+                    {isAnswered && isOptionCorrect && <CheckCircleIcon className="text-emerald-500" size={32} />}
+                    {isAnswered && isSelected && !isOptionCorrect && <XCircleIcon className="text-rose-500" size={32} />}
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {/* POST-ANSWER FEEDBACK ZONE */}
           {selected !== null && (
             <div className="mt-8 animate-in slide-in-from-bottom-4 space-y-6 border-t-2 border-slate-100 pt-8">
               
@@ -359,8 +456,7 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
                 <p className="font-bold text-slate-800 text-xl">{q.exp}</p>
               </div>
 
-              {/* BRANCHING: Student got it wrong -> Show Help Options */}
-              {selected !== q.a && !showInteractiveExplanation && (
+              {!isCorrectAnswer && !showInteractiveExplanation && (
                 <div className="flex flex-col md:flex-row gap-4">
                    {explanationData && (
                      <button 
@@ -380,7 +476,6 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
                 </div>
               )}
 
-              {/* INTERACTIVE EXPLANATION STEPPER UI */}
               {showInteractiveExplanation && explanationData && (
                 <div className="bg-indigo-50 p-6 md:p-10 rounded-[32px] border-2 border-indigo-200 shadow-inner animate-in zoom-in-95 duration-300">
                   <div className="flex justify-between items-center mb-6">
@@ -425,8 +520,7 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
                 </div>
               )}
 
-              {/* TRADITIONAL EXPLAIN IT BACK UI */}
-              {selected !== q.a && !showInteractiveExplanation && (
+              {!isCorrectAnswer && !showInteractiveExplanation && (
                 <div className="p-6 md:p-8 bg-amber-50 rounded-[32px] border-2 border-amber-200 mt-4">
                   <p className="text-amber-800 font-bold mb-4 text-lg">Or, try teaching Tara why <span className="underline font-black">{q.opts[q.a]}</span> is correct:</p>
                   <textarea id="eib-box" value={eibText} onChange={e => setEibText(e.target.value)} className="w-full p-5 rounded-2xl border-2 border-amber-100 font-bold mb-4 focus:outline-none focus:border-amber-400 bg-white shadow-inner text-lg" rows={3} placeholder="Explain your thinking here..." />
@@ -437,11 +531,10 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
                 </div>
               )}
 
-              {/* NEXT QUEST BUTTON (Fixed Visibility Logic) */}
               {canProceed && (
                 <div className="pt-6 mt-6 border-t-2 border-slate-100 animate-in fade-in zoom-in-95 duration-300">
                   <button onClick={next} className="w-full bg-slate-900 text-white font-black py-6 rounded-[24px] flex items-center justify-center gap-3 shadow-xl hover:bg-black transition-all text-xl">
-                    {qIdx === sessionQuestions.length - 1 ? "Complete Journey" : "Next Quest"} <ArrowRightIcon size={24} />
+                    {qIdx === sessionQuestions.length - 1 ? "Complete Checkpoint" : "Next Question"} <ArrowRightIcon size={24} />
                   </button>
                 </div>
               )}
