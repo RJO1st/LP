@@ -1,61 +1,64 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
-// --- INLINED DEPENDENCIES FOR PREVIEW COMPILATION ---
-const TrophyIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+// --- MOCKS FOR PREVIEW ENVIRONMENT ---
+// These mocks allow the component to render in the preview without external dependencies.
+const useRouter = () => ({
+  push: (path) => console.log(`Navigating to: ${path}`),
+});
+
+const createBrowserClient = () => ({
+  auth: {
+    signUp: async () => ({ error: null }),
+    signInWithPassword: async () => ({ error: null }),
+  }
+});
+
+// Inline Icons to resolve import errors
+const TrophyIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
 );
 
-const BrainIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9.5 2A5 5 0 0 1 12 7.33A5 5 0 0 1 14.5 2"/><path d="M17 15a5 5 0 1 1-5 5"/><path d="M2 9a5 5 0 0 1 7-4.5h.5a5 5 0 0 1 4.5 7v.5a5 5 0 0 1-7 4.5H6.5a5 5 0 0 1-4.5-7Z"/><path d="M22 9a5 5 0 0 0-7-4.5h-.5a5 5 0 0 0-4.5 7v.5a5 5 0 0 0 7 4.5h.5a5 5 0 0 0 4.5-7Z"/></svg>
+const BrainIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A5 5 0 0 1 12 7.33A5 5 0 0 1 14.5 2"/><path d="M17 15a5 5 0 1 1-5 5"/><path d="M2 9a5 5 0 0 1 7-4.5h.5a5 5 0 0 1 4.5 7v.5a5 5 0 0 1-7 4.5H6.5a5 5 0 0 1-4.5-7Z"/><path d="M22 9a5 5 0 0 0-7-4.5h-.5a5 5 0 0 0-4.5 7v.5a5 5 0 0 0 7 4.5h.5a5 5 0 0 0 4.5-7Z"/></svg>
 );
 
-const UsersIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+const UsersIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
 
 const ArrowRightIcon = ({ size = 24, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
 );
 
-const ShieldCheckIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+const ShieldCheckIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
 );
 
-const ZapIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+const ZapIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
 );
 
-const StarIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+const StarIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
 );
 
-const CheckCircleIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+const XCircleIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
 );
-
-const XCircleIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-);
-
-// Mock Supabase for preview functionality
-const supabase = {
-  auth: {
-    signUp: async () => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 1000)),
-    signInWithPassword: async () => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 1000)),
-  }
-};
-// ----------------------------------------------------
+// -------------------------------------
 
 export default function Gateway() {
-  const [activeModal, setActiveModal] = useState(null); // 'parent_login', 'parent_signup', 'student_login'
+  const [activeModal, setActiveModal] = useState(null); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [scholarCode, setScholarCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const router = useRouter();
+  const supabase = createBrowserClient();
 
-  // --- SUPABASE AUTHENTICATION LOGIC ---
   const handleParentAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -66,6 +69,9 @@ export default function Gateway() {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         });
         if (signUpError) throw signUpError;
         alert("Welcome to Quest Academy! Check your email to verify your account.");
@@ -76,8 +82,7 @@ export default function Gateway() {
           password,
         });
         if (signInError) throw signInError;
-        alert("Successfully signed in! (Redirecting to Dashboard...)");
-        setActiveModal(null);
+        router.push("/parent");
       }
     } catch (err) {
       setError(err.message);
@@ -86,16 +91,10 @@ export default function Gateway() {
     }
   };
 
-  const handleStudentAuth = (e) => {
+  const handleStudentAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // In production, this verifies the scholar's unique PIN against Supabase
-    // to load their specific profile without needing an email.
-    setTimeout(() => {
-      alert("Scholar PIN Verified! (Redirecting to Student Realm...)");
-      setLoading(false);
-      setActiveModal(null);
-    }, 1500);
+    router.push("/student");
   };
 
   return (
@@ -178,137 +177,47 @@ export default function Gateway() {
             </div>
           </div>
         </section>
-
-        {/* --- PRICING SECTION --- */}
-        <section id="pricing" className="px-6 py-24 bg-slate-900 text-white">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-black mb-4">Simple, transparent pricing.</h2>
-              <p className="text-xl text-slate-400 font-bold">Invest in their future, cancel anytime.</p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* Basic Tier */}
-              <div className="bg-slate-800 p-10 rounded-[40px] border-2 border-slate-700">
-                <h3 className="text-2xl font-black mb-2">Scholar Basic</h3>
-                <p className="text-slate-400 font-bold mb-6">For casual practice.</p>
-                <div className="text-5xl font-black mb-8">Free</div>
-                <ul className="space-y-4 mb-10 font-bold text-slate-300">
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-emerald-500" /> 1 Scholar Profile</li>
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-emerald-500" /> Local Progress Tracking</li>
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-emerald-500" /> Standard Procedural Quests</li>
-                </ul>
-                <button onClick={() => setActiveModal("parent_signup")} className="w-full py-4 rounded-full font-black border-2 border-slate-600 hover:bg-slate-700 transition-all">Start Free</button>
-              </div>
-
-              {/* Pro Tier */}
-              <div className="bg-gradient-to-b from-indigo-600 to-indigo-900 p-10 rounded-[40px] border-4 border-indigo-400 shadow-2xl shadow-indigo-500/20 relative">
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-900 px-4 py-1 rounded-full font-black text-sm uppercase tracking-widest">Most Popular</div>
-                <h3 className="text-2xl font-black mb-2 text-white">Academy Pro</h3>
-                <p className="text-indigo-200 font-bold mb-6">Full mastery toolkit.</p>
-                <div className="text-5xl font-black mb-8 text-white">£9.99<span className="text-xl text-indigo-300">/mo</span></div>
-                <ul className="space-y-4 mb-10 font-bold text-indigo-100">
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-amber-400" /> Unlimited Scholars</li>
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-amber-400" /> Secure Cloud Vault Sync</li>
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-amber-400" /> AI "Explain it Back" Coach</li>
-                  <li className="flex items-center gap-3"><CheckCircleIcon className="text-amber-400" /> Live Parent Analytics</li>
-                </ul>
-                <button onClick={() => setActiveModal("parent_signup")} className="w-full py-4 rounded-full font-black bg-white text-indigo-900 hover:bg-indigo-50 transition-all shadow-xl">Upgrade to Pro</button>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
-      {/* ========================================= */}
-      {/* AUTH MODALS                  */}
-      {/* ========================================= */}
-
+      {/* PARENT AUTH MODAL */}
       {activeModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl relative overflow-hidden">
-            
-            {/* Modal Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-xl font-black text-slate-800">
-                {activeModal === 'student_login' ? "Enter the Academy" : activeModal === 'parent_signup' ? "Create Parent Account" : "Parent Sign In"}
+                {activeModal === 'student_login' ? "Enter Academy" : activeModal === 'parent_signup' ? "Create Account" : "Parent Sign In"}
               </h3>
               <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
                 <XCircleIcon size={28} />
               </button>
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="mx-6 mt-6 p-4 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm border border-rose-100">
-                {error}
-              </div>
-            )}
+            {error && <div className="mx-6 mt-6 p-4 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm border border-rose-100">{error}</div>}
 
-            {/* PARENT AUTH FORM */}
             {(activeModal === 'parent_login' || activeModal === 'parent_signup') && (
               <form onSubmit={handleParentAuth} className="p-6 space-y-5">
                 <div>
                   <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Email Address</label>
-                  <input 
-                    type="email" 
-                    required 
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" 
-                    placeholder="parent@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <input type="email" required className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Password</label>
-                  <input 
-                    type="password" 
-                    required 
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" 
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <input type="password" required className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold focus:border-indigo-500 outline-none transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
                 <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50">
                   {loading ? "Authenticating..." : activeModal === 'parent_signup' ? "Create Account" : "Secure Sign In"}
                 </button>
-                
-                <p className="text-center text-sm font-bold text-slate-500 pt-2">
-                  {activeModal === 'parent_signup' ? "Already have an account? " : "New to Quest Academy? "}
-                  <button type="button" onClick={() => setActiveModal(activeModal === 'parent_signup' ? 'parent_login' : 'parent_signup')} className="text-indigo-600 hover:underline">
-                    {activeModal === 'parent_signup' ? "Sign In" : "Sign Up"}
-                  </button>
-                </p>
               </form>
             )}
 
-            {/* STUDENT LOGIN FORM */}
             {activeModal === 'student_login' && (
               <form onSubmit={handleStudentAuth} className="p-6 space-y-6">
-                <div className="text-center mb-6">
-                  <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <BrainIcon size={40} />
-                  </div>
-                  <p className="text-slate-500 font-bold">Enter the 6-digit Scholar Code provided by your parent to access your specific journey.</p>
-                </div>
-                <div>
-                  <input 
-                    type="text" 
-                    required 
-                    maxLength={6}
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-center text-2xl tracking-[0.5em] focus:border-indigo-500 outline-none transition-all uppercase" 
-                    placeholder="XXXXXX"
-                    value={scholarCode}
-                    onChange={(e) => setScholarCode(e.target.value)}
-                  />
-                </div>
+                <input type="text" required maxLength={6} className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-center text-2xl tracking-[0.5em] focus:border-indigo-500 outline-none transition-all uppercase" placeholder="XXXXXX" value={scholarCode} onChange={(e) => setScholarCode(e.target.value)} />
                 <button type="submit" disabled={loading || scholarCode.length < 4} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                  {loading ? "Loading Realm..." : "Enter Academy"} <ArrowRightIcon size={20} />
+                  {loading ? "Loading..." : "Enter Academy"} <ArrowRightIcon size={20} />
                 </button>
               </form>
             )}
-
           </div>
         </div>
       )}
