@@ -97,6 +97,9 @@ const getExplanationForQuestion = (question) => {
   if (!question?.vars || !question?.topic || question.subject !== 'maths') return null;
   const { vars, topic } = question;
   
+  // Year 1/2 don't need complex steppers
+  if (topic === 'simple_maths') return null;
+
   const baseTopic = topic.split('_')[0]; 
   const availableTemplates = Object.keys(mathsTemplates)
        .filter(k => k.startsWith(baseTopic))
@@ -113,95 +116,118 @@ const getExplanationForQuestion = (question) => {
 const generateLocalMaths = (year = 4, difficultyMultiplier = 1) => {
   const op = Math.random();
   let q, ans, exp, topic, visual;
-  const maxNum = Math.floor(year * 25 * difficultyMultiplier); 
   let a, b;
 
-  if (op < 0.5) {
-    a = Math.floor(Math.random() * maxNum) + (year * 5);
-    b = Math.floor(Math.random() * maxNum) + 1;
-    ans = a + b;
-    topic = 'addition';
-    q = `Calculate: ${a} + ${b}`;
-    exp = `Add the units, then the tens. ${a} + ${b} = ${ans}.`;
-    if (year <= 2 && ans <= 20) visual = `${Array(a).fill("🟦").join("")} + ${Array(b).fill("🟧").join("")}`;
+  // AGE APPROPRIATE BRANCHING
+  if (year <= 2) {
+    if (op < 0.5) {
+      // Y1/Y2 Addition (up to 20 max)
+      const max = year === 1 ? 10 : 20;
+      a = Math.floor(Math.random() * (max/2)) + 1;
+      b = Math.floor(Math.random() * (max/2)) + 1;
+      ans = a + b;
+      topic = 'simple_maths';
+      q = `What is ${a} + ${b}?`;
+      exp = `Count the items together: ${a} and ${b} more makes ${ans}.`;
+      visual = `${Array(a).fill("🍎").join("")} + ${Array(b).fill("🍏").join("")}`;
+    } else {
+      // Y1/Y2 Subtraction (up to 15 max)
+      a = Math.floor(Math.random() * 10) + 5; 
+      b = Math.floor(Math.random() * (a - 1)) + 1;
+      ans = a - b;
+      topic = 'simple_maths';
+      q = `What is ${a} - ${b}?`;
+      exp = `Start with ${a} and take away ${b}, leaving ${ans}.`;
+      visual = `${Array(ans).fill("🍎").join("")}${Array(b).fill("❌").join("")}`;
+    }
   } else {
-    a = Math.floor(Math.random() * maxNum) + 30;
-    b = Math.floor(Math.random() * a) + 1;
-    ans = a - b;
-    topic = 'subtraction';
-    q = `Calculate: ${a} - ${b}`;
-    exp = `Subtract ${b} from ${a} to get ${ans}.`;
+    // Y3+ Advanced Maths
+    const maxNum = Math.floor(year * 25 * difficultyMultiplier); 
+    if (op < 0.5) {
+      a = Math.floor(Math.random() * maxNum) + (year * 5);
+      b = Math.floor(Math.random() * maxNum) + 1;
+      ans = a + b;
+      topic = 'addition';
+      q = `Calculate: ${a} + ${b}`;
+      exp = `Add the units, then the tens. ${a} + ${b} = ${ans}.`;
+    } else {
+      a = Math.floor(Math.random() * maxNum) + 30;
+      b = Math.floor(Math.random() * a) + 1;
+      ans = a - b;
+      topic = 'subtraction';
+      q = `Calculate: ${a} - ${b}`;
+      exp = `Subtract ${b} from ${a} to get ${ans}.`;
+    }
   }
 
-  const wrong1 = ans + Math.floor(Math.random() * 5) + 1;
-  const wrong2 = ans - (Math.floor(Math.random() * 3) + 1);
-  const wrong3 = ans + 10;
-  const opts = shuffle([String(ans), String(wrong1), String(wrong2), String(wrong3)]);
+  // Generate plausible string options and ensure absolute uniqueness
+  let rawOptions = [ans, ans + 1, Math.max(0, ans - 1), ans + 2];
+  if (year > 2) {
+     rawOptions = [ans, ans + Math.floor(Math.random() * 5) + 1, ans - (Math.floor(Math.random() * 3) + 1), ans + 10];
+  }
+  let uniqueOpts = Array.from(new Set(rawOptions));
+  while(uniqueOpts.length < 4) { uniqueOpts.push(uniqueOpts[0] + Math.floor(Math.random()*5) + 3); uniqueOpts = Array.from(new Set(uniqueOpts)); }
   
+  const opts = shuffle(uniqueOpts.map(String));
   return { q, opts, a: opts.indexOf(String(ans)), exp, subject: 'maths', visual, vars: { a, b }, topic };
 };
 
 const generateLocalEnglish = (year = 4) => {
-  const types = [
-    {
-      q: "Identify the VERB in this sentence: The brave knight fought bravely.",
-      opts: ["brave", "knight", "fought", "bravely"],
-      a: 2,
-      exp: "A verb is a doing or action word. 'fought' is the action here."
-    },
-    {
-      q: "Identify the ADJECTIVE in this sentence: The ancient castle stood silently.",
-      opts: ["ancient", "castle", "stood", "silently"],
-      a: 0,
-      exp: "An adjective describes a noun. 'ancient' describes the castle."
-    },
-    {
-      q: "Identify the ADVERB in this sentence: The mysterious wizard whispered quietly.",
-      opts: ["mysterious", "wizard", "whispered", "quietly"],
-      a: 3,
-      exp: "An adverb describes how a verb is done. 'quietly' describes how he whispered."
-    }
-  ];
+  let types = [];
+  
+  // AGE APPROPRIATE BRANCHING
+  if (year <= 2) {
+    types = [
+      { q: "Which word rhymes with CAT?", opts: ["BAT", "DOG", "PIG", "SUN"], a: 0, exp: "CAT and BAT sound the same at the end." },
+      { q: "What is the missing letter? D _ G (an animal that barks)", opts: ["O", "A", "E", "I"], a: 0, exp: "D-O-G spells DOG." },
+      { q: "Choose the correct spelling:", opts: ["Apple", "Appul", "Aple", "Aplle"], a: 0, exp: "The fruit is spelled A-P-P-L-E." }
+    ];
+  } else {
+    types = [
+      { q: "Identify the VERB in this sentence: The brave knight fought bravely.", opts: ["brave", "knight", "fought", "bravely"], a: 2, exp: "A verb is a doing or action word. 'fought' is the action here." },
+      { q: "Identify the ADJECTIVE in this sentence: The ancient castle stood silently.", opts: ["ancient", "castle", "stood", "silently"], a: 0, exp: "An adjective describes a noun. 'ancient' describes the castle." },
+      { q: "Identify the ADVERB in this sentence: The mysterious wizard whispered quietly.", opts: ["mysterious", "wizard", "whispered", "quietly"], a: 3, exp: "An adverb describes how a verb is done. 'quietly' describes how he whispered." }
+    ];
+  }
   
   const selected = types[Math.floor(Math.random() * types.length)];
-  return { ...selected, subject: 'english', topic: 'grammar' };
+  return { ...selected, subject: 'english', topic: year <= 2 ? 'phonics' : 'grammar' };
 };
 
 const generateLocalVerbal = (year = 4) => {
-  const types = [
-    {
-      q: "Find the next letter in the sequence: A, C, E, G, ?",
-      opts: ["H", "I", "J", "K"],
-      a: 1,
-      exp: "The sequence skips one letter forward each time in the alphabet (+2)."
-    },
-    {
-      q: "If the secret code shifts every letter forward by 1, what is the code for CAT?",
-      opts: ["DBS", "DBU", "BZS", "CBU"],
-      a: 1,
-      exp: "C + 1 = D, A + 1 = B, T + 1 = U. The code is DBU."
-    }
-  ];
+  let types = [];
+  
+  // AGE APPROPRIATE BRANCHING
+  if (year <= 2) {
+    types = [
+      { q: "Which word is the odd one out?", opts: ["Car", "Bus", "Train", "Apple"], a: 3, exp: "Car, Bus, and Train are for traveling. Apple is a fruit." },
+      { q: "Happy is to Sad, as Hot is to...", opts: ["Cold", "Warm", "Sun", "Fire"], a: 0, exp: "Happy and Sad are opposites. The opposite of Hot is Cold." }
+    ];
+  } else {
+    types = [
+      { q: "Find the next letter in the sequence: A, C, E, G, ?", opts: ["H", "I", "J", "K"], a: 1, exp: "The sequence skips one letter forward each time in the alphabet (+2)." },
+      { q: "If the secret code shifts every letter forward by 1, what is the code for CAT?", opts: ["DBS", "DBU", "BZS", "CBU"], a: 1, exp: "C + 1 = D, A + 1 = B, T + 1 = U. The code is DBU." }
+    ];
+  }
   
   const selected = types[Math.floor(Math.random() * types.length)];
-  return { ...selected, subject: 'verbal', topic: 'sequences' };
+  return { ...selected, subject: 'verbal', topic: year <= 2 ? 'vocab' : 'sequences' };
 };
 
 const generateLocalNVR = (year = 4) => {
-  const types = [
-    {
-      q: "Which of these is the odd one out?",
-      opts: ["Triangle", "Square", "Circle", "Red"],
-      a: 3,
-      exp: "Red is a color, while the others are all shapes."
-    },
-    {
-      q: "What comes next in the visual pattern? 🟦 🟧 🟦 🟧 ?",
-      opts: ["🟦", "🟧", "🟩", "🟪"],
-      a: 0,
-      exp: "The pattern simply alternates between Blue and Orange. Next is Blue."
-    }
-  ];
+  let types = [];
+  
+  if (year <= 2) {
+    types = [
+      { q: "Which of these is the odd one out?", opts: ["🔺", "🟥", "🔴", "🐶"], a: 3, exp: "The dog is an animal, while the others are shapes." },
+      { q: "What comes next? 🟦 🟧 🟦 🟧 ?", opts: ["🟦", "🟧", "🟩", "🟪"], a: 0, exp: "The pattern simply alternates between Blue and Orange. Next is Blue." }
+    ];
+  } else {
+     types = [
+      { q: "Which shape does not belong in this sequence?", opts: ["Triangle", "Square", "Circle", "Red"], a: 3, exp: "Red is a color, while the others are all shapes." },
+      { q: "What comes next in the visual pattern? Square, Circle, Triangle, Square, Circle, ?", opts: ["Triangle", "Square", "Circle", "Diamond"], a: 0, exp: "The pattern repeats." }
+    ];
+  }
   
   const selected = types[Math.floor(Math.random() * types.length)];
   return { ...selected, subject: 'nvr', topic: 'patterns' };
@@ -218,14 +244,13 @@ const generateSessionQuestions = async (year, region, count, proficiency, subjec
     } else if (subject === 'nvr') {
       allQuestions.push(generateLocalNVR(year));
     } else if (subject === 'mock') {
-      // Mixed subjects for a mock exam
       const rand = Math.random();
       if (rand < 0.25) allQuestions.push(generateLocalMaths(year));
       else if (rand < 0.5) allQuestions.push(generateLocalEnglish(year));
       else if (rand < 0.75) allQuestions.push(generateLocalVerbal(year));
       else allQuestions.push(generateLocalNVR(year));
     } else {
-      // Default to maths if "maths" or unrecognized
+      // Default to maths
       allQuestions.push(generateLocalMaths(year));
     }
   }
@@ -236,7 +261,7 @@ const fetchClaudeResponse = async () => {
   return "Tara says: That's a great effort! Explaining your thinking is the secret to becoming a master scholar. ✨ Keep going!";
 };
 
-// --- INTERACTIVE VISUAL COMPONENT ---
+// --- INTERACTIVE VISUAL COMPONENT (For Year 3+) ---
 const PlaceValueChart = ({ computed, step }) => {
   if (!computed) return null;
   const { a, b, carry, answer, operation } = computed;
@@ -310,8 +335,11 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
   // Fetch logic abstracted so we can re-call it for continuous journeys
   const fetchQuestions = useCallback(() => {
     setGenerating(true);
+    // Explicitly parse the student year to an integer so the logic branches work perfectly
+    const parsedYear = student?.year ? parseInt(student.year, 10) : 4;
+    
     generateSessionQuestions(
-      student?.year || 4, 
+      parsedYear, 
       student?.region || "UK", 
       questionCount, 
       student?.proficiency || 50, 
@@ -330,11 +358,10 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
     });
   }, [student?.year, student?.region, student?.proficiency, subject, questionCount]);
 
-  // Solution 1: Reset state when props change (re-mounts & topic switches)
+  // Reset state when props change (re-mounts & topic switches)
   useEffect(() => {
     setFinished(false);
     setResults({ score: 0, answers: [] });
-    // Resetting score/streak on prop change keeps it tied to the current specific session parameters
     setTotalScore(0);
     setStreak(0);
     setSessionCount(0);
@@ -406,7 +433,7 @@ export default function QuizEngine({ world, student, subject, onClose, onComplet
     </div>
   );
 
-  // --- Solution 2: The Continuous Checkpoint Screen ---
+  // --- The Continuous Checkpoint Screen ---
   if (finished) return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-4">
       <div className="bg-white rounded-[40px] p-8 md:p-12 text-center max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
