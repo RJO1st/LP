@@ -1,0 +1,214 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import { useRouter } from "next/navigation";
+
+// Placeholder icons - you can replace these with your custom UI icons
+const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+
+export default function ParentDashboard() {
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  
+  // New Student Form State
+  const [username, setUsername] = useState("");
+  const [pinCode, setPinCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push("/auth/parent-login");
+        return;
+      }
+
+      // Fetch students linked to this parent
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .eq("parent_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setStudents(data || []);
+    } catch (err: any) {
+      console.error("Error fetching students:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Insert new student into Supabase
+      const { error } = await supabase
+        .from("students")
+        .insert([
+          {
+            parent_id: user.id,
+            username: username,
+            pin_code: pinCode,
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Reset form and refresh list
+      setUsername("");
+      setPinCode("");
+      setShowModal(false);
+      fetchStudents();
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 md:p-12">
+      <div className="max-w-5xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center mb-12">
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Parent Portal</h1>
+            <p className="text-slate-500 font-bold text-lg mt-2">Manage your explorers</p>
+          </div>
+          <button 
+            onClick={handleSignOut}
+            className="text-slate-500 hover:text-slate-800 font-bold transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+
+        {/* Student Roster */}
+        <div className="mb-8 flex justify-between items-end">
+          <h2 className="text-2xl font-black text-slate-800">Student Roster</h2>
+        </div>
+
+        {loading ? (
+          <div className="text-center text-slate-400 font-bold py-12">Loading academy records...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* Existing Students */}
+            {students.map((student) => (
+              <div key={student.id} className="bg-white rounded-[32px] p-8 shadow-sm border-2 border-slate-100 flex flex-col items-center text-center transition-all hover:shadow-md hover:border-indigo-100">
+                <div className="bg-indigo-100 w-20 h-20 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">
+                  <UserIcon />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-1">{student.username}</h3>
+                <p className="text-slate-400 font-bold text-sm mb-6">PIN: ••••</p>
+                <button className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl py-3 transition-colors">
+                  View Progress
+                </button>
+              </div>
+            ))}
+
+            {/* Add Student Card */}
+            <button 
+              onClick={() => setShowModal(true)}
+              className="bg-emerald-50 border-4 border-dashed border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 rounded-[32px] p-8 flex flex-col items-center justify-center text-center transition-all group min-h-[280px]"
+            >
+              <div className="bg-emerald-200 w-16 h-16 rounded-full flex items-center justify-center text-emerald-700 mb-4 group-hover:scale-110 transition-transform">
+                <PlusIcon />
+              </div>
+              <h3 className="text-xl font-black text-emerald-900">Add Student</h3>
+            </button>
+
+          </div>
+        )}
+
+        {/* Add Student Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-6 z-50 animate-in fade-in">
+            <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl">
+              <h2 className="text-2xl font-black text-slate-900 mb-6">Enroll New Student</h2>
+              
+              {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold">{error}</div>}
+
+              <form onSubmit={handleAddStudent} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Explorer Name (Username)</label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500"
+                    placeholder="e.g. SpaceRanger99"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Secret PIN (4 digits)</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={4}
+                    pattern="\d{4}"
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500"
+                    placeholder="1234"
+                  />
+                  <p className="text-xs text-slate-400 mt-2 font-semibold">Kids will use this PIN to log in.</p>
+                </div>
+
+                <div className="flex gap-4 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl py-4 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl py-4 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Enrolling..." : "Enroll"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
