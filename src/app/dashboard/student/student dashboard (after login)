@@ -1,0 +1,97 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import { useRouter } from "next/navigation";
+import {
+  TrophyIcon, BrainIcon, StarIcon, ArrowRightIcon,
+  CalculatorIcon, BookIcon, SpeechIcon, ShapesIcon, 
+  ShieldCheckIcon, XCircleIcon
+} from "@/components/ui/Icons";
+import QuizEngine from "@/components/game/QuizEngine";
+import MistakeJournal from "@/components/game/MistakeJournal";
+
+const WORLDS = [
+  { id: 1, name: "Meadowlands", year: 1, emoji: "🌱", color: "bg-emerald-500", shadow: "shadow-emerald-200" },
+  { id: 2, name: "Crystal Caves", year: 2, emoji: "💎", color: "bg-blue-500", shadow: "shadow-blue-200" },
+  { id: 3, name: "Sky Islands", year: 3, emoji: "☁️", color: "bg-sky-400", shadow: "shadow-sky-100" },
+  { id: 4, name: "Ancient Library", year: 4, emoji: "📚", color: "bg-violet-500", shadow: "shadow-violet-200" },
+  { id: 5, name: "Forge of Elements", year: 5, emoji: "⚙️", color: "bg-orange-500", shadow: "shadow-orange-200" },
+  { id: 6, name: "Tower of Trials", year: 6, emoji: "🏰", color: "bg-rose-500", shadow: "shadow-rose-200" }
+];
+
+export default function StudentDashboard() {
+  const [scholar, setScholar] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeQuest, setActiveQuest] = useState(null);
+  const [showJournal, setShowJournal] = useState(false);
+  const router = useRouter();
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  useEffect(() => {
+    fetchScholarData();
+  }, []);
+
+  const fetchScholarData = async () => {
+    try {
+      setLoading(true);
+      const scholarId = localStorage.getItem("active_scholar_id");
+      
+      if (!scholarId) {
+        router.push("/auth/student/login");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .eq("id", scholarId)
+        .single();
+
+      if (error || !data) throw new Error("Scholar not found");
+      setScholar(data);
+    } catch (err) {
+      console.error(err);
+      router.push("/auth/student/login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuestComplete = async (results) => {
+    // Logic to update Supabase 'students' total_xp and log results
+    // We will call your /api/submit-quest route for anti-cheat validation
+    try {
+      await fetch('/api/submit-quest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scholarId: scholar.id,
+          subject: activeQuest.subject,
+          answers: results.answers,
+          timeSpent: results.timeSpent
+        })
+      });
+      
+      // Refresh local state to show updated XP
+      fetchScholarData();
+    } catch (err) {
+      console.error("Failed to sync quest results:", err);
+    } finally {
+      setActiveQuest(null);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("active_scholar_id");
+    router.push("/");
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center text-white">
+      <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+      <p className="font
