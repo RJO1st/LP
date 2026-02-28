@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
 
 // --- DYNAMIC TEMPLATE PARSER (The Multiplier Engine) ---
-// This finds placeholders like {a}, {s*s}, or {adj} and replaces them with real numbers/words.
+// This safely solves math inside your question bank.
 const processTemplateString = (str, vars) => {
   if (!str) return str;
   return String(str).replace(/\{([^}]+)\}/g, (match, expr) => {
@@ -60,14 +60,14 @@ export const generateLocalMaths = (year) => {
     ans = a + b;
     q = `Calculate: ${a} + ${b}`;
     exp = `Add the units, then the tens. ${a} + ${b} = ${ans}.`;
-    if (year <= 2 && ans <= 20) visual = `${Array(a).fill("🍎").join("")} + ${Array(b).fill("🍏").join("")}`;
+    if (year <= 2 && ans <= 20) visual = `${Array(a).fill("🔴").join("")} + ${Array(b).fill("🔵").join("")}`;
   } else if (op < 0.5) {
     a = Math.floor(Math.random() * maxNum) + 30;
     b = Math.floor(Math.random() * a) + 1;
     ans = a - b;
     q = `Calculate: ${a} - ${b}`;
     exp = `Subtract ${b} from ${a} to get ${ans}.`;
-    if (year <= 2 && a <= 20) visual = `${Array(a).fill("🍎").join("")} (take away ${b})`;
+    if (year <= 2 && a <= 20) visual = `${Array(a).fill("🔴").join("")} (take away ${b})`;
   } else if (op < 0.75) {
     a = Math.floor(Math.random() * (year + 8)) + 2;
     b = Math.floor(Math.random() * 12) + 2;
@@ -288,7 +288,6 @@ export const generateSessionQuestions = async (year, region, count, proficiency,
                try { parsedOpts = JSON.parse(parsedOpts); } catch(e) { parsedOpts = ["A", "B", "C", "D"]; }
             }
 
-            // Generate fresh random math values and words based on the student's year level
             const baseA = Math.floor(Math.random() * (year * 10)) + 5;
             const baseB = Math.floor(Math.random() * (year * 10)) + 2;
             const vars = {
@@ -297,7 +296,7 @@ export const generateSessionQuestions = async (year, region, count, proficiency,
               largeNum: Math.max(baseA, baseB),
               smallNum: Math.min(baseA, baseB),
               c: Math.floor(Math.random() * (year * 5)) + 1,
-              s: Math.floor(Math.random() * (year * 4)) + 3, // Safe side length (e.g. 3cm to 27cm)
+              s: Math.floor(Math.random() * (year * 4)) + 3,
               x: Math.floor(Math.random() * (year * 8)) + 2,
               y: Math.floor(Math.random() * (year * 8)) + 2,
               noun: NOUNS[Math.floor(Math.random() * NOUNS.length)],
@@ -321,7 +320,6 @@ export const generateSessionQuestions = async (year, region, count, proficiency,
               if (op === '/' || op === '÷') detectedAns = num1 / num2;
             }
             
-            // Expose {ans} securely back to the template parser
             vars.ans = Number.isFinite(detectedAns) ? Math.round(detectedAns * 100) / 100 : detectedAns;
 
             // Create a counting visual for Year 1 and 2 scholars
@@ -337,7 +335,6 @@ export const generateSessionQuestions = async (year, region, count, proficiency,
                 }
             }
 
-            // Evaluate all placeholders in the strings dynamically
             return {
               q: processedQ,
               visual: visual,
