@@ -1,45 +1,82 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { useRouter } from "next/navigation";
 
-// Placeholder icons - you can replace these with your custom UI icons
-const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
-const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+// --- MOCKS FOR CANVAS PREVIEW ENVIRONMENT ---
+// These mock functions allow the dashboard to render and function in the preview canvas
+// without needing the actual Next.js router or Supabase server-side libraries.
+const useRouter = () => ({
+  push: (path) => console.log(`Mock Navigation to: ${path}`)
+});
+
+const createBrowserClient = () => ({
+  auth: {
+    getUser: async () => ({ data: { user: { id: "mock-user-id", email: "parent@example.com" } }, error: null }),
+    signOut: async () => alert("Signed out successfully (Mock)")
+  },
+  from: (table) => ({
+    select: () => ({
+      eq: () => ({
+        order: async () => ({
+          data: [
+            { id: 1, username: "SpaceRanger99", pin_code: "1234", year_level: 4 }
+          ],
+          error: null
+        })
+      })
+    }),
+    insert: async () => ({ error: null })
+  })
+});
+// ---------------------------------------------
+
+// --- ICONS ---
+const PlusIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+const UserIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+const ChartIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>;
+const CreditCardIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>;
+const LogOutIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>;
+const CheckCircleIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 
 export default function ParentDashboard() {
-  const [students, setStudents] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("scholars"); // 'scholars', 'analytics', 'billing'
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [isPro, setIsPro] = useState(false); // Mock subscription state
   
-  // New Student Form State
+  // New Student Form
   const [username, setUsername] = useState("");
   const [pinCode, setPinCode] = useState("");
+  const [yearLevel, setYearLevel] = useState("4");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   const router = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    "mock_url",
+    "mock_key"
   );
 
   useEffect(() => {
-    fetchStudents();
+    fetchUserData();
   }, []);
 
-  const fetchStudents = async () => {
+  const fetchUserData = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.push("/auth/parent-login");
+        router.push("/");
         return;
       }
+      setUserEmail(user.email);
 
-      // Fetch students linked to this parent
+      // In a real app, you'd check a 'subscriptions' table here to set isPro
+      // setIsPro(user.subscription_status === 'active');
+
       const { data, error } = await supabase
         .from("students")
         .select("*")
@@ -48,42 +85,45 @@ export default function ParentDashboard() {
 
       if (error) throw error;
       setStudents(data || []);
-    } catch (err: any) {
-      console.error("Error fetching students:", err.message);
+    } catch (err) {
+      console.error("Error fetching data:", err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddStudent = async (e: React.FormEvent) => {
+  const handleAddStudent = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!isPro && students.length >= 1) {
+        throw new Error("Free accounts are limited to 1 Scholar. Upgrade to Pro to add more!");
+      }
 
-      // Insert new student into Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("students")
-        .insert([
-          {
-            parent_id: user.id,
-            username: username,
-            pin_code: pinCode,
-          }
-        ]);
+        .insert([{
+          parent_id: user.id,
+          username: username,
+          pin_code: pinCode,
+          year_level: parseInt(yearLevel)
+        }]);
 
       if (error) throw error;
 
-      // Reset form and refresh list
       setUsername("");
       setPinCode("");
-      setShowModal(false);
-      fetchStudents();
+      setYearLevel("4");
+      setShowAddModal(false);
       
-    } catch (err: any) {
+      // Manually add the student to local state for the preview environment
+      setStudents(prev => [...prev, { id: Date.now(), username, pin_code: pinCode, year_level: parseInt(yearLevel) }]);
+      
+    } catch (err) {
       setError(err.message);
     } finally {
       setIsSubmitting(false);
@@ -95,85 +135,241 @@ export default function ParentDashboard() {
     router.push("/");
   };
 
+  const handleSubscribe = async () => {
+    // In production, this would call your Next.js API route to create a Stripe Checkout session
+    alert("Redirecting to Stripe Checkout...");
+    // const res = await fetch('/api/checkout', { method: 'POST' });
+    // const { url } = await res.json();
+    // window.location.href = url;
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12">
-      <div className="max-w-5xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-12">
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Parent Portal</h1>
-            <p className="text-slate-500 font-bold text-lg mt-2">Manage your explorers</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900">
+      
+      {/* --- SIDEBAR NAVIGATION --- */}
+      <aside className="w-full md:w-72 bg-white border-r border-slate-200 p-6 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-12 px-2">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <UserIcon />
+            </div>
+            <div>
+              <h1 className="font-black text-xl leading-none tracking-tight">Parent Portal</h1>
+              <p className="text-xs text-slate-400 font-bold mt-1 truncate">{userEmail}</p>
+            </div>
           </div>
-          <button 
-            onClick={handleSignOut}
-            className="text-slate-500 hover:text-slate-800 font-bold transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
 
-        {/* Student Roster */}
-        <div className="mb-8 flex justify-between items-end">
-          <h2 className="text-2xl font-black text-slate-800">Student Roster</h2>
-        </div>
-
-        {loading ? (
-          <div className="text-center text-slate-400 font-bold py-12">Loading academy records...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {/* Existing Students */}
-            {students.map((student) => (
-              <div key={student.id} className="bg-white rounded-[32px] p-8 shadow-sm border-2 border-slate-100 flex flex-col items-center text-center transition-all hover:shadow-md hover:border-indigo-100">
-                <div className="bg-indigo-100 w-20 h-20 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">
-                  <UserIcon />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">{student.username}</h3>
-                <p className="text-slate-400 font-bold text-sm mb-6">PIN: ••••</p>
-                <button className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl py-3 transition-colors">
-                  View Progress
-                </button>
-              </div>
-            ))}
-
-            {/* Add Student Card */}
+          <nav className="space-y-2">
             <button 
-              onClick={() => setShowModal(true)}
-              className="bg-emerald-50 border-4 border-dashed border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 rounded-[32px] p-8 flex flex-col items-center justify-center text-center transition-all group min-h-[280px]"
+              onClick={() => setActiveTab("scholars")} 
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold transition-all ${activeTab === "scholars" ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
             >
-              <div className="bg-emerald-200 w-16 h-16 rounded-full flex items-center justify-center text-emerald-700 mb-4 group-hover:scale-110 transition-transform">
-                <PlusIcon />
-              </div>
-              <h3 className="text-xl font-black text-emerald-900">Add Student</h3>
+              <UserIcon /> My Scholars
             </button>
+            <button 
+              onClick={() => setActiveTab("analytics")} 
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold transition-all ${activeTab === "analytics" ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+            >
+              <ChartIcon /> Progress & Analytics
+            </button>
+            <button 
+              onClick={() => setActiveTab("billing")} 
+              className={`w-full flex items-center justify-between px-4 py-4 rounded-2xl font-bold transition-all ${activeTab === "billing" ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+            >
+              <div className="flex items-center gap-3"><CreditCardIcon /> Billing & Plan</div>
+              {isPro && <span className="bg-amber-400 text-amber-900 text-[10px] uppercase tracking-widest px-2 py-1 rounded-full font-black">Pro</span>}
+            </button>
+          </nav>
+        </div>
 
-          </div>
-        )}
+        <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-4 text-slate-400 hover:text-rose-500 font-bold transition-colors w-full mt-8">
+          <LogOutIcon /> Sign Out
+        </button>
+      </aside>
 
-        {/* Add Student Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-6 z-50 animate-in fade-in">
-            <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl">
-              <h2 className="text-2xl font-black text-slate-900 mb-6">Enroll New Student</h2>
-              
-              {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold">{error}</div>}
+      {/* --- MAIN CONTENT AREA --- */}
+      <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+        <div className="max-w-5xl mx-auto">
+          
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <>
+              {/* TAB 1: SCHOLARS */}
+              {activeTab === "scholars" && (
+                <div className="animate-in fade-in">
+                  <div className="flex justify-between items-end mb-8">
+                    <div>
+                      <h2 className="text-3xl font-black text-slate-800">Your Scholars</h2>
+                      <p className="text-slate-500 font-bold mt-2">Manage access and view individual PIN codes.</p>
+                    </div>
+                  </div>
 
-              <form onSubmit={handleAddStudent} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Explorer Name (Username)</label>
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500"
-                    placeholder="e.g. SpaceRanger99"
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {students.map((student) => (
+                      <div key={student.id} className="bg-white rounded-[32px] p-8 shadow-sm border-2 border-slate-100 flex flex-col items-center text-center transition-all hover:shadow-md hover:border-indigo-200 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
+                        <div className="bg-indigo-50 w-20 h-20 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
+                          <UserIcon />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">{student.username}</h3>
+                        <p className="text-slate-400 font-bold mb-4">Year {student.year_level}</p>
+                        
+                        <div className="bg-slate-50 w-full py-3 rounded-xl border border-slate-200 mb-6">
+                          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Login PIN</p>
+                          <p className="text-2xl font-mono font-black tracking-[0.2em] text-slate-700">{student.pin_code}</p>
+                        </div>
+                        
+                        <button onClick={() => setActiveTab("analytics")} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl py-3 transition-colors">
+                          View Progress
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add Student Button */}
+                    <button 
+                      onClick={() => setShowAddModal(true)}
+                      className="bg-indigo-50/50 border-4 border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-[32px] p-8 flex flex-col items-center justify-center text-center transition-all group min-h-[320px]"
+                    >
+                      <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center text-indigo-600 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                        <PlusIcon />
+                      </div>
+                      <h3 className="text-xl font-black text-indigo-900">Add Scholar</h3>
+                      {!isPro && students.length >= 1 && (
+                        <p className="text-xs text-amber-600 font-bold mt-2 bg-amber-100 px-3 py-1 rounded-full">Requires Pro</p>
+                      )}
+                    </button>
+                  </div>
                 </div>
-                
+              )}
+
+              {/* TAB 2: ANALYTICS (Mocked Data for now) */}
+              {activeTab === "analytics" && (
+                <div className="animate-in fade-in">
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Progress Analytics</h2>
+                  <p className="text-slate-500 font-bold mb-8">Track performance across all 11+ subjects.</p>
+
+                  {students.length === 0 ? (
+                    <div className="bg-white rounded-[32px] p-12 text-center border-2 border-slate-100">
+                      <ChartIcon className="mx-auto text-slate-300 mb-4 w-16 h-16" />
+                      <h3 className="text-xl font-black text-slate-700 mb-2">No Scholars Found</h3>
+                      <p className="text-slate-500 font-bold">Add a student to start tracking their progress.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* High Level Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                          <p className="text-slate-400 font-bold text-sm uppercase tracking-wider mb-2">Quests Completed</p>
+                          <p className="text-4xl font-black text-indigo-600">12</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                          <p className="text-slate-400 font-bold text-sm uppercase tracking-wider mb-2">Average Accuracy</p>
+                          <p className="text-4xl font-black text-emerald-500">84%</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                          <p className="text-slate-400 font-bold text-sm uppercase tracking-wider mb-2">Time Practiced</p>
+                          <p className="text-4xl font-black text-amber-500">2h 15m</p>
+                        </div>
+                      </div>
+
+                      {/* Subject Breakdown */}
+                      <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+                        <h3 className="text-xl font-black mb-6">Subject Mastery</h3>
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex justify-between mb-2 font-bold"><span className="text-slate-700">Mathematics</span><span className="text-slate-500">90%</span></div>
+                            <div className="w-full bg-slate-100 rounded-full h-4"><div className="bg-indigo-500 h-4 rounded-full" style={{width: '90%'}}></div></div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between mb-2 font-bold"><span className="text-slate-700">English Comprehension</span><span className="text-slate-500">75%</span></div>
+                            <div className="w-full bg-slate-100 rounded-full h-4"><div className="bg-emerald-500 h-4 rounded-full" style={{width: '75%'}}></div></div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between mb-2 font-bold"><span className="text-slate-700">Verbal Reasoning</span><span className="text-slate-500">60%</span></div>
+                            <div className="w-full bg-slate-100 rounded-full h-4"><div className="bg-amber-500 h-4 rounded-full" style={{width: '60%'}}></div></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: BILLING & SUBSCRIPTION */}
+              {activeTab === "billing" && (
+                <div className="animate-in fade-in max-w-3xl">
+                  <h2 className="text-3xl font-black text-slate-800 mb-2">Billing & Plan</h2>
+                  <p className="text-slate-500 font-bold mb-8">Manage your Quest Academy subscription.</p>
+
+                  <div className="bg-white rounded-[32px] border-2 border-slate-100 shadow-sm overflow-hidden mb-8">
+                    <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                      <div>
+                        <p className="text-slate-500 font-bold text-sm uppercase tracking-wider mb-1">Current Plan</p>
+                        <h3 className="text-3xl font-black text-slate-900">{isPro ? "Academy Pro" : "Scholar Basic"}</h3>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-slate-500 font-bold text-sm uppercase tracking-wider mb-1">Status</p>
+                        <span className={`px-4 py-2 rounded-full font-black text-sm ${isPro ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                          {isPro ? "Active" : "Free Tier"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-8">
+                      {isPro ? (
+                        <div>
+                          <p className="text-slate-600 font-bold mb-6">Thank you for investing in your child's future. You have access to all premium features including unlimited scholars and AI feedback.</p>
+                          <button className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black px-6 py-3 rounded-xl transition-colors">Manage Stripe Billing</button>
+                        </div>
+                      ) : (
+                        <div>
+                          <ul className="space-y-4 mb-8">
+                            <li className="flex items-center gap-3 text-slate-600 font-bold"><CheckCircleIcon /> Add multiple scholars to one account</li>
+                            <li className="flex items-center gap-3 text-slate-600 font-bold"><CheckCircleIcon /> Deep progress tracking and analytics</li>
+                            <li className="flex items-center gap-3 text-slate-600 font-bold"><CheckCircleIcon /> Unlimited AI 'Explain it Back' tutoring</li>
+                          </ul>
+                          <button onClick={handleSubscribe} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-4 rounded-2xl shadow-lg transition-all hover:-translate-y-1">
+                            Upgrade to Pro (£9.99/mo)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+        </div>
+      </main>
+
+      {/* --- ADD STUDENT MODAL --- */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 z-[100] animate-in fade-in">
+          <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative">
+            <h2 className="text-2xl font-black text-slate-900 mb-6">Enroll New Scholar</h2>
+            
+            {error && <div className="bg-rose-50 text-rose-600 p-4 rounded-xl mb-6 text-sm font-bold border border-rose-100">{error}</div>}
+
+            <form onSubmit={handleAddStudent} className="space-y-5">
+              <div>
+                <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Scholar Username</label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4 font-bold focus:outline-none focus:border-indigo-500"
+                  placeholder="e.g. SpaceRanger99"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Secret PIN (4 digits)</label>
+                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Secret PIN</label>
                   <input
                     type="text"
                     required
@@ -181,34 +377,36 @@ export default function ParentDashboard() {
                     pattern="\d{4}"
                     value={pinCode}
                     onChange={(e) => setPinCode(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4 font-black tracking-widest text-center focus:outline-none focus:border-indigo-500"
                     placeholder="1234"
                   />
-                  <p className="text-xs text-slate-400 mt-2 font-semibold">Kids will use this PIN to log in.</p>
                 </div>
+                <div>
+                  <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-wider">Year Level</label>
+                  <select 
+                    value={yearLevel} 
+                    onChange={(e) => setYearLevel(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4 font-bold focus:outline-none focus:border-indigo-500 appearance-none"
+                  >
+                    {[1,2,3,4,5,6].map(y => <option key={y} value={y}>Year {y}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 font-bold mb-4">Kids use this 4-digit PIN to log in safely.</p>
 
-                <div className="flex gap-4 mt-8">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl py-4 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl py-4 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50"
-                  >
-                    {isSubmitting ? "Enrolling..." : "Enroll"}
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex gap-3 mt-8">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl py-4 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl py-4 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50">
+                  {isSubmitting ? "Enrolling..." : "Enroll Scholar"}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
     </div>
   );
 }
