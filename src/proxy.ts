@@ -1,8 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+export async function proxy(request: NextRequest) {
+  // Create an unmodified response
+  let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -17,34 +18,36 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          // If the cookie is updated, update the cookies for the request and response
           request.cookies.set({
             name,
             value,
             ...options,
           });
-          supabaseResponse = NextResponse.next({
+          response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          supabaseResponse.cookies.set({
+          response.cookies.set({
             name,
             value,
             ...options,
           });
         },
         remove(name: string, options: CookieOptions) {
+          // If the cookie is removed, update the cookies for the request and response
           request.cookies.set({
             name,
             value: '',
             ...options,
           });
-          supabaseResponse = NextResponse.next({
+          response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          supabaseResponse.cookies.set({
+          response.cookies.set({
             name,
             value: '',
             ...options,
@@ -54,35 +57,8 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired - required for Server Components
-  const { data: { user } } = await supabase.auth.getUser();
+  // Refresh the auth token if needed
+  await supabase.auth.getUser();
 
-  // Protect the dashboard routes
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user) {
-      // Redirect unauthenticated users to the parent login page
-      return NextResponse.redirect(new URL('/auth/parent-login', request.url));
-    }
-  }
-
-  // Optional: Redirect logged-in parents away from auth pages
-  if (request.nextUrl.pathname.startsWith('/auth/parent-login') && user) {
-    return NextResponse.redirect(new URL('/dashboard/parent', request.url));
-  }
-
-  return supabaseResponse;
+  return response;
 }
-
-// Specify which routes the middleware should run on
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
