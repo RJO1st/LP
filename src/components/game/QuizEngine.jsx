@@ -102,7 +102,7 @@ export default function QuizEngine({ world, student, subject, mistakes, onComple
     setLoading(true);
     const feedback = await fetchClaudeResponse(
       `Student ${student?.name || "Scholar"} (Year ${student?.year || 5}, ${student?.region || "GL"} 11+ exam) explained why "${currQ.opts[currQ.a]}" is correct for: "${currQ.q}". Their explanation: "${eibText}"`,
-      `You are Sage, a warm encouraging UK 11+ tutor. Address the student directly by name. Give 2-3 sentences of specific feedback. Start positively, gently correct any misunderstanding, end with '⭐ Keep going!'`
+      `You are Tara, a warm encouraging UK 11+ tutor. Address the student directly by name. Give 2-3 sentences of specific feedback. Start positively, gently correct any misunderstanding, end with '⭐ Keep going!'`
     );
     
     eibCache.current[cacheKey] = feedback;
@@ -132,7 +132,7 @@ export default function QuizEngine({ world, student, subject, mistakes, onComple
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-6 text-slate-900">
       <div className="bg-white rounded-[40px] p-12 shadow-2xl text-center max-w-sm w-full">
         <div className="text-6xl mb-6 animate-bounce">🧙</div>
-        <h3 className="text-2xl font-black text-slate-800 mb-3">Sage is preparing...</h3>
+        <h3 className="text-2xl font-black text-slate-800 mb-3">Tara is preparing...</h3>
         <p className="text-slate-500 font-bold mb-8">Consulting the Vault and procedural engine!</p>
         <div className="flex justify-center gap-2">
           {[0,1,2].map(i => <div key={i} className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}}/>)}
@@ -184,10 +184,10 @@ export default function QuizEngine({ world, student, subject, mistakes, onComple
             </div>
           </div>
 
-          {q.passage && (
+          {q.pasTara && (
             <div className="mb-6 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200">
-              <h4 className="font-black text-slate-800 mb-2">Read the passage:</h4>
-              <p className="text-slate-600 font-medium leading-relaxed">{q.passage}</p>
+              <h4 className="font-black text-slate-800 mb-2">Read the pasTara:</h4>
+              <p className="text-slate-600 font-medium leading-relaxed">{q.pasTara}</p>
             </div>
           )}
 
@@ -218,9 +218,9 @@ export default function QuizEngine({ world, student, subject, mistakes, onComple
               {selected !== q.a && !eibFeedback && (
                 <div className="p-6 md:p-8 bg-amber-50 rounded-[32px] border-2 border-amber-200">
                   <h4 className="text-amber-900 font-black text-sm uppercase mb-4 tracking-widest flex items-center gap-2"><ZapIcon size={18}/> Explain It Back</h4>
-                  <p className="text-amber-800 font-bold mb-4 text-lg">Why is <span className="underline font-black">{q.opts[q.a]}</span> correct? Teach Sage:</p>
+                  <p className="text-amber-800 font-bold mb-4 text-lg">Why is <span className="underline font-black">{q.opts[q.a]}</span> correct? Teach Tara:</p>
                   <textarea value={eibText} onChange={e => setEibText(e.target.value)} className="w-full p-5 rounded-2xl border-2 border-amber-100 font-bold mb-4 focus:outline-none focus:border-amber-400 bg-white shadow-inner text-lg" rows={3} />
-                  <button disabled={loading || !eibText.trim()} onClick={handleEIB} className="w-full bg-amber-500 text-white font-black py-5 rounded-2xl shadow-lg transition-all hover:scale-[1.02] text-lg">{loading ? "Sage is listening..." : "Explain it Back ✨"}</button>
+                  <button disabled={loading || !eibText.trim()} onClick={handleEIB} className="w-full bg-amber-500 text-white font-black py-5 rounded-2xl shadow-lg transition-all hover:scale-[1.02] text-lg">{loading ? "Tara is listening..." : "Explain it Back ✨"}</button>
                 </div>
               )}
 
