@@ -1,7 +1,7 @@
-import { supabase } from "../../lib/supabase";
-import { BrainIcon, TrophyIcon, ZapIcon, ShieldCheckIcon /* any other icons */ } from "../../components/ui/Icons";
-import { generateSessionQuestions } from "../../lib/proceduralEngine";
-// Note the "../../" instead of "../"
+"use client";
+import React, { useState, useEffect } from "react";
+import {
+  ArrowRightIcon, TrophyIcon, BookIcon, StarIcon,
   CalculatorIcon, SpeechIcon, ShapesIcon, ShieldCheckIcon, BrainIcon
 } from "../../components/ui/Icons";
 import QuizEngine from "../../components/game/QuizEngine";
@@ -86,9 +86,10 @@ export default function StudentPage() {
   if (!activeStudent) {
     return (
       <div className="min-h-screen bg-[#6366f1] p-6 md:p-12 flex flex-col animate-in fade-in">
-        <Link href="/" className="inline-flex items-center gap-2 text-white/70 hover:text-white font-black mb-12 transition-colors self-start">
+        {/* We use a standard anchor tag here to ensure clean Next.js compilation */}
+        <a href="/" className="inline-flex items-center gap-2 text-white/70 hover:text-white font-black mb-12 transition-colors self-start">
             <ArrowRightIcon className="rotate-180" size={20} /> Back to Gateway
-        </Link>
+        </a>
         
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-center">
           <h1 className="text-5xl md:text-6xl font-black text-white text-center mb-16 tracking-tight">Who's playing?</h1>
