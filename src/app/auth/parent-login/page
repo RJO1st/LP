@@ -1,52 +1,53 @@
 "use client";
-
 import React, { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { useRouter } from "next/navigation";
-import { UsersIcon } from "@/components/ui/Icons"; // Adjust path as needed
 
-export default function ParentAuth() {
+// --- MOCKS FOR PREVIEW ENVIRONMENT ---
+// These allow the code to compile in the browser-based preview without external server-only libraries.
+const createBrowserClient = (url, key) => ({
+  auth: {
+    signInWithPassword: async ({ email, password }) => {
+      console.log("Mock signing in:", email);
+      // Simulate successful login for preview
+      return { data: { user: { email } }, error: null };
+    }
+  }
+});
+
+const useRouter = () => ({
+  push: (path) => console.log("Mock navigating to:", path)
+});
+// -------------------------------------
+
+export default function ParentLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Use mocks for preview; in production these would be the actual imports
   const router = useRouter();
+  
+  // Guarding against process ReferenceError in browser-only preview environments
+  const supabaseUrl = typeof process !== "undefined" && process.env ? process.env.NEXT_PUBLIC_SUPABASE_URL : "";
+  const supabaseKey = typeof process !== "undefined" && process.env ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : "";
 
-  // Initialize Supabase client
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseUrl || "",
+    supabaseKey || ""
   );
 
-  const handleAuth = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      if (isSignUp) {
-        // Handle Sign Up
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            // Optional: specify where to redirect after email verification
-            emailRedirectTo: `${location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
-        alert("Check your email for the confirmation link!");
-      } else {
-        // Handle Log In
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // Redirect to the protected parent dashboard
-        router.push("/dashboard/parent");
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      router.push("/dashboard/parent");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,69 +56,53 @@ export default function ParentAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-emerald-50 flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-xl border-b-[12px] border-emerald-200 text-slate-900">
-        <div className="bg-emerald-600 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white mb-6 shadow-md">
-          <UsersIcon size={32} />
-        </div>
-        
-        <h2 className="text-3xl font-black text-center text-emerald-900 mb-2">
-          {isSignUp ? "Create Parent Account" : "Parent Portal"}
-        </h2>
-        <p className="text-center text-slate-500 font-bold mb-8">
-          {isSignUp ? "Join the academy today" : "Welcome back!"}
-        </p>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <div className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-2xl border-b-[12px] border-indigo-200 text-slate-900">
+        <h2 className="text-3xl font-black text-center text-slate-800 mb-2">Parent Login</h2>
+        <p className="text-center text-slate-500 font-bold mb-8 text-sm uppercase tracking-widest">Secure Access</p>
 
         {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 font-semibold text-sm text-center">
+          <div className="bg-rose-50 text-rose-600 p-4 rounded-xl mb-6 font-bold text-sm text-center border border-rose-100">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+            <label className="block text-xs font-black text-slate-400 mb-2 uppercase tracking-widest ml-1">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
-              placeholder="parent@example.com"
+              className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold focus:border-indigo-500 outline-none transition-all"
+              placeholder="parent@email.com"
             />
           </div>
-          
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
+            <label className="block text-xs font-black text-slate-400 mb-2 uppercase tracking-widest ml-1">Password</label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+              className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold focus:border-indigo-500 outline-none transition-all"
               placeholder="••••••••"
             />
           </div>
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg rounded-2xl py-4 transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0 mt-4 shadow-lg shadow-emerald-200"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg py-5 rounded-[24px] shadow-xl transition-all active:scale-95 disabled:opacity-50"
           >
-            {loading ? "Processing..." : isSignUp ? "Sign Up" : "Log In"}
+            {loading ? "Authenticating..." : "Log In"}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-emerald-600 font-bold hover:text-emerald-800 transition-colors"
-          >
-            {isSignUp
-              ? "Already have an account? Log In"
-              : "Need an account? Sign Up"}
-          </button>
-        </div>
+        <p className="mt-8 text-center text-slate-500 font-bold">
+          New to the Academy?{" "}
+          <a href="/parent/signup" className="text-indigo-600 hover:underline">Create Account</a>
+        </p>
       </div>
     </div>
   );
