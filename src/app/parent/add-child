@@ -1,0 +1,134 @@
+"use client";
+import React, { useState } from "react";
+
+// --- MOCKS FOR PREVIEW ENVIRONMENT ---
+// These allow the component to render in the preview environment where 
+// external libraries or project-specific aliases might not be available.
+const createBrowserClient = () => ({
+  auth: {
+    getUser: async () => ({ data: { user: { id: "mock-parent-id" } }, error: null })
+  },
+  from: () => ({
+    insert: async () => ({ error: null })
+  })
+});
+
+const useRouter = () => ({
+  push: (path) => console.log(`Navigating to: ${path}`),
+  back: () => console.log("Going back")
+});
+
+const UserPlusIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+);
+
+const ArrowRightIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+);
+
+const ZapIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+);
+// -------------------------------------
+
+export default function App() {
+  const [name, setName] = useState("");
+  const [yearLevel, setYearLevel] = useState("4");
+  const [loading, setLoading] = useState(false);
+  
+  // Use mocks for preview; in your real project, these link to @supabase/ssr and next/navigation
+  const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  const handleAddChild = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not logged in");
+
+      // Generate a friendly but unique 6-digit access code (e.g., LION-99)
+      const nouns = ["LION", "BEAR", "HAWK", "WOLF", "DEER"];
+      const accessCode = `${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(10 + Math.random() * 90)}`;
+
+      const { error } = await supabase.from("scholars").insert([{
+        parent_id: user.id,
+        name: name,
+        year: parseInt(yearLevel),
+        pin_code: accessCode, // We use this as the login key
+        region: "UK",
+        total_xp: 0
+      }]);
+
+      if (error) throw error;
+      router.push("/parent");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center font-sans">
+      <div className="bg-white w-full max-w-xl rounded-[48px] p-10 md:p-16 shadow-2xl border-t-8 border-indigo-500">
+        <h1 className="text-4xl font-black text-slate-800 mb-2">New Scholar</h1>
+        <p className="text-slate-500 font-bold mb-10 italic">Enroll an explorer into the Academy.</p>
+
+        <form onSubmit={handleAddChild} className="space-y-8">
+          <div>
+            <label className="block text-sm font-black text-slate-400 mb-2 uppercase tracking-widest">Scholar's First Name</label>
+            <input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-slate-50 border-4 border-slate-100 rounded-3xl px-6 py-5 font-black text-2xl focus:border-indigo-500 outline-none transition-all"
+              placeholder="e.g. Willy"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-black text-slate-400 mb-2 uppercase tracking-widest">School Year</label>
+            <select
+              value={yearLevel}
+              onChange={(e) => setYearLevel(e.target.value)}
+              className="w-full bg-slate-50 border-4 border-slate-100 rounded-3xl px-6 py-5 font-black text-xl cursor-pointer focus:border-indigo-500 outline-none"
+            >
+              {[1, 2, 3, 4, 5, 6].map((y) => (
+                <option key={y} value={y}>Year {y}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-indigo-50 p-6 rounded-3xl border-2 border-indigo-100 flex gap-4">
+            <ZapIcon className="text-indigo-500 shrink-0" size={32} />
+            <p className="text-indigo-900 font-bold text-sm leading-relaxed">
+              We will generate a <span className="font-black underline">Scholar PIN</span> for this student. They can use this to log in on any device without an email!
+            </p>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-5 rounded-[24px] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-[24px] shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+            >
+              {loading ? "Enrolling..." : "Add to Academy"} <ArrowRightIcon size={24} />
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
