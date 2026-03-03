@@ -47,3 +47,4 @@ node_modules
 .env.local
 .env
 .env*.backup
+.env*.backup
