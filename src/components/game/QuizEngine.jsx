@@ -1,34 +1,34 @@
 "use client";
 // ╔══════════════════════════════════════════════════════════════╗
-// ║         LAUNCHPARD — QUIZ ENGINE v4                         ║
-// ║  Multi‑step problems, error analysis & remediation          ║
+// ║         LAUNCHPARD — QUIZ ENGINE v5                         ║
+// ║  Multi‑curriculum · Adaptive difficulty · Growth tracking   ║
 // ╚══════════════════════════════════════════════════════════════╝
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { generateSessionQuestions, getExplanationForQuestion } from "../../lib/proceduralEngine";
 
-// ─── ICONS (unchanged) ──────────────────────────────────────────────────────
-const CheckCircleIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>);
-const XCircleIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></svg>);
-const BrainIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54Z"/></svg>);
-const ZapIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>);
-const ArrowRightIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>);
-const EyeIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>);
-const ArrowLeftIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>);
-const FlameIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>);
-const StarIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>);
-const RocketIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.5-1 1-4c1.5 0 3 .5 3 .5L9 12Z"/><path d="M12 15v5s1 .5 4 1c0-1.5-.5-3-.5-3L12 15Z"/></svg>);
-const PlanetIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="8"/><path d="M7 21L17 3"/></svg>);
-const XIcon = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>);
+// ─── ICONS ────────────────────────────────────────────────────────────────────
+const CheckCircleIcon = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+const XCircleIcon     = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>);
+const BrainIcon       = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54Z"/></svg>);
+const ZapIcon         = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>);
+const ArrowRightIcon  = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>);
+const ArrowLeftIcon   = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>);
+const EyeIcon         = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>);
+const FlameIcon       = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>);
+const StarIcon        = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>);
+const RocketIcon      = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.5-1 1-4c1.5 0 3 .5 3 .5L9 12Z"/><path d="M12 15v5s1 .5 4 1c0-1.5-.5-3-.5-3L12 15Z"/></svg>);
+const PlanetIcon      = ({ size = 24, className = "" }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="8"/><path d="M7 21L17 3"/></svg>);
+const XIcon           = ({ size = 24 })                 => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>);
+const TrendingIcon    = ({ size = 16 })                 => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TARA FEEDBACK ENGINE (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── TARA FEEDBACK ────────────────────────────────────────────────────────────
+// ✅ Expanded: science, geography, history added for curricula breadth
 const LOCAL_TARA_FEEDBACK = (text, subject, scholarName, scholarYear) => {
-  const name = scholarName || "Cadet";
+  const name    = scholarName || "Cadet";
   const trimmed = text.trim();
-  const lower = trimmed.toLowerCase();
-  const minLen = scholarYear <= 2 ? 5 : scholarYear <= 4 ? 10 : 15;
+  const lower   = trimmed.toLowerCase();
+  const minLen  = scholarYear <= 2 ? 5 : scholarYear <= 4 ? 10 : 15;
 
   if (trimmed.length < minLen) {
     return scholarYear <= 2
@@ -37,87 +37,82 @@ const LOCAL_TARA_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   }
 
   const keys = {
-    maths:   ["add","plus","total","units","tens","carry","subtract","minus","equals","because","calculate","round","divide","multiply","times","fraction","percent","remainder"],
-    english: ["verb","noun","adjective","adverb","action","describes","word","sentence","because","means","grammar","clause","prefix","suffix","tense","formal","informal"],
-    verbal:  ["pattern","sequence","opposite","similar","letter","next","because","odd","order","skip","code","analogy","alphabet"],
-    nvr:     ["shape","pattern","colour","color","rotate","flip","size","odd","different","same","repeat","mirror","reflect","symmetr"],
+    maths:     ["add","plus","total","units","tens","carry","subtract","minus","equals","because","calculate","round","divide","multiply","times","fraction","percent","remainder","factor","multiple","prime","square","cube","ratio","proportion"],
+    english:   ["verb","noun","adjective","adverb","action","describes","word","sentence","because","means","grammar","clause","prefix","suffix","tense","formal","informal","metaphor","simile","alliteration","personification","punctuation","synonym","antonym"],
+    verbal:    ["pattern","sequence","opposite","similar","letter","next","because","odd","order","skip","code","analogy","alphabet","relationship","category","type","group","connects"],
+    nvr:       ["shape","pattern","colour","color","rotate","flip","size","odd","different","same","repeat","mirror","reflect","symmetr","transform","angle","side","face"],
+    science:   ["element","atom","force","energy","gravity","cell","organism","reaction","compound","mixture","velocity","mass","weight","current","voltage","photosynthesis","evolution","habitat","ecosystem","circuit","magnet","particle","molecule","friction","pressure","density"],
+    geography: ["climate","region","population","migration","erosion","continent","latitude","longitude","urban","rural","river","mountain","plateau","economic","sustainable","environment","weather","land","coast","valley","settlement","resource","trade","development"],
+    history:   ["century","decade","era","empire","revolution","conflict","treaty","evidence","source","cause","consequence","change","continuity","chronology","significant","impact","belief","culture","power","rights","independence","democracy","monarchy","parliament"],
   };
+
   const pos = {
     maths:   [`Tara: Affirmative, ${name}! Your logic is clear for liftoff! 🚀`, `Tara: Excellent calculation, ${name}! That's the mark of a true Commander! 🏆`, `Tara: Flight path confirmed, ${name}! Step-by-step is the right approach! 🧠`],
     english: [`Tara: Roger that, ${name}! You identified the grammar rules perfectly! 📡✨`, `Tara: Spot on, ${name}! Explaining *why* shows real understanding! 🌟`, `Tara: Log verified, ${name}! Using examples to support your answer is brilliant! 📝`],
     verbal:  [`Tara: Superb, ${name}! You spotted the pattern in the data stream! 🔍`, `Tara: Brilliant decoding, ${name}! Explaining the rule is exactly right! 🧩`, `Tara: Navigation confirmed, ${name}! You identified the connection clearly! 🏆`],
     nvr:     [`Tara: Excellent visual scanning, ${name}! Describing what *changes* is the strategy! 👁️✨`, `Tara: Target acquired, ${name}! Non-verbal reasoning is about noticing differences! 🌟`, `Tara: Brilliant, ${name}! You described the visual rule clearly! 🚀`],
-  };
-  const nudge = {
-    maths:   `Tara: Good attempt, ${name}! Try to describe the *steps* — like checking units, carrying digits, or thinking about rounding. Over! 💪`,
-    english: `Tara: Nice effort, ${name}! Try to name the *type* of word (verb, adjective, adverb) to clarify your answer. You're almost there!`,
-    verbal:  `Tara: Good thinking, ${name}! Describe the *rule* — are letters skipping? Are words opposites? Keep digging! 🔎`,
-    nvr:     `Tara: Nice work, ${name}! Describe *what changes* — shape, size, colour, or position. More detail the better! 🎨`,
+    science: [`Tara: Outstanding scientific thinking, ${name}! Evidence-based reasoning is key! 🔬`, `Tara: Excellent, ${name}! You applied the scientific concept correctly! ⚗️`, `Tara: Brilliant observation, ${name}! That's exactly how scientists explain phenomena! 🧪`],
+    geography: [`Tara: Great geographical analysis, ${name}! Location and context are everything! 🌍`, `Tara: Excellent, ${name}! You connected human and physical geography perfectly! 🗺️`, `Tara: Spot on, ${name}! Understanding patterns across the Earth is real geography! 🌐`],
+    history: [`Tara: Impressive historical thinking, ${name}! Cause and consequence reasoning is perfect! 📜`, `Tara: Excellent, ${name}! Using ${'evidence'} to support your answer is historian-level thinking! 🏛️`, `Tara: Brilliant, ${name}! You understood the significance of this event clearly! ⚔️`],
   };
 
-  const sub = subject in keys ? subject : 'maths';
+  const nudge = {
+    maths:     `Tara: Good attempt, ${name}! Try to describe the *steps* — like checking units, carrying digits, or thinking about rounding. Over! 💪`,
+    english:   `Tara: Nice effort, ${name}! Try to name the *type* of word or literary technique to clarify your answer. You're almost there!`,
+    verbal:    `Tara: Good thinking, ${name}! Describe the *rule* — are letters skipping? Are words opposites? Keep digging! 🔎`,
+    nvr:       `Tara: Nice work, ${name}! Describe *what changes* — shape, size, colour, or position. More detail the better! 🎨`,
+    science:   `Tara: Good effort, ${name}! Try using scientific terms — name the process, force, or reaction involved. 🔬`,
+    geography: `Tara: Almost there, ${name}! Think about locations, patterns, or human/physical geography terms. 🌍`,
+    history:   `Tara: Good thinking, ${name}! Try to mention specific historical evidence, dates, or cause-and-effect relationships. 📜`,
+  };
+
+  const sub        = subject in keys ? subject : "maths";
   const hasKeyword = keys[sub].some(k => lower.includes(k));
-  if (hasKeyword) {
-    const arr = pos[sub];
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-  return nudge[sub];
+  if (hasKeyword) { const arr = pos[sub]; return arr[Math.floor(Math.random() * arr.length)]; }
+  return nudge[sub] || nudge.maths;
 };
 
 const fetchTaraFeedback = async ({ text, subject, correctAnswer, scholarName, scholarYear, question }) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
+  const timeoutId  = setTimeout(() => controller.abort(), 6000);
   try {
-    const response = await fetch('/api/tara', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch("/api/tara", {
+      method: "POST", headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({ text, subject, correctAnswer, scholarName, scholarYear, question }),
     });
     clearTimeout(timeoutId);
-
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const raw = await response.text();
-    if (!raw || raw.trim() === '') throw new Error('Empty response');
+    const raw  = await response.text();
+    if (!raw)   throw new Error("Empty response");
     const data = JSON.parse(raw);
-    if (!data.feedback || typeof data.feedback !== 'string' || data.feedback.trim() === '') {
-      throw new Error('Missing feedback field');
-    }
+    if (!data.feedback) throw new Error("Missing feedback");
     return data.feedback;
   } catch (err) {
     clearTimeout(timeoutId);
-    console.warn('[Tara] API unavailable, using local fallback:', err.message);
+    console.warn("[Tara] fallback:", err.message);
     return LOCAL_TARA_FEEDBACK(text, subject, scholarName, scholarYear);
   }
 };
 
-// shuffle used locally for visual options only
-const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// VISUAL COMPONENTS — TEN FRAMES + BAR MODEL (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-const TenFrame = ({ filled, ghost = 0, total = 10, filledColour = '#6366f1', ghostColour = '#fca5a5' }) => (
+// ─── VISUAL COMPONENTS ────────────────────────────────────────────────────────
+const TenFrame = ({ filled, ghost = 0, total = 10, filledColour = "#6366f1", ghostColour = "#fca5a5" }) => (
   <div className="inline-grid gap-1 p-2 bg-white rounded-xl border border-slate-200 shadow-inner"
-    style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+    style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
     {Array.from({ length: total }).map((_, i) => {
       const isFilled = i < filled;
       const isGhost  = !isFilled && i < filled + ghost;
-      return (
-        <div key={i} className="w-5 h-5 rounded-full border transition-all" style={{
-          backgroundColor: isFilled ? filledColour : isGhost ? ghostColour : 'transparent',
-          borderColor:     isFilled ? filledColour : isGhost ? '#f87171' : '#e2e8f0',
-          opacity:         isGhost ? 0.55 : 1,
-        }} />
-      );
+      return <div key={i} className="w-5 h-5 rounded-full border transition-all" style={{
+        backgroundColor: isFilled ? filledColour : isGhost ? ghostColour : "transparent",
+        borderColor:     isFilled ? filledColour : isGhost ? "#f87171"   : "#e2e8f0",
+        opacity: isGhost ? 0.55 : 1,
+      }} />;
     })}
   </div>
 );
 
 const AdditionVisual = ({ a, b }) => {
-  const frameSize = (a + b) <= 10 ? 10 : 20;
+  const fs = (a + b) <= 10 ? 10 : 20;
   return (
     <div className="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 mb-3">
       <div className="flex justify-center items-center gap-2 mb-2 text-sm">
@@ -129,11 +124,11 @@ const AdditionVisual = ({ a, b }) => {
       </div>
       <div className="flex flex-wrap justify-center gap-3">
         <div className="flex flex-col items-center">
-          <TenFrame filled={Math.min(a, frameSize)} total={frameSize} filledColour="#6366f1" />
+          <TenFrame filled={Math.min(a, fs)} total={fs} filledColour="#6366f1" />
           <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">Group A: {a}</span>
         </div>
         <div className="flex flex-col items-center">
-          <TenFrame filled={Math.min(b, frameSize)} total={frameSize} filledColour="#10b981" />
+          <TenFrame filled={Math.min(b, fs)} total={fs} filledColour="#10b981" />
           <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">Group B: {b}</span>
         </div>
       </div>
@@ -143,7 +138,7 @@ const AdditionVisual = ({ a, b }) => {
 };
 
 const SubtractionVisual = ({ a, b, ans }) => {
-  const frameSize = a <= 10 ? 10 : 20;
+  const fs = a <= 10 ? 10 : 20;
   return (
     <div className="w-full p-3 bg-rose-50 rounded-xl border border-rose-100 mb-3">
       <div className="flex justify-center items-center gap-2 mb-2 text-sm">
@@ -155,24 +150,22 @@ const SubtractionVisual = ({ a, b, ans }) => {
       </div>
       <div className="flex flex-wrap justify-center gap-4">
         <div className="flex flex-col items-center">
-          <TenFrame filled={ans} ghost={b} total={frameSize} filledColour="#10b981" ghostColour="#fca5a5" />
+          <TenFrame filled={ans} ghost={b} total={fs} filledColour="#10b981" ghostColour="#fca5a5" />
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Whole: {a}</span>
         </div>
         <div className="flex flex-col items-center">
-          <TenFrame filled={b} total={frameSize} filledColour="#f87171" />
+          <TenFrame filled={b} total={fs} filledColour="#f87171" />
           <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1">Taken: {b}</span>
         </div>
       </div>
-      <p className="text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-2">
-        🟢 Count the green counters = {ans}
-      </p>
+      <p className="text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-2">🟢 Count the green counters = {ans}</p>
     </div>
   );
 };
 
 const BarModelVisual = ({ a, b, ans, operation }) => {
-  const whole = operation === '+' ? a + b : a;
-  const leftPct  = operation === '+' ? (a / whole) * 100 : (ans / whole) * 100;
+  const whole    = operation === "+" ? a + b : a;
+  const leftPct  = operation === "+" ? (a / whole) * 100 : (ans / whole) * 100;
   const rightPct = 100 - leftPct;
   return (
     <div className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3">
@@ -181,12 +174,12 @@ const BarModelVisual = ({ a, b, ans, operation }) => {
         <span className="text-xs font-black text-slate-600 bg-slate-200 rounded px-2 py-0.5">Whole: {whole}</span>
       </div>
       <div className="h-6 rounded-lg overflow-hidden bg-slate-200 mb-2 flex">
-        <div className="h-full rounded-l-lg" style={{ width:`${leftPct}%`, background: operation==='+' ? '#6366f1' : '#10b981' }} />
-        <div className="h-full rounded-r-lg" style={{ width:`${rightPct}%`, background: operation==='+' ? '#10b981' : '#fca5a5' }} />
+        <div className="h-full rounded-l-lg" style={{ width: `${leftPct}%`,  background: operation === "+" ? "#6366f1" : "#10b981" }} />
+        <div className="h-full rounded-r-lg" style={{ width: `${rightPct}%`, background: operation === "+" ? "#10b981" : "#fca5a5" }} />
       </div>
       <div className="flex justify-between text-[10px] font-black">
-        <span style={{ color: operation==='+' ? '#6366f1' : '#059669' }}>{operation==='+' ? a : ans}</span>
-        <span style={{ color: operation==='+' ? '#059669' : '#f87171' }}>{b}</span>
+        <span style={{ color: operation === "+" ? "#6366f1" : "#059669" }}>{operation === "+" ? a : ans}</span>
+        <span style={{ color: operation === "+" ? "#059669" : "#f87171" }}>{b}</span>
       </div>
     </div>
   );
@@ -198,35 +191,77 @@ const PlaceValueChart = ({ computed, step }) => {
   const isUnitsActive = step === 0 || step === 1;
   const isTensActive  = step === 2 || step === 3;
   const maxLen = Math.max(String(a).length, String(b).length, String(answer).length, 2);
-  const pad = n => String(n).padStart(maxLen, ' ');
-  const aStr = pad(a), bStr = pad(b), ansStr = pad(answer);
+  const pad    = n => String(n).padStart(maxLen, " ");
+  const aStr   = pad(a), bStr = pad(b), ansStr = pad(answer);
   const li = maxLen - 2, ri = maxLen - 1;
   return (
     <div className="flex flex-col items-center p-3 bg-white rounded-xl border border-slate-100 font-mono text-2xl font-black w-full max-w-xs mx-auto shadow-inner mb-3">
-      <div className={`flex w-full mb-1 text-rose-500 text-sm h-5 ${isTensActive && step >= 2 && carry ? 'opacity-100':'opacity-0'}`}>
+      <div className={`flex w-full mb-1 text-rose-500 text-sm h-5 ${isTensActive && step >= 2 && carry ? "opacity-100" : "opacity-0"}`}>
         <div className="flex-1"/><div className="flex-1 text-center">+{carry}</div><div className="flex-1"/>
       </div>
       <div className="flex w-full text-slate-700 mb-1">
         <div className="flex-1"/>
-        <div className={`flex-1 text-center ${isTensActive?'text-indigo-600':''}`}>{aStr[li]!=' '?aStr[li]:''}</div>
-        <div className={`flex-1 text-center ${isUnitsActive?'text-indigo-600':''}`}>{aStr[ri]}</div>
+        <div className={`flex-1 text-center ${isTensActive ? "text-indigo-600" : ""}`}>{aStr[li] !== " " ? aStr[li] : ""}</div>
+        <div className={`flex-1 text-center ${isUnitsActive ? "text-indigo-600" : ""}`}>{aStr[ri]}</div>
       </div>
       <div className="flex w-full text-slate-700 mb-2 pb-2 border-b-4 border-slate-300">
         <div className="flex-1 text-center text-slate-400">{operation}</div>
-        <div className={`flex-1 text-center ${isTensActive?'text-indigo-600':''}`}>{bStr[li]!=' '?bStr[li]:''}</div>
-        <div className={`flex-1 text-center ${isUnitsActive?'text-indigo-600':''}`}>{bStr[ri]}</div>
+        <div className={`flex-1 text-center ${isTensActive ? "text-indigo-600" : ""}`}>{bStr[li] !== " " ? bStr[li] : ""}</div>
+        <div className={`flex-1 text-center ${isUnitsActive ? "text-indigo-600" : ""}`}>{bStr[ri]}</div>
       </div>
       <div className="flex w-full text-slate-800">
         <div className="flex-1"/>
-        <div className={`flex-1 text-center ${step>=3?'opacity-100 text-emerald-600':'opacity-0'}`}>{ansStr[li]!=' '?ansStr[li]:''}</div>
-        <div className={`flex-1 text-center ${step>=1?'opacity-100 text-emerald-600':'opacity-0'}`}>{ansStr[ri]}</div>
+        <div className={`flex-1 text-center ${step >= 3 ? "opacity-100 text-emerald-600" : "opacity-0"}`}>{ansStr[li] !== " " ? ansStr[li] : ""}</div>
+        <div className={`flex-1 text-center ${step >= 1 ? "opacity-100 text-emerald-600" : "opacity-0"}`}>{ansStr[ri]}</div>
       </div>
     </div>
   );
 };
 
+// ─── FILL-BLANK DISPLAY ───────────────────────────────────────────────────────
+// ✅ New: renders "The dog ___ the bone." with a highlighted blank slot
+const FillBlankDisplay = ({ text }) => {
+  const BLANK = "___";
+  if (!text.includes(BLANK)) return <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{text}</h3>;
+  const parts = text.split(BLANK);
+  return (
+    <p className="text-lg md:text-xl font-black text-slate-800 mb-3 leading-relaxed">
+      {parts[0]}
+      <span className="inline-flex items-center justify-center bg-amber-100 border-b-[3px] border-amber-400 rounded px-4 mx-1 min-w-[64px] text-amber-500 italic">
+        ?
+      </span>
+      {parts[1]}
+    </p>
+  );
+};
+
+// ─── TOPIC SUMMARY CARD (finish screen) ──────────────────────────────────────
+const TopicSummaryCard = ({ topicSummary }) => {
+  const entries = Object.entries(topicSummary);
+  if (entries.length === 0) return null;
+  return (
+    <div className="w-full text-left mt-3 space-y-1.5 max-h-40 overflow-y-auto">
+      {entries.map(([topic, { correct, total }]) => {
+        const pct = Math.round((correct / total) * 100);
+        const color = pct >= 80 ? "bg-emerald-400" : pct >= 50 ? "bg-amber-400" : "bg-rose-400";
+        return (
+          <div key={topic}>
+            <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-0.5">
+              <span className="capitalize">{topic?.replace(/_/g, " ")}</span>
+              <span>{correct}/{total}</span>
+            </div>
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN QUIZ ENGINE COMPONENT
+// MAIN QUIZ ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function QuizEngine({
   world,
@@ -244,51 +279,78 @@ export default function QuizEngine({
   const [timeLeft,         setTimeLeft]         = useState(45);
   const [generating,       setGenerating]       = useState(true);
 
-  const [finished,   setFinished]   = useState(false);
-  const [totalScore, setTotalScore] = useState(0);
-  const [streak,     setStreak]     = useState(0);
-  const [results,    setResults]    = useState({ score: 0, answers: [] });
+  const [finished,     setFinished]     = useState(false);
+  const [totalScore,   setTotalScore]   = useState(0);
+  const [streak,       setStreak]       = useState(0);
+  const [results,      setResults]      = useState({ score: 0, answers: [] });
+  const [topicSummary, setTopicSummary] = useState({}); // { topic: { correct, total } }
 
   const [showInteractiveExplanation, setShowInteractiveExplanation] = useState(false);
   const [explanationStep,            setExplanationStep]            = useState(0);
   const [explanationData,            setExplanationData]            = useState(null);
 
-  const [eibText,    setEibText]    = useState("");
-  const [eibFeedback,setEibFeedback]= useState("");
-  const [loadingEIB, setLoadingEIB] = useState(false);
-  const [savingResult,setSavingResult]=useState(false);
-  const [eibLocked, setEibLocked] = useState(false);
+  const [eibText,      setEibText]      = useState("");
+  const [eibFeedback,  setEibFeedback]  = useState("");
+  const [loadingEIB,   setLoadingEIB]   = useState(false);
+  const [savingResult, setSavingResult] = useState(false);
+  const [eibLocked,    setEibLocked]    = useState(false);
 
-  // Multi‑step state
+  // Multi-step state
   const [stepAnswers, setStepAnswers] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
+  const [stepError,   setStepError]   = useState(""); // ✅ replaces alert()
+
+  // ✅ Free-text question type state
+  const [freeTextInput,     setFreeTextInput]     = useState("");
+  const [freeTextSubmitted, setFreeTextSubmitted] = useState(false);
+
+  // ✅ Multi-select question type state
+  const [multiSelected,  setMultiSelected]  = useState(new Set());
+  const [multiSubmitted, setMultiSubmitted] = useState(false);
 
   // Remediation state
-  const [remediationShown, setRemediationShown] = useState(false);
-  const [remediationData, setRemediationData] = useState(null);
+  const [remediationShown,    setRemediationShown]    = useState(false);
+  const [remediationData,     setRemediationData]     = useState(null);
   const [remediationAnswered, setRemediationAnswered] = useState(false);
+  const [remediationResult,   setRemediationResult]   = useState(null); // 'correct' | 'wrong' | null
+// ── Hints ──────────────────────────────────────────────────────────────────
+const [hintIdx,   setHintIdx]   = useState(-1);  // -1 = none shown yet
+const [hintsUsed, setHintsUsed] = useState(0);   // tracks penalty
 
-  const timerRef = useRef(null);
-
-  // Cross-session dedup
+  const timerRef     = useRef(null);
   const seenIdsRef   = useRef(new Set(previousQuestionIds));
   const seenTextsRef = useRef(new Set());
 
-  // ── Fetch questions ──────────────────────────────────────────────────────
+  // ── Helper: update per-topic growth summary ───────────────────────────────
+  const recordTopicResult = useCallback((topic, isCorrect) => {
+    if (!topic) return;
+    setTopicSummary(prev => {
+      const entry = prev[topic] || { correct: 0, total: 0 };
+      return {
+        ...prev,
+        [topic]: { correct: entry.correct + (isCorrect ? 1 : 0), total: entry.total + 1 },
+      };
+    });
+  }, []);
+
+  // ── Fetch questions ───────────────────────────────────────────────────────
+  // ✅ Fixed: passes curriculum + adaptive proficiency
   const fetchQuestions = useCallback(async () => {
     setGenerating(true);
-    const year   = student?.year ? parseInt(student.year, 10) : 4;
-    const region = student?.region || 'GL';
+    const year       = student?.year        ? parseInt(student.year, 10) : 4;
+    const region     = student?.region      || "GL";
+    const curriculum = student?.curriculum  || "uk_11plus";
+    // ✅ Use scholar's actual subject proficiency for adaptive difficulty
+    const proficiency = student?.skillProficiency?.[subject] ?? student?.proficiency ?? 50;
 
     const qs = await generateSessionQuestions(
-      year, region, questionCount, 50, subject || 'maths', [],
-      Array.from(seenIdsRef.current)
+      year, region, questionCount, proficiency, subject || "maths", [],
+      Array.from(seenIdsRef.current),
+      curriculum   // ✅ was missing — needed for WAEC, IB, AU, US question variants
     );
 
-    const fresh = qs.filter(q => !seenTextsRef.current.has(q.q));
-    const finalQs = fresh.length >= questionCount
-      ? fresh.slice(0, questionCount)
-      : qs.slice(0, questionCount);
+    const fresh   = qs.filter(q => !seenTextsRef.current.has(q.q));
+    const finalQs = fresh.length >= questionCount ? fresh.slice(0, questionCount) : qs.slice(0, questionCount);
 
     finalQs.forEach(q => {
       seenTextsRef.current.add(q.q);
@@ -297,59 +359,127 @@ export default function QuizEngine({
 
     setSessionQuestions(finalQs);
     setDbQuestionIds(finalQs.filter(q => q.id).map(q => q.id));
-    setQIdx(0); setSelected(null); setExplanationData(null);
-    setShowInteractiveExplanation(false); setExplanationStep(0);
-    setEibText(""); setEibFeedback(""); setEibLocked(false);
-    setStepAnswers([]); setCurrentStep(0);
-    setRemediationShown(false); setRemediationData(null); setRemediationAnswered(false);
+    setQIdx(0);     setSelected(null);      setExplanationData(null);
+    setShowInteractiveExplanation(false);   setExplanationStep(0);
+    setEibText("");  setEibFeedback("");     setEibLocked(false);
+    setStepAnswers([]); setCurrentStep(0);  setStepError("");
+    setFreeTextInput(""); setFreeTextSubmitted(false);
+    setMultiSelected(new Set()); setMultiSubmitted(false);
+    setRemediationShown(false); setRemediationData(null);
+    setRemediationAnswered(false); setRemediationResult(null);
     setTimeLeft(45);
     setGenerating(false);
-  }, [student?.year, subject, questionCount]);
+  }, [student?.year, student?.curriculum, student?.proficiency, subject, questionCount]);
 
   useEffect(() => {
     setFinished(false);
-    setResults({ score:0, answers:[] });
+    setResults({ score: 0, answers: [] });
+    setTopicSummary({});
     setTotalScore(0); setStreak(0);
     fetchQuestions();
   }, [fetchQuestions]);
 
-  // ── Reset step state when question changes ──────────────────────────────
+  // ── Reset per-question state ──────────────────────────────────────────────
   useEffect(() => {
     const q = sessionQuestions[qIdx];
-    if (q?.steps) {
-      setStepAnswers(new Array(q.steps.length).fill(''));
-      setCurrentStep(0);
-    } else {
-      setStepAnswers([]);
-      setCurrentStep(0);
-    }
-    // Also reset Tara lock and remediation for new question
-    setEibLocked(false);
-    setRemediationShown(false);
-    setRemediationData(null);
-    setRemediationAnswered(false);
+    if (q?.steps) { setStepAnswers(new Array(q.steps.length).fill("")); setCurrentStep(0); }
+    else          { setStepAnswers([]); setCurrentStep(0); }
+    setEibLocked(false); setStepError("");
+    setFreeTextInput(""); setFreeTextSubmitted(false);
+    setMultiSelected(new Set()); setMultiSubmitted(false);
+    setRemediationShown(false); setRemediationData(null);
+    setRemediationAnswered(false); setRemediationResult(null);
+    // Inside the useEffect that resets per qIdx
+setHintIdx(-1);
+setHintsUsed(0);
   }, [qIdx, sessionQuestions]);
 
-  // ── Answer picking (original for single‑step) ───────────────────────────
+  // ── MCQ answer pick ───────────────────────────────────────────────────────
+  // ✅ Stores rich answer data for MistakeJournal
   const handlePick = useCallback((idx) => {
     if (selected !== null) return;
     if (timerRef.current) clearInterval(timerRef.current);
     setSelected(idx);
-    const currQ = sessionQuestions[qIdx];
-    const isCorrect = idx === currQ?.a;
+    const currQ      = sessionQuestions[qIdx];
+    const isCorrect  = idx === currQ?.a;
+    const answerRecord = {
+      q:        currQ.q,
+      isCorrect,
+      correct:  currQ?.opts?.[currQ.a] ?? "",   // answer TEXT for MistakeJournal
+      myAnswer: idx >= 0 ? (currQ?.opts?.[idx] ?? null) : null,
+      exp:      currQ.exp     ?? "",
+      subject:  currQ.subject ?? subject,
+      topic:    currQ.topic   ?? "general",
+    };
     if (isCorrect) {
-      setResults(r => ({ ...r, score: r.score+1, answers:[...r.answers,{q:currQ.q,correct:true}] }));
-      setTotalScore(p => p + 10);
-      setStreak(p => p + 1);
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, answerRecord] }));
+      setTotalScore(p => p + 10); setStreak(p => p + 1);
     } else {
-      setResults(r => ({ ...r, answers:[...r.answers,{q:currQ.q,correct:false}] }));
+      setResults(r => ({ ...r, answers: [...r.answers, answerRecord] }));
       setStreak(0);
-      try {
-        const expData = getExplanationForQuestion?.(currQ);
-        if (expData) setExplanationData(expData);
-      } catch {}
+      try { const e = getExplanationForQuestion?.(currQ); if (e) setExplanationData(e); } catch {}
     }
-  }, [selected, qIdx, sessionQuestions]);
+    recordTopicResult(currQ.topic, isCorrect);
+  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult]);
+
+  // ── Free-text submission ──────────────────────────────────────────────────
+  // ✅ New question type: short-answer, essential for science/WAEC/IB
+  const handleFreeTextSubmit = useCallback(() => {
+    if (freeTextSubmitted || !freeTextInput.trim()) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setFreeTextSubmitted(true);
+    const currQ = sessionQuestions[qIdx];
+    const norm  = v => String(v || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.,!?]/g, "");
+    const correctNorm = norm(currQ.answer ?? currQ.opts?.[currQ.a] ?? "");
+    const userNorm    = norm(freeTextInput);
+    const aliases     = currQ.answerAliases || [];
+    const isCorrect   = userNorm === correctNorm || aliases.some(a => norm(a) === userNorm);
+    const answerRecord = {
+      q: currQ.q, isCorrect,
+      correct:  currQ.answer ?? currQ.opts?.[currQ.a] ?? "",
+      myAnswer: freeTextInput,
+      exp:      currQ.exp ?? "",
+      subject:  currQ.subject ?? subject,
+      topic:    currQ.topic   ?? "general",
+    };
+    setSelected(isCorrect ? true : false);
+    if (isCorrect) {
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, answerRecord] }));
+      setTotalScore(p => p + 10); setStreak(p => p + 1);
+    } else {
+      setResults(r => ({ ...r, answers: [...r.answers, answerRecord] }));
+      setStreak(0);
+    }
+    recordTopicResult(currQ.topic, isCorrect);
+  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult]);
+
+  // ── Multi-select submission ───────────────────────────────────────────────
+  // ✅ New question type: "select all that apply" — science, history
+  const handleMultiSubmit = useCallback(() => {
+    if (multiSubmitted) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setMultiSubmitted(true);
+    const currQ      = sessionQuestions[qIdx];
+    const correctSet = new Set(Array.isArray(currQ.a) ? currQ.a : [currQ.a]);
+    const allCorrect = multiSelected.size === correctSet.size && [...multiSelected].every(i => correctSet.has(i));
+    const correctText = [...correctSet].map(i => currQ.opts?.[i] ?? "").join(", ");
+    const myText      = [...multiSelected].map(i => currQ.opts?.[i] ?? "").join(", ");
+    const answerRecord = {
+      q: currQ.q, isCorrect: allCorrect,
+      correct: correctText, myAnswer: myText,
+      exp: currQ.exp ?? "", subject: currQ.subject ?? subject,
+      topic: currQ.topic ?? "general",
+    };
+    setSelected(allCorrect ? true : false);
+    if (allCorrect) {
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, answerRecord] }));
+      setTotalScore(p => p + 10); setStreak(p => p + 1);
+    } else {
+      setResults(r => ({ ...r, answers: [...r.answers, answerRecord] }));
+      setStreak(0);
+    }
+    recordTopicResult(currQ.topic, allCorrect);
+  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult]);
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -368,51 +498,60 @@ export default function QuizEngine({
     if (!eibText.trim() || eibLocked) return;
     setLoadingEIB(true);
     const currQ = sessionQuestions[qIdx];
-    const feedback = await fetchTaraFeedback({
-      text: eibText,
-      subject: currQ?.subject || subject || 'maths',
-      correctAnswer: currQ?.opts?.[currQ.a] ?? '',
-      scholarName: student?.name,
-      scholarYear: parseInt(student?.year || 4),
+    const fb = await fetchTaraFeedback({
+      text: eibText, subject: currQ?.subject || subject || "maths",
+      correctAnswer: currQ?.opts?.[currQ.a] ?? currQ?.answer ?? "",
+      scholarName: student?.name, scholarYear: parseInt(student?.year || 4),
       question: currQ,
     });
-    setEibFeedback(feedback);
+    setEibFeedback(fb);
     setLoadingEIB(false);
     setEibLocked(true);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !eibLocked) {
-      e.preventDefault();
-      handleEIB();
-    }
+  const handleKeyDown = e => { if (e.key === "Enter" && !e.shiftKey && !eibLocked) { e.preventDefault(); handleEIB(); } };
+// ── Show next progressive hint (costs 2 XP) ──────────────────────────────
+const showHint = useCallback(() => {
+  const hints = sessionQuestions[qIdx]?.hints;
+  if (!hints || hintIdx >= hints.length - 1 || selected !== null) return;
+  setHintIdx(prev => prev + 1);
+  setHintsUsed(prev => prev + 1);
+  setTotalScore(prev => Math.max(0, prev - 2)); // small XP penalty
+}, [hintIdx, qIdx, sessionQuestions, selected]);
+  // ── Multi-step ────────────────────────────────────────────────────────────
+  const normaliseStep = v => {
+    const n = parseFloat(String(v).trim());
+    return !isNaN(n) && isFinite(n) ? String(n) : String(v).trim().toLowerCase();
   };
 
-  // ── Step answer handling ──────────────────────────────────────────────────
-  const handleStepAnswerChange = (value) => {
-    const newAnswers = [...stepAnswers];
-    newAnswers[currentStep] = value;
-    setStepAnswers(newAnswers);
+  const handleStepAnswerChange = val => {
+    const next = [...stepAnswers]; next[currentStep] = val; setStepAnswers(next);
+    if (stepError) setStepError("");
   };
 
+  // ✅ Fixed: no alert(), records in results.answers, records topic
   const handleStepSubmit = () => {
-    const q = sessionQuestions[qIdx];
-    const currentStepData = q.steps[currentStep];
-    const correct = String(currentStepData.answer).trim().toLowerCase();
-    const user = String(stepAnswers[currentStep]).trim().toLowerCase();
-
-    if (user === correct) {
+    const q    = sessionQuestions[qIdx];
+    const step = q.steps[currentStep];
+    if (normaliseStep(stepAnswers[currentStep] || "") === normaliseStep(step.answer)) {
+      setStepError("");
       if (currentStep === q.steps.length - 1) {
-        // All steps correct – mark question as answered
-        setSelected(true); // dummy value to indicate completion
-        setResults(r => ({ ...r, score: r.score + 1 }));
-        setTotalScore(p => p + 10);
-        setStreak(p => p + 1);
+        setSelected(true);
+        setResults(r => ({
+          ...r, score: r.score + 1,
+          answers: [...r.answers, {
+            q: q.q, isCorrect: true,
+            correct: step.answer, myAnswer: stepAnswers[currentStep],
+            exp: q.exp ?? "", subject: q.subject ?? subject, topic: q.topic ?? "general",
+          }],
+        }));
+        setTotalScore(p => p + 10); setStreak(p => p + 1);
+        recordTopicResult(q.topic, true);
       } else {
         setCurrentStep(currentStep + 1);
       }
     } else {
-      alert('That’s not correct. Try again!');
+      setStepError("Not quite — check your working and try again! 💡");
     }
   };
 
@@ -421,101 +560,80 @@ export default function QuizEngine({
     setRemediationShown(true);
     const currQ = sessionQuestions[qIdx];
     try {
-      const res = await fetch('/api/remediate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scholar_id: student.id,
-          skill_topic: currQ.topic,
-          wrong_answer: eibText, // optional
-        }),
+      const res  = await fetch("/api/remediate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scholar_id: student.id, skill_topic: currQ.topic }),
       });
       const data = await res.json();
       setRemediationData(data);
-    } catch (err) {
-      console.error('Remediation fetch error:', err);
-    }
+    } catch (err) { console.error("Remediation error:", err); }
   };
 
+  // ✅ Fixed: no alert(), uses inline state
   const handleRemediationAnswer = (selectedIdx, correctIdx) => {
     setRemediationAnswered(true);
-    if (selectedIdx === correctIdx) {
-      alert('Correct! Well done.');
-      // Optionally award a small XP bonus
-    } else {
-      alert('Not quite – keep practicing!');
-    }
+    setRemediationResult(selectedIdx === correctIdx ? "correct" : "wrong");
   };
 
   // ── Next question ─────────────────────────────────────────────────────────
   const next = () => {
     if (qIdx < sessionQuestions.length - 1) {
-      setQIdx(p => p+1); setSelected(null); setTimeLeft(45);
+      setQIdx(p => p + 1); setSelected(null); setTimeLeft(45);
       setExplanationData(null); setShowInteractiveExplanation(false); setExplanationStep(0);
-      setEibText(""); setEibFeedback(""); setEibLocked(false);
+      setEibText(""); setEibFeedback(""); setEibLocked(false); setStepError("");
+      setFreeTextInput(""); setFreeTextSubmitted(false);
+      setMultiSelected(new Set()); setMultiSubmitted(false);
     } else {
       finishQuest();
     }
   };
 
   // ── Finish ────────────────────────────────────────────────────────────────
+  // ✅ Fixed: single truth source (results.answers), passes topicSummary to onComplete
   const finishQuest = async () => {
     setSavingResult(true);
     try {
+      const details    = sessionQuestions.map(q => {
+        const answered = results.answers.find(a => a.q === q.q);
+        return { question_id: q.id || null, subject: q.subject || subject, topic: q.topic || "general", correct: answered?.isCorrect ?? false };
+      });
+      const finalScore = details.filter(d => d.correct).length;
+      const accuracy   = sessionQuestions.length > 0 ? Math.round((finalScore / sessionQuestions.length) * 100) : 0;
+
       if (student?.id) {
-        // Build details array – for multi‑step, we already counted correct when all steps done
-        const details = sessionQuestions.map((q, index) => {
-          let correct = false;
-          if (q.steps) {
-            correct = (index === qIdx && selected === true) ? true : false;
-          } else {
-            if (index === qIdx && selected !== null) {
-              correct = selected === q.a;
-            } else if (index < qIdx) {
-              const prevAnswer = results.answers.find(a => a.q === q.q);
-              correct = prevAnswer ? prevAnswer.correct : false;
-            }
-          }
-          return {
-            question_id: q.id || null,
-            subject: q.subject || subject,
-            topic: q.topic || 'general',
-            correct: correct
-          };
+        await supabase.from("quiz_results").insert({
+          scholar_id: student.id, subject: subject || "maths",
+          score: finalScore, total_questions: questionCount,
+          completed_at: new Date().toISOString(), details,
         });
-
-        await supabase.from('quiz_results').insert({
-          scholar_id: student.id,
-          subject: subject || 'maths',
-          score: results.score + (selected === true ? 1 : 0),
-          total_questions: questionCount,
-          completed_at: new Date().toISOString(),
-          details: details
-        });
-
-        await supabase.rpc('update_scholar_skills', {
-          p_scholar_id: student.id,
-          p_details: details
-        });
-
-        await supabase.rpc('increment_scholar_xp', { s_id: student.id, xp_to_add: totalScore });
-
+        await supabase.rpc("update_scholar_skills",  { p_scholar_id: student.id, p_details: details });
+        await supabase.rpc("increment_scholar_xp",   { s_id: student.id, xp_to_add: totalScore });
         if (dbQuestionIds.length > 0) {
-          await supabase.from('scholar_question_history').insert(
+          await supabase.from("scholar_question_history").insert(
             dbQuestionIds.map(qid => ({ scholar_id: student.id, question_id: qid }))
           );
         }
       }
+
+      setFinished(true);
+      // ✅ Rich onComplete: parent can populate MistakeJournal and growth charts
+      if (onComplete) onComplete({
+        score:        finalScore,
+        totalScore,
+        accuracy,
+        answers:      results.answers,      // for MistakeJournal
+        topicSummary,                        // for growth planning
+      });
     } catch (e) {
-      console.error('Save error:', e);
+      console.error("Save error:", e);
+      setFinished(true);
+      if (onComplete) onComplete({ score: results.score, totalScore, accuracy: 0, answers: results.answers, topicSummary });
     } finally {
       setSavingResult(false);
-      setFinished(true);
-      if (onComplete) onComplete({ score: results.score, totalScore });
     }
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Guards ────────────────────────────────────────────────────────────────
   if (generating) return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
       <div className="bg-white rounded-[40px] p-6 text-center max-w-xs w-full shadow-2xl">
@@ -526,62 +644,89 @@ export default function QuizEngine({
     </div>
   );
 
-  // ── Finish screen ─────────────────────────────────────────────────────────
-  if (finished) return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[40px] p-6 text-center max-w-xs w-full shadow-2xl border-b-4 border-slate-200">
-        <PlanetIcon size={56} className="mx-auto text-indigo-500 mb-3" />
-        <h2 className="text-2xl font-black text-slate-800 mb-1">Orbit Achieved!</h2>
-        <p className="text-slate-500 font-bold text-sm mb-1">{results.score}/{sessionQuestions.length} Correct</p>
-        <p className="text-indigo-600 font-black mb-4">+{totalScore} Stardust</p>
-        <div className="flex justify-center gap-3 mb-4">
-          <div className="bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-            <FlameIcon size={14} className="text-amber-500" /><span className="font-black text-amber-700 text-sm">{streak}</span>
+  if (finished) {
+    const finalScore = results.answers.filter(a => a.isCorrect).length;
+    const accuracy   = sessionQuestions.length > 0 ? Math.round((finalScore / sessionQuestions.length) * 100) : 0;
+    return (
+      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[40px] p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
+          <PlanetIcon size={56} className="mx-auto text-indigo-500 mb-3" />
+          <h2 className="text-2xl font-black text-slate-800 mb-1">Orbit Achieved!</h2>
+          <p className="text-slate-500 font-bold text-sm mb-1">{finalScore}/{sessionQuestions.length} Correct</p>
+          {/* ✅ Accuracy score for growth visibility */}
+          <div className={`inline-block px-4 py-1.5 rounded-full font-black text-sm mb-2 ${accuracy >= 80 ? "bg-emerald-50 text-emerald-600" : accuracy >= 50 ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-500"}`}>
+            {accuracy}% accuracy
           </div>
-          <div className="bg-purple-50 px-3 py-1 rounded-lg border border-purple-200 flex items-center gap-1">
-            <StarIcon size={14} className="text-purple-500" /><span className="font-black text-purple-700 text-sm">{totalScore}</span>
+          <p className="text-indigo-600 font-black mb-3">+{totalScore} Stardust</p>
+          <div className="flex justify-center gap-3 mb-3">
+            <div className="bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+              <FlameIcon size={14} className="text-amber-500"/><span className="font-black text-amber-700 text-sm">{streak}</span>
+            </div>
+            <div className="bg-purple-50 px-3 py-1 rounded-lg border border-purple-200 flex items-center gap-1">
+              <StarIcon size={14} className="text-purple-500"/><span className="font-black text-purple-700 text-sm">{totalScore}</span>
+            </div>
+          </div>
+          {/* ✅ Per-topic breakdown for growth feedback */}
+          <TopicSummaryCard topicSummary={topicSummary} />
+          <div className="flex flex-col gap-2 mt-4">
+            <button onClick={() => { setFinished(false); setResults({ score: 0, answers: [] }); setTopicSummary({}); setTotalScore(0); setStreak(0); fetchQuestions(); }}
+              className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm shadow border-b-4 border-indigo-800 flex items-center justify-center gap-2">
+              Next Mission <ArrowRightIcon size={16}/>
+            </button>
+            <button onClick={() => onClose?.()}
+              className="w-full bg-slate-100 text-slate-600 font-black py-3 rounded-2xl text-sm border-b-4 border-slate-200">
+              Return to Base
+            </button>
           </div>
         </div>
-        <button onClick={() => { setFinished(false); fetchQuestions(); }}
-          className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm shadow border-b-4 border-indigo-800 mb-2 flex items-center justify-center gap-2">
-          Next Mission <ArrowRightIcon size={16} />
-        </button>
-        <button onClick={() => onClose?.()}
-          className="w-full bg-slate-100 text-slate-600 font-black py-3 rounded-2xl text-sm border-b-4 border-slate-200">
-          Return to Base
-        </button>
       </div>
-    </div>
-  );
+    );
+  }
 
   const q = sessionQuestions[qIdx];
   if (!q) return null;
 
-  const isCorrectAnswer = selected === q.a;
-  const canProceed = isCorrectAnswer || (selected !== null && !isCorrectAnswer && !!eibFeedback);
+  const qType       = q.type || "mcq"; // "mcq" | "free_text" | "fill_blank" | "multi_select"
+  const isMultiStep = !!q.steps;
 
-  // ── Main UI (compact modal) ───────────────────────────────────────────────
+  // ✅ Fixed: isCorrectAnswer and canProceed handle all question types
+  const isCorrectAnswer =
+    qType === "free_text"    ? selected === true :
+    qType === "multi_select" ? selected === true :
+    !isMultiStep && selected === q.a;
+
+  const canProceed =
+    (isMultiStep && selected === true) ||
+    isCorrectAnswer ||
+    (selected !== null && !isCorrectAnswer && !!eibFeedback);
+
+  // ── Tara challenge target text (works for all question types)
+  const correctAnswerText =
+    qType === "free_text" ? (q.answer ?? "") :
+    qType === "multi_select" ? (Array.isArray(q.a) ? q.a.map(i => q.opts?.[i]).join(", ") : "") :
+    (q.opts?.[q.a] ?? "");
+
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-2">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border-b-4 border-slate-200 max-h-[90vh] flex flex-col">
 
         {/* Progress bar */}
         <div className="h-1.5 bg-slate-100">
-          <div className="h-full bg-indigo-500 transition-all" style={{ width:`${((qIdx+1)/sessionQuestions.length)*100}%` }} />
+          <div className="h-full bg-indigo-500 transition-all" style={{ width: `${((qIdx + 1) / sessionQuestions.length) * 100}%` }} />
         </div>
 
         {/* Header */}
         <div className="p-3 flex justify-between items-center bg-slate-50 border-b border-slate-100 shrink-0">
           <span className="bg-indigo-50 px-2 py-1 rounded-lg font-black text-indigo-600 text-[10px] uppercase tracking-widest flex items-center gap-1">
-            <RocketIcon size={12}/> Mission {qIdx+1}/{sessionQuestions.length}
+            <RocketIcon size={12}/> Mission {qIdx + 1}/{sessionQuestions.length}
           </span>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs font-black">
               <FlameIcon size={14} className="text-amber-500"/> {streak}
               <StarIcon  size={14} className="text-purple-500"/> {totalScore}
             </div>
-            <div className={`text-base font-black tabular-nums ${timeLeft < 6 ? 'text-rose-500 animate-pulse' : 'text-slate-800'}`}>
-              00:{timeLeft.toString().padStart(2,'0')}
+            <div className={`text-base font-black tabular-nums ${timeLeft < 6 ? "text-rose-500 animate-pulse" : "text-slate-800"}`}>
+              00:{timeLeft.toString().padStart(2, "0")}
             </div>
             <button onClick={() => onClose?.()} className="text-slate-400 hover:text-rose-500 p-0.5">
               <XIcon size={20}/>
@@ -589,9 +734,10 @@ export default function QuizEngine({
           </div>
         </div>
 
-        {/* Scrollable body */}
+        {/* Body */}
         <div className="p-4 overflow-y-auto flex-1">
-          {/* Display passage if present */}
+
+          {/* Reading passage */}
           {q.passage && (
             <div className="mb-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-sm leading-relaxed">
               <div className="font-black text-indigo-800 mb-2 text-xs uppercase tracking-widest">📖 Reading Passage</div>
@@ -599,70 +745,224 @@ export default function QuizEngine({
             </div>
           )}
 
-          {/* Multi‑step UI */}
-          {q.steps ? (
+          {/* ── MULTI-STEP ─────────────────────────────────────────────────── */}
+          {isMultiStep ? (
             <div className="space-y-4">
-              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-2">{q.q}</h3>
-              <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800">{q.q}</h3>
+              <div className="flex items-center gap-2">
                 {q.steps.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-2 flex-1 rounded-full ${
-                      idx < currentStep ? 'bg-emerald-500' : idx === currentStep ? 'bg-indigo-500' : 'bg-slate-200'
-                    }`}
-                  />
+                  <div key={idx} className={`h-2 flex-1 rounded-full transition-all ${
+                    selected === true ? "bg-emerald-400" :
+                    idx < currentStep  ? "bg-emerald-400" :
+                    idx === currentStep ? "bg-indigo-500" :
+                    "bg-slate-200"
+                  }`} />
                 ))}
               </div>
-
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="font-bold text-sm mb-2">Step {currentStep + 1}: {q.steps[currentStep].prompt}</p>
-                <input
-                  type="text"
-                  value={stepAnswers[currentStep] || ''}
-                  onChange={(e) => handleStepAnswerChange(e.target.value)}
-                  className="w-full p-2 border rounded-lg mb-2"
-                  placeholder="Your answer"
-                />
-                <button
-                  onClick={handleStepSubmit}
-                  disabled={!stepAnswers[currentStep]}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {currentStep === q.steps.length - 1 ? 'Finish' : 'Next'}
-                </button>
-              </div>
+              {selected === true ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <p className="font-black text-emerald-700 text-sm mb-1">✅ All steps complete! Well done!</p>
+                    {q.exp && <p className="text-xs font-bold text-emerald-600 mt-1 leading-relaxed">{q.exp}</p>}
+                  </div>
+                  <button onClick={next} disabled={savingResult}
+                    className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                    {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                    {!savingResult && <ArrowRightIcon size={16}/>}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <p className="font-black text-sm text-slate-700">
+                    Step {currentStep + 1} of {q.steps.length}: {q.steps[currentStep].prompt}
+                  </p>
+                  <input type="text" value={stepAnswers[currentStep] || ""}
+                    onChange={e => handleStepAnswerChange(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleStepSubmit(); }}
+                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800"
+                    placeholder="Your answer…" autoFocus />
+                  {stepError && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-bold text-xs">{stepError}</div>
+                  )}
+                  <button onClick={handleStepSubmit} disabled={!stepAnswers[currentStep]?.trim()}
+                    className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {currentStep === q.steps.length - 1 ? "Finish ✓" : "Next Step"} <ArrowRightIcon size={14}/>
+                  </button>
+                </div>
+              )}
             </div>
-          ) : (
-            /* Single‑step UI (original) */
-            <>
-              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
 
-              {/* Visual selector */}
+          ) : qType === "free_text" ? (
+            /* ── FREE TEXT ──────────────────────────────────────────────────── */
+            // ✅ New: essential for WAEC, science, extended writing scaffolding
+            <div className="space-y-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
+              {!freeTextSubmitted ? (
+                <div className="space-y-2">
+                  <input type="text" value={freeTextInput}
+                    onChange={e => setFreeTextInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleFreeTextSubmit(); }}
+                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800"
+                    placeholder="Type your answer…" autoFocus />
+                  <button onClick={handleFreeTextSubmit} disabled={!freeTextInput.trim()}
+                    className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50">
+                    Submit Answer ✓
+                  </button>
+                </div>
+              ) : (
+                <div className={`p-3 rounded-xl border-2 ${selected === true ? "bg-emerald-50 border-emerald-400" : "bg-rose-50 border-rose-400"}`}>
+                  <p className="font-black text-sm mb-1">{selected === true ? "✅ Correct!" : "✗ Not quite"}</p>
+                  <p className="text-xs font-bold">Your answer: <span className="italic">{freeTextInput}</span></p>
+                  {selected !== true && <p className="text-xs font-bold text-emerald-700 mt-1">Correct: {correctAnswerText}</p>}
+                </div>
+              )}
+              {freeTextSubmitted && (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
+                    <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
+                  </div>
+                  {selected !== true && (
+                    <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      <p className="text-amber-800 font-bold text-xs mb-2">
+                        <span className="font-black">Tara's Challenge:</span> Why is <span className="underline font-black">{correctAnswerText}</span> correct?
+                      </p>
+                      <textarea value={eibText} onChange={e => setEibText(e.target.value)} onKeyDown={handleKeyDown} disabled={eibLocked}
+                        className="w-full p-2 rounded-lg border border-amber-100 font-bold text-xs bg-white mb-2 resize-none focus:outline-none focus:border-amber-400"
+                        rows={2} placeholder="Type your reasoning…"/>
+                      <button disabled={loadingEIB || !eibText.trim() || eibLocked} onClick={handleEIB}
+                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                        <ZapIcon size={12}/> {loadingEIB ? "Thinking…" : "Tell Tara ✨"}
+                      </button>
+                      {eibFeedback && <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">{eibFeedback}</div>}
+                    </div>
+                  )}
+                  {canProceed && (
+                    <button onClick={next} disabled={savingResult}
+                      className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                      {!savingResult && <ArrowRightIcon size={16}/>}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          ) : qType === "multi_select" ? (
+            /* ── MULTI-SELECT ────────────────────────────────────────────────── */
+            // ✅ New: "select all that apply" – science, history
+            <div className="space-y-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-1">{q.q}</h3>
+              <p className="text-xs font-bold text-slate-400 mb-2">Select all correct answers</p>
+              <div className="grid grid-cols-1 gap-2 mb-3">
+                {q.opts.map((opt, i) => {
+                  const correctSet    = new Set(Array.isArray(q.a) ? q.a : [q.a]);
+                  const isChecked     = multiSelected.has(i);
+                  const isCorrectOpt  = correctSet.has(i);
+                  let cls = "bg-white border-slate-200 text-slate-700 hover:border-indigo-400";
+                  if (multiSubmitted) {
+                    if (isCorrectOpt && isChecked)  cls = "bg-emerald-50 border-emerald-500 text-emerald-700";
+                    else if (isCorrectOpt)           cls = "bg-emerald-50 border-emerald-300 text-emerald-600 opacity-80";
+                    else if (isChecked)              cls = "bg-rose-50 border-rose-400 text-rose-700";
+                    else                             cls = "bg-white border-slate-100 opacity-40";
+                  }
+                  return (
+                    <button key={i} disabled={multiSubmitted}
+                      onClick={() => {
+                        if (multiSubmitted) return;
+                        setMultiSelected(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+                      }}
+                      className={`p-3 rounded-xl font-bold border-2 transition-all text-sm text-left flex items-center gap-3 ${cls}`}>
+                      <div className={`w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center ${multiSelected.has(i) ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
+                        {multiSelected.has(i) && <CheckCircleIcon size={12} className="text-white"/>}
+                      </div>
+                      <span>{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!multiSubmitted ? (
+                <button onClick={handleMultiSubmit} disabled={multiSelected.size === 0}
+                  className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50">
+                  Submit Selection ✓
+                </button>
+              ) : (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
+                    <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
+                  </div>
+                  {canProceed && (
+                    <button onClick={next} disabled={savingResult}
+                      className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                      {!savingResult && <ArrowRightIcon size={16}/>}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          ) : (
+            /* ── MCQ (default) + FILL_BLANK ─────────────────────────────────── */
+            <>
+              {/* ✅ fill_blank renders sentence with highlighted blank; MCQ renders plain question */}
+              {qType === "fill_blank"
+                ? <FillBlankDisplay text={q.q} />
+                : <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
+              }
+              {/* ── HINTS ── shown before answering, hidden after reveal ────────────── */}
+{selected === null && q.hints && q.hints.length > 0 && (
+  <div className="mb-3 space-y-2">
+    {/* Show all revealed hints */}
+    {q.hints.slice(0, hintIdx + 1).map((hint, i) => (
+      <div key={i} className="flex items-start gap-2 p-2.5 bg-yellow-50 border border-yellow-200 rounded-xl">
+        <span className="text-yellow-500 shrink-0">💡</span>
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500 mr-1.5">
+            Hint {i + 1}
+          </span>
+          <span className="text-xs font-bold text-yellow-800">{hint}</span>
+        </div>
+      </div>
+    ))}
+    {/* Hint button — only if more hints remain */}
+    {hintIdx < q.hints.length - 1 && (
+      <button
+        onClick={showHint}
+        className="flex items-center gap-1.5 text-[11px] font-bold text-yellow-600
+                   hover:text-yellow-700 transition-colors px-2 py-1 rounded-lg
+                   hover:bg-yellow-50 border border-transparent hover:border-yellow-200"
+      >
+        💡 {hintIdx === -1 ? "Show hint" : "Next hint"}
+        <span className="text-yellow-400 font-black">−2 XP</span>
+      </button>
+    )}
+  </div>
+)}
+
+              {/* Visual aid */}
               {q.visual && (() => {
                 const v = q.visual;
-                if (typeof v === 'object') {
-                  if (v.type === 'addition-dots')       return <AdditionVisual a={v.a} b={v.b} />;
-                  if (v.type === 'subtraction-partwhole') return <SubtractionVisual a={v.a} b={v.b} ans={v.ans} />;
-                  if (v.type === 'bar-model')             return <BarModelVisual a={v.a} b={v.b} ans={v.ans} operation={v.operation} />;
+                if (typeof v === "object") {
+                  if (v.type === "addition-dots")         return <AdditionVisual a={v.a} b={v.b} />;
+                  if (v.type === "subtraction-partwhole") return <SubtractionVisual a={v.a} b={v.b} ans={v.ans} />;
+                  if (v.type === "bar-model")             return <BarModelVisual a={v.a} b={v.b} ans={v.ans} operation={v.operation} />;
                 }
-                return (
-                  <div className="mb-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-center text-xl font-bold text-indigo-900">
-                    {v}
-                  </div>
-                );
+                return <div className="mb-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-center text-xl font-bold text-indigo-900">{v}</div>;
               })()}
 
               {/* Answer options */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                {q.opts.map((opt, i) => {
-                  const isAnswered = selected !== null;
+                {(q.opts || []).map((opt, i) => {
+                  const isAnswered      = selected !== null;
                   const isOptionCorrect = i === q.a;
-                  const isSelected = selected === i;
+                  const isSelected      = selected === i;
                   let cls = "bg-white border-slate-200 hover:border-indigo-500 text-slate-700";
                   if (isAnswered) {
-                    if (isOptionCorrect)            cls = "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100";
-                    else if (isSelected)            cls = "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100";
-                    else                           cls = "bg-white border-slate-100 opacity-30 grayscale";
+                    if (isOptionCorrect) cls = "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100";
+                    else if (isSelected) cls = "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100";
+                    else                 cls = "bg-white border-slate-100 opacity-30 grayscale";
                   }
                   return (
                     <button key={i} disabled={isAnswered} onClick={() => handlePick(i)}
@@ -681,38 +981,35 @@ export default function QuizEngine({
               {selected !== null && (
                 <div className="space-y-3 border-t border-slate-100 pt-3">
 
-                  {/* Explanation */}
                   <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
                   </div>
 
-                  {/* Show Me How */}
                   {!isCorrectAnswer && !showInteractiveExplanation && explanationData && (
                     <button onClick={() => setShowInteractiveExplanation(true)}
                       className="w-full bg-indigo-100 text-indigo-700 font-black py-2 px-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-200 text-xs border border-indigo-200">
-                      <EyeIcon size={14}/> View Flight Data (Step-by-Step)
+                      <EyeIcon size={14}/> View Flight Data (Step‑by‑Step)
                     </button>
                   )}
 
-                  {/* Stepper */}
                   {showInteractiveExplanation && explanationData && (
                     <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="font-black text-indigo-800 text-[10px] uppercase tracking-widest flex items-center gap-1"><EyeIcon size={12}/> Nav Computer</h4>
-                        <span className="bg-indigo-200 text-indigo-800 font-bold px-1.5 py-0.5 rounded-full text-[10px]">Step {explanationStep+1}/{explanationData.steps.length}</span>
+                        <span className="bg-indigo-200 text-indigo-800 font-bold px-1.5 py-0.5 rounded-full text-[10px]">Step {explanationStep + 1}/{explanationData.steps.length}</span>
                       </div>
                       {explanationData.visual === "place-value-chart" && <PlaceValueChart computed={explanationData.computed} step={explanationStep}/>}
                       <div className="bg-white p-2 rounded-lg border border-indigo-100 text-center mb-2">
                         <p className="text-xs font-black text-indigo-900">{explanationData.steps[explanationStep]}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setExplanationStep(s => Math.max(0,s-1))} disabled={explanationStep===0}
+                        <button onClick={() => setExplanationStep(s => Math.max(0, s - 1))} disabled={explanationStep === 0}
                           className="flex-1 bg-white text-indigo-600 font-black py-1.5 rounded-lg border border-indigo-200 disabled:opacity-40 text-xs flex items-center justify-center gap-1">
                           <ArrowLeftIcon size={12}/> Prev
                         </button>
                         {explanationStep < explanationData.steps.length - 1 ? (
-                          <button onClick={() => setExplanationStep(s => s+1)}
+                          <button onClick={() => setExplanationStep(s => s + 1)}
                             className="flex-[2] bg-indigo-600 text-white font-black py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
                             Next <ArrowRightIcon size={12}/>
                           </button>
@@ -726,75 +1023,66 @@ export default function QuizEngine({
                     </div>
                   )}
 
-                  {/* Tara's Challenge */}
                   {!isCorrectAnswer && (
                     <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
                       <p className="text-amber-800 font-bold text-xs mb-2">
-                        <span className="font-black">Tara's Challenge:</span> Why is <span className="underline font-black">{q.opts[q.a]}</span> correct?
+                        <span className="font-black">Tara's Challenge:</span> Why is <span className="underline font-black">{correctAnswerText}</span> correct?
                       </p>
-                      <textarea
-                        value={eibText}
-                        onChange={e => setEibText(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        disabled={eibLocked}
+                      <textarea value={eibText} onChange={e => setEibText(e.target.value)} onKeyDown={handleKeyDown} disabled={eibLocked}
                         className="w-full p-2 rounded-lg border border-amber-100 font-bold text-xs bg-white mb-2 resize-none focus:outline-none focus:border-amber-400"
-                        rows={2}
-                        placeholder="Type your reasoning and press Enter..."
-                      />
-                      <button
-                        disabled={loadingEIB || !eibText.trim() || eibLocked}
-                        onClick={handleEIB}
-                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1"
-                      >
-                        <ZapIcon size={12}/>
-                        {loadingEIB ? "Thinking..." : "Tell Tara ✨"}
+                        rows={2} placeholder="Type your reasoning and press Enter…"/>
+                      <button disabled={loadingEIB || !eibText.trim() || eibLocked} onClick={handleEIB}
+                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                        <ZapIcon size={12}/> {loadingEIB ? "Thinking…" : "Tell Tara ✨"}
                       </button>
-                      {eibFeedback && (
-                        <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">
-                          {eibFeedback}
-                        </div>
-                      )}
+                      {eibFeedback && <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">{eibFeedback}</div>}
                     </div>
                   )}
 
-                  {/* Remediation */}
                   {!isCorrectAnswer && !remediationShown && (
-                    <button
-                      onClick={handleRemediation}
-                      className="mt-2 text-xs text-indigo-600 underline"
-                    >
+                    <button onClick={handleRemediation} className="text-xs text-indigo-600 underline font-bold">
                       Need more help? Practice this skill.
                     </button>
                   )}
+
                   {remediationData && (
                     <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                      <h4 className="font-black text-sm mb-1">{remediationData.title}</h4>
-                      <p className="text-xs mb-2">{remediationData.description}</p>
+                      <h4 className="font-black text-sm mb-1 text-blue-800">{remediationData.title}</h4>
+                      <p className="text-xs mb-3 text-blue-700">{remediationData.description}</p>
                       {remediationData.practice_q && (
                         <>
-                          <p className="font-bold text-xs mb-1">{remediationData.practice_q}</p>
+                          <p className="font-bold text-xs mb-2 text-slate-800">{remediationData.practice_q}</p>
                           <div className="grid grid-cols-2 gap-2">
-                            {remediationData.opts.map((opt, i) => (
-                              <button
-                                key={i}
+                            {(remediationData.opts || []).map((opt, i) => (
+                              <button key={i} disabled={remediationAnswered}
                                 onClick={() => handleRemediationAnswer(i, remediationData.correct)}
-                                disabled={remediationAnswered}
-                                className="p-2 bg-white border rounded text-xs"
-                              >
+                                className={`p-2 rounded-lg text-xs font-bold border-2 transition-all ${
+                                  remediationAnswered
+                                    ? i === remediationData.correct ? "bg-emerald-50 border-emerald-400 text-emerald-700" : "opacity-40 bg-white border-slate-200"
+                                    : "bg-white border-slate-200 hover:border-indigo-400 text-slate-700"
+                                }`}>
                                 {opt}
                               </button>
                             ))}
                           </div>
+                          {/* ✅ Inline result — no alert() */}
+                          {remediationAnswered && (
+                            <p className={`text-xs font-bold mt-2 ${remediationResult === "correct" ? "text-emerald-600" : "text-rose-500"}`}>
+                              {remediationResult === "correct"
+                                ? "✅ Correct! You're getting it."
+                                : `✗ The answer was: ${remediationData.opts?.[remediationData.correct]}`
+                              }
+                            </p>
+                          )}
                         </>
                       )}
                     </div>
                   )}
 
-                  {/* Continue button */}
                   {canProceed && (
                     <button onClick={next} disabled={savingResult}
                       className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
-                      {savingResult ? "Saving..." : qIdx === sessionQuestions.length-1 ? "Complete Mission" : "Continue"}
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
                       {!savingResult && <ArrowRightIcon size={16}/>}
                     </button>
                   )}
