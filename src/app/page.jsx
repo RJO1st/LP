@@ -99,6 +99,7 @@ const MODAL_TITLES = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function HomePage() {
+  const router = useRouter();
  const supabase = React.useMemo(
   () => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
