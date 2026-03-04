@@ -428,6 +428,8 @@ export default function QuizEngine({
   }, []);
 
   // ── Fetch questions ───────────────────────────────────────────────────────
+  // FIX: dedup block (previously floating between resetQuestionState and here)
+  // is now correctly placed inside the callback after variable declarations.
   const fetchQuestions = useCallback(async () => {
     setGenerating(true);
 
@@ -438,10 +440,26 @@ export default function QuizEngine({
 
     let questions = [];
 
+    // ── Step 1: 14-day history dedup (was floating outside — now fixed) ────
+    let historyIds = [];
+    if (student?.id) {
+      const since = new Date(Date.now() - 14 * 864e5).toISOString();
+      const { data: hist } = await supabase
+        .from("scholar_question_history")
+        .select("question_id")
+        .eq("scholar_id", student.id)
+        .gte("answered_at", since)
+        .limit(300);
+      historyIds = (hist ?? []).map((h) => h.question_id).filter(Boolean);
+    }
+
+    // ── Step 2: Combine in-session + history IDs ───────────────────────────
+    const allExcluded = [
+      ...new Set([...seenIdsRef.current, ...historyIds]),
+    ].filter(Boolean);
+
     // ── Tier 1: Supabase question_bank ────────────────────────────────────
     try {
-      const seenIds = [...seenIdsRef.current].filter(Boolean);
-
       let query = supabase
         .from("question_bank")
         .select("*")
@@ -449,10 +467,11 @@ export default function QuizEngine({
         .eq("year_level",  year)
         .eq("subject",     safeSubject)
         .order("last_used", { ascending: true, nullsFirst: true })
-        .limit(questionCount * 4);
+        .limit(questionCount * 6);
 
-      if (seenIds.length > 0) {
-        query = query.not("id", "in", `(${seenIds.slice(0, 90).join(",")})`);
+      if (allExcluded.length > 0) {
+        const chunk = allExcluded.slice(0, 90);
+        query = query.not("id", "in", `(${chunk.join(",")})`);
       }
 
       const { data: dbRows, error } = await query;
@@ -510,7 +529,7 @@ export default function QuizEngine({
     setQIdx(0);
     resetQuestionState();
     setGenerating(false);
-  }, [student?.year, student?.curriculum, student?.proficiency, subject, curriculumProp, questionCount, resetQuestionState]);
+  }, [student?.year, student?.curriculum, student?.proficiency, student?.id, subject, curriculumProp, questionCount, resetQuestionState]);
 
   useEffect(() => {
     setFinished(false);
@@ -754,7 +773,11 @@ export default function QuizEngine({
         await supabase.rpc("increment_scholar_xp",   { s_id: student.id, xp_to_add: totalScore });
         if (dbQuestionIds.length > 0) {
           await supabase.from("scholar_question_history").insert(
-            dbQuestionIds.map(qid => ({ scholar_id: student.id, question_id: qid }))
+            dbQuestionIds.map(qid => ({
+              scholar_id:  student.id,
+              question_id: qid,
+              answered_at: new Date().toISOString(),
+            }))
           );
         }
       }
