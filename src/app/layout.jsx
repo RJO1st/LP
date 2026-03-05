@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'LaunchPard — 11+ Rocket Science',
+  title: 'LaunchPard — Where Education Becomes Adventure',
   description: 'AI-powered learning for exam preparation. Adaptive learning, instant feedback, and space-themed missions.',
 }
 
