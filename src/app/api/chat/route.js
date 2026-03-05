@@ -12,24 +12,29 @@ export async function POST(req) {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-3-sonnet-20240229", // Updated to a currently valid model ID just in case
         max_tokens: 300,
-        system: system || "You are Sage, a warm, encouraging UK 11+ tutor.",
+        // REBRAND: Updated default persona to Mission Control
+        system: system || "You are Mission Control, a warm and encouraging AI copilot helping Cadets prepare for their 11+ exams. Use space-themed metaphors (e.g., 'trajectory', 'orbit', 'fuel levels', 'liftoff') to explain concepts, but ensure the educational advice remains clear, simple, and accurate for a 7-11 year old.",
         messages: messages
       })
     });
 
-    if (!response.ok) throw new Error("AI Chat Error");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Anthropic API Error:", errorText);
+      throw new Error("AI Chat Error");
+    }
 
     const data = await response.json();
     
-    // Return the specific format the QuizEngine is looking for
+    // Return the specific format the QuizEngine expects
     return NextResponse.json({
       content: [{ text: data.content[0].text }]
     });
 
   } catch (error) {
-    console.error("Vault Error: AI Chat Failed", error);
-    return NextResponse.json({ error: "Failed to fetch response" }, { status: 500 });
+    console.error("Mission Control Link Failed:", error);
+    return NextResponse.json({ error: "Communications offline." }, { status: 500 });
   }
 }

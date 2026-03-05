@@ -66,52 +66,83 @@ export const RARITY_COLORS = {
 // ─── CURRICULA ────────────────────────────────────────────────────────────────
 // subjects field added so any component can call getCurriculumInfo(key).subjects
 export const CURRICULA = {
+  // UK - Two options
+  uk_national: {
+    name: 'UK National Curriculum', country: '🇬🇧', gradeLabel: 'Year',
+    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], currency: '£', spelling: 'british',
+    subjects: ['maths', 'english', 'science'],
+  },
   uk_11plus: {
     name: 'UK 11+', country: '🇬🇧', gradeLabel: 'Year',
     grades: [3, 4, 5, 6], currency: '£', spelling: 'british',
     subjects: ['maths', 'english', 'verbal', 'nvr'],
   },
-  uk_national: {
-    name: 'UK National Curriculum', country: '🇬🇧', gradeLabel: 'Year',
-    grades: [1, 2, 3, 4, 5, 6], currency: '£', spelling: 'british',
-    subjects: ['maths', 'english', 'verbal', 'nvr', 'science'],
-  },
+  // US
   us_common_core: {
     name: 'US Common Core', country: '🇺🇸', gradeLabel: 'Grade',
     grades: [1, 2, 3, 4, 5, 6, 7, 8], currency: '$', spelling: 'american',
-    subjects: ['maths', 'english', 'science', 'geography'],
+    subjects: ['maths', 'english', 'science'],
   },
-  australian: {
+  // Australia
+  aus_acara: {
     name: 'Australian Curriculum', country: '🇦🇺', gradeLabel: 'Year',
-    grades: [1, 2, 3, 4, 5, 6], currency: 'A$', spelling: 'british',
-    subjects: ['maths', 'english', 'verbal', 'science'],
+    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], currency: 'A$', spelling: 'british',
+    subjects: ['maths', 'english', 'science'],
   },
+  // IB
   ib_pyp: {
-    name: 'IB Primary Years (PYP)', country: '🌐', gradeLabel: 'Grade',
-    grades: [1, 2, 3, 4, 5], currency: '$', spelling: 'american',
-    subjects: ['maths', 'english', 'science', 'geography', 'history'],
+    name: 'IB Primary Years (PYP)', country: '🌍', gradeLabel: 'Year',
+    grades: [1, 2, 3, 4, 5, 6], currency: '$', spelling: 'american',
+    subjects: ['maths', 'english', 'science'],
   },
-  waec: {
-    name: 'WAEC / Nigerian', country: '🇳🇬', gradeLabel: 'Year',
-    grades: [7, 8, 9, 10, 11, 12], currency: '₦', spelling: 'british',
-    subjects: ['maths', 'english', 'verbal', 'science', 'geography', 'history'],
+  ib_myp: {
+    name: 'IB Middle Years (MYP)', country: '🌍', gradeLabel: 'Year',
+    grades: [1, 2, 3, 4, 5], currency: '$', spelling: 'american',
+    subjects: ['maths', 'english', 'science'],
+  },
+  // Nigeria - Three stages
+  ng_primary: {
+    name: 'Nigerian Primary', country: '🇳🇬', gradeLabel: 'Primary',
+    grades: [1, 2, 3, 4, 5, 6], currency: '₦', spelling: 'british',
+    subjects: ['maths', 'english', 'science'],
+    alternateLabel: 'Basic' // Primary 1 = Basic 1
+  },
+  ng_jss: {
+    name: 'Nigerian JSS', country: '🇳🇬', gradeLabel: 'JSS',
+    grades: [1, 2, 3], currency: '₦', spelling: 'british',
+    subjects: ['maths', 'english', 'science'],
+    alternateLabel: 'Basic', // JSS 1 = Basic 7
+    alternateOffset: 6 // JSS 1 = Basic 7 (6+1)
+  },
+  ng_sss: {
+    name: 'Nigerian SSS', country: '🇳🇬', gradeLabel: 'SS',
+    grades: [1, 2, 3], currency: '₦', spelling: 'british',
+    subjects: ['maths', 'english', 'physics', 'chemistry', 'biology'],
+    exams: ['WAEC', 'NECO'] // Senior Secondary - WAEC/NECO prep
   },
 };
 
 // Kept for backward-compat; derived from CURRICULA so always in sync
 export const SUBJECTS_BY_CURRICULUM = {
+  uk_national:    ['maths', 'english', 'science'],
   uk_11plus:      ['maths', 'english', 'verbal', 'nvr'],
-  uk_national:    ['maths', 'english', 'verbal', 'nvr', 'science'],
-  us_common_core: ['maths', 'english', 'science', 'geography'],
-  australian:     ['maths', 'english', 'verbal', 'science'],
-  ib_pyp:         ['maths', 'english', 'science', 'geography', 'history'],
-  waec:           ['maths', 'english', 'verbal', 'science', 'geography', 'history'],
+  us_common_core: ['maths', 'english', 'science'],
+  aus_acara:      ['maths', 'english', 'science'],
+  ib_pyp:         ['maths', 'english', 'science'],
+  ib_myp:         ['maths', 'english', 'science'],
+  ng_primary:     ['maths', 'english', 'science'],
+  ng_jss:         ['maths', 'english', 'science'],
+  ng_sss:         ['maths', 'english', 'physics', 'chemistry', 'biology'],
+  // Old keys for backward compatibility
+  australian:     ['maths', 'english', 'science'],
+  waec:           ['maths', 'english', 'science'],
 };
 
 // ─── SUBJECT METADATA ─────────────────────────────────────────────────────────
 export const SUBJECT_ICONS = {
   maths: '🔢', english: '📚', verbal: '🧩',
   nvr: '🎨', science: '🔬', geography: '🌍', history: '📜',
+  physics: '⚛️', chemistry: '🧪', biology: '🧬',
 };
 
 export const SUBJECT_COLORS = {
@@ -122,6 +153,9 @@ export const SUBJECT_COLORS = {
   science:   { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
   geography: { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500'    },
   history:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500'   },
+  physics:   { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     dot: 'bg-sky-500'     },
+  chemistry: { bg: 'bg-lime-50',    text: 'text-lime-700',    border: 'border-lime-200',    dot: 'bg-lime-500'    },
+  biology:   { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200',   dot: 'bg-green-500'   },
 };
 
 export const getLevelInfo = (totalXp) => {

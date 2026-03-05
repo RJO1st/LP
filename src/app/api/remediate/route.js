@@ -10,7 +10,7 @@ export async function POST(req) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Fetch the skill ID
+    // 1. Find the skill ID
     const { data: skillData, error: skillError } = await supabase
       .from('skills')
       .select('id')
@@ -21,8 +21,12 @@ export async function POST(req) {
     }
     const skillId = skillData[0].id;
 
-    // Call OpenRouter to generate remediation
-    const prompt = `Generate a brief remediation for a Year 5 student who answered incorrectly on the topic "${skill_topic}". Provide a short explanation (1‑2 sentences) and a similar practice question with 4 multiple‑choice options and the correct answer index. Format as JSON: {"title":"...","description":"...","practice_q":"...","opts":["A","B","C","D"],"correct":0}`;
+    // 2. Generate remediation using OpenRouter
+    const prompt = `Generate a brief remediation for a student who answered incorrectly on the topic "${skill_topic}". Provide:
+      - A short title (1‑2 words)
+      - A 1‑2 sentence description
+      - A similar practice question with 4 multiple‑choice options and the correct index (0‑based)
+      Format as JSON: {"title":"...","description":"...","practice_q":"...","opts":["A","B","C","D"],"correct":0}`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -31,9 +35,10 @@ export async function POST(req) {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        model: 'openai/gpt-4o-mini', // you have credits for this
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 500,
+        temperature: 0.7,
       }),
     });
 
@@ -41,11 +46,10 @@ export async function POST(req) {
 
     const data = await response.json();
     const raw = data.choices[0].message.content;
-    // Clean markdown fences
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
     const remediation = JSON.parse(cleaned);
 
-    // Insert into skill_remediation (optional – could be reused later)
+    // 3. Insert into skill_remediation (optional – for reuse)
     const { data: inserted, error: insertError } = await supabase
       .from('skill_remediation')
       .insert({
@@ -58,7 +62,7 @@ export async function POST(req) {
 
     if (insertError) throw insertError;
 
-    // Log that this scholar received it
+    // 4. Log that this scholar received it
     await supabase.from('scholar_remediation_log').insert({
       scholar_id,
       remediation_id: inserted.id,
