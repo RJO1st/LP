@@ -1,8 +1,11 @@
 // components/Leaderboard.jsx
+"use client";
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function Leaderboard({ yearLevel, curriculum }) {
+
   const [leaders, setLeaders] = useState([]);
   
   useEffect(() => {
