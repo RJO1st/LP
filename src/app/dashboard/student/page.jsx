@@ -6,11 +6,14 @@ import { createBrowserClient } from "@supabase/ssr";
 import dynamic from "next/dynamic";
 import {
   BADGES, TIER_COLORS, AVATAR_ITEMS, RARITY_COLORS,
-  CURRICULA, SUBJECTS_BY_CURRICULUM,
+  CURRICULA, getSubjectsForCurriculum,
   getLevelInfo, sounds, ensureQuestsAssigned,
+  formatGradeLabel, SUBJECT_ICONS, SUBJECT_COLORS
 } from "../../../lib/gamificationEngine";
 import SkillHeatmap  from "../../../components/parent/SkillHeatmap";
 import ProgressChart from "../../../components/game/ProgressChart";
+import QuestPanel from "../../../components/QuestPanel";
+import { getTrialStatus } from "../../../lib/trialTracking";
 
 const QuizEngine = dynamic(
   () => import("../../../components/game/QuizEngine"),
@@ -212,57 +215,21 @@ function LevelBar({ totalXp }) {
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
-        <span className="text-xs font-black text-slate-600 uppercase tracking-wider">
+        <span className="text-xs font-black text-white/80 uppercase tracking-wider">
           {current.title}
         </span>
-        {next && <span className="text-xs text-slate-400 font-bold">→ {next.title}</span>}
+        {next && <span className="text-xs text-white/60 font-bold">→ {next.title}</span>}
       </div>
-      <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700"
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 transition-all duration-700"
           style={{ width: `${progressPct}%` }}
         />
       </div>
       <div className="flex justify-between mt-0.5">
-        <span className="text-[10px] text-slate-400 font-bold">Lv {current.level}</span>
-        <span className="text-[10px] text-slate-400 font-bold">{progressPct}%</span>
+        <span className="text-[10px] text-white/60 font-bold">Lv {current.level}</span>
+        <span className="text-[10px] text-white/60 font-bold">{progressPct}%</span>
       </div>
-    </div>
-  );
-}
-
-// ─── QUEST CARD ───────────────────────────────────────────────────
-function QuestCard({ quest }) {
-  const pct       = Math.min(100, Math.round((quest.progress / quest.target) * 100));
-  const isDaily   = quest.quest_templates?.quest_type === "daily";
-  const hoursLeft = Math.max(0, Math.round((new Date(quest.expires_at) - Date.now()) / 3_600_000));
-
-  return (
-    <div className={`p-3 rounded-xl border-2
-      ${quest.completed ? "border-emerald-200 bg-emerald-50" : "border-slate-100 bg-white"}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded
-              ${isDaily ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"}`}>
-              {isDaily ? "⚡ Daily" : "🌟 Weekly"}
-            </span>
-          </div>
-          <p className="text-sm font-black text-slate-800">{quest.quest_templates?.title}</p>
-          <p className="text-xs text-slate-400">{hoursLeft}h left · +{quest.quest_templates?.xp_reward} XP</p>
-        </div>
-        {quest.completed && <CheckIcon size={20} />}
-      </div>
-      {!quest.completed && (
-        <div>
-          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-[10px] text-slate-400 mt-0.5 text-right font-bold">
-            {quest.progress}/{quest.target}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
@@ -288,7 +255,7 @@ function Leaderboard({ entries, currentScholarId }) {
             <AvatarDisplay avatar={entry.avatar} size="sm" />
             <div className="flex-1 min-w-0">
               <p className={`font-black text-sm truncate ${isMe ? "text-indigo-700" : "text-slate-700"}`}>
-                {entry.name}{isMe ? " (You)" : ""}
+                {entry.codename || entry.name}{isMe ? " (You)" : ""}
               </p>
               <p className="text-xs text-slate-400 font-bold">{entry.personal_best || 0}% best</p>
             </div>
@@ -325,23 +292,14 @@ function BadgeGrid({ earnedIds }) {
 }
 
 // ─── SUBJECT CARD ─────────────────────────────────────────────────
-const SUBJECT_CONFIG = {
-  maths:     { label: "Maths",     sub: "Numbers & Logic",   icon: "⚡", color: "blue",    from: "from-blue-500",    shadow: "shadow-blue-200"    },
-  english:   { label: "English",   sub: "Grammar & Reading", icon: "Aa", color: "rose",    from: "from-rose-500",    shadow: "shadow-rose-200"    },
-  verbal:    { label: "Verbal",    sub: "Word Puzzles",      icon: "🧠", color: "emerald", from: "from-emerald-500", shadow: "shadow-emerald-200" },
-  nvr:       { label: "Spatial",   sub: "NVR & Patterns",    icon: "🧩", color: "amber",   from: "from-amber-500",   shadow: "shadow-amber-200"   },
-  science:   { label: "Science",   sub: "Forces & Life",     icon: "🔬", color: "violet",  from: "from-violet-500",  shadow: "shadow-violet-200"  },
-  geography: { label: "Geography", sub: "World & Maps",      icon: "🌍", color: "teal",    from: "from-teal-500",    shadow: "shadow-teal-200"    },
-  history:   { label: "History",   sub: "Time & Events",     icon: "📜", color: "orange",  from: "from-orange-500",  shadow: "shadow-orange-200"  },
-};
-
 function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
-  const cfg = SUBJECT_CONFIG[subjectId] || SUBJECT_CONFIG.maths;
+  const colors = SUBJECT_COLORS[subjectId] || SUBJECT_COLORS.maths;
+  const icon = SUBJECT_ICONS[subjectId] || "📚";
+  
   return (
     <button onClick={onClick}
-      className={`group relative bg-white p-6 rounded-[28px] border-2 border-slate-100 text-left
-                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200
-                  hover:border-${cfg.color}-200 overflow-hidden`}>
+      className={`group relative ${colors.bg} p-6 rounded-[28px] border-2 ${colors.border} text-left
+                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden`}>
       {proficiency > 0 && (
         <div className="absolute top-3 right-3">
           <div className="relative w-8 h-8">
@@ -356,16 +314,9 @@ function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
           </div>
         </div>
       )}
-      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${cfg.from} to-${cfg.color}-600
-                       flex items-center justify-center mb-4 group-hover:scale-110
-                       transition-transform shadow-lg ${cfg.shadow} text-white font-black text-xl`}>
-        {typeof cfg.icon === "string" && cfg.icon.length <= 2 && !cfg.icon.includes("🧠")
-          ? <span className="italic text-sm">{cfg.icon}</span>
-          : <span>{cfg.icon}</span>
-        }
-      </div>
-      <h3 className="text-lg font-black text-slate-800 mb-0.5">{cfg.label}</h3>
-      <p className="text-slate-400 font-bold text-xs">{cfg.sub}</p>
+      <div className="text-4xl mb-3">{icon}</div>
+      <h3 className={`text-lg font-black ${colors.text} capitalize`}>{subjectId}</h3>
+      <p className="text-xs text-slate-600 font-bold mt-1">Start Quiz →</p>
     </button>
   );
 }
@@ -398,39 +349,51 @@ export default function StudentDashboard() {
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
   const [soundOn,          setSoundOn]          = useState(true);
   const [lbMode,           setLbMode]           = useState("year");
+  const [trialInfo,        setTrialInfo]        = useState(null);
+  const [parentInfo,       setParentInfo]       = useState(null);
 
-  // ── Boot: load scholar from DB, not just localStorage ───────────
-  // This guarantees curriculum, avatar, coins etc. are always fresh
-  // even if the localStorage cache is stale or incomplete.
+  // ── Boot: load scholar from localStorage ─────────────────────────
   useEffect(() => {
-    const init = async () => {
-      const saved = localStorage.getItem("active_scholar");
-      if (!saved) { router.push("/"); return; }
+    const saved = localStorage.getItem("active_scholar");
+    if (saved) {
+      const scholar = JSON.parse(saved);
+      console.log("✅ Loaded:", scholar.name, scholar.curriculum);
+      setScholar(scholar);
+      
+      // Load parent info and check trial status
+      if (scholar.parent_id) {
+        loadTrialStatus(scholar.parent_id);
+      }
+    } else {
+      router.push("/");
+    }
+  }, [router]);
 
-      const cached = JSON.parse(saved);
-
-      // Show cached data immediately so the page renders fast
-      setScholar(cached);
-
-      // Re-fetch from DB for the complete, authoritative record
-      const { data: fresh, error } = await supabase
-        .from("scholars")
-        .select("*")
-        .eq("id", cached.id)
+  // ── Load trial status ────────────────────────────────────────────
+  const loadTrialStatus = useCallback(async (parentId) => {
+    try {
+      const { data: parentData } = await supabase
+        .from('parents')
+        .select('*')
+        .eq('id', parentId)
         .single();
 
-      if (error || !fresh) {
-        // Cached record is enough to continue — don't hard-redirect
-        console.warn("Could not re-fetch scholar from DB:", error?.message);
-        return;
-      }
+      if (parentData) {
+        setParentInfo(parentData);
+        
+        // Get trial status
+        const status = await getTrialStatus(parentId);
+        setTrialInfo(status);
 
-      // Overwrite cache with the full row (includes curriculum etc.)
-      setScholar(fresh);
-      localStorage.setItem("active_scholar", JSON.stringify(fresh));
-    };
-    init();
-  }, [router, supabase]);
+        // If expired, redirect to subscribe
+        if (status.status === 'expired') {
+          router.push('/subscribe?expired=true');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading trial status:', error);
+    }
+  }, [supabase, router]);
 
   // ── Data loaders ─────────────────────────────────────────────────
   const refreshHistory = useCallback(async (id) => {
@@ -441,13 +404,11 @@ export default function StudentDashboard() {
     if (data) setPrevQuestionIds(data.map(h => h.question_id));
   }, [supabase]);
 
-  // Leaderboard now scoped to BOTH curriculum AND year so Nigerian
-  // Year 9 scholars compete only with other Nigerian Year 9 scholars.
-  const loadLeaderboard = useCallback(async (year, curriculum) => {
+  const loadLeaderboard = useCallback(async (yearLevel, curriculum) => {
     const { data } = await supabase
       .from("scholars")
-      .select("id, name, total_xp, personal_best, avatar")
-      .eq("year",       year)
+      .select("id, codename, total_xp, personal_best, avatar")
+      .eq("year_level", yearLevel)
       .eq("curriculum", curriculum)
       .order("total_xp", { ascending: false })
       .limit(10);
@@ -485,13 +446,11 @@ export default function StudentDashboard() {
     }
   }, [supabase]);
 
-  // Pass curriculum so the skills API returns the correct subject rows
   const loadFullSkills = useCallback(async (id, curriculum) => {
     const res = await fetch(`/api/parent/skills?scholar_id=${id}&curriculum=${curriculum}`);
     if (res.ok) setFullSkills(await res.json());
   }, []);
 
-  // Pass curriculum so the accuracy API can return per-subject series
   const loadAccuracyData = useCallback(async (id, curriculum) => {
     const res = await fetch(
       `/api/parent/accuracy?scholar_id=${id}&period=month&curriculum=${curriculum}`
@@ -517,34 +476,39 @@ export default function StudentDashboard() {
     }
   }, [supabase]);
 
-  // ── Fire all loaders once scholar is available ───────────────────
-  useEffect(() => {
-    if (!scholar?.id) return;
-    const { id, year, curriculum = "uk_11plus" } = scholar;
-    Promise.all([
-      refreshHistory(id),
-      loadBadges(id),
-      loadQuests(id),
-      loadLeaderboard(year, curriculum),
-      loadSkills(id),
-      loadRecentQuizzes(id),
-      loadFullSkills(id, curriculum),
-      loadAccuracyData(id, curriculum),
-      ensureQuestsAssigned(id),
-    ]);
-  }, [
-    scholar?.id,
-    scholar?.year,
-    scholar?.curriculum,
-    refreshHistory,
-    loadBadges,
-    loadQuests,
-    loadLeaderboard,
-    loadSkills,
-    loadRecentQuizzes,
-    loadFullSkills,
-    loadAccuracyData,
+  // ── Data effect ──────────────────────────────────────────────────
+  // ── Data effect ──────────────────────────────────────────────────
+useEffect(() => {
+  if (!scholar?.id) return;
+  const { id, curriculum } = scholar;
+  const yearLevel = scholar.year_level || scholar.year || 5;
+  
+  console.log('🎯 Loading data for:', curriculum, 'Year', yearLevel);
+
+  Promise.all([
+    refreshHistory(id),
+    loadBadges(id),
+    loadQuests(id),
+    loadLeaderboard(yearLevel, curriculum),
+    loadSkills(id),
+    loadRecentQuizzes(id),
+    loadFullSkills(id, curriculum),
+    loadAccuracyData(id, curriculum),
+    ensureQuestsAssigned(id),
   ]);
+}, [
+  scholar?.id,
+  scholar?.curriculum,
+  scholar?.year_level ?? scholar?.year,  // ← FIX: One value, not two
+  refreshHistory,
+  loadBadges,
+  loadQuests,
+  loadLeaderboard,
+  loadSkills,
+  loadRecentQuizzes,
+  loadFullSkills,
+  loadAccuracyData,
+]);
 
   // ── After quiz completes ─────────────────────────────────────────
   const handleQuestComplete = useCallback(async () => {
@@ -608,12 +572,9 @@ export default function StudentDashboard() {
   // ── Guards ───────────────────────────────────────────────────────
   if (!scholar) return <LoadingScreen />;
 
-  // Derive curriculum-specific values.
-  // These are recalculated on every render so they always reflect
-  // the freshest scholar data (including after a DB re-fetch).
   const curriculum = scholar.curriculum ?? "uk_11plus";
   const currDef    = CURRICULA[curriculum] ?? CURRICULA.uk_11plus;
-  const subjects   = SUBJECTS_BY_CURRICULUM[curriculum] ?? SUBJECTS_BY_CURRICULUM.uk_11plus;
+  const subjects   = getSubjectsForCurriculum(curriculum);
   const levelInfo  = getLevelInfo(scholar.total_xp || 0);
 
   // ── Active quiz ──────────────────────────────────────────────────
@@ -659,14 +620,15 @@ export default function StudentDashboard() {
           </div>
           <span className="font-black text-lg text-slate-800">LaunchPard</span>
           <span className="text-xs text-slate-300 font-bold hidden sm:inline">·</span>
-          {/* Shows correct curriculum name (e.g. "Nigerian WAEC" not "UK 11+") */}
-          <span className="text-xs text-slate-400 font-bold hidden sm:inline">{currDef.name}</span>
+          <span className="text-xs text-slate-400 font-bold hidden sm:inline">
+            {currDef.country} {currDef.name}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowProgress(v => !v)}
             className="hidden md:flex items-center gap-2 bg-indigo-50 text-indigo-700
-                       font-bold px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-colors mr-2"
+                       font-bold px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-colors"
           >
             <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
           </button>
@@ -678,13 +640,60 @@ export default function StudentDashboard() {
             <span className="font-black text-yellow-700 text-sm">{scholar.coins || 0}</span>
           </div>
           <button
-            onClick={handleSignOut}
-            className="text-xs text-slate-400 hover:text-rose-500 font-bold uppercase tracking-wider px-2 py-1"
+            onClick={() => setShowAvatarShop(true)}
+            className="flex items-center gap-2 bg-purple-50 text-purple-700 font-bold px-3 py-2 rounded-xl hover:bg-purple-100 transition-colors"
+            title="Customize Avatar"
           >
-            Out
+            <span className="text-lg">👤</span>
+            <span className="hidden md:inline text-xs">Avatar</span>
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="text-xs text-slate-400 hover:text-rose-500 font-bold uppercase tracking-wider px-3 py-2 rounded-lg hover:bg-rose-50 transition-colors"
+          >
+            Logout
           </button>
         </div>
       </nav>
+
+      {/* ── TRIAL BANNER ────────────────────────────────────────── */}
+      {trialInfo && trialInfo.status === 'trial' && (
+        <div className={`
+          ${trialInfo.daysLeft <= 2 
+            ? 'bg-gradient-to-r from-orange-500 to-red-600' 
+            : 'bg-gradient-to-r from-indigo-500 to-purple-600'
+          } px-4 py-3 shadow-lg
+        `}>
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">
+                {trialInfo.daysLeft <= 2 ? '⚠️' : '🎉'}
+              </div>
+              <div className="text-white">
+                <p className="font-bold text-sm">
+                  {trialInfo.daysLeft <= 2 ? '⏰ Trial Ending Soon!' : '✨ Free Trial Active'}
+                </p>
+                <p className="text-xs opacity-90">
+                  {trialInfo.message}
+                </p>
+              </div>
+            </div>
+            
+            <a
+              href="/subscribe"
+              className={`
+                px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all text-sm
+                ${trialInfo.daysLeft <= 2
+                  ? 'bg-white text-orange-600 hover:bg-orange-50 shadow-lg'
+                  : 'bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white'
+                }
+              `}
+            >
+              {trialInfo.ctaText}
+            </a>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 pt-8 space-y-6">
 
@@ -701,9 +710,8 @@ export default function StudentDashboard() {
               </p>
               <h1 className="text-2xl font-black truncate">Welcome back, {scholar.name}!</h1>
               <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                {/* Curriculum + grade badge — now reads from DB-refreshed scholar */}
                 <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-black">
-                  {currDef.country} {currDef.gradeLabel} {scholar.year}
+                  {currDef.country} {formatGradeLabel(scholar.year_level || scholar.year, curriculum)}
                 </span>
                 <span className="bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
                   <StarFull size={11} /> {scholar.total_xp || 0} XP
@@ -724,19 +732,9 @@ export default function StudentDashboard() {
         </div>
 
         {/* ── ACTIVE QUESTS ────────────────────────────────────── */}
-        {activeQuests.length > 0 && (
-          <section>
-            <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
-              Active Quests
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {activeQuests.map(q => <QuestCard key={q.id} quest={q} />)}
-            </div>
-          </section>
-        )}
+        <QuestPanel scholarId={scholar.id} />
 
         {/* ── SUBJECT GRID ─────────────────────────────────────── */}
-        {/* Subjects are derived from scholar.curriculum — correct for every curriculum */}
         <section>
           <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
             Choose Your Mission
@@ -767,13 +765,12 @@ export default function StudentDashboard() {
               <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
                 Leaderboard
               </h3>
-              {/* Mode pills — "Year 9" label uses correct gradeLabel for curriculum */}
               <div className="flex gap-1">
                 {["year", "friends"].map(m => (
                   <button key={m} onClick={() => setLbMode(m)}
                     className={`text-xs px-2 py-1 rounded-lg font-black capitalize
                       ${lbMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}>
-                    {m === "year" ? `${currDef.gradeLabel} ${scholar.year}` : "Friends"}
+                    {m === "year" ? formatGradeLabel(scholar.year_level || scholar.year, curriculum) : "Friends"}
                   </button>
                 ))}
               </div>
@@ -791,7 +788,7 @@ export default function StudentDashboard() {
             <div className="space-y-2">
               {recentQuizzes.map((q, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="text-lg">{SUBJECT_CONFIG[q.subject]?.icon ?? "📚"}</span>
+                  <span className="text-lg">{SUBJECT_ICONS[q.subject] ?? "📚"}</span>
                   <div className="flex-1">
                     <div className="flex justify-between text-sm">
                       <span className="font-bold text-slate-700 capitalize">{q.subject}</span>
@@ -822,8 +819,6 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
             <h2 className="text-2xl font-black text-slate-800 mb-6">Your Progress</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* SkillHeatmap receives curriculum+subjects so it renders
-                  correct subject rows and grade columns for this scholar */}
               <SkillHeatmap
                 skills={fullSkills}
                 curriculum={curriculum}
@@ -831,7 +826,6 @@ export default function StudentDashboard() {
                 grades={currDef.grades}
                 gradeLabel={currDef.gradeLabel}
               />
-              {/* ProgressChart receives subjects for multi-line per-subject accuracy */}
               <ProgressChart
                 data={chartData}
                 subjects={subjects}

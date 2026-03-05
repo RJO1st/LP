@@ -310,42 +310,63 @@ const TopicSummaryCard = ({ topicSummary }) => {
 
 // ─── DB ROW → QUESTION SHAPE ─────────────────────────────────────────────────
 function dbRowToQuestion(row, fallbackSubject) {
-  // Safe JSON parser — handles already-parsed arrays and raw strings
   const parse = (val, fallback) => {
     if (Array.isArray(val)) return val;
     if (val && typeof val === "object") return val;
     try { return val ? JSON.parse(val) : fallback; } catch { return fallback; }
   };
 
-  const opts          = parse(row.options,        []);
-  const hints         = parse(row.hints,          []);
-  const steps         = parse(row.steps,          null);
-  const answerAliases = parse(row.answer_aliases, []);
+  // FIX: Read from question_data if it exists
+  let data = row;
+  if (row.question_data) {
+    const parsed = parse(row.question_data, {});
+    data = {
+      ...row,
+      question_text: parsed.q || row.question_text,
+      options: parsed.opts || row.options,
+      correct_index: typeof parsed.a === 'number' ? parsed.a :
+                     (parsed.a != null ? parseInt(parsed.a, 10) : row.correct_index),
+      explanation: parsed.exp || row.explanation,
+      hints: parsed.hints || row.hints,
+      passage: parsed.passage || row.passage,
+      topic: parsed.topic || row.topic,
+      question_type: parsed.question_type || row.question_type,
+      steps: parsed.steps || row.steps,
+      answer: parsed.answer || row.answer,
+      answer_aliases: parsed.answerAliases || row.answer_aliases,
+      difficulty: parsed.difficulty || row.difficulty,
+      visual: parsed.visual || row.visual,
+    };
+  }
 
-  const qType = row.question_type ?? "mcq";
+  const opts          = parse(data.options,        []);
+  const hints         = parse(data.hints,          []);
+  const steps         = parse(data.steps,          null);
+  const answerAliases = parse(data.answer_aliases, []);
 
-  // multi_select stores correct answers as an array in correct_indices
+  const qType = data.question_type ?? "mcq";
+
   const correctAnswer =
     qType === "multi_select"
-      ? (parse(row.correct_indices, null) ?? [row.correct_index ?? 0])
-      : (row.correct_index ?? 0);
+      ? (parse(data.correct_indices, null) ?? [data.correct_index ?? 0])
+      : (data.correct_index ?? 0);
 
   return {
     id:            row.id,
-    q:             row.question_text  ?? "",
+    q:             data.question_text  ?? "",
     opts,
     a:             correctAnswer,
-    exp:           row.explanation    ?? "",
+    exp:           data.explanation    ?? "",
     subject:       row.subject        ?? fallbackSubject ?? "maths",
-    topic:         row.topic          ?? "general",
+    topic:         data.topic          ?? "general",
     hints,
     type:          qType,
-    visual:        parse(row.visual, null),
-    passage:       row.passage        ?? null,
+    visual:        parse(data.visual, null),
+    passage:       data.passage        ?? null,
     steps,
-    answer:        row.answer         ?? null,
+    answer:        data.answer         ?? null,
     answerAliases,
-    difficulty:    row.difficulty     ?? 50,
+    difficulty:    data.difficulty     ?? 50,
     difficultyTier: row.difficulty_tier ?? "developing",
   };
 }
@@ -358,7 +379,7 @@ export default function QuizEngine({
   curriculum: curriculumProp,
   onClose,
   onComplete,
-  questionCount = 10,
+  questionCount = 15,
   previousQuestionIds = [],
 }) {
   const [sessionQuestions, setSessionQuestions] = useState([]);
@@ -366,8 +387,7 @@ export default function QuizEngine({
   const [qIdx,             setQIdx]             = useState(0);
   const [selected,         setSelected]         = useState(null);
   const [timeLeft,         setTimeLeft]         = useState(45);
-  const [generating,       setGenerating]       = useState(true);
-  const [sourceLabel,      setSourceLabel]      = useState("DB");
+  const [generating,       setGenerating]       = useState(false);
 
   const [finished,     setFinished]     = useState(false);
   const [totalScore,   setTotalScore]   = useState(0);
@@ -406,6 +426,7 @@ export default function QuizEngine({
   const timerRef     = useRef(null);
   const seenIdsRef   = useRef(new Set(previousQuestionIds));
   const seenTextsRef = useRef(new Set());
+  const fetchingRef  = useRef(false);
 
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
@@ -431,28 +452,42 @@ export default function QuizEngine({
   // FIX: dedup block (previously floating between resetQuestionState and here)
   // is now correctly placed inside the callback after variable declarations.
   const fetchQuestions = useCallback(async () => {
+  console.log('🎬 fetchQuestions CALLED');
+  if (fetchingRef.current) { console.log('⏸️ Already fetching, skipping'); return; }
+  fetchingRef.current = true;
     setGenerating(true);
-
-    const year        = student?.year       ? parseInt(student.year, 10) : 4;
+console.log('🎮 RAW:', { name: student?.name, year_level: student?.year_level, curr: student?.curriculum, prop_curr: curriculumProp });
+    const year = student?.year_level || student?.year 
+  ? parseInt(student.year_level || student.year, 10) 
+  : 4;
     const curriculum  = curriculumProp || student?.curriculum || "uk_11plus";
     const safeSubject = subject || "maths";
     const proficiency = student?.skillProficiency?.[safeSubject] ?? student?.proficiency ?? 50;
-
+console.log('🎮 RESOLVED:', { year, curriculum });
     let questions = [];
 
-    // ── Step 1: 14-day history dedup (was floating outside — now fixed) ────
-    let historyIds = [];
-    if (student?.id) {
-      const since = new Date(Date.now() - 14 * 864e5).toISOString();
-      const { data: hist } = await supabase
-        .from("scholar_question_history")
-        .select("question_id")
-        .eq("scholar_id", student.id)
-        .gte("answered_at", since)
-        .limit(300);
+
+// ── Step 1: 14-day history dedup ────
+let historyIds = [];
+try {
+  if (student?.id) {
+    const since = new Date(Date.now() - 14 * 864e5).toISOString();
+    const { data: hist, error } = await supabase
+      .from("scholar_question_history")
+      .select("question_id")
+      .eq("scholar_id", student.id)
+      .gte("answered_at", since)
+      .limit(300);
+    
+    if (error) {
+      console.warn("History query failed:", error.message);
+    } else {
       historyIds = (hist ?? []).map((h) => h.question_id).filter(Boolean);
     }
-
+  }
+} catch (err) {
+  console.warn("History fetch failed:", err.message);
+}
     // ── Step 2: Combine in-session + history IDs ───────────────────────────
     const allExcluded = [
       ...new Set([...seenIdsRef.current, ...historyIds]),
@@ -475,7 +510,20 @@ export default function QuizEngine({
       }
 
       const { data: dbRows, error } = await query;
+// ADD THIS HERE (INSIDE the try block):
+console.log('🔍 DB RESULT:', {
+  curriculum,
+  year,
+  subject: safeSubject,
+  found: dbRows?.length || 0,
+  error: error?.message
+});
 
+if (dbRows?.length > 0) {
+  console.log('Sample:', dbRows[0]);
+}
+
+if (error) throw error;
       if (!error && dbRows && dbRows.length > 0) {
         const shuffled = [...dbRows].sort(() => Math.random() - 0.5);
         const deduped  = shuffled.filter(row => {
@@ -484,8 +532,6 @@ export default function QuizEngine({
           return true;
         });
         questions = deduped.slice(0, questionCount).map(row => dbRowToQuestion(row, safeSubject));
-        setSourceLabel("DB");
-
         // Fire-and-forget: mark as used
         const usedIds = questions.map(q => q.id).filter(Boolean);
         if (usedIds.length > 0) {
@@ -499,46 +545,50 @@ export default function QuizEngine({
       console.warn("[QuizEngine] question_bank fetch failed, falling back to procedural:", err.message);
     }
 
-    // ── Tier 2: Procedural fallback ───────────────────────────────────────
-    if (questions.length < questionCount) {
-      const region = student?.region || "GL";
-      try {
-        const qs = await generateSessionQuestions(
-          year, region, questionCount, proficiency,
-          safeSubject, [],
-          Array.from(seenIdsRef.current),
-          curriculum
-        );
-        const needed = questionCount - questions.length;
-        const extra  = qs
-          .filter(q => !seenTextsRef.current.has(q.q))
-          .slice(0, needed);
-        extra.forEach(q => seenTextsRef.current.add(q.q));
-        const tagged = extra.map(q => ({ ...q, subject: q.subject || safeSubject }));
-        questions    = [...questions, ...tagged];
-        setSourceLabel(questions.length > extra.length ? "DB+AI" : "AI");
-      } catch (err) {
-        console.error("[QuizEngine] Procedural fallback failed:", err);
-      }
+  // ── Tier 2: Procedural fallback ───────────────────────────────────────
+if (questions.length < questionCount) {
+  try {
+    const qs = await generateSessionQuestions(
+      student,
+      safeSubject,
+      'foundation',
+      questionCount
+    );
+    
+    const needed = questionCount - questions.length;
+    const extra  = qs
+      .filter(q => !seenTextsRef.current.has(q.q))
+      .slice(0, needed);
+    extra.forEach(q => seenTextsRef.current.add(q.q));
+    const tagged = extra.map(q => ({ ...q, subject: q.subject || safeSubject }));
+    questions    = [...questions, ...tagged];
+  } catch (err) {
+    console.error("[QuizEngine] Procedural fallback failed:", err);
+  }
+}
+
+    try {
+      questions.forEach(q => { if (q.id) seenIdsRef.current.add(q.id); });
+      setDbQuestionIds(questions.filter(q => q.id).map(q => q.id));
+      setSessionQuestions(questions);
+      setQIdx(0);
+      resetQuestionState();
+    } finally {
+      fetchingRef.current = false;
+      setGenerating(false);
     }
-
-    questions.forEach(q => { if (q.id) seenIdsRef.current.add(q.id); });
-
-    setSessionQuestions(questions);
-    setDbQuestionIds(questions.filter(q => q.id).map(q => q.id));
-    setQIdx(0);
-    resetQuestionState();
-    setGenerating(false);
   }, [student?.year, student?.curriculum, student?.proficiency, student?.id, subject, curriculumProp, questionCount, resetQuestionState]);
 
-  useEffect(() => {
-    setFinished(false);
-    setResults({ score: 0, answers: [] });
-    setTopicSummary({});
-    setTotalScore(0);
-    setStreak(0);
-    fetchQuestions();
-  }, [fetchQuestions]);
+useEffect(() => {
+  if (!student || !subject) return;
+
+  setFinished(false);
+  setResults({ score: 0, answers: [] });
+  setTopicSummary({});
+  setTotalScore(0);
+  setStreak(0);
+  fetchQuestions();
+}, [student?.id, subject]);  // ← Only student.id and subject, NOT fetchQuestions
 
   useEffect(() => {
     const q = sessionQuestions[qIdx];
@@ -891,16 +941,6 @@ export default function QuizEngine({
             <span className="bg-indigo-50 px-2 py-1 rounded-lg font-black text-indigo-600 text-[10px] uppercase tracking-widest flex items-center gap-1">
               <RocketIcon size={12}/> Mission {qIdx + 1}/{sessionQuestions.length}
             </span>
-            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
-              sourceLabel === "DB" ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
-            }`}>{sourceLabel}</span>
-            {q.difficultyTier && (
-              <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                q.difficultyTier === "foundation" ? "bg-blue-100 text-blue-600" :
-                q.difficultyTier === "mastering"  ? "bg-rose-100 text-rose-600" :
-                "bg-slate-100 text-slate-500"
-              }`}>{q.difficultyTier}</span>
-            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs font-black">

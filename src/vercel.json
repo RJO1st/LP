@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/quests/assign-daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/quests/assign-weekly",
+      "schedule": "0 0 * * 1"
+    }
+  ]
+}

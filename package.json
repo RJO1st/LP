@@ -1,5 +1,5 @@
 {
-  "name": "quest-academy",
+  "name": "launchpard",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,12 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "dotenv": "^17.3.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "recharts": "^3.7.0"
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@types/react": "19.2.14",
