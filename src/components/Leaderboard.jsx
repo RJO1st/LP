@@ -1,5 +1,6 @@
 // components/Leaderboard.jsx
 import { useEffect, useState } from 'react';
+
 import { supabase } from '@/lib/supabase';
 
 export default function Leaderboard({ yearLevel, curriculum }) {
