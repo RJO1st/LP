@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -279,6 +280,23 @@ export default function ParentDashboard() {
       }
 
       if (data) {
+        try {
+          await fetch('/api/emails/send-scholar-created', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              parentEmail: user.email,
+              parentName:  user.user_metadata?.full_name || 'Parent',
+              scholarName: data.name,
+              questCode:   data.access_code,
+              curriculum:  getCurriculumInfo(data.curriculum).name,
+              yearLevel:   formatGradeLabel(data.year_level, data.curriculum),
+            }),
+          });
+        } catch (emailError) {
+          console.error('Email send failed:', emailError);
+        }
+
         setScholars(prev => [...prev, data]);
         setNewName("");
         setNewCurriculum("uk_national");

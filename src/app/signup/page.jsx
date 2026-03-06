@@ -21,6 +21,22 @@ export default function SignupPage() {
     confirmPassword: ""
   });
 
+  // ─── send welcome email via our secure API route ─────────────────
+  const sendWelcomeEmail = async (email, name) => {
+    try {
+      const res = await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name }),
+      });
+      if (!res.ok) {
+        console.warn('Welcome email could not be sent (API error)');
+      }
+    } catch (err) {
+      console.error('Error sending welcome email:', err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -49,7 +65,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // 1. Sign up the user
+      // 1. Sign up the user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -61,17 +77,13 @@ export default function SignupPage() {
       });
 
       if (signUpError) throw signUpError;
-
-      if (!authData.user) {
-        throw new Error("Failed to create user account");
-      }
+      if (!authData.user) throw new Error("Failed to create user account");
 
       // 2. Create parent record with 7-day trial
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 7);
 
-      // Use upsert to handle existing records
-      const { data: parentData, error: parentError } = await supabase
+      const { error: parentError } = await supabase
         .from("parents")
         .upsert({
           id: authData.user.id,
@@ -83,25 +95,16 @@ export default function SignupPage() {
           billing_cycle: "monthly"
         }, {
           onConflict: 'id'
-        })
-        .select()
-        .single();
+        });
 
       if (parentError) {
-        console.error("Parent creation error details:", {
-          message: parentError.message,
-          details: parentError.details,
-          hint: parentError.hint,
-          code: parentError.code
-        });
-        
-        // Don't fail completely - user can still log in and we can create parent record later
-        console.warn("⚠️ Continuing without parent record - will be created on first login");
-      } else {
-        console.log("✅ Parent created successfully:", parentData);
+        console.warn("⚠️ Parent record not created – will be created on first login");
       }
 
-      // 3. Redirect to parent dashboard
+      // 3. Send welcome email (non‑blocking)
+      await sendWelcomeEmail(formData.email, formData.fullName);
+
+      // 4. Redirect to parent dashboard
       router.push("/dashboard/parent");
 
     } catch (err) {

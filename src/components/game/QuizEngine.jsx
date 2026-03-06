@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { generateSessionQuestions, getExplanationForQuestion } from "../../lib/proceduralEngine";
+import { getSmartQuestions } from "../../lib/smartQuestionSelection";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const CheckCircleIcon = ({ size = 24, className = "" }) => (
@@ -467,71 +468,26 @@ console.log('🎮 RESOLVED:', { year, curriculum });
     let questions = [];
 
 
-// ── Step 1: 14-day history dedup ────
-let historyIds = [];
-try {
-  if (student?.id) {
-    const since = new Date(Date.now() - 14 * 864e5).toISOString();
-    const { data: hist, error } = await supabase
-      .from("scholar_question_history")
-      .select("question_id")
-      .eq("scholar_id", student.id)
-      .gte("answered_at", since)
-      .limit(300);
-    
-    if (error) {
-      console.warn("History query failed:", error.message);
-    } else {
-      historyIds = (hist ?? []).map((h) => h.question_id).filter(Boolean);
-    }
-  }
-} catch (err) {
-  console.warn("History fetch failed:", err.message);
-}
-    // ── Step 2: Combine in-session + history IDs ───────────────────────────
-    const allExcluded = [
-      ...new Set([...seenIdsRef.current, ...historyIds]),
-    ].filter(Boolean);
-
-    // ── Tier 1: Supabase question_bank ────────────────────────────────────
+    // ── Tier 1: Smart question selection (history-deduped) ────────────────
     try {
-      let query = supabase
-        .from("question_bank")
-        .select("*")
-        .eq("curriculum",  curriculum)
-        .eq("year_level",  year)
-        .eq("subject",     safeSubject)
-        .order("last_used", { ascending: true, nullsFirst: true })
-        .limit(questionCount * 6);
+      const dbRows = await getSmartQuestions(
+        supabase,
+        student?.id,
+        safeSubject,
+        curriculum,
+        year,
+        questionCount,
+        [...seenIdsRef.current],
+      );
 
-      if (allExcluded.length > 0) {
-        const chunk = allExcluded.slice(0, 90);
-        query = query.not("id", "in", `(${chunk.join(",")})`);
-      }
-
-      const { data: dbRows, error } = await query;
-// ADD THIS HERE (INSIDE the try block):
-console.log('🔍 DB RESULT:', {
-  curriculum,
-  year,
-  subject: safeSubject,
-  found: dbRows?.length || 0,
-  error: error?.message
-});
-
-if (dbRows?.length > 0) {
-  console.log('Sample:', dbRows[0]);
-}
-
-if (error) throw error;
-      if (!error && dbRows && dbRows.length > 0) {
-        const shuffled = [...dbRows].sort(() => Math.random() - 0.5);
-        const deduped  = shuffled.filter(row => {
+      if (dbRows.length > 0) {
+        const deduped = dbRows.filter(row => {
           if (seenTextsRef.current.has(row.question_text)) return false;
           seenTextsRef.current.add(row.question_text);
           return true;
         });
         questions = deduped.slice(0, questionCount).map(row => dbRowToQuestion(row, safeSubject));
+
         // Fire-and-forget: mark as used
         const usedIds = questions.map(q => q.id).filter(Boolean);
         if (usedIds.length > 0) {
@@ -829,6 +785,44 @@ useEffect(() => {
               answered_at: new Date().toISOString(),
             }))
           );
+        }
+
+        // Check if this was the first quiz and send email
+        const { count } = await supabase
+          .from('quiz_results')
+          .select('*', { count: 'exact', head: true })
+          .eq('scholar_id', student.id);
+
+        if (count === 1) {
+          try {
+            const { data: scholar } = await supabase
+              .from('scholars')
+              .select('name, parent_id')
+              .eq('id', student.id)
+              .single();
+
+            const { data: parent } = await supabase
+              .from('parents')
+              .select('email, full_name')
+              .eq('id', scholar.parent_id)
+              .single();
+
+            await fetch('/api/emails/send-first-quiz', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                parentEmail:    parent.email,
+                parentName:     parent.full_name,
+                scholarName:    scholar.name,
+                subject:        subject,
+                score:          finalScore,
+                totalQuestions: sessionQuestions.length,
+                xpEarned:       totalScore,
+              }),
+            });
+          } catch (emailError) {
+            console.error('Email send failed:', emailError);
+          }
         }
       }
       setFinished(true);
