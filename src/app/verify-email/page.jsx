@@ -4,6 +4,8 @@
 // Shows after signup when email confirmation is required
 // ═══════════════════════════════════════════════════════════════════════════
 
+export const dynamic = 'force-dynamic';
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
