@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 export async function initializeTrial(parentId) {
   try {
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 7); // 7 days from now
+    trialEnd.setDate(trialEnd.getDate() + 30); // 30 days from now
 
     const { error } = await supabase
       .from('parents')

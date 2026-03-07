@@ -311,7 +311,7 @@ export default function SubscribePage() {
               },
               {
                 q: "How does the 7-day free trial work?",
-                a: "Start your trial without entering payment details. You'll get full access to all features. If you love it, subscribe after 7 days. No automatic charges during trial."
+                a: "Start your trial without entering payment details. You'll get full access to all features. If you love it, subscribe after 30 days. No automatic charges during trial."
               },
               {
                 q: "Can I cancel anytime?",
