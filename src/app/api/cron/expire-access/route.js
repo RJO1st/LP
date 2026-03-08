@@ -1,4 +1,7 @@
-// app/api/cron/expire-access/route.js
+// Deploy to: src/app/api/cron/expire-access/route.js
+// Runs daily at midnight UTC — marks expired trials and subscriptions.
+// No changes to logic, just tightened error handling and response shape.
+
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -7,73 +10,43 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-/**
- * Cron job to expire trials and subscriptions
- * Run daily at midnight
- * 
- * Add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/expire-access",
- *     "schedule": "0 0 * * *"
- *   }]
- * }
- */
 export async function GET(req) {
-  try {
-    // Verify authorization
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const authHeader = req.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const now = new Date().toISOString();
-    let trialsExpired = 0;
-    let subscriptionsExpired = 0;
+  const now = new Date().toISOString();
 
-    // Expire trials
-    const { data: expiredTrials, error: trialError } = await supabase
+  // Run both expiry updates in parallel — they touch different rows
+  const [trialResult, subResult] = await Promise.all([
+    supabase
       .from('parents')
       .update({ subscription_status: 'expired' })
       .lt('trial_end', now)
       .eq('subscription_status', 'trial')
-      .select('id');
+      .select('id'),
 
-    if (trialError) {
-      console.error('Error expiring trials:', trialError);
-    } else {
-      trialsExpired = expiredTrials?.length || 0;
-    }
-
-    // Expire subscriptions
-    const { data: expiredSubs, error: subError } = await supabase
+    supabase
       .from('parents')
       .update({ subscription_status: 'expired' })
       .lt('subscription_end', now)
       .in('subscription_status', ['active', 'canceled'])
-      .select('id');
+      .select('id'),
+  ]);
 
-    if (subError) {
-      console.error('Error expiring subscriptions:', subError);
-    } else {
-      subscriptionsExpired = expiredSubs?.length || 0;
-    }
+  if (trialResult.error) console.error('[expire-access] trial update failed:', trialResult.error.message);
+  if (subResult.error)   console.error('[expire-access] sub update failed:',   subResult.error.message);
 
-    // Log the results
-    console.log(`✅ Expired ${trialsExpired} trials and ${subscriptionsExpired} subscriptions`);
+  const trialsExpired        = trialResult.data?.length ?? 0;
+  const subscriptionsExpired = subResult.data?.length   ?? 0;
 
-    return NextResponse.json({
-      success: true,
-      trialsExpired,
-      subscriptionsExpired,
-      timestamp: new Date().toISOString()
-    });
+  console.log(`[expire-access] expired ${trialsExpired} trials, ${subscriptionsExpired} subscriptions`);
 
-  } catch (error) {
-    console.error('Error in expire-access cron:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    trialsExpired,
+    subscriptionsExpired,
+    timestamp: now,
+  });
 }

@@ -29,7 +29,7 @@ export default function LandingPage() {
 
   const features = [
     { icon: '🤖', title: 'AI-Powered Learning', description: "Questions adapt to your child's level in real-time. Always challenging, never overwhelming.", gradient: 'from-purple-400 to-pink-500' },
-    { icon: '🌍', title: '6 Global Curricula', description: 'UK, US, Australian, IB, WAEC, Nigerian. Switch anytime. All included.', gradient: 'from-blue-400 to-cyan-500' },
+    { icon: '🌍', title: 'Global Curricula', description: 'Australian, Canadian, IB, UK, US, Nigerian, WAEC. All included.', gradient: 'from-blue-400 to-cyan-500' },
     { icon: '🎮', title: 'Mission-Based Learning', description: 'Quests, badges, streaks, avatars. Education disguised as adventure.', gradient: 'from-orange-400 to-red-500' },
     { icon: '📊', title: 'Parent Command Center', description: "Track progress, spot gaps, export reports. Know exactly how they're doing.", gradient: 'from-green-400 to-emerald-500' },
     { icon: '👨‍👩‍👧', title: '3 Children Included', description: 'One price for the whole crew. No extra charges, no hidden fees.', gradient: 'from-indigo-400 to-purple-500' },
@@ -37,11 +37,12 @@ export default function LandingPage() {
   ];
 
   const curricula = [
-    { flag: '🇬🇧', name: 'UK 11+ & National', desc: 'Grammar school & primary' },
-    { flag: '🇺🇸', name: 'US Common Core', desc: 'K-12 standards aligned' },
     { flag: '🇦🇺', name: 'Australian ACARA', desc: 'Foundation to Year 12' },
+    { flag: '🇨🇦', name: 'Canadian', desc: 'Grade 1-12' },
     { flag: '🌍', name: 'IB PYP/MYP', desc: 'International Baccalaureate' },
-    { flag: '🇳🇬', name: 'Nigerian WAEC', desc: 'SSCE preparation' },
+    { flag: '🇬🇧', name: 'UK 11+ & National', desc: 'Grammar school & primary' },
+    { flag: '🇺🇸', name: 'US Common Core', desc: 'K-12 standards aligned' },    
+    { flag: '🇳🇬', name: 'Nigerian WAEC',  desc: 'SSCE preparation',  },
     { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'JSS curriculum' }
   ];
 
@@ -73,7 +74,7 @@ export default function LandingPage() {
       <nav className="relative z-50 px-6 py-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Image src="/LaunchPard.png" alt="LaunchPard" width={40} height={40} className="flex-shrink-0" />
+            <Image src="/logo.svg" alt="LaunchPard" width={40} height={40} className="flex-shrink-0" style={{ objectFit: "contain" }} />
             <div className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               LaunchPard
             </div>
@@ -116,7 +117,7 @@ export default function LandingPage() {
 
             {/* Subheading */}
             <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-              AI-powered learning across 6 global curricula. Private tutoring costs <span className="line-through text-slate-400">£60/hour</span>.
+              AI-powered learning across global curricula. Private tutoring costs <span className="line-through text-slate-400">£60/hour</span>.
               We're <span className="text-green-600 font-bold">£12.99/month</span> for unlimited practice.
             </p>
 
@@ -151,7 +152,7 @@ export default function LandingPage() {
             className="mt-20 relative animate-fade-in-up animation-delay-800"
             style={{ transform: `translateY(${scrollY * 0.2}px)` }}
           >
-            <div className="relative mx-auto max-w-5xl">
+            <div className="relative mx-auto max-w-3xl">
               <div className="absolute -inset-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 rounded-3xl blur-3xl opacity-20" />
               <div className="relative bg-white/80 backdrop-blur-2xl rounded-3xl border border-slate-200 overflow-hidden shadow-2xl shadow-indigo-200/50">
                 <div className="aspect-video bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center p-12">
@@ -249,7 +250,7 @@ export default function LandingPage() {
 
       {/* Pricing */}
       <section className="relative z-10 px-6 py-32">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-5xl font-black mb-6 text-slate-900">Simple, Honest Pricing</h2>
           <p className="text-xl text-slate-600 mb-16">One plan. Everything included. No hidden fees.</p>
           <div className="relative group">
@@ -301,7 +302,7 @@ export default function LandingPage() {
       <footer className="relative z-10 px-6 py-12 border-t border-slate-200">
         <div className="max-w-7xl mx-auto text-center text-slate-500">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Image src="/LaunchPard.png" alt="LaunchPard" width={32} height={32} />
+            <Image src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
             <span className="text-2xl font-bold text-slate-700">LaunchPard</span>
           </div>
           <p>© 2026 LaunchPard. All rights reserved.</p>

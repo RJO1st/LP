@@ -1,7 +1,7 @@
 "use client";
 /**
  * QuestOrchestrator.jsx
- * Deploy to: src/app/components/quiz/QuestOrchestrator.jsx
+ * Deploy to: src/components/game/QuestOrchestrator.jsx
  *
  * Routes quiz sessions to the correct specialist engine:
  *   ReadingComprehensionEngine — english + passage
@@ -22,9 +22,6 @@ import { Rocket, XCircle } from "lucide-react";
 import { supabase }                from "../../lib/supabase";
 import { generateSessionQuestions } from "../../lib/proceduralEngine";
 import { getSmartQuestions }        from "../../lib/smartQuestionSelection";
-import NarrativeIntro   from "@/components/game/NarrativeIntro";
-import { processAnswer } from "@/lib/masteryEngine";
-import { generateMissionLogEntry, calcStoryPoints } from "@/lib/narrativeEngine";
 import {
   normalizeQuestion, validateAndFixQuestion, dbRowToQuestion,
   buildCompletionPayload, saveQuizResult, getPerQuestionTimer,
@@ -37,8 +34,88 @@ import HumanitiesEngine         from "./HumanitiesEngine";
 import {
   EngineHeader, EngineFinished, MCQOptions, FeedbackArea, getSubjectLabels,
 } from "../game/QuizShell";
+import NarrativeIntro              from "./NarrativeIntro";
+import { processAnswer }           from "../../lib/masteryEngine";
+import { generateMissionLogEntry } from "../../lib/narrativeEngine";
 
 const XP_PER_QUESTION = 10;
+
+// ─── useMastery HOOK ─────────────────────────────────────────────────────────
+// Handles optimistic mastery updates per answer. API call is fire-and-forget
+// so it never blocks the quiz UI. Cache is updated with server values once
+// the response arrives.
+function useMastery(student) {
+  const sessionId = useRef(
+    typeof crypto !== "undefined"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
+  );
+  const masteryCache      = useRef({});
+  const sessionMilestones = useRef([]);
+  const sessionStoryPts   = useRef(0);
+
+  const recordAnswer = useCallback(async (question, correct, chosenIdx, timeTakenMs) => {
+    const topic      = question.topic      ?? question._diagnostic_topic ?? "general";
+    const subj       = question.subject    ?? "general";
+    const curriculum = question.curriculum ?? student?.curriculum ?? "uk_national";
+    const yearLevel  = question.year_level ?? student?.year_level ?? 6;
+
+    // Optimistic update (instant)
+    const prev    = masteryCache.current[topic] ?? null;
+    const updated = processAnswer(prev, correct);
+    masteryCache.current[topic] = updated;
+
+    // Fire-and-forget
+    fetch("/api/mastery/update", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scholarId:     student?.id,
+        sessionId:     sessionId.current,
+        questionId:    question.id ?? null,
+        curriculum, subject: subj, topic, yearLevel,
+        correct, chosenIndex: chosenIdx,
+        correctIndex:  question.a ?? question.correct_index ?? 0,
+        timeTakenMs:   timeTakenMs ?? null,
+        difficultyTier: question.difficulty_tier ?? null,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.mastery)          masteryCache.current[topic] = data.mastery;
+        if (data.milestones?.length) sessionMilestones.current.push(...data.milestones);
+        if (data.storyPointsEarned)  sessionStoryPts.current += data.storyPointsEarned;
+      })
+      .catch(err => console.warn("mastery update failed (non-fatal):", err));
+
+    return updated;
+  }, [student]);
+
+  const getMastery           = useCallback((topic) => masteryCache.current[topic] ?? null, []);
+  const getSessionMilestones = useCallback(() => sessionMilestones.current, []);
+  const getSessionStoryPoints = useCallback(() => sessionStoryPts.current, []);
+
+  return { recordAnswer, getMastery, getSessionMilestones, getSessionStoryPoints, sessionId };
+}
+
+// ─── MILESTONE CELEBRATION OVERLAY ───────────────────────────────────────────
+function MilestoneCelebration({ milestones, onDismiss }) {
+  if (!milestones?.length) return null;
+  const m = milestones[milestones.length - 1];
+  return (
+    <div className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-3xl px-8 py-6 text-center shadow-2xl max-w-xs mx-auto animate-bounce">
+        <div className="text-5xl mb-3">{m.emoji}</div>
+        <p className="text-xl font-black mb-1">{m.label}</p>
+        <p className="text-sm opacity-90 mb-4">+{m.storyPoints} Stardust</p>
+        <button onClick={onDismiss}
+          className="bg-white/30 hover:bg-white/50 px-5 py-2 rounded-xl text-sm font-bold transition-all">
+          Continue →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── SUBJECT ACCENT THEMES for MainQuizEngine ────────────────────────────────
 const MAIN_THEMES = {
@@ -70,63 +147,6 @@ function LoadingCard({ subject }) {
   );
 }
 
-// ─── useMastery HOOK ─────────────────────────────────────────────────────────
-function useMastery(student) {
-  const sessionId = useRef(
-    typeof crypto !== "undefined"
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2)
-  );
-  const masteryCache      = useRef({});
-  const sessionMilestones = useRef([]);
-  const sessionStoryPoints = useRef(0);
-
-  const recordAnswer = useCallback(async (question, correct, chosenIdx, timeTakenMs) => {
-    const topic      = question.topic   ?? question._diagnostic_topic ?? "general";
-    const subject    = question.subject ?? "general";
-    const curriculum = question.curriculum ?? student?.curriculum ?? "uk_national";
-    const yearLevel  = question.year_level ?? student?.year_level ?? 6;
-
-    const prev    = masteryCache.current[topic] ?? null;
-    const updated = processAnswer(prev, correct);
-    masteryCache.current[topic] = updated;
-
-    fetch("/api/mastery/update", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scholarId:      student?.id,
-        sessionId:      sessionId.current,
-        questionId:     question.id ?? null,
-        curriculum,
-        subject,
-        topic,
-        yearLevel,
-        correct,
-        chosenIndex:    chosenIdx,
-        correctIndex:   question.a ?? question.correct_index ?? 0,
-        timeTakenMs:    timeTakenMs ?? null,
-        difficultyTier: question.difficulty_tier ?? null,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.mastery) masteryCache.current[topic] = data.mastery;
-        if (data.milestones?.length) sessionMilestones.current.push(...data.milestones);
-        if (data.storyPointsEarned) sessionStoryPoints.current += data.storyPointsEarned;
-      })
-      .catch(err => console.warn("mastery update failed (non-fatal):", err));
-
-    return updated;
-  }, [student]);
-
-  const getMastery           = useCallback((topic) => masteryCache.current[topic] ?? null, []);
-  const getSessionMilestones  = useCallback(() => sessionMilestones.current, []);
-  const getSessionStoryPoints = useCallback(() => sessionStoryPoints.current, []);
-
-  return { recordAnswer, getMastery, getSessionMilestones, getSessionStoryPoints, sessionId };
-}
-
 // ─── MAIN QUIZ ENGINE ────────────────────────────────────────────────────────
 function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose }) {
   const perQTimer = useMemo(() => getPerQuestionTimer(student), [student]);
@@ -146,8 +166,11 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   const timerRef   = useRef(null);
   const resultsRef = useRef({ score: 0, answers: [] }); // stale-closure guard
   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
+
+  // ── Mastery hook ─────────────────────────────────────────────────────────
   const { recordAnswer, getSessionMilestones, getSessionStoryPoints } = useMastery(student);
-  const questionStartTime = useRef(Date.now());
+  const questionStartTime   = useRef(Date.now());
+  const [pendingMilestone,  setPendingMilestone]  = useState(null);
 
   // ── Fetch questions ───────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async () => {
@@ -209,14 +232,17 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
       resultsRef.current = next;
       return next;
     });
+
     recordTopicResult(q.topic || subject, isCorrect);
 
-    // Fire mastery update
-    recordAnswer(q, isCorrect, idx, timeTaken);
+    // Fire mastery update + surface any milestone earned
+    recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
+      const milestones = getSessionMilestones();
+      if (milestones.length) setPendingMilestone(milestones[milestones.length - 1]);
+    });
 
-    // Reset timer for next question
     questionStartTime.current = Date.now();
-  }, [selected, sessionQuestions, qIdx, subject, recordTopicResult, recordAnswer]);
+  }, [selected, sessionQuestions, qIdx, subject, recordTopicResult, recordAnswer, getSessionMilestones]);
 
   const finishQuest = useCallback(async () => {
     clearInterval(timerRef.current);
@@ -225,17 +251,17 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
     const payload = buildCompletionPayload({
       answers,
-      totalQuestions: sessionQuestions.length,
-      xpPerQuestion:  XP_PER_QUESTION,
+      totalQuestions:  sessionQuestions.length,
+      xpPerQuestion:   XP_PER_QUESTION,
       topicSummary,
-      milestones:     getSessionMilestones(),
-      storyPoints:    getSessionStoryPoints(),
-      missionLog:     generateMissionLogEntry({
+      milestones:      getSessionMilestones(),
+      storyPoints:     getSessionStoryPoints(),
+      missionLog:      generateMissionLogEntry({
         scholarName: student?.name,
         subject,
-        topic:       sessionQuestions[0]?.topic ?? subject,
-        correct:     correctCount,
-        total:       sessionQuestions.length,
+        topic:   sessionQuestions[0]?.topic ?? subject,
+        correct: correctCount,
+        total:   sessionQuestions.length,
       }),
     });
 
@@ -243,6 +269,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
       studentId: student?.id, subject, questions: sessionQuestions,
       answers, topicSummary, xpPerQuestion: XP_PER_QUESTION,
     });
+
     onComplete?.(payload);
   }, [sessionQuestions, topicSummary, student, subject, onComplete,
       getSessionMilestones, getSessionStoryPoints]);
@@ -267,16 +294,12 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
   if (finished) {
     const finalScore = resultsRef.current.answers.filter((a) => a.isCorrect).length;
-    const milestones = getSessionMilestones();
     return (
-      <>
-        <EngineFinished
-          Icon={Rocket} accent={theme.accent} textColor={theme.text} btnClass={theme.btn}
-          finalScore={finalScore} totalQuestions={sessionQuestions.length}
-          title={labels.finish} onClose={onClose}
-        />
-        <MilestoneCelebration milestones={milestones} onDismiss={onClose} />
-      </>
+      <EngineFinished
+        Icon={Rocket} accent={theme.accent} textColor={theme.text} btnClass={theme.btn}
+        finalScore={finalScore} totalQuestions={sessionQuestions.length}
+        title={labels.finish} onClose={onClose}
+      />
     );
   }
 
@@ -286,6 +309,13 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-3 sm:p-4">
+      {/* ── Milestone celebration overlay ─────────────────────────────── */}
+      {pendingMilestone && (
+        <MilestoneCelebration
+          milestones={[pendingMilestone]}
+          onDismiss={() => setPendingMilestone(null)}
+        />
+      )}
       {/* ── Compact card — max-w-lg keeps content always in viewport ── */}
       <div className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border-b-4 border-slate-200"
            style={{ maxHeight: "94vh" }}>
@@ -353,33 +383,6 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   );
 }
 
-// ─── MILESTONE CELEBRATION OVERLAY ───────────────────────────────────────────
-function MilestoneCelebration({ milestones, onDismiss }) {
-  if (!milestones?.length) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-      <div className="pointer-events-auto animate-bounce-in">
-        {milestones.slice(-1).map((m, i) => (
-          <div
-            key={i}
-            className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-3xl px-8 py-6 text-center shadow-2xl max-w-xs mx-auto"
-          >
-            <div className="text-4xl mb-2">{m.emoji}</div>
-            <p className="text-xl font-black mb-1">{m.label}</p>
-            <p className="text-sm opacity-90">+{m.storyPoints} story points</p>
-            <button
-              onClick={onDismiss}
-              className="mt-4 bg-white/30 hover:bg-white/50 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-            >
-              Continue →
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── QUEST ORCHESTRATOR ───────────────────────────────────────────────────────
 export default function QuestOrchestrator({
   student, subject, curriculum,
@@ -387,7 +390,9 @@ export default function QuestOrchestrator({
   questData = {}, onClose, onComplete,
 }) {
   const subj = subject?.toLowerCase() || "maths";
-  const [showIntro, setShowIntro] = useState(true);
+
+  // ── NarrativeIntro gate ──────────────────────────────────────────────────
+  const [showIntro,      setShowIntro]      = useState(true);
   const [masteryRecords, setMasteryRecords] = useState([]);
 
   useEffect(() => {
@@ -406,7 +411,7 @@ export default function QuestOrchestrator({
       <NarrativeIntro
         scholar={student}
         subject={subj}
-        topic={questData?.topic}
+        topic={questData?.topic ?? subj}
         masteryScore={masteryRecords.find(r => r.topic === questData?.topic)?.mastery_score ?? 0}
         masteryRecords={masteryRecords}
         isDueReview={questData?.isDueReview ?? false}

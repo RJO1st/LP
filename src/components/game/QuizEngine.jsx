@@ -659,7 +659,7 @@ export default function QuizEngine({
   world = "test",
   student = { id: "123", name: "Test Cadet", year: 4, proficiency: 50 },
   subject = "maths",
-  curriculum: curriculumProp = "uk_11plus",
+  curriculum: curriculumProp = "uk_national",
   onClose,
   onComplete,
   questionCount = 15,
@@ -738,7 +738,7 @@ export default function QuizEngine({
     setGenerating(true);
     
     const year = student?.year_level || student?.year ? parseInt(student.year_level || student.year, 10) : 4;
-    const curriculum  = curriculumProp || student?.curriculum || "uk_11plus";
+    const curriculum  = curriculumProp || student?.curriculum || "uk_national";
     const safeSubject = subject || "maths";
     
     let questions = [];

@@ -108,7 +108,7 @@ async function fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficu
 // ─── GENERATE SESSION QUESTIONS (difficulty-tier based external API) ──────────
 export async function generateSessionQuestions(scholar, subject, difficultyTier = 'foundation', count = 10) {
   try {
-    const curriculum = scholar.curriculum || 'uk_11plus';
+    const curriculum = scholar.curriculum || 'uk_national';
     const yearLevel  = scholar.year_level || scholar.year || 3;
 
     let questions = await fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficultyTier, limit: count });

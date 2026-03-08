@@ -7,41 +7,12 @@ import { createBrowserClient } from "@supabase/ssr";
 
 // ─── LAUNCHPARD LOGO ────────────────────────────────────────────────────────
 const LogoIcon = ({ className = "w-8 h-8" }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
-    <defs>
-      <linearGradient id="arc-grad-s" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#4facfe"/>
-        <stop offset="100%" stopColor="#1d8fe8"/>
-      </linearGradient>
-      <linearGradient id="arc-grad2-s" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#60c8ff"/>
-        <stop offset="100%" stopColor="#1a6fcc"/>
-      </linearGradient>
-    </defs>
-    <path d="M 35 155 C 20 120, 30 75, 70 55 C 95 42, 120 48, 135 65"
-      stroke="url(#arc-grad-s)" strokeWidth="18" strokeLinecap="round" fill="none" opacity="0.95"/>
-    <path d="M 38 148 C 25 116, 34 74, 72 56 C 96 44, 118 50, 132 66"
-      stroke="url(#arc-grad2-s)" strokeWidth="7" strokeLinecap="round" fill="none" opacity="0.5"/>
-    <g transform="translate(100, 90) rotate(-45)">
-      <ellipse cx="0" cy="-18" rx="13" ry="26" fill="#1e2456"/>
-      <ellipse cx="-3" cy="-28" rx="5" ry="8" fill="#2d3580" opacity="0.7"/>
-      <ellipse cx="0" cy="-18" rx="13" ry="26" stroke="white" strokeWidth="3" fill="none"/>
-      <rect x="-13" y="4" width="26" height="8" rx="3" fill="#f5c842"/>
-      <ellipse cx="0" cy="22" rx="9" ry="13" fill="#e8207a"/>
-      <ellipse cx="-5" cy="20" rx="5" ry="9" fill="#f0508a" opacity="0.8"/>
-      <ellipse cx="5" cy="21" rx="4" ry="7" fill="#c41560" opacity="0.7"/>
-      <ellipse cx="0" cy="30" rx="4" ry="6" fill="#ff6eb0" opacity="0.6"/>
-    </g>
-    <g transform="translate(158, 78)">
-      <path d="M0,-8 L1.5,-1.5 L8,0 L1.5,1.5 L0,8 L-1.5,1.5 L-8,0 L-1.5,-1.5 Z" fill="#4facfe"/>
-    </g>
-    <g transform="translate(148, 105)">
-      <path d="M0,-5 L1,-.9 L5,0 L1,.9 L0,5 L-1,.9 L-5,0 L-1,-.9 Z" fill="#4facfe" opacity="0.85"/>
-    </g>
-    <circle cx="162" cy="105" r="2.5" fill="#4facfe" opacity="0.7"/>
-    <circle cx="42" cy="140" r="3" fill="#60c8ff" opacity="0.8"/>
-    <circle cx="60" cy="104" r="2" fill="#60c8ff" opacity="0.6"/>
-  </svg>
+  <img
+    src="/logo.svg"
+    alt="LaunchPard"
+    className={className}
+    style={{ objectFit: "contain" }}
+  />
 );
 
 export default function BetaSignupPage() {
@@ -72,6 +43,7 @@ export default function BetaSignupPage() {
     setLoading(true);
 
     try {
+      // 1. Sign up the user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -81,6 +53,7 @@ export default function BetaSignupPage() {
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("Failed to create user account");
 
+      // 2. Create parent record with 30‑day trial
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 30);
 
@@ -102,6 +75,21 @@ export default function BetaSignupPage() {
         throw new Error(`Failed to create profile: ${parentError.message}`);
       }
 
+      // 3. Send welcome email (non‑blocking – log errors only)
+      try {
+        await fetch('/api/emails/welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            name: formData.fullName
+          })
+        });
+      } catch (emailErr) {
+        console.warn('Welcome email failed (non‑blocking):', emailErr.message);
+      }
+
+      // 4. Sign the user in (optional – you could also rely on the session from signUp)
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password

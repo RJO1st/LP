@@ -85,7 +85,7 @@ export const EMAIL_TEMPLATES = {
     const body = `
       <p>Hi ${parentName ?? 'there'},</p>
       <p>Welcome to <strong>LaunchPard</strong> — your scholars' mission control for smarter learning. 🎉</p>
-      <p>Your <strong>7-day free trial</strong> has started. Here's what to do next:</p>
+      <p>Your <strong>30-day free trial</strong> has started. Here's what to do next:</p>
       <ol style="color:#374151;font-size:15px;line-height:2;">
         <li>Add up to <strong>3 scholars</strong> from your parent dashboard</li>
         <li>Choose their curriculum &amp; year group</li>

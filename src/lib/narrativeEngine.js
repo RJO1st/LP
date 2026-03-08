@@ -49,7 +49,7 @@ export const REALMS = {
     icon:        '📖',
     colour:      '#ec4899',
     gradient:    'from-pink-500 to-rose-600',
-    subjects:    ['english', 'english_language', 'literature', 'verbal_reasoning'],
+    subjects:    ['english', 'english_language', 'literature', 'verbal_reasoning', 'french_launguage'],
     unlockAt:    0,
     chapters: [
       { id: 'phonics_planet',     name: 'Phonics Planet',      topics: ['phonics', 'spelling', 'word_families'] },

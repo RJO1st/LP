@@ -1,88 +1,130 @@
-// lib/email.js
-// Deploy to: src/lib/email.js
-//
-// Unified Brevo transactional email sender.
-// Handles both string and array `to`, and accepts `html` or `htmlContent`.
+/**
+ * lib/email.js
+ * Deploy to: src/lib/email.js
+ *
+ * Unified Brevo transactional email sender.
+ *
+ * THE BUG THAT WAS BREAKING EMAILS:
+ *   The old uploads/route.js called sendEmail({ html }) but email.js in outputs
+ *   mapped the field as htmlContent only. The live uploads/route.js also had NO
+ *   import of EMAIL_TEMPLATES — it was using raw inline HTML.
+ *
+ *   This version accepts both `html` and `htmlContent` so all callers work.
+ *
+ * BREVO SMTP vs API NOTE:
+ *   You configured Brevo SMTP in Supabase (for auth emails).
+ *   For transactional emails FROM Next.js, we use Brevo's HTTP API (not SMTP),
+ *   which requires BREVO_API_KEY in your Vercel env vars.
+ *   These are separate — SMTP for Supabase, API key for Next.js routes.
+ */
 
-const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+import * as brevo from '@getbrevo/brevo';
+
+let _apiInstance = null;
+function getApi() {
+  if (_apiInstance) return _apiInstance;
+  if (!process.env.BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY is not set. Add it to your Vercel/local .env.local file.');
+  }
+  const api = new brevo.TransactionalEmailsApi();
+  api.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  _apiInstance = api;
+  return api;
+}
 
 /**
- * sendEmail({ to, subject, html, htmlContent, from })
+ * sendEmail({ to, subject, html, htmlContent, from, replyTo })
  *
- * @param {string|{email:string,name?:string}|Array} to
- *   A single email string, a single {email, name} object, or an array of them.
+ * @param {string|{email,name?}|Array} to
  * @param {string} subject
- * @param {string} [html]         HTML body (alias for htmlContent)
- * @param {string} [htmlContent]  HTML body (Brevo native field name)
- * @param {string} [from]         Sender address (defaults to hello@launchpard.com)
+ * @param {string} [html]         alias for htmlContent
+ * @param {string} [htmlContent]
+ * @param {string} [from]         defaults to hello@launchpard.com
+ * @param {string} [replyTo]      defaults to support@launchpard.com
  */
 export async function sendEmail({
   to,
   subject,
   html,
   htmlContent,
-  from = 'hello@launchpard.com',
+  from    = 'hello@launchpard.com',
+  replyTo = 'support@launchpard.com',
 }) {
-  // Normalise `to` → always an array of {email, name?}
   const recipients = normaliseRecipients(to);
-
-  if (!recipients.length) {
-    throw new Error('sendEmail: no valid recipients supplied');
-  }
+  if (!recipients.length) throw new Error('sendEmail: no valid recipients');
 
   const body = htmlContent ?? html;
-  if (!body) {
-    throw new Error('sendEmail: no html/htmlContent supplied');
-  }
+  if (!body) throw new Error('sendEmail: no html/htmlContent supplied');
+
+  const sendSmtpEmail              = new brevo.SendSmtpEmail();
+  sendSmtpEmail.to                 = recipients;
+  sendSmtpEmail.sender             = { email: from, name: 'LaunchPard' };
+  sendSmtpEmail.replyTo            = { email: replyTo };
+  sendSmtpEmail.subject            = subject;
+  sendSmtpEmail.htmlContent        = body;
 
   try {
-    const res = await fetch(BREVO_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': process.env.BREVO_API_KEY,
-      },
-      body: JSON.stringify({
-        sender:      { email: from, name: 'LaunchPard' },
-        to:          recipients,
-        subject,
-        htmlContent: body,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message ?? `Brevo error ${res.status}`);
-    }
-    console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')}`);
+    const result = await getApi().sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')} | msgId: ${result?.body?.messageId}`);
+    return result?.body ?? { sent: true };
   } catch (error) {
-    console.error('❌ Brevo email error:', error);
+    const detail = error?.response?.body ?? error?.message ?? error;
+    console.error('❌ Brevo error:', JSON.stringify(detail, null, 2));
     throw error;
   }
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── Named helpers (used in route handlers) ────────────────────────────────────
 
+export async function sendWelcomeEmail({ parentEmail, parentName }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.welcome(parentName);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+export async function sendScholarCreatedEmail({ parentEmail, parentName, scholarName, questCode, curriculum, yearLevel }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.scholarCreated(parentName, scholarName, questCode, curriculum, yearLevel);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+export async function sendFirstQuizEmail({ parentEmail, parentName, scholarName, score, total, subject, xpEarned }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.firstQuiz(parentName, scholarName, subject, score, total, xpEarned);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+export async function sendWeeklyDigestEmail({ parentEmail, parentName, scholars }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.weeklyDigest(parentName, scholars);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+export async function sendStreakMilestoneEmail({ parentEmail, parentName, scholarName, streakDays }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.streakMilestone(parentName, scholarName, streakDays);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+export async function sendPasswordResetEmail({ parentEmail, parentName, resetUrl }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const t = EMAIL_TEMPLATES.passwordReset(parentName, resetUrl);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 function normaliseRecipients(to) {
   if (!to) return [];
-
-  // Already an array
   if (Array.isArray(to)) {
     return to.map(r => {
       if (typeof r === 'string') return { email: r };
-      if (r?.email)              return { email: r.email, name: r.name };
+      if (r?.email)              return { email: r.email, ...(r.name ? { name: r.name } : {}) };
       return null;
     }).filter(Boolean);
   }
-
-  // Single object {email, name?}
   if (typeof to === 'object' && to.email) {
-    return [{ email: to.email, name: to.name }];
+    return [{ email: to.email, ...(to.name ? { name: to.name } : {}) }];
   }
-
-  // Plain string
-  if (typeof to === 'string') {
-    return [{ email: to }];
-  }
-
+  if (typeof to === 'string') return [{ email: to }];
   return [];
 }

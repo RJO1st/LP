@@ -51,6 +51,21 @@ const CURRICULA = {
     gradeLabel: "Grade", 
     grades: [1, 2, 3, 4, 5, 6, 7, 8]
   },
+  // Canada (2 stages)
+  ca_primary: {
+    country: "🇨🇦",
+    name: "Canadian Primary",
+    gradeLabel: "Grade",
+    grades: [1, 2, 3, 4, 5, 6, 7, 8],
+    hasProvinces: true,
+  },
+  ca_secondary: {
+    country: "🇨🇦",
+    name: "Canadian Secondary",
+    gradeLabel: "Grade",
+    grades: [9, 10, 11, 12],
+    hasProvinces: true,
+  },
   // Australia
   aus_acara: { 
     country: "🇦🇺", 
@@ -102,6 +117,9 @@ const SUBJECTS_BY_CURRICULUM = {
   ng_primary: ['maths', 'english', 'basic_science'],
   ng_jss: ['maths', 'english', 'physics', 'basic_technology', 'business_studies', 'basic_science'],
   ng_sss: ['maths', 'english', 'physics', 'chemistry', 'biology', 'commerce', 'financial_accounting', 'further_mathematics', 'economics', 'government'],
+  // Canada
+  ca_primary: ['maths', 'english', 'science', 'social_studies', 'french_language', 'physical_education'],
+  ca_secondary: ['maths', 'english', 'science', 'canadian_history', 'geography', 'physics', 'chemistry', 'biology', 'computer_science', 'french_language'],
 };
 
 const SUBJECT_META = {
@@ -122,7 +140,33 @@ const SUBJECT_META = {
   social_studies: { emoji: "🌍", label: "Social Studies"},
   business_studies: { emoji: "💼", label: "Business Studies" },
   basic_science: { emoji: "🧪", label: "Basic Science" },
+  // Canada-specific
+  french_language: { emoji: "🗣️", label: "French" },
+  canadian_history: { emoji: "🍁", label: "Canadian History" },
+  physical_education: { emoji: "🏃", label: "Physical Education" },
+  geography: { emoji: "🗺️", label: "Geography" },
+  computer_science: { emoji: "💻", label: "Computer Science" },
 };
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CANADIAN PROVINCES & TERRITORIES
+// ═══════════════════════════════════════════════════════════════════
+const CANADIAN_PROVINCES = [
+  { code: "ON", name: "Ontario",                  frenchMandatory: true,  frenchImmersion: true,  note: "French as a Second Language from Grade 4" },
+  { code: "BC", name: "British Columbia",          frenchMandatory: false, frenchImmersion: true,  note: "Inquiry-based curriculum; French Immersion widely available" },
+  { code: "AB", name: "Alberta",                   frenchMandatory: false, frenchImmersion: true,  note: "Strong STEM focus; French Immersion available" },
+  { code: "QC", name: "Québec",                    frenchMandatory: true,  frenchImmersion: false, note: "French is the primary language of instruction" },
+  { code: "MB", name: "Manitoba",                  frenchMandatory: true,  frenchImmersion: true,  note: "French mandatory from Grade 4" },
+  { code: "SK", name: "Saskatchewan",              frenchMandatory: false, frenchImmersion: true,  note: "French Immersion widely offered" },
+  { code: "NS", name: "Nova Scotia",               frenchMandatory: false, frenchImmersion: true,  note: "Atlantic Canada emphasis" },
+  { code: "NB", name: "New Brunswick",             frenchMandatory: true,  frenchImmersion: true,  note: "Only officially bilingual province; French mandatory" },
+  { code: "NL", name: "Newfoundland & Labrador",   frenchMandatory: false, frenchImmersion: true,  note: "Atlantic Canada; French Immersion in most districts" },
+  { code: "PE", name: "Prince Edward Island",      frenchMandatory: false, frenchImmersion: true,  note: "Atlantic Canada; French Immersion available" },
+  { code: "NT", name: "Northwest Territories",     frenchMandatory: false, frenchImmersion: false, note: "Indigenous language programmes alongside English" },
+  { code: "YT", name: "Yukon",                     frenchMandatory: false, frenchImmersion: true,  note: "Follows BC curriculum framework" },
+  { code: "NU", name: "Nunavut",                   frenchMandatory: false, frenchImmersion: false, note: "Inuktitut language instruction available" },
+];
 
 // ═══════════════════════════════════════════════════════════════════
 // CURRICULUM CARD
@@ -166,13 +210,19 @@ export default function ParentDashboard() {
   const [newName, setNewName] = useState("");
   const [newCurriculum, setNewCurriculum] = useState("uk_national");
   const [newGrade, setNewGrade] = useState(1);
+  const [newProvince, setNewProvince] = useState("");
 
-  const currDef = CURRICULA[newCurriculum];
+  const currDef    = CURRICULA[newCurriculum];
+  const isCanadian = !!currDef?.hasProvinces;
+  const provInfo   = isCanadian && newProvince
+    ? CANADIAN_PROVINCES.find(p => p.code === newProvince)
+    : null;
 
   const handleCurriculumChange = (key) => {
     setNewCurriculum(key);
     const grades = CURRICULA[key].grades;
-    setNewGrade(grades[0]); // Start with first grade
+    setNewGrade(grades[0]);
+    if (!CURRICULA[key]?.hasProvinces) setNewProvince("");
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -268,6 +318,7 @@ export default function ParentDashboard() {
           year_level: newGrade,
           year: newGrade,
           curriculum: newCurriculum,
+          province: newProvince || null,
           access_code: code,
           total_xp: 0,
           coins: 0,
@@ -310,6 +361,7 @@ export default function ParentDashboard() {
         setNewName("");
         setNewCurriculum("uk_national");
         setNewGrade(1);
+        setNewProvince("");
         setError(null);
       }
     } catch (err) {
@@ -359,9 +411,7 @@ export default function ParentDashboard() {
       {/* Navigation */}
       <nav className="bg-white border-b-4 border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-3 font-black text-xl">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md border-b-4 border-indigo-800">
-            <RocketIcon size={20} />
-          </div>
+          <img src="/logo.svg" alt="LaunchPard" width={40} height={40} style={{ objectFit: "contain" }} />
           <span className="hidden sm:inline">Parent Portal</span>
         </div>
 
@@ -457,6 +507,11 @@ export default function ParentDashboard() {
                         <span className="bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-sm">
                           {curr.gradeLabel} {yearLevel}
                         </span>
+                        {scholar.province && (
+                          <span className="bg-red-50 text-red-700 border border-red-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                            🍁 {CANADIAN_PROVINCES.find(p => p.code === scholar.province)?.name || scholar.province}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="bg-amber-100 text-amber-700 font-black px-3 py-2 rounded-2xl flex items-center gap-1.5">
@@ -552,6 +607,36 @@ export default function ParentDashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* Province selector — only for Canadian curricula */}
+              {isCanadian && (
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">
+                    🍁 Province / Territory
+                  </label>
+                  <select
+                    value={newProvince}
+                    onChange={e => setNewProvince(e.target.value)}
+                    className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors"
+                  >
+                    <option value="">Select province or territory…</option>
+                    {CANADIAN_PROVINCES.map(p => (
+                      <option key={p.code} value={p.code}>
+                        {p.name}{p.frenchMandatory ? " · French required" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {provInfo && (
+                    <div className="mt-2 bg-white/80 border border-indigo-100 rounded-xl px-3 py-2 text-xs font-semibold text-indigo-700 leading-relaxed flex items-start gap-1.5">
+                      <span className="mt-0.5">📌</span>
+                      <span>
+                        {provInfo.note}
+                        {provInfo.frenchImmersion && <span className="text-blue-600 ml-1">· French Immersion available</span>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Grade + Submit */}
               <div className="flex gap-3 items-end">

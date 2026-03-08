@@ -1,20 +1,32 @@
 {
   "crons": [
     {
-      "path": "/api/quests/assign-daily",
+      "path": "/api/cron/expire-access",
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/quests/assign-weekly",
-      "schedule": "0 0 * * 1"
-    },    
+      "path": "/api/quests/assign-daily",
+      "schedule": "0 1 * * *"
+    },
     {
       "path": "/api/cron/trial-reminders",
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/weekly-digest",
+      "schedule": "0 9 * * 0"
+    },
+    {
+      "path": "/api/quests/assign-weekly",
+      "schedule": "0 10 * * 1"
+    },
+    {
       "path": "/api/cron/weekly-reports",
       "schedule": "0 18 * * 0"
+    },
+    {
+      "path": "/api/batch-generate",
+      "schedule": "0 2 * * 0"
     }
   ]
 }

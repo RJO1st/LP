@@ -50,9 +50,9 @@ function LoadingScreen({ message = "Loading…" }) {
     <div className="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
       <div className="relative">
         <div className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
-        <div className="absolute inset-0 flex items-center justify-center text-white">
-          <RocketIcon size={28} />
-        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+  <img src="/logo.svg" alt="" width={28} height={28} style={{ objectFit: "contain" }} />
+</div>
       </div>
       <p className="text-slate-400 font-bold mt-4 text-sm uppercase tracking-widest">{message}</p>
     </div>
@@ -615,10 +615,8 @@ export default function StudentDashboard() {
       {/* ── NAV ─────────────────────────────────────────────────── */}
       <nav className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-1.5 rounded-xl text-white">
-            <RocketIcon size={18} />
-          </div>
-          <span className="font-black text-lg text-slate-800">LaunchPard</span>
+          <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
+<span className="font-black text-lg text-slate-800">LaunchPard</span>
           <span className="text-xs text-slate-300 font-bold hidden sm:inline">·</span>
           <span className="text-xs text-slate-400 font-bold hidden sm:inline">
             {currDef.country} {currDef.name}

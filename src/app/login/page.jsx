@@ -133,7 +133,7 @@ function LoginContent() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <Image src="/LaunchPard.png" alt="LaunchPard" width={48} height={48} className="flex-shrink-0" />
+            <Image src="/logo.svg" alt="LaunchPard" width={48} height={48} className="flex-shrink-0" style={{ objectFit: "contain" }} />
             <span className="text-2xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               LaunchPard
             </span>
