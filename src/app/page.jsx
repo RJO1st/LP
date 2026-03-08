@@ -42,8 +42,7 @@ export default function LandingPage() {
     { flag: '🌍', name: 'IB PYP/MYP', desc: 'International Baccalaureate' },
     { flag: '🇬🇧', name: 'UK 11+ & National', desc: 'Grammar school & primary' },
     { flag: '🇺🇸', name: 'US Common Core', desc: 'K-12 standards aligned' },    
-    { flag: '🇳🇬', name: 'Nigerian WAEC',  desc: 'SSCE preparation',  },
-    { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'JSS curriculum' }
+    { flag: '🇳🇬', name: 'Nigerian NERDC & WAEC',  desc: 'Primary, JSS Curricula & SSCE preparation',  },
   ];
 
   const testimonials = [
