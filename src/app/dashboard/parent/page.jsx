@@ -36,7 +36,7 @@ const CURRICULA = {
     country: "🇬🇧", 
     name: "UK National", 
     gradeLabel: "Year",
-    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   },
   uk_11plus: { 
     country: "🇬🇧", 
@@ -128,18 +128,8 @@ const NG_SSS_STREAMS = {
 };
 
 const NG_SSS_TRADES = [
-  { value: 'data_processing',         label: 'Data Processing' },
-  { value: 'animal_husbandry',        label: 'Animal Husbandry' },
-  { value: 'marketing_trade',         label: 'Marketing' },
-  { value: 'catering_craft',          label: 'Catering & Craft Practice' },
-  { value: 'auto_mechanics',          label: 'Auto Mechanics' },
-  { value: 'electrical_installation', label: 'Electrical Installation' },
-  { value: 'carpentry_joinery',       label: 'Carpentry & Joinery' },
-  { value: 'garment_making',          label: 'Garment Making' },
-  { value: 'photography',             label: 'Photography' },
-  { value: 'keyboarding',             label: 'Keyboarding' },
-  { value: 'plumbing',                label: 'Plumbing & Pipe Fitting' },
-  { value: 'welding_fabrication',     label: 'Welding & Fabrication' },
+  { value: 'data_processing', label: 'Data Processing' },
+  { value: 'marketing',       label: 'Marketing' },
 ];
 
 const NG_JSS_SUBJECTS = [
@@ -231,29 +221,79 @@ const SUBJECTS_BY_CURRICULUM = {
 };
 
 const SUBJECT_META = {
-  maths: { emoji: "🔢", label: "Maths" },
-  english: { emoji: "📖", label: "English" },
-  verbal: { emoji: "🧩", label: "Verbal" },
-  nvr: { emoji: "🔷", label: "NVR" },
-  science: { emoji: "🔬", label: "Science" },
-  physics: { emoji: "⚛️", label: "Physics" },
-  chemistry: { emoji: "🧪", label: "Chemistry" },
-  biology: { emoji: "🧬", label: "Biology" },
-  commerce: { emoji: "💰", label: "Commerce" },
-  basic_technology: { emoji: "🔧", label: "Basic Tech" },
-  financial_accounting: { emoji: "📊", label: "Financial Accounting" },
-  further_mathematics: { emoji: "📐", label: "Further Maths" },
-  economics: { emoji: "📈", label: "Economics" },
-  government: { emoji: "🏛️", label: "Government" },
-  social_studies: { emoji: "🌍", label: "Social Studies"},
-  business_studies: { emoji: "💼", label: "Business Studies" },
-  basic_science: { emoji: "🧪", label: "Basic Science" },
-  // Canada-specific
-  french_language: { emoji: "🗣️", label: "French" },
-  canadian_history: { emoji: "🍁", label: "Canadian History" },
-  physical_education: { emoji: "🏃", label: "Physical Education" },
-  geography: { emoji: "🗺️", label: "Geography" },
-  computer_science: { emoji: "💻", label: "Computer Science" },
+  // Mathematics
+  maths:                        { emoji: "🔢", label: "Maths" },
+  mathematics:                  { emoji: "🔢", label: "Mathematics" },
+  further_mathematics:          { emoji: "📐", label: "Further Mathematics" },
+  statistics:                   { emoji: "📊", label: "Statistics" },
+  // English
+  english:                      { emoji: "📖", label: "English" },
+  english_language:             { emoji: "📖", label: "English Language" },
+  english_literature:           { emoji: "📖", label: "English Literature" },
+  english_studies:              { emoji: "📖", label: "English Studies" },
+  literature_in_english:        { emoji: "📖", label: "Literature in English" },
+  verbal:                       { emoji: "🧩", label: "Verbal Reasoning" },
+  nvr:                          { emoji: "🔷", label: "Non-Verbal Reasoning" },
+  // Sciences
+  science:                      { emoji: "🔬", label: "Science" },
+  biology:                      { emoji: "🧬", label: "Biology" },
+  chemistry:                    { emoji: "🧪", label: "Chemistry" },
+  physics:                      { emoji: "⚛️",  label: "Physics" },
+  basic_science:                { emoji: "🔬", label: "Basic Science" },
+  basic_science_and_technology: { emoji: "🔬", label: "Basic Science & Technology" },
+  health_education:             { emoji: "🏥", label: "Health Education" },
+  agricultural_science:         { emoji: "🌱", label: "Agricultural Science" },
+  animal_husbandry:             { emoji: "🐄", label: "Animal Husbandry" },
+  // Humanities & Social
+  history:                      { emoji: "🏛️", label: "History" },
+  nigerian_history:             { emoji: "🏛️", label: "Nigerian History" },
+  geography:                    { emoji: "🗺️", label: "Geography" },
+  social_studies:               { emoji: "🌍", label: "Social Studies" },
+  religious_education:          { emoji: "✝️",  label: "Religious Education" },
+  religious_studies:            { emoji: "✝️",  label: "Religious Studies" },
+  government:                   { emoji: "🏛️", label: "Government" },
+  civic_education:              { emoji: "⚖️",  label: "Civic Education" },
+  citizenship_and_heritage:     { emoji: "🇳🇬", label: "Citizenship & Heritage Studies" },
+  citizenship:                  { emoji: "⚖️",  label: "Citizenship" },
+  cultural_and_creative_arts:   { emoji: "🎨", label: "Cultural & Creative Arts" },
+  visual_arts:                  { emoji: "🎨", label: "Visual Arts" },
+  home_management:              { emoji: "🏠", label: "Home Management" },
+  pre_vocational_studies:       { emoji: "🛠",  label: "Pre-Vocational Studies" },
+  nigerian_languages:           { emoji: "🗣️", label: "Nigerian Languages" },
+  drama:                        { emoji: "🎭", label: "Drama" },
+  music:                        { emoji: "🎵", label: "Music" },
+  art_and_design:               { emoji: "🎨", label: "Art & Design" },
+  media_studies:                { emoji: "📺", label: "Media Studies" },
+  french:                       { emoji: "🇫🇷", label: "French" },
+  german:                       { emoji: "🇩🇪", label: "German" },
+  spanish:                      { emoji: "🇪🇸", label: "Spanish" },
+  // Business & Commerce
+  economics:                    { emoji: "📈", label: "Economics" },
+  business_studies:             { emoji: "💼", label: "Business Studies" },
+  business_education:           { emoji: "💼", label: "Business Education" },
+  commerce:                     { emoji: "💰", label: "Commerce" },
+  accounting:                   { emoji: "📒", label: "Accounting" },
+  financial_accounting:         { emoji: "📒", label: "Financial Accounting" },
+  marketing:                    { emoji: "📣", label: "Marketing" },
+  office_practice:              { emoji: "🖨️", label: "Office Practice" },
+  // Technology & Computing
+  computer_science:             { emoji: "💻", label: "Computer Science" },
+  ict:                          { emoji: "💻", label: "ICT" },
+  digital_technologies:         { emoji: "💻", label: "Digital Technologies" },
+  basic_digital_literacy:       { emoji: "💻", label: "Basic Digital Literacy" },
+  basic_technology:             { emoji: "🔧", label: "Basic Technology" },
+  engineering:                  { emoji: "⚙️",  label: "Engineering" },
+  technical_drawing:            { emoji: "📏", label: "Technical Drawing" },
+  design_technology:            { emoji: "⚙️",  label: "Design & Technology" },
+  food_technology:              { emoji: "🍳", label: "Food Technology" },
+  data_processing:              { emoji: "🖥️", label: "Data Processing" },
+  // Health & PE
+  physical_education:           { emoji: "🏃", label: "Physical Education" },
+  health_social_care:           { emoji: "🏥", label: "Health & Social Care" },
+  sport_science:                { emoji: "⚽", label: "Sport Science" },
+  // Canada
+  french_language:              { emoji: "🗣️", label: "French" },
+  canadian_history:             { emoji: "🍁", label: "Canadian History" },
 };
 
 
@@ -956,8 +996,8 @@ export default function ParentDashboard() {
                   Subjects included
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {(SUBJECTS_BY_CURRICULUM[newCurriculum] || []).map(s => {
-                    const m = SUBJECT_META[s] || { emoji: "📚", label: s };
+                  {getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade).map(s => {
+                    const m = SUBJECT_META[s] || { emoji: "📚", label: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) };
                     return (
                       <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
                         {m.emoji} {m.label}
