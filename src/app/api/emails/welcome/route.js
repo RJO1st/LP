@@ -1,0 +1,18 @@
+// Deploy to: src/app/api/emails/welcome/route.js
+import { NextResponse } from 'next/server';
+import { sendWelcomeEmail } from '@/lib/email';
+
+// POST body: { email, name }
+// Called from: signup page after successful signUp
+export async function POST(request) {
+  try {
+    const { email, name } = await request.json();
+    if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
+
+    await sendWelcomeEmail({ parentEmail: email, parentName: name });
+    return NextResponse.json({ sent: true });
+  } catch (err) {
+    console.error('[welcome email]', err?.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

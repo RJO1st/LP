@@ -3,41 +3,16 @@
  * Deploy to: src/lib/email.js
  *
  * Unified Brevo transactional email sender.
- * Updated for @getbrevo/brevo v2 API (Brevo / BrevoEnvironment classes).
- *
- * OLD v1 API (broken):
- *   new brevo.TransactionalEmailsApi()
- *   brevo.TransactionalEmailsApiApiKeys.apiKey
- *   new brevo.SendSmtpEmail()
- *
- * NEW v2 API (correct):
- *   new brevo.Brevo({ apiKey: '...' })
- *   client.sendTransacEmail({ sender, to, subject, htmlContent })
+ * Uses Brevo HTTP API directly via fetch — no SDK import issues.
+ * Works with any @getbrevo/brevo version.
  */
 
-const BREVO_SENDER = { email: 'hello@launchpard.com', name: 'LaunchPard' };
-const BREVO_REPLY  = 'support@launchpard.com';
-
-function getBrevoClient() {
-  if (!process.env.BREVO_API_KEY) {
-    throw new Error('BREVO_API_KEY is not set. Add it to your Vercel env vars.');
-  }
-  // Dynamic require — server-only, avoids ESM static analysis of old class names
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const brevo = require('@getbrevo/brevo');
-  // v2 exposes `Brevo` as the main class
-  return new brevo.Brevo({ apiKey: process.env.BREVO_API_KEY });
-}
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const BREVO_SENDER  = { email: 'hello@launchpard.com', name: 'LaunchPard' };
+const BREVO_REPLY   = 'support@launchpard.com';
 
 /**
  * sendEmail({ to, subject, html, htmlContent, from, replyTo })
- *
- * @param {string|{email,name?}|Array} to
- * @param {string} subject
- * @param {string} [html]         alias for htmlContent
- * @param {string} [htmlContent]
- * @param {string} [from]         defaults to hello@launchpard.com
- * @param {string} [replyTo]      defaults to support@launchpard.com
  */
 export async function sendEmail({
   to,
@@ -47,13 +22,14 @@ export async function sendEmail({
   from    = BREVO_SENDER.email,
   replyTo = BREVO_REPLY,
 }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY is not set in Vercel env vars.');
+
   const recipients = normaliseRecipients(to);
   if (!recipients.length) throw new Error('sendEmail: no valid recipients');
 
   const body = htmlContent ?? html;
   if (!body) throw new Error('sendEmail: no html/htmlContent supplied');
-
-  const client = getBrevoClient();
 
   const payload = {
     sender:      { email: from, name: 'LaunchPard' },
@@ -63,19 +39,28 @@ export async function sendEmail({
     htmlContent: body,
   };
 
-  try {
-    const result = await client.sendTransacEmail(payload);
-    const msgId  = result?.messageId ?? result?.body?.messageId ?? 'sent';
-    console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')} | msgId: ${msgId}`);
-    return result?.body ?? result ?? { sent: true };
-  } catch (error) {
-    const detail = error?.response?.body ?? error?.message ?? error;
-    console.error('❌ Brevo error:', JSON.stringify(detail, null, 2));
-    throw error;
+  const res = await fetch(BREVO_API_URL, {
+    method:  'POST',
+    headers: {
+      'Accept':       'application/json',
+      'Content-Type': 'application/json',
+      'api-key':      apiKey,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error('❌ Brevo error:', res.status, errBody);
+    throw new Error(`Brevo API error ${res.status}: ${errBody}`);
   }
+
+  const result = await res.json();
+  console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')} | msgId: ${result?.messageId ?? 'sent'}`);
+  return result;
 }
 
-// ── Named helpers (used in route handlers) ────────────────────────────────────
+// ── Named helpers ─────────────────────────────────────────────────────────────
 
 export async function sendWelcomeEmail({ parentEmail, parentName }) {
   const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
