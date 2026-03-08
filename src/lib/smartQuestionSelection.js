@@ -33,8 +33,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+import { masteryToTier } from './masteryEngine';
 import {
-  masteryToTier,
   getTopicSequence,
   getTopicList,
   getTopicStrand,
