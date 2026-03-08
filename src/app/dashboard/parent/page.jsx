@@ -297,10 +297,17 @@ export default function ParentDashboard() {
     router.push("/");
   };
 
+  const MAX_SCHOLARS = 3;
+
   const handleAddScholar = async (e) => {
     e.preventDefault();
     if (!newName.trim()) {
       setError("Please enter a name");
+      return;
+    }
+
+    if (scholars.length >= MAX_SCHOLARS) {
+      setError(`You've reached the maximum of ${MAX_SCHOLARS} scholars. Please contact support to add more.`);
       return;
     }
 
@@ -341,7 +348,7 @@ export default function ParentDashboard() {
 
       if (data) {
         try {
-          await fetch('/api/emails/send-scholar-created', {
+          await fetch('/api/emails/scholar-created', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -576,6 +583,24 @@ export default function ParentDashboard() {
               Generate a profile and unique access code.
             </p>
 
+            {/* ── Limit reached state ── */}
+            {scholars.length >= MAX_SCHOLARS ? (
+              <div className="flex flex-col items-center justify-center flex-grow gap-4 py-8 text-center">
+                <div className="text-5xl">🚀</div>
+                <p className="text-indigo-900 font-black text-xl">Full crew aboard!</p>
+                <p className="text-indigo-700/70 font-semibold text-sm leading-relaxed">
+                  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
+                  Upgrade to Mission Control Pro to add more cadets.
+                </p>
+                <a
+                  href="mailto:hello@launchpard.com?subject=Upgrade%20Request"
+                  className="mt-2 px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl border-b-4 border-indigo-800 hover:bg-indigo-700 transition-all text-sm"
+                >
+                  Contact us to upgrade ✦
+                </a>
+              </div>
+            ) : (
+
             <form onSubmit={handleAddScholar} className="flex flex-col gap-4 flex-grow">
               
               {/* Name */}
@@ -681,6 +706,7 @@ export default function ParentDashboard() {
                 </div>
               </div>
             </form>
+            )} {/* end scholars.length < MAX_SCHOLARS */}
           </div>
         </div>
       </main>
