@@ -107,6 +107,115 @@ const CURRICULA = {
   }
 };
 
+// ─── NIGERIAN SSS STREAM DEFINITIONS ─────────────────────────────────────────
+const NG_SSS_COMPULSORY = [
+  'english', 'mathematics', 'citizenship_and_heritage', 'digital_technologies',
+];
+
+const NG_SSS_STREAMS = {
+  science: {
+    label: 'Science', emoji: '🔬',
+    subjects: ['biology', 'chemistry', 'physics', 'further_mathematics', 'agricultural_science', 'technical_drawing', 'health_education', 'geography'],
+  },
+  humanities: {
+    label: 'Humanities', emoji: '📜',
+    subjects: ['literature_in_english', 'government', 'nigerian_history', 'visual_arts', 'home_management'],
+  },
+  business: {
+    label: 'Business', emoji: '💼',
+    subjects: ['economics', 'accounting', 'commerce', 'marketing', 'office_practice'],
+  },
+};
+
+const NG_SSS_TRADES = [
+  { value: 'data_processing',         label: 'Data Processing' },
+  { value: 'animal_husbandry',        label: 'Animal Husbandry' },
+  { value: 'marketing_trade',         label: 'Marketing' },
+  { value: 'catering_craft',          label: 'Catering & Craft Practice' },
+  { value: 'auto_mechanics',          label: 'Auto Mechanics' },
+  { value: 'electrical_installation', label: 'Electrical Installation' },
+  { value: 'carpentry_joinery',       label: 'Carpentry & Joinery' },
+  { value: 'garment_making',          label: 'Garment Making' },
+  { value: 'photography',             label: 'Photography' },
+  { value: 'keyboarding',             label: 'Keyboarding' },
+  { value: 'plumbing',                label: 'Plumbing & Pipe Fitting' },
+  { value: 'welding_fabrication',     label: 'Welding & Fabrication' },
+];
+
+const NG_JSS_SUBJECTS = [
+  'mathematics', 'english_studies', 'basic_science_and_technology',
+  'social_studies', 'business_education', 'cultural_and_creative_arts',
+  'pre_vocational_studies', 'nigerian_languages', 'religious_studies',
+  'civic_education', 'basic_digital_literacy', 'french_language',
+];
+
+// ─── UK KS4 (Y10–Y11) SUBJECT DEFINITIONS ───────────────────────────────────
+const UK_KS4_COMPULSORY = [
+  'mathematics', 'english_language', 'english_literature',
+  'biology', 'chemistry', 'physics',  // or combined_science
+  'physical_education', 'citizenship',
+];
+
+const UK_KS4_OPTIONS = [
+  {
+    group: 'STEM',
+    emoji: '🔬',
+    subjects: [
+      { value: 'computer_science',    label: 'Computer Science' },
+      { value: 'further_mathematics', label: 'Further Mathematics' },
+      { value: 'engineering',         label: 'Engineering' },
+      { value: 'statistics',          label: 'Statistics' },
+    ],
+  },
+  {
+    group: 'Arts & Humanities',
+    emoji: '🎨',
+    subjects: [
+      { value: 'history',             label: 'History' },
+      { value: 'geography',           label: 'Geography' },
+      { value: 'religious_education', label: 'Religious Education' },
+      { value: 'art_and_design',      label: 'Art & Design' },
+      { value: 'drama',               label: 'Drama' },
+      { value: 'music',               label: 'Music' },
+      { value: 'media_studies',       label: 'Media Studies' },
+      { value: 'french',              label: 'French' },
+      { value: 'german',              label: 'German' },
+      { value: 'spanish',             label: 'Spanish' },
+    ],
+  },
+  {
+    group: 'Vocational & Technical',
+    emoji: '🛠',
+    subjects: [
+      { value: 'business_studies',    label: 'Business Studies' },
+      { value: 'ict',                 label: 'ICT' },
+      { value: 'design_technology',   label: 'Design & Technology' },
+      { value: 'food_technology',     label: 'Food Technology' },
+      { value: 'health_social_care',  label: 'Health & Social Care' },
+      { value: 'sport_science',       label: 'Sport Science' },
+    ],
+  },
+];
+
+const UK_KS4_YEARS = [10, 11];
+
+// Returns true if this curriculum+year requires subject selection
+const needsSubjectSelection = (curriculum, year) =>
+  curriculum === 'uk_national' && UK_KS4_YEARS.includes(Number(year));
+
+// Returns all subjects for a scholar including stream/selected subjects
+const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, year) => {
+  if (curriculum === 'ng_sss') {
+    const streamSubjects = stream ? (NG_SSS_STREAMS[stream]?.subjects || []) : [];
+    const trade = tradeSubject ? [tradeSubject] : [];
+    return [...NG_SSS_COMPULSORY, ...streamSubjects, ...trade];
+  }
+  if (needsSubjectSelection(curriculum, year)) {
+    return [...UK_KS4_COMPULSORY, ...(selectedSubjects || [])];
+  }
+  return SUBJECTS_BY_CURRICULUM[curriculum] || [];
+};
+
 const SUBJECTS_BY_CURRICULUM = {
   uk_national: ['maths', 'english', 'science'],
   uk_11plus: ['maths', 'english', 'verbal', 'nvr'],
@@ -114,10 +223,9 @@ const SUBJECTS_BY_CURRICULUM = {
   aus_acara: ['maths', 'english', 'science'],
   ib_pyp: ['maths', 'english', 'science'],
   ib_myp: ['maths', 'english', 'science'],
-  ng_primary: ['maths', 'english', 'basic_science'],
-  ng_jss: ['maths', 'english', 'physics', 'basic_technology', 'business_studies', 'basic_science'],
-  ng_sss: ['maths', 'english', 'physics', 'chemistry', 'biology', 'commerce', 'financial_accounting', 'further_mathematics', 'economics', 'government'],
-  // Canada
+  ng_primary: ['mathematics', 'english', 'basic_science', 'social_studies'],
+  ng_jss: NG_JSS_SUBJECTS,
+  ng_sss: NG_SSS_COMPULSORY,
   ca_primary: ['maths', 'english', 'science', 'social_studies', 'french_language', 'physical_education'],
   ca_secondary: ['maths', 'english', 'science', 'canadian_history', 'geography', 'physics', 'chemistry', 'biology', 'computer_science', 'french_language'],
 };
@@ -211,18 +319,37 @@ export default function ParentDashboard() {
   const [newCurriculum, setNewCurriculum] = useState("uk_national");
   const [newGrade, setNewGrade] = useState(1);
   const [newProvince, setNewProvince] = useState("");
+  const [newStream, setNewStream] = useState("");
+  const [newTrade, setNewTrade] = useState("");
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
 
-  const currDef    = CURRICULA[newCurriculum];
-  const isCanadian = !!currDef?.hasProvinces;
-  const provInfo   = isCanadian && newProvince
+  const currDef      = CURRICULA[newCurriculum];
+  const isCanadian   = !!currDef?.hasProvinces;
+  const isNgSss      = newCurriculum === 'ng_sss';
+  const isUkKs4      = needsSubjectSelection(newCurriculum, newGrade);
+  const provInfo     = isCanadian && newProvince
     ? CANADIAN_PROVINCES.find(p => p.code === newProvince)
     : null;
+
+  const toggleSubject = (value) => {
+    setSelectedSubjects(prev =>
+      prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+    );
+  };
 
   const handleCurriculumChange = (key) => {
     setNewCurriculum(key);
     const grades = CURRICULA[key].grades;
     setNewGrade(grades[0]);
     if (!CURRICULA[key]?.hasProvinces) setNewProvince("");
+    if (key !== 'ng_sss') { setNewStream(""); setNewTrade(""); }
+    setSelectedSubjects([]);
+  };
+
+  const handleGradeChange = (grade) => {
+    setNewGrade(Number(grade));
+    // Clear subject selection if moving away from KS4
+    if (!needsSubjectSelection(newCurriculum, grade)) setSelectedSubjects([]);
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -311,6 +438,11 @@ export default function ParentDashboard() {
       return;
     }
 
+    if (newCurriculum === 'ng_sss' && !newStream) {
+      setError("Please select a stream for this SSS scholar.");
+      return;
+    }
+
     setIsAdding(true);
     setError(null);
 
@@ -326,6 +458,9 @@ export default function ParentDashboard() {
           year: newGrade,
           curriculum: newCurriculum,
           province: newProvince || null,
+          stream: isNgSss ? (newStream || null) : null,
+          trade_subject: isNgSss ? (newTrade || null) : null,
+          selected_subjects: isUkKs4 && selectedSubjects.length > 0 ? selectedSubjects : null,
           access_code: code,
           total_xp: 0,
           coins: 0,
@@ -369,6 +504,9 @@ export default function ParentDashboard() {
         setNewCurriculum("uk_national");
         setNewGrade(1);
         setNewProvince("");
+        setNewStream("");
+        setNewTrade("");
+        setSelectedSubjects([]);
         setError(null);
       }
     } catch (err) {
@@ -519,6 +657,21 @@ export default function ParentDashboard() {
                             🍁 {CANADIAN_PROVINCES.find(p => p.code === scholar.province)?.name || scholar.province}
                           </span>
                         )}
+                        {scholar.stream && (
+                          <span className="bg-green-50 text-green-700 border border-green-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                            {NG_SSS_STREAMS[scholar.stream]?.emoji} {NG_SSS_STREAMS[scholar.stream]?.label} Stream
+                          </span>
+                        )}
+                        {scholar.trade_subject && (
+                          <span className="bg-orange-50 text-orange-700 border border-orange-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                            🛠 {NG_SSS_TRADES.find(t => t.value === scholar.trade_subject)?.label || scholar.trade_subject}
+                          </span>
+                        )}
+                        {scholar.selected_subjects?.length > 0 && (
+                          <span className="bg-blue-50 text-blue-700 border border-blue-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                            📚 {scholar.selected_subjects.length} GCSE options
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="bg-amber-100 text-amber-700 font-black px-3 py-2 rounded-2xl flex items-center gap-1.5">
@@ -663,6 +816,114 @@ export default function ParentDashboard() {
                 </div>
               )}
 
+              {/* UK KS4 — Optional subject checklist (Y10–Y11 only) */}
+              {isUkKs4 && (
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1 mb-1">
+                      🇬🇧 GCSE Subjects
+                    </label>
+                    <p className="text-xs text-indigo-700/60 font-semibold ml-1 mb-3">
+                      Core subjects are included automatically. Tick the optional subjects your scholar is studying.
+                    </p>
+
+                    {/* Compulsory — locked */}
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">
+                        Compulsory (all scholars)
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {UK_KS4_COMPULSORY.map(s => (
+                          <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
+                            ✓ {s.replace(/_/g, ' ').replace(/\w/g, c => c.toUpperCase())}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Optional groups */}
+                    {UK_KS4_OPTIONS.map(group => (
+                      <div key={group.group} className="mb-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                          {group.emoji} {group.group}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.subjects.map(s => {
+                            const checked = selectedSubjects.includes(s.value);
+                            return (
+                              <button
+                                key={s.value}
+                                type="button"
+                                onClick={() => toggleSubject(s.value)}
+                                className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border-2 transition-all
+                                  ${checked
+                                    ? 'bg-indigo-600 text-white border-indigo-700'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                              >
+                                {checked ? '✓' : '+'} {s.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {selectedSubjects.length > 0 && (
+                      <p className="text-xs text-indigo-600 font-bold ml-1 mt-1">
+                        {selectedSubjects.length} optional subject{selectedSubjects.length !== 1 ? 's' : ''} selected
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* NG SSS — Stream selector */}
+              {isNgSss && (
+                <div className="flex flex-col gap-3">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">
+                    🇳🇬 Select Stream
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(NG_SSS_STREAMS).map(([key, s]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setNewStream(key)}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all
+                          ${newStream === key
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                            : 'border-indigo-100 bg-white text-slate-500 hover:border-indigo-300'}`}
+                      >
+                        <span className="text-xl">{s.emoji}</span>
+                        <span>{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {!newStream && (
+                    <p className="text-xs text-amber-600 font-semibold ml-1">⚠ Please select a stream</p>
+                  )}
+                </div>
+              )}
+
+              {/* NG SSS — Trade subject dropdown */}
+              {isNgSss && (
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">
+                    🛠 Trade Subject
+                  </label>
+                  <select
+                    value={newTrade}
+                    onChange={e => setNewTrade(e.target.value)}
+                    className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors"
+                  >
+                    <option value="">Select a trade subject…</option>
+                    {NG_SSS_TRADES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Grade + Submit */}
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
@@ -671,7 +932,7 @@ export default function ParentDashboard() {
                   </label>
                   <select
                     value={newGrade}
-                    onChange={e => setNewGrade(Number(e.target.value))}
+                    onChange={e => handleGradeChange(e.target.value)}
                     className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors"
                   >
                     {currDef.grades.map(g => (

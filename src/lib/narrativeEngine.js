@@ -415,3 +415,78 @@ export function getChapterIntro(chapterId) {
 export function getChapterComplete(chapterId) {
   return CHAPTER_NARRATIVES[chapterId]?.complete ?? CHAPTER_NARRATIVES.default_complete;
 }
+
+// ─── NIGERIAN SSS STREAM SUBJECT MAP ─────────────────────────────────────────
+// Used by the world map to grey out subjects not in the scholar's stream.
+// Each subject is tagged: 'compulsory' | 'science' | 'humanities' | 'business' | 'trade'
+
+export const NG_SSS_SUBJECT_STREAM = {
+  // Compulsory for all
+  english:                    'compulsory',
+  mathematics:                'compulsory',
+  citizenship_and_heritage:   'compulsory',
+  digital_technologies:       'compulsory',
+
+  // Science stream
+  biology:                    'science',
+  chemistry:                  'science',
+  physics:                    'science',
+  further_mathematics:        'science',
+  agricultural_science:       'science',
+  technical_drawing:          'science',
+  health_education:           'science',
+  geography:                  'science',
+
+  // Humanities stream
+  literature_in_english:      'humanities',
+  government:                 'humanities',
+  nigerian_history:           'humanities',
+  visual_arts:                'humanities',
+  home_management:            'humanities',
+
+  // Business stream
+  economics:                  'business',
+  accounting:                 'business',
+  commerce:                   'business',
+  marketing:                  'business',
+  office_practice:            'business',
+};
+
+// UK KS4 compulsory subjects — always active regardless of option selection
+const UK_KS4_COMPULSORY_SUBJECTS = new Set([
+  'mathematics', 'english_language', 'english_literature',
+  'biology', 'chemistry', 'physics', 'physical_education', 'citizenship',
+]);
+
+/**
+ * Check if a subject is accessible for a given scholar.
+ * Returns: 'active' | 'greyed' (not in scholar's selection)
+ *
+ * @param {string} subject
+ * @param {string} curriculum
+ * @param {string|null} stream            - NG SSS stream (science|humanities|business)
+ * @param {string|null} tradeSubject      - NG SSS trade subject
+ * @param {string[]|null} selectedSubjects - UK KS4 optional subjects
+ * @param {number|null} yearLevel         - scholar's year level
+ */
+export function getSubjectAccessibility(subject, curriculum, stream, tradeSubject, selectedSubjects, yearLevel) {
+  // ── Nigerian SSS ──────────────────────────────────────────────────────────
+  if (curriculum === 'ng_sss') {
+    const subjectStream = NG_SSS_SUBJECT_STREAM[subject];
+    if (!subjectStream || subjectStream === 'compulsory') return 'active';
+    if (subject === tradeSubject) return 'active';
+    if (subjectStream === stream) return 'active';
+    return 'greyed';
+  }
+
+  // ── UK National KS4 (Y10–Y11) ─────────────────────────────────────────────
+  if (curriculum === 'uk_national' && (yearLevel === 10 || yearLevel === 11)) {
+    if (UK_KS4_COMPULSORY_SUBJECTS.has(subject)) return 'active';
+    if (!selectedSubjects || selectedSubjects.length === 0) return 'active'; // no selection made — show all
+    if (selectedSubjects.includes(subject)) return 'active';
+    return 'greyed';
+  }
+
+  // ── All other curricula/years — always active ─────────────────────────────
+  return 'active';
+}
