@@ -49,7 +49,7 @@ export const REALMS = {
     icon:        '📖',
     colour:      '#ec4899',
     gradient:    'from-pink-500 to-rose-600',
-    subjects:    ['english', 'english_language', 'literature', 'verbal_reasoning', 'french_launguage'],
+    subjects:    ['english', 'english_language', 'literature', 'verbal_reasoning', 'french_language'],
     unlockAt:    0,
     chapters: [
       { id: 'phonics_planet',     name: 'Phonics Planet',      topics: ['phonics', 'spelling', 'word_families'] },
@@ -64,6 +64,27 @@ export const REALMS = {
       'comprehension_cove': { id: 'context_clue',  name: 'Context Clue',  desc: 'Highlights key passage text', icon: '🔍' },
     },
   },
+
+  pattern_planet: {
+    id:          'pattern_planet',
+    name:        'Pattern Planet',
+    tagline:     'Decode the shapes that govern the cosmos',
+    icon:        '🔷',
+    colour:      '#6366f1',
+    gradient:    'from-indigo-500 to-cyan-600',
+    subjects:    ['non_verbal_reasoning', 'nvr', 'spatial_reasoning'],
+    unlockAt:    0,
+    chapters: [
+      { id: 'shape_station',   name: 'Shape Station',    topics: ['pattern_recognition', 'shape_matching', 'odd_shape_out', 'mirror_images', 'shape_sequences'] },
+      { id: 'matrix_moon',     name: 'Matrix Moon',      topics: ['matrix_puzzles', 'cube_nets', 'rotations_and_reflections', 'figure_classification', 'analogous_figures'] },
+      { id: 'spatial_sector',  name: 'Spatial Sector',   topics: ['spatial_reasoning', 'complex_matrices', '3d_visualisation', 'code_shapes', 'series_completion'] },
+    ],
+    powers: {
+      'matrix_moon':   { id: 'pattern_pulse', name: 'Pattern Pulse', desc: 'Eliminates one wrong shape',    icon: '🔷' },
+      'spatial_sector':{ id: 'shape_sight',   name: 'Shape Sight',   desc: 'Highlights the key difference', icon: '👁️' },
+    },
+  },
+
 
   science_station: {
     id:          'science_station',
@@ -94,7 +115,7 @@ export const REALMS = {
     icon:        '🏛️',
     colour:      '#f59e0b',
     gradient:    'from-amber-500 to-orange-600',
-    subjects:    ['history', 'social_studies', 'individuals_and_societies', 'hass'],
+    subjects:    ['history', 'social_studies', 'individuals_and_societies', 'hass', 'canadian_history', 'agricultural_science', 'religious_studies'],
     unlockAt:    150,
     chapters: [
       { id: 'ancient_archives', name: 'Ancient Archives',   topics: ['ancient_egypt', 'ancient_greece', 'roman_empire', 'ancient_civilisations'] },
@@ -135,7 +156,7 @@ export const REALMS = {
     icon:        '⚖️',
     colour:      '#8b5cf6',
     gradient:    'from-violet-500 to-purple-600',
-    subjects:    ['civic_education', 'government', 'economics', 'business_studies', 'commerce', 'accounting'],
+    subjects:    ['civic_education', 'government', 'economics', 'business_studies', 'commerce', 'accounting', 'home_economics'],
     unlockAt:    250,
     chapters: [
       { id: 'government_gate',  name: 'Government Gate',    topics: ['democracy', 'parliament', 'constitution', 'arms_of_government', 'federalism'] },
@@ -155,7 +176,7 @@ export const REALMS = {
     icon:        '💻',
     colour:      '#06b6d4',
     gradient:    'from-cyan-500 to-blue-600',
-    subjects:    ['computer_science', 'ict', 'digital_technologies'],
+    subjects:    ['computer_science', 'ict', 'digital_technologies', 'basic_technology'],
     unlockAt:    300,
     chapters: [
       { id: 'binary_base',      name: 'Binary Base',        topics: ['binary', 'data_representation', 'number_systems'] },
@@ -167,6 +188,28 @@ export const REALMS = {
       'code_cosmos': { id: 'debug_droid', name: 'Debug Droid', desc: 'Highlights the logical error', icon: '🤖' },
     },
   },
+  // ── Expedition Base ────────────────────────────────────────────────────────
+  // Physical education, health, and outdoor learning.
+  // Introduced for Canadian curricula; open to any future PE-bearing curriculum.
+  expedition_base: {
+    id:          'expedition_base',
+    name:        'Expedition Base',
+    description: 'Where scholars train their bodies and minds for the mission ahead.',
+    icon:        '🏃',
+    colour:      '#10b981',
+    gradient:    'from-emerald-500 to-teal-600',
+    subjects:    ['physical_education', 'health', 'pe'],
+    unlockAt:    50,
+    chapters: [
+      { id: 'movement_lab',    name: 'Movement Lab',    topics: ['movement_skills', 'safety_and_fair_play', 'fitness_and_health'] },
+      { id: 'team_arena',      name: 'Team Arena',      topics: ['team_sports', 'individual_sports', 'healthy_lifestyle'] },
+      { id: 'wellness_world',  name: 'Wellness World',  topics: ['nutrition_basics', 'mental_wellbeing', 'outdoor_education', 'swimming_and_water_safety'] },
+    ],
+    powers: {
+      'wellness_world': { id: 'endurance_boost', name: 'Endurance Boost', desc: 'Grants a hint on the next tough question', icon: '⚡' },
+    },
+  },
+
 };
 
 // ─── NARRATIVE: STORY CHAPTERS PER REALM ─────────────────────────────────────
@@ -198,7 +241,21 @@ export const CHAPTER_NARRATIVES = {
     complete: "You've decoded the final message. The Cove's ancient library is yours to explore. Every book now glows with the knowledge you've unlocked.",
   },
 
-  // Default (used for any chapter without a specific narrative)
+  // Pattern Planet
+  shape_station: {
+    intro:    "Commander, the Pattern Planet's signal array is scrambled — shapes are appearing in the wrong order and the crew can't decode the transmissions. Only a scholar who can spot patterns and match shapes can restore order.",
+    complete: "The signal array hums back to life! Your pattern recognition has unlocked the Matrix Moon. Strange geometric puzzles await...",
+  },
+  matrix_moon: {
+    intro:    "The Matrix Moon is covered in grids of shapes — each one a lock that can only be opened by finding what's missing. The station's engineers are baffled. Time to show them what you're made of.",
+    complete: "Every matrix solved! The Moon's vaults swing open, revealing the path to the Spatial Sector. You've unlocked Pattern Pulse — use it when the going gets tough.",
+  },
+  spatial_sector: {
+    intro:    "Deep in the Spatial Sector, 3D structures float in zero gravity. Cadets must mentally rotate, fold, and unfold them to navigate through. This is the ultimate test of your mind's eye.",
+    complete: "Incredible spatial reasoning, Commander. The Spatial Sector is fully charted. The galaxy's most complex structures hold no secrets from you now.",
+  },
+
+  // Default
   default_intro: "A new challenge awaits in this sector of the LaunchPard universe. Show the galaxy what you're made of, Commander.",
   default_complete: "Mission accomplished. The galaxy records another victory for LaunchPard's finest.",
 };
