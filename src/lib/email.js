@@ -3,33 +3,30 @@
  * Deploy to: src/lib/email.js
  *
  * Unified Brevo transactional email sender.
+ * Updated for @getbrevo/brevo v2 API (Brevo / BrevoEnvironment classes).
  *
- * THE BUG THAT WAS BREAKING EMAILS:
- *   The old uploads/route.js called sendEmail({ html }) but email.js in outputs
- *   mapped the field as htmlContent only. The live uploads/route.js also had NO
- *   import of EMAIL_TEMPLATES — it was using raw inline HTML.
+ * OLD v1 API (broken):
+ *   new brevo.TransactionalEmailsApi()
+ *   brevo.TransactionalEmailsApiApiKeys.apiKey
+ *   new brevo.SendSmtpEmail()
  *
- *   This version accepts both `html` and `htmlContent` so all callers work.
- *
- * BREVO SMTP vs API NOTE:
- *   You configured Brevo SMTP in Supabase (for auth emails).
- *   For transactional emails FROM Next.js, we use Brevo's HTTP API (not SMTP),
- *   which requires BREVO_API_KEY in your Vercel env vars.
- *   These are separate — SMTP for Supabase, API key for Next.js routes.
+ * NEW v2 API (correct):
+ *   new brevo.Brevo({ apiKey: '...' })
+ *   client.sendTransacEmail({ sender, to, subject, htmlContent })
  */
 
-import * as brevo from '@getbrevo/brevo';
+const BREVO_SENDER = { email: 'hello@launchpard.com', name: 'LaunchPard' };
+const BREVO_REPLY  = 'support@launchpard.com';
 
-let _apiInstance = null;
-function getApi() {
-  if (_apiInstance) return _apiInstance;
+function getBrevoClient() {
   if (!process.env.BREVO_API_KEY) {
-    throw new Error('BREVO_API_KEY is not set. Add it to your Vercel/local .env.local file.');
+    throw new Error('BREVO_API_KEY is not set. Add it to your Vercel env vars.');
   }
-  const api = new brevo.TransactionalEmailsApi();
-  api.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-  _apiInstance = api;
-  return api;
+  // Dynamic require — server-only, avoids ESM static analysis of old class names
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const brevo = require('@getbrevo/brevo');
+  // v2 exposes `Brevo` as the main class
+  return new brevo.Brevo({ apiKey: process.env.BREVO_API_KEY });
 }
 
 /**
@@ -47,8 +44,8 @@ export async function sendEmail({
   subject,
   html,
   htmlContent,
-  from    = 'hello@launchpard.com',
-  replyTo = 'support@launchpard.com',
+  from    = BREVO_SENDER.email,
+  replyTo = BREVO_REPLY,
 }) {
   const recipients = normaliseRecipients(to);
   if (!recipients.length) throw new Error('sendEmail: no valid recipients');
@@ -56,17 +53,21 @@ export async function sendEmail({
   const body = htmlContent ?? html;
   if (!body) throw new Error('sendEmail: no html/htmlContent supplied');
 
-  const sendSmtpEmail              = new brevo.SendSmtpEmail();
-  sendSmtpEmail.to                 = recipients;
-  sendSmtpEmail.sender             = { email: from, name: 'LaunchPard' };
-  sendSmtpEmail.replyTo            = { email: replyTo };
-  sendSmtpEmail.subject            = subject;
-  sendSmtpEmail.htmlContent        = body;
+  const client = getBrevoClient();
+
+  const payload = {
+    sender:      { email: from, name: 'LaunchPard' },
+    to:          recipients,
+    replyTo:     { email: replyTo },
+    subject,
+    htmlContent: body,
+  };
 
   try {
-    const result = await getApi().sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')} | msgId: ${result?.body?.messageId}`);
-    return result?.body ?? { sent: true };
+    const result = await client.sendTransacEmail(payload);
+    const msgId  = result?.messageId ?? result?.body?.messageId ?? 'sent';
+    console.log(`✅ Email sent → ${recipients.map(r => r.email).join(', ')} | msgId: ${msgId}`);
+    return result?.body ?? result ?? { sent: true };
   } catch (error) {
     const detail = error?.response?.body ?? error?.message ?? error;
     console.error('❌ Brevo error:', JSON.stringify(detail, null, 2));
@@ -77,37 +78,37 @@ export async function sendEmail({
 // ── Named helpers (used in route handlers) ────────────────────────────────────
 
 export async function sendWelcomeEmail({ parentEmail, parentName }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.welcome(parentName);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
 export async function sendScholarCreatedEmail({ parentEmail, parentName, scholarName, questCode, curriculum, yearLevel }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.scholarCreated(parentName, scholarName, questCode, curriculum, yearLevel);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
 export async function sendFirstQuizEmail({ parentEmail, parentName, scholarName, score, total, subject, xpEarned }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.firstQuiz(parentName, scholarName, subject, score, total, xpEarned);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
 export async function sendWeeklyDigestEmail({ parentEmail, parentName, scholars }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.weeklyDigest(parentName, scholars);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
 export async function sendStreakMilestoneEmail({ parentEmail, parentName, scholarName, streakDays }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.streakMilestone(parentName, scholarName, streakDays);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
 export async function sendPasswordResetEmail({ parentEmail, parentName, resetUrl }) {
-  const { EMAIL_TEMPLATES } = await import('./emailTemplates');
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.passwordReset(parentName, resetUrl);
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
