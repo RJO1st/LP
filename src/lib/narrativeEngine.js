@@ -93,7 +93,9 @@ export const REALMS = {
     icon:        '🔬',
     colour:      '#10b981',
     gradient:    'from-emerald-500 to-teal-600',
-    subjects:    ['science', 'biology', 'chemistry', 'physics', 'basic_science'],
+    subjects:    ['science', 'biology', 'chemistry', 'physics', 'basic_science', 'combined_science'],
+    // combined_science is UK KS4 alias for biology+chemistry+physics taught as one subject.
+    // Questions are drawn from the same topic pools as the three individual sciences.
     unlockAt:    100,  // 100 story points
     chapters: [
       { id: 'life_lab',         name: 'Life Lab',          topics: ['cells', 'living_organisms', 'plants', 'animals', 'biology', 'genetics', 'evolution'] },
@@ -433,7 +435,6 @@ export const NG_SSS_SUBJECT_STREAM = {
   physics:                    'science',
   further_mathematics:        'science',
   agricultural_science:       'science',
-  technical_drawing:          'science',
   health_education:           'science',
   geography:                  'science',
 
@@ -441,7 +442,6 @@ export const NG_SSS_SUBJECT_STREAM = {
   literature_in_english:      'humanities',
   government:                 'humanities',
   nigerian_history:           'humanities',
-  visual_arts:                'humanities',
   home_management:            'humanities',
 
   // Business stream
@@ -449,7 +449,6 @@ export const NG_SSS_SUBJECT_STREAM = {
   accounting:                 'business',
   commerce:                   'business',
   marketing:                  'business',
-  office_practice:            'business',
 };
 
 // UK KS4 compulsory subjects — always active regardless of option selection
@@ -482,7 +481,14 @@ export function getSubjectAccessibility(subject, curriculum, stream, tradeSubjec
   // ── UK National KS4 (Y10–Y11) ─────────────────────────────────────────────
   if (curriculum === 'uk_national' && (yearLevel === 10 || yearLevel === 11)) {
     if (UK_KS4_COMPULSORY_SUBJECTS.has(subject)) return 'active';
-    if (!selectedSubjects || selectedSubjects.length === 0) return 'active'; // no selection made — show all
+    if (!selectedSubjects || selectedSubjects.length === 0) return 'active';
+    // combined_science: active if scholar takes it OR takes any of the triple sciences
+    if (subject === 'combined_science') {
+      return (selectedSubjects.includes('combined_science') ||
+              selectedSubjects.includes('biology') ||
+              selectedSubjects.includes('chemistry') ||
+              selectedSubjects.includes('physics')) ? 'active' : 'greyed';
+    }
     if (selectedSubjects.includes(subject)) return 'active';
     return 'greyed';
   }

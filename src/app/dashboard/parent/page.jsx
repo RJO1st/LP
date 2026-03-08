@@ -115,15 +115,15 @@ const NG_SSS_COMPULSORY = [
 const NG_SSS_STREAMS = {
   science: {
     label: 'Science', emoji: '🔬',
-    subjects: ['biology', 'chemistry', 'physics', 'further_mathematics', 'agricultural_science', 'technical_drawing', 'health_education', 'geography'],
+    subjects: ['biology', 'chemistry', 'physics', 'further_mathematics', 'agricultural_science', 'health_education', 'geography'],
   },
   humanities: {
     label: 'Humanities', emoji: '📜',
-    subjects: ['literature_in_english', 'government', 'nigerian_history', 'visual_arts', 'home_management'],
+    subjects: ['literature_in_english', 'government', 'nigerian_history', 'home_management'],
   },
   business: {
     label: 'Business', emoji: '💼',
-    subjects: ['economics', 'accounting', 'commerce', 'marketing', 'office_practice'],
+    subjects: ['economics', 'accounting', 'commerce', 'marketing'],
   },
 };
 
@@ -136,14 +136,23 @@ const NG_JSS_SUBJECTS = [
   'mathematics', 'english_studies', 'basic_science_and_technology',
   'social_studies', 'business_education', 'cultural_and_creative_arts',
   'pre_vocational_studies', 'nigerian_languages', 'religious_studies',
-  'civic_education', 'basic_digital_literacy', 'french_language',
+  'civic_education', 'basic_digital_literacy',
 ];
 
 // ─── UK KS4 (Y10–Y11) SUBJECT DEFINITIONS ───────────────────────────────────
 const UK_KS4_COMPULSORY = [
   'mathematics', 'english_language', 'english_literature',
-  'biology', 'chemistry', 'physics',  // or combined_science
-  'physical_education', 'citizenship',
+  'biology', 'chemistry', 'physics',   // triple science; combined_science treated as alias
+  'combined_science',                   // shown only if scholar takes combined rather than triple
+  'computer_science', 'design_technology', 'citizenship',
+];
+
+// Subjects always shown as compulsory (locked in checklist)
+// combined_science and triple science are mutually exclusive — handled in UI
+const UK_KS3_SUBJECTS = [
+  'mathematics', 'english_language', 'english_literature',
+  'biology', 'chemistry', 'physics', 'combined_science',
+  'history', 'geography', 'citizenship', 'computer_science', 'design_technology',
 ];
 
 const UK_KS4_OPTIONS = [
@@ -164,13 +173,7 @@ const UK_KS4_OPTIONS = [
       { value: 'history',             label: 'History' },
       { value: 'geography',           label: 'Geography' },
       { value: 'religious_education', label: 'Religious Education' },
-      { value: 'art_and_design',      label: 'Art & Design' },
-      { value: 'drama',               label: 'Drama' },
-      { value: 'music',               label: 'Music' },
       { value: 'media_studies',       label: 'Media Studies' },
-      { value: 'french',              label: 'French' },
-      { value: 'german',              label: 'German' },
-      { value: 'spanish',             label: 'Spanish' },
     ],
   },
   {
@@ -207,7 +210,8 @@ const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, 
 };
 
 const SUBJECTS_BY_CURRICULUM = {
-  uk_national: ['maths', 'english', 'science'],
+  // Y1-Y6: primary core; Y7-Y9: KS3 full set; Y10-Y11: KS4 handled by getScholarSubjects
+  uk_national: ['mathematics', 'english_language', 'english_literature', 'biology', 'chemistry', 'physics', 'combined_science', 'history', 'geography', 'citizenship', 'computer_science', 'design_technology'],
   uk_11plus: ['maths', 'english', 'verbal', 'nvr'],
   us_common_core: ['maths', 'english', 'science'],
   aus_acara: ['maths', 'english', 'science'],

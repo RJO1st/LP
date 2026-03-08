@@ -124,6 +124,16 @@ export const TOPIC_SEQUENCES = {
     advanced:     ['nuclear_physics','quantum_physics','mechanics','thermodynamics'],
   },
 
+  // UK KS4 Combined Science: biology + chemistry + physics topics interleaved.
+  // smartQuestionSelection resolves this to one science per session (lowest mastery first).
+  // Topic pool mirrors the three individual sciences so questions are drawn from
+  // the same question_bank rows — no separate content needed.
+  combined_science: {
+    foundation:   ['cell_structure','states_of_matter','forces','living_organisms','mixtures','energy'],
+    intermediate: ['human_body_systems','chemical_reactions','electricity','ecosystems','atomic_structure','waves'],
+    advanced:     ['genetics','organic_chemistry','nuclear_physics','homeostasis','rates_of_reaction','mechanics'],
+  },
+
   history: {
     foundation:   ['ancient_civilisations','local_history'],
     intermediate: ['empire_and_colonialism','world_war_1','world_war_2'],
@@ -240,6 +250,7 @@ const SUBJECT_META = {
   biology:                   { label: 'Biology',                 icon: 'leaf',           colour: 'bg-emerald-500' },
   chemistry:                 { label: 'Chemistry',               icon: 'atom',           colour: 'bg-teal-500'    },
   physics:                   { label: 'Physics',                 icon: 'zap',            colour: 'bg-cyan-500'    },
+  combined_science:          { label: 'Combined Science',        icon: 'flask-conical',  colour: 'bg-green-600'   },
   history:                   { label: 'History',                 icon: 'landmark',       colour: 'bg-amber-600'   },
   geography:                 { label: 'Geography',               icon: 'globe',          colour: 'bg-lime-600'    },
   canadian_history:          { label: 'Canadian History',        icon: 'landmark',       colour: 'bg-red-600'     },
@@ -250,6 +261,13 @@ const SUBJECT_META = {
   agricultural_science:      { label: 'Agricultural Science',    icon: 'sprout',         colour: 'bg-lime-700'    },
   home_economics:            { label: 'Home Economics',          icon: 'home',           colour: 'bg-pink-500'    },
   computer_science:          { label: 'Computer Science',        icon: 'monitor',        colour: 'bg-slate-500'   },
+  computing:                 { label: 'Computing',               icon: 'monitor',        colour: 'bg-slate-600'   },
+  citizenship:               { label: 'Citizenship',             icon: 'vote',           colour: 'bg-green-700'   },
+  citizenship_and_heritage:  { label: 'Citizenship & Heritage',  icon: 'vote',           colour: 'bg-green-700'   },
+  design_technology:         { label: 'Design & Technology',     icon: 'wrench',         colour: 'bg-orange-700'  },
+  english_language:          { label: 'English Language',        icon: 'book-open',      colour: 'bg-purple-500'  },
+  english_literature:        { label: 'English Literature',      icon: 'book-open',      colour: 'bg-purple-600'  },
+  mathematics:               { label: 'Mathematics',             icon: 'calculator',     colour: 'bg-blue-500'    },
   business_studies:          { label: 'Business Studies',        icon: 'briefcase',      colour: 'bg-yellow-600'  },
   economics:                 { label: 'Economics',               icon: 'trending-up',    colour: 'bg-emerald-600' },
   individuals_and_societies: { label: 'Individuals & Societies', icon: 'users-2',        colour: 'bg-purple-600'  },

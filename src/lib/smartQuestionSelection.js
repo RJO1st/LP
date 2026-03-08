@@ -40,6 +40,33 @@ import {
   getTopicStrand,
 } from './learningPathEngine';
 
+// ─── COMBINED SCIENCE RESOLVER ───────────────────────────────────────────────
+// UK KS4 Combined Science covers biology, chemistry, and physics topics in one
+// subject. When a scholar's subject is 'combined_science', questions are drawn
+// from all three science topic pools on a rotating basis.
+// The learning path engine is called with the resolved subject, but question
+// DB queries use 'combined_science' OR the individual science subjects.
+
+const COMBINED_SCIENCE_SUBJECTS = ['biology', 'chemistry', 'physics'];
+
+/**
+ * Resolve combined_science to a specific science subject for this session.
+ * Rotates through biology → chemistry → physics based on mastery balance.
+ * @param {object[]} masteryRows - scholar_topic_mastery rows
+ * @returns {string} - 'biology' | 'chemistry' | 'physics'
+ */
+function resolveCombinedScienceSubject(masteryRows) {
+  // Find which science has the fewest mastered topics — focus there
+  const counts = COMBINED_SCIENCE_SUBJECTS.map(sub => ({
+    subject: sub,
+    mastery: masteryRows
+      .filter(r => r.subject === sub)
+      .reduce((sum, r) => sum + (r.mastery_score || 0), 0),
+  }));
+  counts.sort((a, b) => a.mastery - b.mastery);
+  return counts[0].subject; // lowest mastery first
+}
+
 // ─── SEEN-QUESTION STORE (localStorage) ──────────────────────────────────────
 const SEEN_KEY = 'lp_seen_questions';
 const MAX_SEEN = 300;
@@ -253,10 +280,23 @@ export async function getSmartQuestions(
   cache = null,
 ) {
   try {
+    // ── 0. Resolve combined_science to a specific science subject ─────────────
+    let resolvedSubject = subject;
+    if (subject === 'combined_science') {
+      // Load mastery across all three sciences to decide which to focus on
+      const { data: scienceMastery } = await supabase
+        .from('scholar_topic_mastery')
+        .select('topic, subject, mastery_score')
+        .eq('scholar_id', scholarId)
+        .in('subject', COMBINED_SCIENCE_SUBJECTS);
+      resolvedSubject = resolveCombinedScienceSubject(scienceMastery || []);
+    }
+    const activeSubject = resolvedSubject;
+
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
     const [sequence, { masteryRows, currentTopic }] = await Promise.all([
-      getTopicSequence(subject, curriculum, supabase),
-      loadScholarContext(supabase, scholarId, curriculum, subject, cache),
+      getTopicSequence(activeSubject, curriculum, supabase),
+      loadScholarContext(supabase, scholarId, curriculum, activeSubject, cache),
     ]);
 
     // ── 2. Resolve anchor and adjacent topics ─────────────────────────────
