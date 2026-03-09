@@ -453,7 +453,7 @@ export default function ParentDashboard() {
   const isCanadian   = !!currDef?.hasProvinces;
   const isNgSss      = newCurriculum === 'ng_sss';
   const isUkKs4      = needsSubjectSelection(newCurriculum, newGrade);
-  const isUkKs2      = newCurriculum === 'uk_national' && Number(newGrade) >= 3 && Number(newGrade) <= 6;
+  const isUkKs2      = newCurriculum === 'uk_national' && Number(newGrade) >= 3 && Number(newGrade) <= 6; // KS2 only — Y1/Y2 never get exam mode
   const provInfo     = isCanadian && newProvince
     ? CANADIAN_PROVINCES.find(p => p.code === newProvince)
     : null;
@@ -592,7 +592,7 @@ export default function ParentDashboard() {
           stream: isNgSss ? (newStream || null) : null,
           trade_subject: isNgSss ? (newTrade || null) : null,
           selected_subjects: isUkKs4 && selectedSubjects.length > 0 ? selectedSubjects : null,
-          exam_mode: newExamMode || null,
+          exam_mode: isUkKs2 ? (newExamMode || null) : null,
           access_code: code,
           total_xp: 0,
           coins: 0,
