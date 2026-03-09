@@ -1,3 +1,4 @@
+import { VALID_EXAM_MODES } from './examModes';
 /**
  * smartQuestionSelection.js
  * Deploy to: src/app/lib/smartQuestionSelection.js
@@ -296,8 +297,8 @@ export async function getSmartQuestions(
     const activeSubject = resolvedSubject;
 
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
-    // Derive exam_tag from exam mode for question_bank filtering
-    const examTag = examMode || null;
+    // Validate examMode against EXAM_MODES — rejects unknown/legacy strings silently
+    const examTag = VALID_EXAM_MODES.has(examMode) ? examMode : null;
 
     const [sequence, { masteryRows, currentTopic }] = await Promise.all([
       getTopicSequence(activeSubject, curriculum, supabase),
@@ -385,6 +386,26 @@ export async function getSmartQuestions(
           ? fresh
           : [...fresh, ...questRows.filter(r => seenSet.has(r.id))];
       }
+    }
+
+    // ── 6.5 Thin-coverage guard ───────────────────────────────────────────
+    // If exam mode is set but fewer than 50% of questions are exam-tagged,
+    // log a warning and back-fill with untagged questions so the scholar
+    // never gets a broken quiz. This surfaces missing content early in logs.
+    if (examTag && questRows.length < count * 0.5) {
+      console.warn(
+        `[examMode] Thin coverage: ${questRows.length}/${count} questions found ` +
+        `for exam_tag=${examTag}, subject=${subject}, curriculum=${curriculum}, year=${year}. ` +
+        `Back-filling with untagged questions. Run populate scripts to fix.`
+      );
+      const { anchorRows: uAnchor, adjacentRows: uAdj } = await fetchQuestPool(
+        supabase, curriculum, subject, year,
+        anchorTopic, anchorTier, adjacentTopic, adjacentTier,
+        excludeIds, overfetch, null,   // null = no exam_tag filter
+      );
+      const used    = new Set(questRows.map(r => r.id));
+      const backfill = [...uAnchor, ...uAdj].filter(r => !used.has(r.id));
+      questRows = [...questRows, ...backfill].slice(0, count);
     }
 
     // ── 7. Shuffle, slice, record ─────────────────────────────────────────

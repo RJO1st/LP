@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
+import { EXAM_MODES, getExamMode, getExamModeExtraSubjects, isExamModeEligible } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -44,19 +45,6 @@ const CURRICULA = {
   ng_primary:     { country: "🇳🇬", name: "Nigerian Primary",    gradeLabel: "Primary", grades: [1,2,3,4,5,6] },
   ng_jss:         { country: "🇳🇬", name: "Nigerian JSS",        gradeLabel: "JSS",     grades: [1,2,3] },
   ng_sss:         { country: "🇳🇬", name: "Nigerian SSS",        gradeLabel: "SS",      grades: [1,2,3] },
-};
-
-const EXAM_MODES = {
-  eleven_plus: { label: "11+ Prep", emoji: "📝", desc: "Adds Verbal Reasoning & Non-Verbal Reasoning", eligibleYears: [3,4,5,6], extraSubjects: ["verbal_reasoning","nvr"] },
-  sats:        { label: "SATs Mode", emoji: "📋", desc: "Focuses KS2 on SATs-style questions (Year 6)", eligibleYears: [6], extraSubjects: [] },
-  iseb:        { label: "ISEB / Pre-Test", emoji: "🏫", desc: "Common Pre-Test style prep", eligibleYears: [4,5,6,7], extraSubjects: ["verbal_reasoning","nvr"] },
-};
-
-const getExamModeSubjects = (examMode, year) => {
-  if (!examMode || !EXAM_MODES[examMode]) return [];
-  const mode = EXAM_MODES[examMode];
-  if (!mode.eligibleYears.includes(Number(year))) return [];
-  return mode.extraSubjects;
 };
 
 const NG_SSS_COMPULSORY = ["english","mathematics","citizenship_and_heritage","digital_technologies"];
@@ -115,7 +103,7 @@ const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, 
   if (curriculum === "uk_national") {
     const ks = getUkNationalKeyStage(year);
     const base = UK_NATIONAL_SUBJECTS[ks];
-    const examExtras = getExamModeSubjects(examMode, year);
+    const examExtras = getExamModeExtraSubjects(examMode, year);
     if (ks === "ks4") return [...base, ...(selectedSubjects || []), ...examExtras];
     return [...base, ...examExtras];
   }
