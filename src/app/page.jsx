@@ -489,29 +489,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ─────────────────────────────────────────────────────── */}
-      <section className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 bg-white/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900">Parents Love LaunchPard</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {testimonials.map((test, i) => (
-              <div key={i} className="bg-white/70 backdrop-blur-xl rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <div className="text-yellow-400 mb-3 text-sm">⭐⭐⭐⭐⭐</div>
-                <p className="text-sm text-slate-700 mb-5 italic leading-relaxed">"{test.text}"</p>
-                <div className="flex items-center gap-2.5">
-                  <div className="text-2xl">{test.avatar}</div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">{test.author}</div>
-                    <div className="text-xs text-slate-500">{test.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+  
 
       {/* ── PRICING ──────────────────────────────────────────────────────────── */}
       <section className="relative z-10 px-4 sm:px-6 py-20 sm:py-28">
