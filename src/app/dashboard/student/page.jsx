@@ -369,7 +369,7 @@ export default function StudentDashboard() {
     const saved = localStorage.getItem("active_scholar");
     if (saved) {
       const scholar = JSON.parse(saved);
-      console.log("✅ Loaded:", scholar.name, scholar.curriculum);
+      console.log("✅ Loaded:", scholar.name, "curriculum:", scholar.curriculum, "exam_mode:", scholar.exam_mode ?? "none");
       setScholar(scholar);
       if (scholar.parent_id) {
         loadTrialStatus(scholar.parent_id);
@@ -617,6 +617,7 @@ export default function StudentDashboard() {
   const examYear     = Number(scholar.year_level || scholar.year || 1);
   const examExtras   = examModeDef?.eligibleYears.includes(examYear) ? (examModeDef.extraSubjects ?? []) : [];
   const subjects     = [...new Set([...getSubjectsForCurriculum(curriculum), ...examExtras])];
+  const levelInfo    = getLevelInfo(scholar.total_xp || 0);
 
   // ── Active quiz (Routed via QuestOrchestrator) ───────────────────
   if (activeSubject) {
