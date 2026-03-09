@@ -1,4 +1,5 @@
-import { VALID_EXAM_MODES } from './examModes';
+import { EXAM_MODES } from './examModes';
+const VALID_EXAM_MODES = new Set(Object.keys(EXAM_MODES));
 /**
  * smartQuestionSelection.js
  * Deploy to: src/app/lib/smartQuestionSelection.js

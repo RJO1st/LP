@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
-import { EXAM_MODES, getExamMode, getExamModeExtraSubjects, isExamModeEligible } from "@/lib/examModes";
+import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -103,7 +103,8 @@ const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, 
   if (curriculum === "uk_national") {
     const ks = getUkNationalKeyStage(year);
     const base = UK_NATIONAL_SUBJECTS[ks];
-    const examExtras = getExamModeExtraSubjects(examMode, year);
+    const _examDef   = EXAM_MODES[examMode] ?? null;
+    const examExtras = (_examDef?.eligibleYears.includes(Number(year)) ? _examDef.extraSubjects : []) ?? [];
     if (ks === "ks4") return [...base, ...(selectedSubjects || []), ...examExtras];
     return [...base, ...examExtras];
   }

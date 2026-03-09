@@ -10,7 +10,7 @@ import {
   getLevelInfo, sounds, ensureQuestsAssigned,
   formatGradeLabel, SUBJECT_ICONS, SUBJECT_COLORS
 } from "../../../lib/gamificationEngine";
-import { getExamMode, getExamModeExtraSubjects, getExamModeNavLabel } from "../../../lib/examModes";
+import { EXAM_MODES } from "../../../lib/examModes";
 import SkillHeatmap  from "../../../components/parent/SkillHeatmap";
 import ProgressChart from "../../../components/game/ProgressChart";
 import QuestPanel from "../../../components/QuestPanel";
@@ -611,11 +611,12 @@ export default function StudentDashboard() {
   // ── Guards ───────────────────────────────────────────────────────
   if (!scholar) return <LoadingScreen />;
 
-  const curriculum = scholar.curriculum ?? "uk_national";
-  const currDef    = CURRICULA[curriculum] ?? CURRICULA["uk_national"];
-  const examModeDef = getExamMode(scholar.exam_mode);
-  const examExtras  = getExamModeExtraSubjects(scholar.exam_mode, scholar.year_level || scholar.year);
-  const subjects    = [...new Set([...getSubjectsForCurriculum(curriculum), ...examExtras])];
+  const curriculum   = scholar.curriculum ?? "uk_national";
+  const currDef      = CURRICULA[curriculum] ?? CURRICULA["uk_national"];
+  const examModeDef  = EXAM_MODES[scholar.exam_mode] ?? null;
+  const examYear     = Number(scholar.year_level || scholar.year || 1);
+  const examExtras   = examModeDef?.eligibleYears.includes(examYear) ? (examModeDef.extraSubjects ?? []) : [];
+  const subjects     = [...new Set([...getSubjectsForCurriculum(curriculum), ...examExtras])];
 
   // ── Active quiz (Routed via QuestOrchestrator) ───────────────────
   if (activeSubject) {
@@ -659,7 +660,7 @@ export default function StudentDashboard() {
           <span className="font-black text-lg text-slate-800">LaunchPard</span>
           <span className="text-xs text-slate-300 font-bold hidden sm:inline">·</span>
           <span className="text-xs text-slate-400 font-bold hidden sm:inline">
-            {currDef.country} {getExamModeNavLabel(scholar.exam_mode, currDef.name)}
+            {currDef.country} {examModeDef ? `${examModeDef.emoji} ${examModeDef.label}` : currDef.name}
           </span>
         </div>
         <div className="flex items-center gap-2">
