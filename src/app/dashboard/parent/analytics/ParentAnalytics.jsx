@@ -14,7 +14,7 @@ import {
 
 import {
   CURRICULA,
-  SUBJECT_META,   // was SUBJECT_ICONS — doesn't exist, SUBJECT_META is the correct export
+  SUBJECT_ICONS,
   formatGradeLabel,
 } from "@/lib/gamificationEngine";
 
@@ -84,7 +84,7 @@ export default function ParentAnalytics({ scholar, results }) {
     ),
     quizzesTaken: data.total,
     // SUBJECT_META[subject].emoji — fall back gracefully if subject not in meta
-    icon: SUBJECT_META?.[subject]?.emoji || "📚",
+    icon: SUBJECT_ICONS?.[subject]?.emoji || "📚",
   }));
 
   // uk_11plus is retired — fall back to uk_national, then a safe default
