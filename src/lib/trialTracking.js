@@ -145,7 +145,7 @@ export async function convertTrialToSubscription(parentId, subscriptionData) {
 /**
  * Extend trial period (admin function)
  */
-export async function extendTrial(parentId, additionalDays = 7) {
+export async function extendTrial(parentId, additionalDays = 30) {
   try {
     const { data: parent } = await supabase
       .from('parents')
