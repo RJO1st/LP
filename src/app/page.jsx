@@ -132,7 +132,7 @@ export default function LandingPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
-              <span className="text-sm font-bold text-indigo-700">Join 3,000+ families on their learning mission</span>
+              <span className="text-sm font-bold text-indigo-700">Join other families who are already on their learning mission</span>
             </div>
 
             <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black mb-6 leading-[0.95] animate-fade-in-up text-slate-900">
@@ -179,7 +179,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-amber-400" />
                   <div className="w-3 h-3 rounded-full bg-green-400" />
                   <div className="flex-1 mx-4 bg-slate-200 rounded-full h-5 flex items-center px-3">
-                    <span className="text-xs text-slate-500">launchpard.com/cadet/mission</span>
+                    <span className="text-xs text-slate-500">launchpard.com/scholar/mission</span>
                   </div>
                 </div>
                 <div className="aspect-video bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center p-8">
@@ -365,7 +365,7 @@ export default function LandingPage() {
               <p className="text-slate-600 text-sm leading-relaxed mb-6">Adaptive missions that match exactly where your child is. The AI identifies gaps and focuses effort there — not on what they already know.</p>
               <div className="space-y-2.5">
                 {[
-                  { icon: '🤖', text: 'AI revision partner — generates fresh questions on any topic, any time' },
+                  { icon: '🤖', text: 'Advanced AI Quiz Engine — generates fresh questions on any topic, any time' },
                   { icon: '🗺️', text: 'Space-themed world map with unlockable realms per subject' },
                   { icon: '🔥', text: 'Daily streak system keeps momentum without pressure' },
                 ].map((item, i) => (
