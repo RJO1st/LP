@@ -1,14 +1,9 @@
+"use client";
 // src/app/privacy-policy/page.jsx
 // LaunchPard Privacy Policy Page
 // Renders the Termly-generated privacy policy
 
 import { termlyPolicyHTML } from './termly-policy';
-
-export const metadata = {
-  title: 'Privacy Policy | LaunchPard',
-  description:
-    'LaunchPard Technologies privacy policy — how we collect, use, and protect your data.',
-};
 
 export default function PrivacyPolicyPage() {
   return (
