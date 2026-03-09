@@ -36,7 +36,7 @@ export default function LandingPage() {
   const features = [
     { icon: '🤖', title: 'AI Adaptive Questions', description: "Three-layer engine: live Supabase questions, AI generation, and procedural fallback. Your child is never waiting.", gradient: 'from-violet-500 to-purple-600', light: 'bg-violet-50 border-violet-200' },
     { icon: '🌍', title: 'Global Curricula', description: 'UK National KS1–KS4, 11+ Exam Prep, Nigerian JSS/SSS, Australian ACARA, Canadian, IB PYP/MYP, US Common Core.', gradient: 'from-cyan-500 to-blue-600', light: 'bg-cyan-50 border-cyan-200' },
-    { icon: '🎯', title: 'Exam Mode', description: 'Toggle 11+ prep, SATs, or ISEB mode for KS2 scholars. Adds verbal reasoning and NVR without re-enrolling.', gradient: 'from-orange-500 to-red-500', light: 'bg-orange-50 border-orange-200' },
+    { icon: '🎯', title: 'Exam Mode', description: 'Toggle 11+ prep or ISEB mode for KS2 scholars. Adds verbal reasoning and NVR without re-enrolling.', gradient: 'from-orange-500 to-red-500', light: 'bg-orange-50 border-orange-200' },
     { icon: '📊', title: 'Mastery Tracking', description: "Watch mastery build across every topic. Parent dashboard shows developing → expected → exceeding progress in real time.", gradient: 'from-emerald-500 to-green-600', light: 'bg-emerald-50 border-emerald-200' },
     { icon: '🚀', title: 'Scholar Progression', description: "Automatic stage transitions — KS1 to KS2, JSS to SSS with stream selection, GCSE subjects. The platform grows as your child does.", gradient: 'from-pink-500 to-rose-500', light: 'bg-pink-50 border-pink-200' },
     { icon: '🏆', title: 'Missions & Stardust', description: 'Cadets earn Stardust, unlock badges, and level up through a space-themed world map. Education that feels like play.', gradient: 'from-amber-500 to-yellow-500', light: 'bg-amber-50 border-amber-200' },
@@ -262,7 +262,7 @@ export default function LandingPage() {
                   No separate curriculum. Toggle 11+ prep for any KS2 scholar and they instantly get verbal reasoning and NVR missions — while normal Year 5 or 6 work continues uninterrupted.
                 </p>
                 <div className="space-y-2.5">
-                  {['11+ Exam Prep', 'SATs Mode (Year 6)', 'ISEB / Pre-Test'].map((mode, i) => (
+                  {['11+ Exam Prep', 'ISEB / Pre-Test'].map((mode, i) => (
                     <div key={i} className="flex items-center gap-2.5 text-slate-700 text-sm">
                       <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-xs">✓</span>
@@ -277,7 +277,6 @@ export default function LandingPage() {
                 {[
                   { label: '📚 National Curriculum only', active: false },
                   { label: '🎯 11+ Exam Prep', active: true },
-                  { label: '📝 SATs Mode (Y6)', active: false },
                   { label: '🏫 ISEB / Pre-Test', active: false },
                 ].map((opt, i) => (
                   <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 border text-sm font-semibold cursor-default transition-all ${opt.active ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/25' : 'bg-white border-slate-200 text-slate-600'}`}>
@@ -299,7 +298,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900">Everything Your Child Needs</h2>
-            <p className="text-lg text-slate-600 max-w-xl mx-auto">One platform. Eleven curricula. Unlimited potential.</p>
+            <p className="text-lg text-slate-600 max-w-xl mx-auto">One platform. Global curricula. Unlimited potential.</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((feature, i) => (
@@ -380,7 +379,7 @@ export default function LandingPage() {
                 🚀 Start 30-Day Free Trial
               </Link>
               <div className="space-y-3 text-left">
-                {['Unlimited questions & missions','Choose your curriculum','AI adaptive learning engine','Up to 3 children','11+ Exam Mode & SATs Mode','Scholar progression system','Parent dashboard & mastery tracking','Stardust, badges & rewards'].map((item, i) => (
+                {['Unlimited questions & missions','Choose your curriculum','AI adaptive learning engine','Up to 3 children','11+ Exam Mode','Scholar progression system','Parent dashboard & mastery tracking','Stardust, badges & rewards'].map((item, i) => (
                   <div key={i} className="flex items-center gap-3 text-slate-700 text-sm">
                     <span className="text-green-500 flex-shrink-0">✓</span>
                     <span>{item}</span>
