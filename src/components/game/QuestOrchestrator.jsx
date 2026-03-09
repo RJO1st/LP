@@ -21,6 +21,7 @@ import {
 } from "../../lib/quizUtils";
 import { useTaraGate }          from "./TaraEIB";
 import ImageDisplay             from "./ImageDisplay";
+import MathsVisualiser         from "./MathsVisualiser";
 import ReadingComprehensionEngine from "./ReadingComprehensionEngine";
 import STEMEngine               from "./STEMEngine";
 import HumanitiesEngine         from "./HumanitiesEngine";
@@ -136,6 +137,56 @@ function LoadingCard({ subject }) {
 }
 
 // ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
+// ─── LAYOUT HELPER ────────────────────────────────────────────────────────────
+// Mirrors MathsVisualiser's parser entry conditions without doing any rendering.
+// Used to decide whether to activate the side-by-side grid layout.
+function hasMathsVisual(question, subject) {
+  if (!question) return false;
+  const subj  = (subject || "").toLowerCase();
+  const topic = (question.topic || "").toLowerCase();
+  const text  = question.q || question.question_text || "";
+
+  const isMaths   = subj.includes("math");
+  const isScience = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
+  const isNVR     = subj.includes("verbal") || subj.includes("nvr") || topic.includes("nvr");
+  if (!isMaths && !isScience && !isNVR) return false;
+
+  if (isNVR && /circle|square|triangle|diamond|star|cross|grow|shrink|larger|smaller|alternate|fill|rectangle|pentagon|hexagon|octagon/i.test(text)) return true;
+  if (isNVR && /how many sides|how many corners|how many edges|how many vertices|what shape|which shape|sides does|corners does/i.test(text)) return true;
+
+  if (isScience) {
+    if (topic.includes("force") || topic.includes("newton")) return true;
+    if (topic.includes("velocit") || topic.includes("speed") || topic.includes("motion")) return true;
+    if (/m\/s|km\/h|mph/i.test(text)) return true;
+    if (topic.includes("food_chain") || topic.includes("ecosystem") || /food chain|eats/i.test(text)) return true;
+    if (topic.includes("distance_time") || topic.includes("velocity_time") || topic.includes("circuit")) return true;
+    if (/d-t graph|v-t graph|series circuit|parallel circuit/i.test(text)) return true;
+    if (topic.includes("periodic") || topic.includes("element") || topic.includes("atom")) return true;
+    if (/find.*(speed|force|distance|mass|power|density)/i.test(text)) return true;
+  }
+
+  if (isMaths) {
+    const year = parseInt(question?.year_level ?? 99, 10);
+    if (year <= 4) {
+      if (/[0-9]+\s*[+]\s*[0-9]+/.test(text)) return true;
+      if (/[0-9]+\s*[-]\s*[0-9]+/.test(text)) return true;
+      if (/[0-9]+\s*[x*]\s*[0-9]+/i.test(text) || text.includes("\u00d7")) return true;
+      if (/[0-9]+\s*\/\s*[0-9]+/.test(text)) return true;
+      if (/half|quarter|third/i.test(text)) return true;
+      if (topic.includes("place_value") || topic.includes("count") || topic.includes("number_bond")) return true;
+    }
+    if (topic.includes("coord") || topic.includes("plot") || /\(-?\d+,\s*-?\d+\)/.test(text)) return true;
+    if (topic.includes("number_line") || topic.includes("rounding") || /round.*nearest|number line/i.test(text)) return true;
+    if (topic.includes("venn") || /factors? of|multiples? of/i.test(text)) return true;
+    if (topic.includes("bar_chart") || topic.includes("statistics") || /bar chart|how many more/i.test(text)) return true;
+    if (topic.includes("angle") || /acute|obtuse|reflex|right angle|\d+\s*°/i.test(text)) return true;
+    if ((topic.includes("area") || topic.includes("perimeter")) && /\d+\s*(by|x)\s*\d+/i.test(text)) return true;
+    if (topic.includes("quadratic") || /x\^2|quadratic/i.test(text)) return true;
+  }
+
+  return false;
+}
+
 function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose }) {
   const perQTimer = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj      = subject?.toLowerCase() || "maths";
@@ -319,14 +370,38 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
           timeLeft={timeLeft} onClose={onClose}
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {q.image_url && <ImageDisplay src={q.image_url} alt="Question visual" />}
-          <h3 className="text-base sm:text-xl font-black text-slate-800 leading-snug">{q.q}</h3>
-          {q.passage && (
-            <div className={`p-3 rounded-xl border-l-4 ${theme.bg} ${theme.border} text-slate-700 text-xs sm:text-sm font-medium italic leading-relaxed`}>
-              {q.passage}
+          {/* Side-by-side on sm+ when a visualiser panel is present; stacked on mobile */}
+          {(q.image_url || hasMathsVisual(q, subject)) ? (
+            <div className="sm:grid sm:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] sm:gap-4 sm:items-start space-y-4 sm:space-y-0">
+              {/* LEFT — visual */}
+              <div className="sm:sticky sm:top-0">
+                {q.image_url
+                  ? <ImageDisplay src={q.image_url} alt="Question visual" />
+                  : <MathsVisualiser question={q} subject={subject} yearLevel={q.year_level ?? student?.year_level ?? 6} />
+                }
+              </div>
+              {/* RIGHT — question text + options */}
+              <div className="space-y-4">
+                <h3 className="text-base sm:text-xl font-black text-slate-800 leading-snug">{q.q}</h3>
+                {q.passage && (
+                  <div className={`p-3 rounded-xl border-l-4 ${theme.bg} ${theme.border} text-slate-700 text-xs sm:text-sm font-medium italic leading-relaxed`}>
+                    {q.passage}
+                  </div>
+                )}
+                <MCQOptions opts={q.opts} correctIdx={q.a} selected={selected} onPick={handlePick} />
+              </div>
             </div>
+          ) : (
+            <>
+              <h3 className="text-base sm:text-xl font-black text-slate-800 leading-snug">{q.q}</h3>
+              {q.passage && (
+                <div className={`p-3 rounded-xl border-l-4 ${theme.bg} ${theme.border} text-slate-700 text-xs sm:text-sm font-medium italic leading-relaxed`}>
+                  {q.passage}
+                </div>
+              )}
+              <MCQOptions opts={q.opts} correctIdx={q.a} selected={selected} onPick={handlePick} />
+            </>
           )}
-          <MCQOptions opts={q.opts} correctIdx={q.a} selected={selected} onPick={handlePick} />
           <FeedbackArea
             selected={selected} isCorrectAnswer={isCorrectAnswer} canProceed={canProceed}
             currentQ={q} student={student} subject={subject}

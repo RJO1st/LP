@@ -1,10 +1,11 @@
 "use client";
 /**
  * TaraEIB.jsx
- * Deploy to: src/app/components/game/TaraEIB.jsx
+ * Deploy to: src/components/game/TaraEIB.jsx
  *
  * Tara's "Explain It Back" challenge — shown after a wrong answer.
  * Scholar must articulate why the correct answer is right before proceeding.
+ * After Tara's first reply, scholars can ask one follow-up question.
  *
  * Exports:
  *   default  TaraEIB    — the challenge widget
@@ -12,10 +13,21 @@
  */
 
 import React, { useState, useCallback } from "react";
-import { Zap } from "lucide-react";
+import { Zap, MessageCircle } from "lucide-react";
+
+// ─── PROFANITY GUARD ─────────────────────────────────────────────────────────
+// Client-side first line of defence. API/system prompt handles edge cases.
+const BLOCKED_WORDS = [
+  "fuck","shit","bitch","bastard","asshole","cunt","dick","cock","pussy",
+  "nigger","nigga","faggot","retard","whore","slut","damn","hell","ass",
+  "bollocks","wanker","twat","piss","arse","crap",
+];
+const containsProfanity = (text) => {
+  const lower = text.toLowerCase().replace(/[^a-z\s]/g, " ");
+  return BLOCKED_WORDS.some(w => lower.split(/\s+/).includes(w));
+};
 
 // ─── LOCAL FALLBACK FEEDBACK ─────────────────────────────────────────────────
-// Used when /api/tara is unavailable or times out (6 s)
 const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   const name   = scholarName || "Cadet";
   const lower  = (text || "").toLowerCase();
@@ -28,7 +40,7 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   }
 
   const keywords = {
-    maths:      ["add","total","units","tens","carry","subtract","equals","because","calculate","divide","multiply","fraction","percent","factor","multiple","prime","square","ratio"],
+    maths:      ["add","total","units","tens","carry","subtract","equals","because","calculate","divide","multiply","fraction","percent","factor","multiple","prime","square","ratio","place","value","hundred","thousand"],
     english:    ["verb","noun","adjective","adverb","action","describes","word","sentence","because","grammar","clause","prefix","suffix","tense","metaphor","simile","synonym","antonym"],
     verbal:     ["pattern","sequence","opposite","similar","letter","next","because","odd","order","skip","code","analogy","alphabet","relationship","category"],
     nvr:        ["shape","pattern","colour","color","rotate","flip","size","odd","different","same","repeat","mirror","reflect","symmetr","transform"],
@@ -43,11 +55,11 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   };
 
   const subKey = (subject in keywords) ? subject
-    : subject === 'basic_science' ? 'science'
-    : subject === 'social_studies' || subject === 'hass' ? 'geography'
-    : subject === 'business_studies' || subject === 'commerce' || subject === 'financial_accounting' ? 'economics'
-    : subject === 'basic_technology' ? 'science'
-    : 'maths';
+    : subject === "basic_science" ? "science"
+    : subject === "social_studies" || subject === "hass" ? "geography"
+    : subject === "business_studies" || subject === "commerce" || subject === "financial_accounting" ? "economics"
+    : subject === "basic_technology" ? "science"
+    : "maths";
 
   const hasKeyword = keywords[subKey]?.some(k => lower.includes(k));
 
@@ -58,25 +70,25 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
     nvr:        [`Tara: Excellent, ${name}! Describing what changes is the strategy! 👁️`, `Tara: Target acquired, ${name}! 🌟`],
     science:    [`Tara: Outstanding scientific thinking, ${name}! 🔬`, `Tara: Excellent — evidence-based reasoning is key! ⚗️`],
     physics:    [`Tara: Perfect, ${name}! You applied the physical law correctly! ⚡`, `Tara: Excellent, ${name}! Textbook physics! 🔭`],
-    chemistry:  [`Tara: Brilliant, ${name}! You grasped the chemical process! 🧪`, `Tara: Perfect — that's exactly how chemists explain it! ⚗️`],
-    biology:    [`Tara: Excellent, ${name}! You understood the biological process! 🌿`, `Tara: Brilliant, ${name}! Biologist-level reasoning! 🔬`],
-    geography:  [`Tara: Great geographical analysis, ${name}! 🌍`, `Tara: Excellent — you connected the factors perfectly! 🗺️`],
-    history:    [`Tara: Impressive historical thinking, ${name}! Cause and consequence is key! 📜`, `Tara: Historian-level reasoning, ${name}! 🏛️`],
-    economics:  [`Tara: Great economic reasoning, ${name}! 📊`, `Tara: Perfect — you understood the market forces! 💡`],
-    government: [`Tara: Excellent civic reasoning, ${name}! 🏛️`, `Tara: Great — you grasped the political concept! 🌐`],
+    chemistry:  [`Tara: Superb chemistry, ${name}! You understand the reaction! ⚗️`, `Tara: Brilliant, ${name}! The atomic structure is clear to you! 🔬`],
+    biology:    [`Tara: Excellent biology thinking, ${name}! 🌿`, `Tara: Outstanding, ${name}! You understand the living world! 🧬`],
+    geography:  [`Tara: Excellent spatial thinking, ${name}! 🌍`, `Tara: Mission accomplished, ${name}! Top-tier geographical reasoning! 🗺️`],
+    history:    [`Tara: Brilliant historical reasoning, ${name}! ⚔️`, `Tara: Superb, ${name}! You're thinking like a historian! 📜`],
+    economics:  [`Tara: Excellent economic analysis, ${name}! 📈`, `Tara: Sharp thinking, ${name}! You understand markets! 💰`],
+    government: [`Tara: Excellent civic thinking, ${name}! 🏛️`, `Tara: Outstanding, ${name}! You understand governance! 📋`],
   };
 
   const nudges = {
-    maths:      `Tara: Good effort, ${name}! Describe the *steps* — check units, operations, or rounding. 💪`,
-    english:    `Tara: Good effort, ${name}! Try naming the *type* of word or literary technique. Almost there!`,
-    verbal:     `Tara: Good thinking, ${name}! Describe the *rule* — are letters skipping? Are words opposites? 🔎`,
-    nvr:        `Tara: Nice work, ${name}! Describe *what changes* — shape, size, colour, or position. 🎨`,
-    science:    `Tara: Good effort, ${name}! Try using scientific terms — name the process, force, or reaction. 🔬`,
-    physics:    `Tara: Good attempt! Try mentioning the physical law or formula involved. ⚡`,
-    chemistry:  `Tara: Good try, ${name}! Name the chemical process or type of reaction. 🧪`,
-    biology:    `Tara: Good effort, ${name}! Try naming the biological process or organism involved. 🌿`,
-    geography:  `Tara: Almost, ${name}! Think about location, patterns, or human/physical geography terms. 🌍`,
-    history:    `Tara: Good thinking! Try mentioning specific evidence or cause-and-effect. 📜`,
+    maths:      `Tara: Almost, ${name}! Try explaining using words like 'place value', 'hundreds', or 'because'. 🔢`,
+    english:    `Tara: Good attempt! Try naming the grammar rule — noun, verb, tense, etc. 📖`,
+    verbal:     `Tara: Nearly there! Describe the pattern or relationship you see. 🔍`,
+    nvr:        `Tara: Good try! Describe what shape, colour, or transformation makes it different. 👁️`,
+    science:    `Tara: Almost, ${name}! Try using scientific terms like 'energy', 'force', or 'cell'. 🔬`,
+    physics:    `Tara: Almost! Try using terms like force, energy, velocity, or mass. ⚡`,
+    chemistry:  `Tara: Almost! Use terms like atom, molecule, reaction, or bond. ⚗️`,
+    biology:    `Tara: Almost! Try terms like cell, organism, photosynthesis, or habitat. 🌿`,
+    geography:  `Tara: Almost, ${name}! Try using terms like climate, migration, erosion, or region. 🌍`,
+    history:    `Tara: Good start! Try using terms like cause, consequence, evidence, or era. 📜`,
     economics:  `Tara: Almost, ${name}! Try using terms like supply, demand, cost, or market. 📊`,
     government: `Tara: Good attempt! Try using terms like rights, democracy, law, or policy. 🏛️`,
   };
@@ -86,15 +98,37 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   return nudges[subKey] || nudges.maths;
 };
 
+const LOCAL_FOLLOWUP_FEEDBACK = (scholarName) => {
+  const name = scholarName || "Cadet";
+  return `Tara: Great question, ${name}! Keep that curiosity — it's what makes great learners. You've got this! 🚀`;
+};
+
 // ─── TARA EIB COMPONENT ───────────────────────────────────────────────────────
 export default function TaraEIB({ student, subject, currentQ, correctAnswer, onFeedbackReceived }) {
-  const [text,     setText]     = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [locked,   setLocked]   = useState(false);
+  const [text,          setText]          = useState("");
+  const [feedback,      setFeedback]      = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [locked,        setLocked]        = useState(false);
+  const [profanityWarn, setProfanityWarn] = useState(false);
+
+  // Follow-up state
+  const [followUpText,     setFollowUpText]     = useState("");
+  const [followUpFeedback, setFollowUpFeedback] = useState("");
+  const [followUpLoading,  setFollowUpLoading]  = useState(false);
+  const [followUpLocked,   setFollowUpLocked]   = useState(false);
+  const [followUpWarn,     setFollowUpWarn]     = useState(false);
+
+  const scholarYear = parseInt(student?.year_level || student?.year || 4);
 
   const handleSubmit = useCallback(async () => {
     if (!text.trim() || locked) return;
+
+    if (containsProfanity(text)) {
+      setProfanityWarn(true);
+      setText("");
+      return;
+    }
+    setProfanityWarn(false);
     setLoading(true);
 
     const controller = new AbortController();
@@ -108,7 +142,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
         body:    JSON.stringify({
           text, subject, correctAnswer,
           scholarName: student?.name,
-          scholarYear: parseInt(student?.year_level || student?.year || 4),
+          scholarYear,
           question: currentQ,
         }),
       });
@@ -119,29 +153,83 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
       setFeedback(data.feedback);
     } catch {
       clearTimeout(timeout);
-      setFeedback(
-        LOCAL_FEEDBACK(text, subject, student?.name, parseInt(student?.year_level || student?.year || 4))
-      );
+      setFeedback(LOCAL_FEEDBACK(text, subject, student?.name, scholarYear));
     } finally {
       setLoading(false);
       setLocked(true);
       onFeedbackReceived?.();
     }
-  }, [text, locked, subject, correctAnswer, currentQ, student, onFeedbackReceived]);
+  }, [text, locked, subject, correctAnswer, currentQ, student, scholarYear, onFeedbackReceived]);
+
+  const handleFollowUp = useCallback(async () => {
+    if (!followUpText.trim() || followUpLocked) return;
+
+    if (containsProfanity(followUpText)) {
+      setFollowUpWarn(true);
+      setFollowUpText("");
+      return;
+    }
+    setFollowUpWarn(false);
+    setFollowUpLoading(true);
+
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const res = await fetch("/api/tara", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        signal:  controller.signal,
+        body:    JSON.stringify({
+          text:        followUpText,
+          subject,
+          correctAnswer,
+          scholarName: student?.name,
+          scholarYear,
+          question:    currentQ,
+          mode:        "followup", // signals API this is a curiosity follow-up, not EIB
+          context:     feedback,   // Tara's previous reply for continuity
+        }),
+      });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.feedback) throw new Error("Empty");
+      setFollowUpFeedback(data.feedback);
+    } catch {
+      clearTimeout(timeout);
+      setFollowUpFeedback(LOCAL_FOLLOWUP_FEEDBACK(student?.name));
+    } finally {
+      setFollowUpLoading(false);
+      setFollowUpLocked(true);
+    }
+  }, [followUpText, followUpLocked, subject, correctAnswer, currentQ, student, scholarYear, feedback]);
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !locked) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === "Enter" && !e.shiftKey && !locked) { e.preventDefault(); handleSubmit(); }
+  };
+
+  const handleFollowUpKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !followUpLocked) { e.preventDefault(); handleFollowUp(); }
   };
 
   return (
     <div className="bg-amber-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-200 mb-3">
+
+      {/* ── Challenge prompt ── */}
       <p className="text-amber-800 font-bold text-xs sm:text-sm mb-2 sm:mb-3">
         <span className="font-black">Tara's Challenge:</span> Why is{" "}
         <span className="underline font-black">{correctAnswer}</span> the correct answer?
       </p>
+
+      {/* ── Profanity warning ── */}
+      {profanityWarn && (
+        <p className="text-red-600 font-bold text-xs mb-2 bg-red-50 border border-red-200 rounded-lg p-2">
+          ⚠️ Let's keep it respectful! Rephrase your answer and try again.
+        </p>
+      )}
+
+      {/* ── Main input ── */}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -158,9 +246,57 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
       >
         <Zap size={12} /> {loading ? "Thinking…" : "Tell Tara ✨"}
       </button>
+
+      {/* ── Tara's first response ── */}
       {feedback && (
         <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-amber-100 text-amber-900 font-bold italic text-xs sm:text-sm leading-relaxed">
           {feedback}
+        </div>
+      )}
+
+      {/* ── Follow-up section (only shown after Tara's first reply) ── */}
+      {feedback && !followUpFeedback && (
+        <div className="mt-3 border-t border-amber-100 pt-3">
+          <p className="text-amber-700 font-bold text-xs mb-2 flex items-center gap-1">
+            <MessageCircle size={12} />
+            Still curious? Ask Tara a follow-up question
+          </p>
+
+          {followUpWarn && (
+            <p className="text-red-600 font-bold text-xs mb-2 bg-red-50 border border-red-200 rounded-lg p-2">
+              ⚠️ Let's keep it respectful! Rephrase and try again.
+            </p>
+          )}
+
+          <textarea
+            value={followUpText}
+            onChange={(e) => setFollowUpText(e.target.value)}
+            onKeyDown={handleFollowUpKeyDown}
+            disabled={followUpLocked}
+            rows={2}
+            placeholder={`e.g. "Can you explain more?" or "What about...?"`}
+            className="w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border border-amber-200 font-bold text-xs sm:text-sm bg-white mb-2 resize-none focus:outline-none focus:border-amber-400 disabled:opacity-60"
+          />
+          <button
+            onClick={handleFollowUp}
+            disabled={!followUpText.trim() || followUpLoading || followUpLocked}
+            className="w-full bg-white text-amber-700 font-black py-2 rounded-lg text-xs uppercase tracking-widest border-2 border-amber-300 hover:bg-amber-50 disabled:opacity-40 flex items-center justify-center gap-1 transition-all"
+          >
+            <MessageCircle size={12} /> {followUpLoading ? "Tara is thinking…" : "Ask Tara →"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Tara's follow-up response ── */}
+      {followUpFeedback && (
+        <div className="mt-3 border-t border-amber-100 pt-3">
+          <p className="text-amber-700 font-bold text-xs mb-1 flex items-center gap-1">
+            <MessageCircle size={12} /> Your follow-up
+          </p>
+          <p className="text-amber-600 text-xs italic mb-2">"{followUpText}"</p>
+          <div className="p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-amber-100 text-amber-900 font-bold italic text-xs sm:text-sm leading-relaxed">
+            {followUpFeedback}
+          </div>
         </div>
       )}
     </div>
@@ -168,15 +304,6 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
 }
 
 // ─── useTaraGate ──────────────────────────────────────────────────────────────
-/**
- * Tracks whether TaraEIB's challenge has been completed.
- *
- * Usage:
- *   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
- *   <TaraEIB ... onFeedbackReceived={onFeedbackReceived} />
- *   const canProceed = isCorrect || (selected !== null && !isCorrect && taraComplete);
- *   // call resetTara() when moving to next question
- */
 export function useTaraGate() {
   const [taraComplete, setTaraComplete] = useState(false);
   const onFeedbackReceived = useCallback(() => setTaraComplete(true), []);

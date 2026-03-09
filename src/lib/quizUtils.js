@@ -97,11 +97,27 @@ export function dbRowToQuestion(row, fallbackSubject) {
     };
   }
 
+  const opts         = parse(d.options, []).map(String);
+  const rawIdx       = d.correct_index ?? 0;
+  const safeIdx      = (typeof rawIdx === 'number' && rawIdx >= 0 && rawIdx < opts.length) ? rawIdx : 0;
+  const correctAnswer = opts[safeIdx] || null;
+
+  // If question_data has correctAnswer, use it to recover the true index
+  let finalIdx = safeIdx;
+  if (row.question_data) {
+    const p = parse(row.question_data, {});
+    if (p.correctAnswer) {
+      const recovered = opts.findIndex(o => o === String(p.correctAnswer));
+      if (recovered >= 0) finalIdx = recovered;
+    }
+  }
+
   return {
     id:           row.id,
     q:            d.question_text  || '',
-    opts:         parse(d.options, []).map(String),
-    a:            d.correct_index  ?? 0,
+    opts,
+    a:            finalIdx,
+    correctAnswer,
     exp:          d.explanation    || '',
     subject:      row.subject      || fallbackSubject || 'maths',
     topic:        d.topic          || 'general',
