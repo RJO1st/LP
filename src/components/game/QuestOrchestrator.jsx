@@ -3,18 +3,11 @@
  * QuestOrchestrator.jsx
  * Deploy to: src/components/game/QuestOrchestrator.jsx
  *
- * Routes quiz sessions to the correct specialist engine:
- *   ReadingComprehensionEngine — english + passage
- *   STEMEngine                — physics / chemistry / biology / science etc.
- *   HumanitiesEngine          — history / geography / social_studies etc.
- *   MainQuizEngine            — everything else (maths, verbal, nvr, computing…)
+ * Tier 1 additions vs production:
+ *   + sessionStartRef  — tracks wall-clock time from when questions are ready
+ *   + timeSpentSeconds — passed to saveQuizResult for SubjectInsightCard minutes stat
  *
- * MainQuizEngine redesign (v2):
- *   • Compact card (max-w-lg) — question + options + Tara all visible at once
- *   • ImageDisplay support from question_bank.image_url
- *   • resultsRef stale-closure fix
- *   • Consistent EngineHeader / MCQOptions / FeedbackArea from QuizShell
- *   • Subject-aware accent colours
+ * All other logic identical to production.
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -41,9 +34,6 @@ import { generateMissionLogEntry } from "../../lib/narrativeEngine";
 const XP_PER_QUESTION = 10;
 
 // ─── useMastery HOOK ─────────────────────────────────────────────────────────
-// Handles optimistic mastery updates per answer. API call is fire-and-forget
-// so it never blocks the quiz UI. Cache is updated with server values once
-// the response arrives.
 function useMastery(student) {
   const sessionId = useRef(
     typeof crypto !== "undefined"
@@ -60,12 +50,10 @@ function useMastery(student) {
     const curriculum = question.curriculum ?? student?.curriculum ?? "uk_national";
     const yearLevel  = question.year_level ?? student?.year_level ?? 6;
 
-    // Optimistic update (instant)
     const prev    = masteryCache.current[topic] ?? null;
     const updated = processAnswer(prev, correct);
     masteryCache.current[topic] = updated;
 
-    // Fire-and-forget
     fetch("/api/mastery/update", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
@@ -91,8 +79,8 @@ function useMastery(student) {
     return updated;
   }, [student]);
 
-  const getMastery           = useCallback((topic) => masteryCache.current[topic] ?? null, []);
-  const getSessionMilestones = useCallback(() => sessionMilestones.current, []);
+  const getMastery            = useCallback((topic) => masteryCache.current[topic] ?? null, []);
+  const getSessionMilestones  = useCallback(() => sessionMilestones.current, []);
   const getSessionStoryPoints = useCallback(() => sessionStoryPts.current, []);
 
   return { recordAnswer, getMastery, getSessionMilestones, getSessionStoryPoints, sessionId };
@@ -117,13 +105,13 @@ function MilestoneCelebration({ milestones, onDismiss }) {
   );
 }
 
-// ─── SUBJECT ACCENT THEMES for MainQuizEngine ────────────────────────────────
+// ─── SUBJECT ACCENT THEMES ───────────────────────────────────────────────────
 const MAIN_THEMES = {
-  maths:   { bg: "bg-indigo-50",  border: "border-indigo-100",  text: "text-indigo-900",  accent: "text-indigo-600",  btn: "bg-indigo-600 hover:bg-indigo-700",  Icon: () => <span className="text-base">🔢</span> },
-  english: { bg: "bg-purple-50",  border: "border-purple-100",  text: "text-purple-900",  accent: "text-purple-600",  btn: "bg-purple-600 hover:bg-purple-700",  Icon: () => <span className="text-base">📖</span> },
-  verbal:  { bg: "bg-violet-50",  border: "border-violet-100",  text: "text-violet-900",  accent: "text-violet-600",  btn: "bg-violet-600 hover:bg-violet-700",  Icon: () => <span className="text-base">🧩</span> },
-  nvr:     { bg: "bg-cyan-50",    border: "border-cyan-100",    text: "text-cyan-900",    accent: "text-cyan-600",    btn: "bg-cyan-600 hover:bg-cyan-700",      Icon: () => <span className="text-base">🔷</span> },
-  computing: { bg: "bg-slate-50", border: "border-slate-100",   text: "text-slate-900",   accent: "text-slate-600",   btn: "bg-slate-700 hover:bg-slate-800",    Icon: () => <span className="text-base">💻</span> },
+  maths:     { bg: "bg-indigo-50",  border: "border-indigo-100",  text: "text-indigo-900",  accent: "text-indigo-600",  btn: "bg-indigo-600 hover:bg-indigo-700",  Icon: () => <span className="text-base">🔢</span> },
+  english:   { bg: "bg-purple-50",  border: "border-purple-100",  text: "text-purple-900",  accent: "text-purple-600",  btn: "bg-purple-600 hover:bg-purple-700",  Icon: () => <span className="text-base">📖</span> },
+  verbal:    { bg: "bg-violet-50",  border: "border-violet-100",  text: "text-violet-900",  accent: "text-violet-600",  btn: "bg-violet-600 hover:bg-violet-700",  Icon: () => <span className="text-base">🧩</span> },
+  nvr:       { bg: "bg-cyan-50",    border: "border-cyan-100",    text: "text-cyan-900",    accent: "text-cyan-600",    btn: "bg-cyan-600 hover:bg-cyan-700",      Icon: () => <span className="text-base">🔷</span> },
+  computing: { bg: "bg-slate-50",   border: "border-slate-100",   text: "text-slate-900",   accent: "text-slate-600",   btn: "bg-slate-700 hover:bg-slate-800",    Icon: () => <span className="text-base">💻</span> },
 };
 const DEFAULT_MAIN_THEME = {
   bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-900",
@@ -131,9 +119,9 @@ const DEFAULT_MAIN_THEME = {
   Icon: Rocket,
 };
 
-// ─── LOADING SCREEN ──────────────────────────────────────────────────────────
+// ─── LOADING CARD ─────────────────────────────────────────────────────────────
 function LoadingCard({ subject }) {
-  const subj = subject?.toLowerCase() || "maths";
+  const subj  = subject?.toLowerCase() || "maths";
   const theme = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
   const labels = getSubjectLabels(subject);
   return (
@@ -147,7 +135,7 @@ function LoadingCard({ subject }) {
   );
 }
 
-// ─── MAIN QUIZ ENGINE ────────────────────────────────────────────────────────
+// ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
 function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose }) {
   const perQTimer = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj      = subject?.toLowerCase() || "maths";
@@ -163,14 +151,14 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   const [timeLeft,         setTimeLeft]         = useState(perQTimer);
   const [topicSummary,     setTopicSummary]     = useState({});
 
-  const timerRef   = useRef(null);
-  const resultsRef = useRef({ score: 0, answers: [] }); // stale-closure guard
+  const timerRef        = useRef(null);
+  const resultsRef      = useRef({ score: 0, answers: [] }); // stale-closure guard
+  const sessionStartRef = useRef(Date.now());                // ← TIER 1: session timer
   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
 
-  // ── Mastery hook ─────────────────────────────────────────────────────────
   const { recordAnswer, getSessionMilestones, getSessionStoryPoints } = useMastery(student);
-  const questionStartTime   = useRef(Date.now());
-  const [pendingMilestone,  setPendingMilestone]  = useState(null);
+  const questionStartTime  = useRef(Date.now());
+  const [pendingMilestone, setPendingMilestone] = useState(null);
 
   // ── Fetch questions ───────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async () => {
@@ -193,11 +181,12 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
       (qs || []).map(normalizeQuestion).map((q, i) => validateAndFixQuestion(q, i)).filter(Boolean)
     );
     setGenerating(false);
+    sessionStartRef.current = Date.now(); // ← TIER 1: start clock once questions ready
   }, [student, subject, curriculum, questionCount, previousQuestionIds]);
 
   useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
 
-  // ── Per-question timer ───────────────────────────────────────────────────
+  // ── Per-question timer ────────────────────────────────────────────────────
   useEffect(() => {
     if (finished || generating || !sessionQuestions[qIdx]) return;
     clearInterval(timerRef.current);
@@ -207,7 +196,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     return () => clearInterval(timerRef.current);
   }, [qIdx, generating, finished, sessionQuestions]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────
+  // ── Answer handler ────────────────────────────────────────────────────────
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
     setTopicSummary((prev) => {
@@ -235,7 +224,6 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
     recordTopicResult(q.topic || subject, isCorrect);
 
-    // Fire mastery update + surface any milestone earned
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
       const milestones = getSessionMilestones();
       if (milestones.length) setPendingMilestone(milestones[milestones.length - 1]);
@@ -244,10 +232,14 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     questionStartTime.current = Date.now();
   }, [selected, sessionQuestions, qIdx, subject, recordTopicResult, recordAnswer, getSessionMilestones]);
 
+  // ── Finish ────────────────────────────────────────────────────────────────
   const finishQuest = useCallback(async () => {
     clearInterval(timerRef.current);
     const { answers } = resultsRef.current;
     const correctCount = answers.filter(a => a.isCorrect).length;
+
+    // ← TIER 1: compute actual time spent answering questions
+    const timeSpentSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
 
     const payload = buildCompletionPayload({
       answers,
@@ -268,6 +260,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     await saveQuizResult(supabase, {
       studentId: student?.id, subject, questions: sessionQuestions,
       answers, topicSummary, xpPerQuestion: XP_PER_QUESTION,
+      timeSpentSeconds,                    // ← TIER 1: pass to DB
     });
 
     onComplete?.(payload);
@@ -286,7 +279,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     }
   };
 
-  // ── Render guards ────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   if (generating) return <LoadingCard subject={subject} />;
 
   const q = sessionQuestions[qIdx];
@@ -309,72 +302,35 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-3 sm:p-4">
-      {/* ── Milestone celebration overlay ─────────────────────────────── */}
       {pendingMilestone && (
-        <MilestoneCelebration
-          milestones={[pendingMilestone]}
-          onDismiss={() => setPendingMilestone(null)}
-        />
+        <MilestoneCelebration milestones={[pendingMilestone]} onDismiss={() => setPendingMilestone(null)} />
       )}
-      {/* ── Compact card — max-w-lg keeps content always in viewport ── */}
       <div className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border-b-4 border-slate-200"
            style={{ maxHeight: "94vh" }}>
-
-        {/* Progress bar */}
         <div className="h-1 bg-slate-100 shrink-0">
-          <div className={`h-full transition-all duration-500 ${theme.btn.split(" ")[0]}`}
-               style={{ width: `${progress}%` }} />
+          <div className={`h-full transition-all duration-500 ${theme.btn.split(" ")[0]}`} style={{ width: `${progress}%` }} />
         </div>
-
-        {/* Header */}
         <EngineHeader
           Icon={theme.Icon} bg={theme.bg} border={theme.border}
           textColor={theme.text} accent={theme.accent} btnClass={theme.btn}
           label={labels.header}
           qIdx={qIdx} totalQuestions={sessionQuestions.length}
-          timeLeft={timeLeft}
-          onClose={onClose}
+          timeLeft={timeLeft} onClose={onClose}
         />
-
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-
-          {/* Question image (from question_bank.image_url) */}
-          {q.image_url && (
-            <ImageDisplay src={q.image_url} alt="Question visual" />
-          )}
-
-          {/* Question text */}
-          <h3 className="text-base sm:text-xl font-black text-slate-800 leading-snug">
-            {q.q}
-          </h3>
-
-          {/* Passage (comprehension embedded in a non-English question) */}
+          {q.image_url && <ImageDisplay src={q.image_url} alt="Question visual" />}
+          <h3 className="text-base sm:text-xl font-black text-slate-800 leading-snug">{q.q}</h3>
           {q.passage && (
             <div className={`p-3 rounded-xl border-l-4 ${theme.bg} ${theme.border} text-slate-700 text-xs sm:text-sm font-medium italic leading-relaxed`}>
               {q.passage}
             </div>
           )}
-
-          {/* MCQ Options */}
-          <MCQOptions
-            opts={q.opts} correctIdx={q.a}
-            selected={selected} onPick={handlePick}
-          />
-
-          {/* Feedback + Tara + Continue */}
+          <MCQOptions opts={q.opts} correctIdx={q.a} selected={selected} onPick={handlePick} />
           <FeedbackArea
-            selected={selected}
-            isCorrectAnswer={isCorrectAnswer}
-            canProceed={canProceed}
-            currentQ={q}
-            student={student}
-            subject={subject}
-            themeBg={theme.bg}
-            themeBorder={theme.border}
-            themeAccent={theme.accent}
-            taraFeedbackReceived={onFeedbackReceived}
-            onNext={next}
+            selected={selected} isCorrectAnswer={isCorrectAnswer} canProceed={canProceed}
+            currentQ={q} student={student} subject={subject}
+            themeBg={theme.bg} themeBorder={theme.border} themeAccent={theme.accent}
+            taraFeedbackReceived={onFeedbackReceived} onNext={next}
             isLast={qIdx === sessionQuestions.length - 1}
           />
         </div>
@@ -391,7 +347,6 @@ export default function QuestOrchestrator({
 }) {
   const subj = subject?.toLowerCase() || "maths";
 
-  // ── NarrativeIntro gate ──────────────────────────────────────────────────
   const [showIntro,      setShowIntro]      = useState(true);
   const [masteryRecords, setMasteryRecords] = useState([]);
 
@@ -420,7 +375,6 @@ export default function QuestOrchestrator({
     );
   }
 
-  // English + passage → ReadingComprehensionEngine
   if (subj === "english" && (questData.isComprehension || questData.passageText)) {
     return (
       <ReadingComprehensionEngine
@@ -433,7 +387,6 @@ export default function QuestOrchestrator({
     );
   }
 
-  // STEM subjects → STEMEngine
   if ([
     "physics", "chemistry", "biology", "science", "basic_science",
     "financial_accounting", "commerce", "basic_technology", "further_mathematics",
@@ -448,7 +401,6 @@ export default function QuestOrchestrator({
     );
   }
 
-  // Humanities subjects → HumanitiesEngine
   if ([
     "history", "geography", "social_studies", "hass",
     "economics", "government", "business_studies", "civic_education",
@@ -463,7 +415,6 @@ export default function QuestOrchestrator({
     );
   }
 
-  // Default: maths, verbal, nvr, computing, etc.
   return (
     <MainQuizEngine
       student={student} subject={subject} curriculum={curriculum}

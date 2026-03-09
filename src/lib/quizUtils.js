@@ -135,8 +135,17 @@ export function buildCompletionPayload({ answers, totalQuestions, xpPerQuestion,
  * Fire-and-forget writes:
  *   quiz_results, scholar_question_history, update_scholar_skills, increment_scholar_xp
  * Also triggers first-quiz parent email if this is the scholar's first completed session.
+ *
+ * Tier 1 additions vs previous:
+ *   timeSpentSeconds  — session duration in seconds (passed from QuestOrchestrator)
+ *   questions_correct — alias for score, queried by WeeklyMissionPlan + TopicPerformanceBreakdown
+ *   questions_total   — alias for total_questions, queried by same components
+ *   topic_summary     — JSONB per-topic breakdown, queried by TopicPerformanceBreakdown
  */
-export async function saveQuizResult(supabase, { studentId, subject, questions, answers, topicSummary, xpPerQuestion }) {
+export async function saveQuizResult(supabase, {
+  studentId, subject, questions, answers, topicSummary, xpPerQuestion,
+  timeSpentSeconds,
+}) {
   if (!studentId) return;
   try {
     const details = questions.map((q, i) => ({
@@ -148,13 +157,17 @@ export async function saveQuizResult(supabase, { studentId, subject, questions, 
     const finalScore = details.filter(d => d.correct).length;
     const xp         = finalScore * (xpPerQuestion || 10);
 
-    // quiz_results row
+    // quiz_results row — Tier 1 fields added
     await supabase.from('quiz_results').insert({
-      scholar_id:      studentId,
+      scholar_id:         studentId,
       subject,
-      score:           finalScore,
-      total_questions: questions.length,
-      completed_at:    new Date().toISOString(),
+      score:              finalScore,
+      total_questions:    questions.length,
+      questions_correct:  finalScore,
+      questions_total:    questions.length,
+      topic_summary:      topicSummary || {},
+      time_spent_seconds: timeSpentSeconds || 0,
+      completed_at:       new Date().toISOString(),
       details,
     });
 

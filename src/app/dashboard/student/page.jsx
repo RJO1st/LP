@@ -15,6 +15,11 @@ import ProgressChart from "../../../components/game/ProgressChart";
 import QuestPanel from "../../../components/QuestPanel";
 import { getTrialStatus } from "../../../lib/trialTracking";
 
+// ── Tier 1 components ─────────────────────────────────────────────
+import SubjectInsightCard                   from "../../../components/SubjectInsightCard";
+import StreakCountdown, { fetchStreakData }  from "../../../components/StreakCountdown";
+import WeeklyMissionPlan, { fetchWeeklyStats } from "../../../components/WeeklyMissionPlan";
+
 // Route seamlessly to the correct engine via the Orchestrator
 const QuestOrchestrator = dynamic(
   () => import("../../../components/game/QuestOrchestrator"),
@@ -51,8 +56,8 @@ function LoadingScreen({ message = "Loading…" }) {
       <div className="relative">
         <div className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
-  <img src="/logo.svg" alt="" width={28} height={28} style={{ objectFit: "contain" }} />
-</div>
+          <img src="/logo.svg" alt="" width={28} height={28} style={{ objectFit: "contain" }} />
+        </div>
       </div>
       <p className="text-slate-400 font-bold mt-4 text-sm uppercase tracking-widest">{message}</p>
     </div>
@@ -353,6 +358,11 @@ export default function StudentDashboard() {
   const [trialInfo,        setTrialInfo]        = useState(null);
   const [parentInfo,       setParentInfo]       = useState(null);
 
+  // ── Tier 1 state ──────────────────────────────────────────────────
+  const [weeklyStats,   setWeeklyStats]   = useState([]);
+  const [lastWeekStats, setLastWeekStats] = useState([]);
+  const [streakData,    setStreakData]    = useState({ streak: 0, lastActivityAt: null });
+
   // ── Boot: load scholar from localStorage ─────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem("active_scholar");
@@ -360,8 +370,6 @@ export default function StudentDashboard() {
       const scholar = JSON.parse(saved);
       console.log("✅ Loaded:", scholar.name, scholar.curriculum);
       setScholar(scholar);
-      
-      // Load parent info and check trial status
       if (scholar.parent_id) {
         loadTrialStatus(scholar.parent_id);
       }
@@ -381,12 +389,8 @@ export default function StudentDashboard() {
 
       if (parentData) {
         setParentInfo(parentData);
-        
-        // Get trial status
         const status = await getTrialStatus(parentId);
         setTrialInfo(status);
-
-        // If expired, redirect to subscribe
         if (status.status === 'expired') {
           router.push('/subscribe?expired=true');
         }
@@ -477,6 +481,35 @@ export default function StudentDashboard() {
     }
   }, [supabase]);
 
+  // ── Tier 1: fetch weekly stats + streak ───────────────────────────
+  const refreshTier1 = useCallback(async (id) => {
+    const [weekly, streak] = await Promise.all([
+      fetchWeeklyStats(supabase, id),
+      fetchStreakData(supabase, id),
+    ]);
+    setWeeklyStats(weekly);
+    setStreakData(streak);
+
+    // Last week (days 7–14 ago) for week-on-week comparison in SubjectInsightCard
+    const twoAgo = new Date(); twoAgo.setDate(twoAgo.getDate() - 14);
+    const oneAgo = new Date(); oneAgo.setDate(oneAgo.getDate() - 7);
+    const { data: lw } = await supabase
+      .from("quiz_results")
+      .select("subject, questions_correct, questions_total")
+      .eq("scholar_id", id)
+      .gte("completed_at", twoAgo.toISOString())
+      .lt("completed_at",  oneAgo.toISOString());
+    if (lw) {
+      const agg = {};
+      lw.forEach(({ subject, questions_correct, questions_total }) => {
+        if (!agg[subject]) agg[subject] = { subject, questions_correct: 0, questions_total: 0 };
+        agg[subject].questions_correct += questions_correct || 0;
+        agg[subject].questions_total   += questions_total   || 0;
+      });
+      setLastWeekStats(Object.values(agg));
+    }
+  }, [supabase]);
+
   // ── Data effect ──────────────────────────────────────────────────
   useEffect(() => {
     if (!scholar?.id) return;
@@ -495,6 +528,7 @@ export default function StudentDashboard() {
       loadFullSkills(id, curriculum),
       loadAccuracyData(id, curriculum),
       ensureQuestsAssigned(id),
+      refreshTier1(id),          // ← Tier 1
     ]);
   }, [
     scholar?.id,
@@ -508,6 +542,7 @@ export default function StudentDashboard() {
     loadRecentQuizzes,
     loadFullSkills,
     loadAccuracyData,
+    refreshTier1,                // ← Tier 1
   ]);
 
   // ── After quiz completes ─────────────────────────────────────────
@@ -543,7 +578,10 @@ export default function StudentDashboard() {
       setScholar(fresh);
       localStorage.setItem("active_scholar", JSON.stringify(fresh));
     }
-  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges]);
+
+    // ← Tier 1: refresh insight + streak after each completed mission
+    await refreshTier1(scholar.id);
+  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, refreshTier1]);
 
   // ── Avatar purchase ──────────────────────────────────────────────
   const handleAvatarPurchase = async (itemId, item) => {
@@ -616,7 +654,7 @@ export default function StudentDashboard() {
       <nav className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
-<span className="font-black text-lg text-slate-800">LaunchPard</span>
+          <span className="font-black text-lg text-slate-800">LaunchPard</span>
           <span className="text-xs text-slate-300 font-bold hidden sm:inline">·</span>
           <span className="text-xs text-slate-400 font-bold hidden sm:inline">
             {currDef.country} {currDef.name}
@@ -676,7 +714,6 @@ export default function StudentDashboard() {
                 </p>
               </div>
             </div>
-            
             <a
               href="/subscribe"
               className={`
@@ -729,8 +766,30 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        {/* ── TIER 1: Insight card + Streak countdown (2-col) ──── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <SubjectInsightCard
+            scholar={scholar}
+            weeklyStats={weeklyStats}
+            lastWeekStats={lastWeekStats}
+            streak={streakData.streak}
+          />
+          <StreakCountdown
+            streak={streakData.streak}
+            lastActivityAt={streakData.lastActivityAt}
+            onStartMission={() => setActiveSubject(subjects[0] || "maths")}
+          />
+        </div>
+
         {/* ── ACTIVE QUESTS ────────────────────────────────────── */}
         <QuestPanel scholarId={scholar.id} />
+
+        {/* ── TIER 1: Weekly Mission Plan ───────────────────────── */}
+        <WeeklyMissionPlan
+          scholar={scholar}
+          weeklyStats={weeklyStats}
+          onStartSubject={(subject) => setActiveSubject(subject)}
+        />
 
         {/* ── SUBJECT GRID ─────────────────────────────────────── */}
         <section>
