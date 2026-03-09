@@ -167,7 +167,8 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     const year = parseInt(student?.year_level || student?.year || 4, 10);
     try {
       const dbRows = await getSmartQuestions(
-        supabase, student?.id, subject, curriculum, year, questionCount, previousQuestionIds
+        supabase, student?.id, subject, curriculum, year, questionCount, previousQuestionIds,
+        null, student?.exam_mode ?? null
       );
       if (dbRows?.length > 0) qs = dbRows.map((r) => dbRowToQuestion(r, subject));
     } catch (e) { console.warn("[MainQuiz] DB:", e); }

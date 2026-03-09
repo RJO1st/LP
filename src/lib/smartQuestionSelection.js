@@ -213,7 +213,7 @@ function getTierForTopic(masteryRows, subject, topic) {
  * Fetch questions for a topic+tier in one query.
  * When topic or tier is null, the constraint is omitted (broader fetch).
  */
-async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, excludeIds, limit) {
+async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, excludeIds, limit, examTag = null) {
   let q = supabase
     .from('question_bank')
     .select('*')
@@ -223,8 +223,9 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
     .order('last_used', { ascending: true, nullsFirst: true })
     .limit(limit);
 
-  if (topic) q = q.eq('topic', topic);
-  if (tier)  q = q.eq('difficulty_tier', tier);
+  if (topic)   q = q.eq('topic', topic);
+  if (tier)    q = q.eq('difficulty_tier', tier);
+  if (examTag) q = q.eq('exam_tag', examTag);
   if (excludeIds.length > 0) q = q.not('id', 'in', `(${excludeIds.slice(-150).join(',')})`);
 
   const { data } = await q;
@@ -238,16 +239,16 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
 async function fetchQuestPool(
   supabase, curriculum, subject, year,
   anchorTopic, anchorTier, adjacentTopic, adjacentTier,
-  excludeIds, overfetch,
+  excludeIds, overfetch, examTag = null,
 ) {
   const queries = [
     // Always fetch anchor
-    fetchQuestions(supabase, curriculum, subject, year, anchorTopic, anchorTier, excludeIds, overfetch),
+    fetchQuestions(supabase, curriculum, subject, year, anchorTopic, anchorTier, excludeIds, overfetch, examTag),
   ];
 
   if (adjacentTopic) {
     queries.push(
-      fetchQuestions(supabase, curriculum, subject, year, adjacentTopic, adjacentTier, excludeIds, overfetch)
+      fetchQuestions(supabase, curriculum, subject, year, adjacentTopic, adjacentTier, excludeIds, overfetch, examTag)
     );
   }
 
@@ -278,6 +279,7 @@ export async function getSmartQuestions(
   count = 10,
   previousIds = [],
   cache = null,
+  examMode = null,
 ) {
   try {
     // ── 0. Resolve combined_science to a specific science subject ─────────────
@@ -294,6 +296,9 @@ export async function getSmartQuestions(
     const activeSubject = resolvedSubject;
 
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
+    // Derive exam_tag from exam mode for question_bank filtering
+    const examTag = examMode || null;
+
     const [sequence, { masteryRows, currentTopic }] = await Promise.all([
       getTopicSequence(activeSubject, curriculum, supabase),
       loadScholarContext(supabase, scholarId, curriculum, activeSubject, cache),
@@ -320,13 +325,13 @@ export async function getSmartQuestions(
     let { anchorRows, adjacentRows } = await fetchQuestPool(
       supabase, curriculum, subject, year,
       anchorTopic, anchorTier, adjacentTopic, adjacentTier,
-      excludeIds, overfetch,
+      excludeIds, overfetch, examTag,
     );
 
     // Relax tier on anchor if thin (stay on topic — never jump strand)
     if (anchorRows.length < anchorCount && anchorTier) {
       const relaxed = await fetchQuestions(
-        supabase, curriculum, subject, year, anchorTopic, null, excludeIds, overfetch
+        supabase, curriculum, subject, year, anchorTopic, null, excludeIds, overfetch, examTag
       );
       anchorRows = [...anchorRows, ...relaxed.filter(r => !anchorRows.find(x => x.id === r.id))];
     }
@@ -357,7 +362,7 @@ export async function getSmartQuestions(
         const fbRows = await fetchQuestions(
           supabase, curriculum, subject, year,
           fallbackTopic, getTierForTopic(masteryRows, subject, fallbackTopic),
-          excludeIds, count,
+          excludeIds, count, examTag,
         );
         const used = new Set(questRows.map(r => r.id));
         questRows  = [...questRows, ...fbRows.filter(r => !used.has(r.id)).slice(0, count - questRows.length)];
