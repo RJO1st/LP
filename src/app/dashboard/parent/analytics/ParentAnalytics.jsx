@@ -15,7 +15,7 @@ import {
 import {
   CURRICULA,
   SUBJECT_ICONS,
-  getGradeLabel,
+  formatGradeLabel,
 } from "@/lib/gamificationEngine";
 
 const RocketIcon = ({ size = 24 }) => (
@@ -127,7 +127,7 @@ export default function ParentAnalytics({ scholar, results }) {
               {currInfo.country} {currInfo.name}
             </span>
             <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
-              {getGradeLabel(scholar.curriculum, yearLevel)}
+              {formatGradeLabel(yearLevel, scholar.curriculum)}
             </span>
             <span className="bg-amber-400 text-amber-900 px-3 py-1 rounded-full text-sm font-black">
               ⭐ {scholar.total_xp || 0} XP
