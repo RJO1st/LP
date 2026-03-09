@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
+import { getProgressionState, getStageLabel } from "@/lib/progressionEngine";
+import GraduationModal from "@/components/GraduationModal";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -38,12 +40,7 @@ const CURRICULA = {
     gradeLabel: "Year",
     grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   },
-  uk_11plus: { 
-    country: "🇬🇧", 
-    name: "UK 11+", 
-    gradeLabel: "Year",
-    grades: [3, 4, 5, 6]
-  },
+  // uk_11plus removed — now handled via uk_national + exam_mode='eleven_plus'
   // US
   us_common_core: { 
     country: "🇺🇸", 
@@ -107,6 +104,44 @@ const CURRICULA = {
   }
 };
 
+// ─── EXAM MODES ──────────────────────────────────────────────────────────────
+// Exam modes are overlaid on top of a scholar's standard curriculum.
+// They add exam-specific subjects (verbal reasoning, NVR etc.) to the world map
+// and route smartQuestionSelection to include exam-tagged questions.
+// Parents can toggle exam_mode on/off without affecting mastery data.
+
+const EXAM_MODES = {
+  eleven_plus: {
+    label: '11+ Prep',
+    emoji: '📝',
+    desc: 'Adds Verbal Reasoning & Non-Verbal Reasoning alongside the National Curriculum',
+    eligibleYears: [3, 4, 5, 6],   // only relevant in KS2
+    extraSubjects: ['verbal_reasoning', 'nvr'],
+  },
+  sats: {
+    label: 'SATs Mode',
+    emoji: '📋',
+    desc: 'Focuses KS2 practice on SATs-style questions (Year 6)',
+    eligibleYears: [6],
+    extraSubjects: [],
+  },
+  iseb: {
+    label: 'ISEB / Pre-Test',
+    emoji: '🏫',
+    desc: 'Adds Common Pre-Test style Verbal, Non-Verbal, Maths & English prep',
+    eligibleYears: [4, 5, 6, 7],
+    extraSubjects: ['verbal_reasoning', 'nvr'],
+  },
+};
+
+// Returns extra subjects added by an active exam mode for a given year
+const getExamModeSubjects = (examMode, year) => {
+  if (!examMode || !EXAM_MODES[examMode]) return [];
+  const mode = EXAM_MODES[examMode];
+  if (!mode.eligibleYears.includes(Number(year))) return [];
+  return mode.extraSubjects;
+};
+
 // ─── NIGERIAN SSS STREAM DEFINITIONS ─────────────────────────────────────────
 const NG_SSS_COMPULSORY = [
   'english', 'mathematics', 'citizenship_and_heritage', 'digital_technologies',
@@ -140,19 +175,11 @@ const NG_JSS_SUBJECTS = [
 ];
 
 // ─── UK KS4 (Y10–Y11) SUBJECT DEFINITIONS ───────────────────────────────────
+// KS4 compulsory = what every GCSE scholar takes regardless of options
+// Triple science (bio/chem/phys separately) is an option, not default — handled via selectedSubjects
 const UK_KS4_COMPULSORY = [
   'mathematics', 'english_language', 'english_literature',
-  'biology', 'chemistry', 'physics',   // triple science; combined_science treated as alias
-  'combined_science',                   // shown only if scholar takes combined rather than triple
-  'computer_science', 'design_technology', 'citizenship',
-];
-
-// Subjects always shown as compulsory (locked in checklist)
-// combined_science and triple science are mutually exclusive — handled in UI
-const UK_KS3_SUBJECTS = [
-  'mathematics', 'english_language', 'english_literature',
-  'biology', 'chemistry', 'physics', 'combined_science',
-  'history', 'geography', 'citizenship', 'computer_science', 'design_technology',
+  'combined_science', 'citizenship',
 ];
 
 const UK_KS4_OPTIONS = [
@@ -160,9 +187,11 @@ const UK_KS4_OPTIONS = [
     group: 'STEM',
     emoji: '🔬',
     subjects: [
+      { value: 'biology',             label: 'Biology (Triple Science)' },
+      { value: 'chemistry',           label: 'Chemistry (Triple Science)' },
+      { value: 'physics',             label: 'Physics (Triple Science)' },
       { value: 'computer_science',    label: 'Computer Science' },
       { value: 'further_mathematics', label: 'Further Mathematics' },
-      { value: 'engineering',         label: 'Engineering' },
       { value: 'statistics',          label: 'Statistics' },
     ],
   },
@@ -174,6 +203,7 @@ const UK_KS4_OPTIONS = [
       { value: 'geography',           label: 'Geography' },
       { value: 'religious_education', label: 'Religious Education' },
       { value: 'media_studies',       label: 'Media Studies' },
+      { value: 'physical_education',  label: 'Physical Education' },
     ],
   },
   {
@@ -196,23 +226,63 @@ const UK_KS4_YEARS = [10, 11];
 const needsSubjectSelection = (curriculum, year) =>
   curriculum === 'uk_national' && UK_KS4_YEARS.includes(Number(year));
 
-// Returns all subjects for a scholar including stream/selected subjects
-const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, year) => {
+// ─── UK NATIONAL: subjects per Key Stage ─────────────────────────────────────
+const UK_NATIONAL_SUBJECTS = {
+  // KS1: Y1–Y2 — core only
+  ks1: ['mathematics', 'english', 'science'],
+
+  // KS2: Y3–Y6 — text-based subjects only (art, music, PE require physical/video delivery)
+  ks2: [
+    'mathematics', 'english', 'science',
+    'history', 'geography', 'computing',
+    'design_technology', 'religious_education',
+  ],
+
+  // KS3: Y7–Y9 — specialist subjects, Combined Science (not triple), no RE mandatory
+  ks3: [
+    'mathematics', 'english_language', 'english_literature',
+    'combined_science',
+    'history', 'geography', 'citizenship', 'computing', 'design_technology',
+  ],
+
+  // KS4: Y10–Y11 — core compulsory only (optional subjects added via checklist)
+  ks4: [
+    'mathematics', 'english_language', 'english_literature',
+    'combined_science', 'citizenship',
+  ],
+};
+
+const getUkNationalKeyStage = (year) => {
+  const y = Number(year);
+  if (y <= 2) return 'ks1';
+  if (y <= 6) return 'ks2';
+  if (y <= 9) return 'ks3';
+  return 'ks4';
+};
+
+// Returns all subjects for a scholar including stream/selected/exam-mode subjects
+const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, year, examMode) => {
   if (curriculum === 'ng_sss') {
     const streamSubjects = stream ? (NG_SSS_STREAMS[stream]?.subjects || []) : [];
     const trade = tradeSubject ? [tradeSubject] : [];
     return [...NG_SSS_COMPULSORY, ...streamSubjects, ...trade];
   }
-  if (needsSubjectSelection(curriculum, year)) {
-    return [...UK_KS4_COMPULSORY, ...(selectedSubjects || [])];
+  if (curriculum === 'uk_national') {
+    const ks = getUkNationalKeyStage(year);
+    const base = UK_NATIONAL_SUBJECTS[ks];
+    const examExtras = getExamModeSubjects(examMode, year);
+    // KS4: append any optional subjects the parent has selected
+    if (ks === 'ks4') return [...base, ...(selectedSubjects || []), ...examExtras];
+    return [...base, ...examExtras];
   }
   return SUBJECTS_BY_CURRICULUM[curriculum] || [];
 };
 
 const SUBJECTS_BY_CURRICULUM = {
-  // Y1-Y6: primary core; Y7-Y9: KS3 full set; Y10-Y11: KS4 handled by getScholarSubjects
-  uk_national: ['mathematics', 'english_language', 'english_literature', 'biology', 'chemistry', 'physics', 'combined_science', 'history', 'geography', 'citizenship', 'computer_science', 'design_technology'],
-  uk_11plus: ['maths', 'english', 'verbal', 'nvr'],
+  // uk_national is year-aware — getScholarSubjects handles KS1/KS2/KS3/KS4 branching
+  // This fallback is only reached if year is undefined
+  uk_national: ['mathematics', 'english', 'science'],
+  // uk_11plus removed — exam mode subjects handled via getExamModeSubjects()
   us_common_core: ['maths', 'english', 'science'],
   aus_acara: ['maths', 'english', 'science'],
   ib_pyp: ['maths', 'english', 'science'],
@@ -293,6 +363,16 @@ const SUBJECT_META = {
   data_processing:              { emoji: "🖥️", label: "Data Processing" },
   // Health & PE
   physical_education:           { emoji: "🏃", label: "Physical Education" },
+  pe:                           { emoji: "🏃", label: "PE" },
+  sport_science:                { emoji: "⚽", label: "Sport Science" },
+  // Arts
+  art_design:                   { emoji: "🎨", label: "Art & Design" },
+  art_and_design:               { emoji: "🎨", label: "Art & Design" },
+  music:                        { emoji: "🎵", label: "Music" },
+  drama:                        { emoji: "🎭", label: "Drama" },
+  // RE
+  religious_education:          { emoji: "✝️",  label: "Religious Education" },
+  re:                           { emoji: "✝️",  label: "RE" },
   health_social_care:           { emoji: "🏥", label: "Health & Social Care" },
   sport_science:                { emoji: "⚽", label: "Sport Science" },
   // Canada
@@ -366,11 +446,14 @@ export default function ParentDashboard() {
   const [newStream, setNewStream] = useState("");
   const [newTrade, setNewTrade] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [graduatingScholar, setGraduatingScholar] = useState(null);
+  const [newExamMode, setNewExamMode] = useState(null);
 
   const currDef      = CURRICULA[newCurriculum];
   const isCanadian   = !!currDef?.hasProvinces;
   const isNgSss      = newCurriculum === 'ng_sss';
   const isUkKs4      = needsSubjectSelection(newCurriculum, newGrade);
+  const isUkKs2      = newCurriculum === 'uk_national' && Number(newGrade) >= 3 && Number(newGrade) <= 6;
   const provInfo     = isCanadian && newProvince
     ? CANADIAN_PROVINCES.find(p => p.code === newProvince)
     : null;
@@ -394,6 +477,10 @@ export default function ParentDashboard() {
     setNewGrade(Number(grade));
     // Clear subject selection if moving away from KS4
     if (!needsSubjectSelection(newCurriculum, grade)) setSelectedSubjects([]);
+    // Clear exam mode if year is no longer eligible
+    if (newExamMode && !EXAM_MODES[newExamMode]?.eligibleYears.includes(Number(grade))) {
+      setNewExamMode(null);
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -505,6 +592,7 @@ export default function ParentDashboard() {
           stream: isNgSss ? (newStream || null) : null,
           trade_subject: isNgSss ? (newTrade || null) : null,
           selected_subjects: isUkKs4 && selectedSubjects.length > 0 ? selectedSubjects : null,
+          exam_mode: newExamMode || null,
           access_code: code,
           total_xp: 0,
           coins: 0,
@@ -551,6 +639,7 @@ export default function ParentDashboard() {
         setNewStream("");
         setNewTrade("");
         setSelectedSubjects([]);
+        setNewExamMode(null);
         setError(null);
       }
     } catch (err) {
@@ -716,6 +805,23 @@ export default function ParentDashboard() {
                             📚 {scholar.selected_subjects.length} GCSE options
                           </span>
                         )}
+                        {scholar.exam_mode && (
+                          <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 font-bold px-3 py-1.5 rounded-xl text-sm">
+                            {EXAM_MODES[scholar.exam_mode]?.emoji} {EXAM_MODES[scholar.exam_mode]?.label}
+                          </span>
+                        )}
+                        {(() => {
+                          const prog = getProgressionState(scholar.curriculum, scholar.year_level);
+                          if (!prog.isAtStageEnd) return null;
+                          return (
+                            <button
+                              onClick={() => setGraduatingScholar(scholar)}
+                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border-2 border-amber-300 font-black px-3 py-1.5 rounded-xl text-sm animate-pulse hover:bg-amber-100 transition-colors"
+                            >
+                              🎓 Ready to Graduate!
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="bg-amber-100 text-amber-700 font-black px-3 py-2 rounded-2xl flex items-center gap-1.5">
@@ -921,6 +1027,56 @@ export default function ParentDashboard() {
                 </div>
               )}
 
+              {/* UK Exam Mode selector — shown for KS2 years (Y3–Y6) */}
+              {isUkKs2 && (
+                <div className="flex flex-col gap-2">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">
+                    🎓 Exam Prep Mode
+                  </label>
+                  <p className="text-xs text-indigo-700/60 font-semibold ml-1 mb-1">
+                    Optional — adds exam-specific subjects alongside the National Curriculum
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {/* None option */}
+                    <button
+                      type="button"
+                      onClick={() => setNewExamMode(null)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 font-bold text-sm transition-all text-left
+                        ${!newExamMode
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 text-slate-500 hover:border-indigo-200'}`}
+                    >
+                      <span className="text-xl">📚</span>
+                      <div>
+                        <p className="font-black">National Curriculum only</p>
+                        <p className="text-xs font-semibold opacity-70">No exam prep added</p>
+                      </div>
+                    </button>
+                    {/* Exam mode options */}
+                    {Object.entries(EXAM_MODES).map(([key, mode]) => {
+                      if (!mode.eligibleYears.includes(Number(newGrade))) return null;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setNewExamMode(key)}
+                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 font-bold text-sm transition-all text-left
+                            ${newExamMode === key
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 text-slate-600 hover:border-indigo-200'}`}
+                        >
+                          <span className="text-xl">{mode.emoji}</span>
+                          <div>
+                            <p className="font-black">{mode.label}</p>
+                            <p className="text-xs font-semibold opacity-70">{mode.desc}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* NG SSS — Stream selector */}
               {isNgSss && (
                 <div className="flex flex-col gap-3">
@@ -1000,7 +1156,7 @@ export default function ParentDashboard() {
                   Subjects included
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade).map(s => {
+                  {getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode).map(s => {
                     const m = SUBJECT_META[s] || { emoji: "📚", label: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) };
                     return (
                       <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
@@ -1015,6 +1171,18 @@ export default function ParentDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Graduation Modal */}
+      {graduatingScholar && (
+        <GraduationModal
+          scholar={graduatingScholar}
+          supabase={supabase}
+          onClose={() => {
+            setGraduatingScholar(null);
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

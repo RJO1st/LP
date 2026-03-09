@@ -49,7 +49,7 @@ export const REALMS = {
     icon:        '📖',
     colour:      '#ec4899',
     gradient:    'from-pink-500 to-rose-600',
-    subjects:    ['english', 'english_language', 'literature', 'verbal_reasoning', 'french_language'],
+    subjects:    ['english', 'english_language', 'english_literature', 'literature', 'verbal_reasoning', 'literature_in_english', 'french_language'],
     unlockAt:    0,
     chapters: [
       { id: 'phonics_planet',     name: 'Phonics Planet',      topics: ['phonics', 'spelling', 'word_families'] },
@@ -117,7 +117,7 @@ export const REALMS = {
     icon:        '🏛️',
     colour:      '#f59e0b',
     gradient:    'from-amber-500 to-orange-600',
-    subjects:    ['history', 'social_studies', 'individuals_and_societies', 'hass', 'canadian_history', 'agricultural_science', 'religious_studies'],
+    subjects:    ['history', 'nigerian_history', 'social_studies', 'individuals_and_societies', 'hass', 'canadian_history', 'agricultural_science', 'religious_studies', 'religious_education', 're', 'citizenship', 'citizenship_and_heritage', 'geography'],
     unlockAt:    150,
     chapters: [
       { id: 'ancient_archives', name: 'Ancient Archives',   topics: ['ancient_egypt', 'ancient_greece', 'roman_empire', 'ancient_civilisations'] },
@@ -158,7 +158,7 @@ export const REALMS = {
     icon:        '⚖️',
     colour:      '#8b5cf6',
     gradient:    'from-violet-500 to-purple-600',
-    subjects:    ['civic_education', 'government', 'economics', 'business_studies', 'commerce', 'accounting', 'home_economics'],
+    subjects:    ['civic_education', 'government', 'economics', 'business_studies', 'business_education', 'commerce', 'accounting', 'home_economics', 'home_management', 'art_design', 'art_and_design', 'music', 'drama', 'cultural_and_creative_arts', 'media_studies', 'pre_vocational_studies', 'marketing', 'office_practice', 'food_technology', 'health_social_care'],
     unlockAt:    250,
     chapters: [
       { id: 'government_gate',  name: 'Government Gate',    topics: ['democracy', 'parliament', 'constitution', 'arms_of_government', 'federalism'] },
@@ -178,7 +178,7 @@ export const REALMS = {
     icon:        '💻',
     colour:      '#06b6d4',
     gradient:    'from-cyan-500 to-blue-600',
-    subjects:    ['computer_science', 'ict', 'digital_technologies', 'basic_technology'],
+    subjects:    ['computer_science', 'computing', 'ict', 'digital_technologies', 'basic_technology', 'basic_digital_literacy', 'design_technology', 'engineering'],
     unlockAt:    300,
     chapters: [
       { id: 'binary_base',      name: 'Binary Base',        topics: ['binary', 'data_representation', 'number_systems'] },
@@ -200,7 +200,7 @@ export const REALMS = {
     icon:        '🏃',
     colour:      '#10b981',
     gradient:    'from-emerald-500 to-teal-600',
-    subjects:    ['physical_education', 'health', 'pe'],
+    subjects:    ['physical_education', 'pe', 'health', 'sport_science', 'health_social_care', 'health_education'],
     unlockAt:    50,
     chapters: [
       { id: 'movement_lab',    name: 'Movement Lab',    topics: ['movement_skills', 'safety_and_fair_play', 'fitness_and_health'] },
@@ -468,7 +468,7 @@ const UK_KS4_COMPULSORY_SUBJECTS = new Set([
  * @param {string[]|null} selectedSubjects - UK KS4 optional subjects
  * @param {number|null} yearLevel         - scholar's year level
  */
-export function getSubjectAccessibility(subject, curriculum, stream, tradeSubject, selectedSubjects, yearLevel) {
+export function getSubjectAccessibility(subject, curriculum, stream, tradeSubject, selectedSubjects, yearLevel, examMode) {
   // ── Nigerian SSS ──────────────────────────────────────────────────────────
   if (curriculum === 'ng_sss') {
     const subjectStream = NG_SSS_SUBJECT_STREAM[subject];
@@ -477,6 +477,10 @@ export function getSubjectAccessibility(subject, curriculum, stream, tradeSubjec
     if (subjectStream === stream) return 'active';
     return 'greyed';
   }
+
+  // ── UK National — exam mode subjects (verbal_reasoning, nvr) always active when mode is set ──
+  const EXAM_MODE_SUBJECTS = { eleven_plus: ['verbal_reasoning', 'nvr'], sats: [], iseb: ['verbal_reasoning', 'nvr'] };
+  if (examMode && EXAM_MODE_SUBJECTS[examMode]?.includes(subject)) return 'active';
 
   // ── UK National KS4 (Y10–Y11) ─────────────────────────────────────────────
   if (curriculum === 'uk_national' && (yearLevel === 10 || yearLevel === 11)) {
