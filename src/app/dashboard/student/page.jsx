@@ -142,30 +142,33 @@ function QuestToast({ quest, onDone }) {
 
 // ─── AVATAR DISPLAY ───────────────────────────────────────────────
 function AvatarDisplay({ avatar, size = "md", onClick }) {
-  const sizeClass = {
-    sm: "w-10 h-10 text-2xl",
-    md: "w-16 h-16 text-4xl",
-    lg: "w-24 h-24 text-5xl",
-  }[size];
+  const sizeCfg = {
+    sm: { cls: "w-10 h-10",         emoji: "text-2xl",  hat: "text-sm",   pet: "text-xs"   },
+    md: { cls: "w-16 h-16",         emoji: "text-4xl",  hat: "text-base", pet: "text-sm"   },
+    lg: { cls: "w-24 h-24",         emoji: "text-5xl",  hat: "text-xl",   pet: "text-base" },
+    xl: { cls: "w-[88px] h-[88px]", emoji: "text-[52px]", hat: "text-2xl", pet: "text-lg"  },
+  }[size] || { cls: "w-16 h-16", emoji: "text-4xl", hat: "text-base", pet: "text-sm" };
   const bgMap = {
     "🌌": "from-indigo-900 to-purple-900",
     "🪐": "from-blue-800 to-slate-900",
     "🔥": "from-orange-800 to-red-900",
   };
-  const bg = bgMap[avatar?.background] || "from-indigo-600 to-violet-700";
+  const bg = bgMap[avatar?.background] || "from-indigo-700 to-violet-800";
   return (
     <button
       onClick={onClick}
-      className={`${sizeClass} rounded-full bg-gradient-to-br ${bg} flex items-center
-                  justify-center relative shadow-lg border-2 border-white/20
+      className={`${sizeCfg.cls} rounded-full bg-gradient-to-br ${bg} flex items-center
+                  justify-center relative shadow-xl border-[3px] border-white/30
                   hover:scale-105 transition-transform`}
     >
-      <span>{avatar?.base === "astronaut" ? "👨‍🚀" : "🚀"}</span>
+      <span className={sizeCfg.emoji} style={{ lineHeight: 1 }}>
+        {avatar?.base === "astronaut" ? "👨‍🚀" : "🚀"}
+      </span>
       {avatar?.hat && (
-        <span className="absolute -top-1 -right-1 text-lg">{AVATAR_ITEMS[avatar.hat]?.icon}</span>
+        <span className={`absolute -top-1.5 -right-1.5 ${sizeCfg.hat}`}>{AVATAR_ITEMS[avatar.hat]?.icon}</span>
       )}
       {avatar?.pet && (
-        <span className="absolute -bottom-1 -right-1 text-sm">{AVATAR_ITEMS[avatar.pet]?.icon}</span>
+        <span className={`absolute -bottom-1 -right-1 ${sizeCfg.pet}`}>{AVATAR_ITEMS[avatar.pet]?.icon}</span>
       )}
     </button>
   );
@@ -300,6 +303,90 @@ function Leaderboard({ entries, currentScholarId }) {
         );
       })}
     </div>
+  );
+}
+
+// ─── HERO AVATAR ──────────────────────────────────────────────────
+// Large illustrated character for hero card — all accessories layered
+const BG_GRADIENTS_MAP = {
+  planet:  "from-blue-900 via-slate-800 to-blue-950",
+  galaxy:  "from-indigo-900 via-purple-900 to-slate-900",
+  sunset:  "from-orange-700 via-rose-800 to-purple-900",
+  ocean:   "from-blue-800 via-cyan-900 to-slate-900",
+};
+function HeroAvatar({ avatar, onClick }) {
+  // Background gradient from avatar.background icon key or default
+  const bgKey = avatar?.background === "🪐" ? "planet"
+              : avatar?.background === "🌌" ? "galaxy"
+              : avatar?.background === "🌅" ? "sunset"
+              : avatar?.background === "🌊" ? "ocean"
+              : null;
+  const bg  = bgKey ? BG_GRADIENTS_MAP[bgKey] : "from-indigo-700 via-violet-800 to-indigo-900";
+  const baseEmoji = avatar?.base === "astronaut" ? "👨‍🚀" : "🚀";
+  const hat = avatar?.hat       ? AVATAR_ITEMS[avatar.hat]       : null;
+  const acc = avatar?.accessory ? AVATAR_ITEMS[avatar.accessory] : null;
+  const pet = avatar?.pet       ? AVATAR_ITEMS[avatar.pet]       : null;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-[100px] h-[100px] rounded-full bg-gradient-to-br ${bg}
+                  flex items-center justify-center relative overflow-visible
+                  shadow-2xl border-[3px] border-white/25
+                  hover:scale-105 transition-transform select-none`}
+    >
+      {/* Accessory aura (behind) */}
+      {acc && (
+        <span className="absolute inset-0 flex items-center justify-center text-4xl opacity-60 pointer-events-none select-none">
+          {acc.icon}
+        </span>
+      )}
+      {/* Base character — large */}
+      <span className="text-[58px] leading-none z-10 select-none"
+        style={{ filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.5))" }}>
+        {baseEmoji}
+      </span>
+      {/* Hat overlay top-right */}
+      {hat && (
+        <span className="absolute -top-3 -right-2 text-[28px] z-20 select-none"
+          style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}>
+          {hat.icon}
+        </span>
+      )}
+      {/* Pet bottom-right */}
+      {pet && (
+        <span className="absolute -bottom-2 -right-3 text-2xl z-20 select-none"
+          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}>
+          {pet.icon}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── STREAK TIMER DISPLAY ─────────────────────────────────────────
+// Standalone countdown showing HH:MM:SS until midnight
+function StreakTimerDisplay({ lastActivityAt }) {
+  const [timeLeft, setTimeLeft] = React.useState("");
+  React.useEffect(() => {
+    function calc() {
+      const now  = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      let secs = Math.max(0, Math.floor((midnight - now) / 1000));
+      const h = String(Math.floor(secs / 3600)).padStart(2, "0");
+      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, "0");
+      const s = String(secs % 60).padStart(2, "0");
+      setTimeLeft(`${h}:${m}:${s}`);
+    }
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="text-2xl font-black tabular-nums tracking-tight text-slate-800 leading-none">
+      {timeLeft}
+    </span>
   );
 }
 
@@ -799,7 +886,7 @@ export default function StudentDashboard() {
       )}
 
       {/* ── NAV ─────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <nav className="bg-white border-b border-slate-100 px-3 sm:px-5 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
           <span className="font-black text-lg text-slate-800">LaunchPard</span>
@@ -846,7 +933,7 @@ export default function StudentDashboard() {
             : 'bg-gradient-to-r from-indigo-500 to-purple-600'
           } px-4 py-3 shadow-lg
         `}>
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="max-w-[1440px] mx-auto px-3 sm:px-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="text-2xl">
                 {trialInfo.daysLeft <= 2 ? '⚠️' : '🎉'}
@@ -876,33 +963,55 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 pt-8 space-y-6">
+      <main className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-6 space-y-5">
 
-        {/* ── HERO ─────────────────────────────────────────────── */}
-        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-[32px] p-6 text-white shadow-2xl relative overflow-hidden">
-          {["top-4 left-8", "top-8 right-20", "bottom-6 left-1/4", "top-6 right-40"].map((pos, i) => (
-            <div key={i} className={`absolute ${pos} w-1 h-1 bg-white rounded-full opacity-${[60,40,80,50][i]}`} />
+        {/* ── HERO ─────────────────────────────────────────────────────── */}
+        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-[28px] p-6 text-white shadow-xl relative overflow-hidden">
+          {/* Star dust */}
+          {["top-3 left-10", "top-8 right-24", "bottom-5 left-1/3", "top-5 right-44", "bottom-8 right-1/4"].map((pos, i) => (
+            <div key={i} className={`absolute ${pos} rounded-full bg-white pointer-events-none`}
+              style={{ width: 2 + (i % 2), height: 2 + (i % 2), opacity: [0.5,0.3,0.7,0.4,0.6][i] }} />
           ))}
-          <div className="flex items-start gap-4 relative z-10">
-            <AvatarDisplay avatar={scholar.avatar} size="lg" onClick={() => setShowAvatarShop(true)} />
+          {/* Decorative planet blob top-right */}
+          <div className="absolute -top-16 -right-16 w-52 h-52 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(167,139,250,0.35) 0%, rgba(99,102,241,0.12) 60%, transparent 80%)" }} />
+
+          <div className="flex items-center gap-5 relative z-10">
+            {/* Scholar avatar — large illustrated character with customisation ring */}
+            <div className="relative shrink-0 cursor-pointer group" onClick={() => setShowAvatarShop(true)}>
+              {/* Outer cyan glow ring — matches PDF design */}
+              <div className="absolute -inset-[4px] rounded-full pointer-events-none"
+                style={{ boxShadow: "0 0 0 3px rgba(34,211,238,0.6), 0 0 28px rgba(34,211,238,0.25)" }} />
+              <HeroAvatar avatar={scholar.avatar} onClick={() => setShowAvatarShop(true)} />
+              {/* Edit badge */}
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-cyan-400 border-2 border-white
+                              flex items-center justify-center text-xs shadow-md
+                              group-hover:scale-110 transition-transform z-10" title="Customise avatar">
+                ✏️
+              </div>
+            </div>
+
+            {/* Name + badges */}
             <div className="flex-1 min-w-0">
-              <p className="text-indigo-200 text-xs font-black uppercase tracking-widest mb-0.5">
+              <p className="text-indigo-200 text-[11px] font-black uppercase tracking-widest mb-0.5">
                 {levelInfo.current.title} · Lv {levelInfo.current.level}
               </p>
-              <h1 className="text-2xl font-black truncate">Welcome back, {scholar.name}!</h1>
+              <h1 className="text-2xl font-black leading-tight truncate">
+                Welcome back, <span className="text-cyan-300">{scholar.name}!</span>
+              </h1>
               <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-black">
+                <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-black backdrop-blur-sm">
                   {currDef.country} {formatGradeLabel(scholar.year_level || scholar.year, curriculum)}
                 </span>
-                <span className="bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
+                <span className="bg-amber-400 text-amber-900 px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
                   <StarFull size={11} /> {scholar.total_xp || 0} XP
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1
                   ${(scholar.streak || 0) > 0 ? "bg-orange-400 text-orange-900" : "bg-white/20"}`}>
                   <FlameIcon size={11} /> {scholar.streak || 0} day streak
                 </span>
                 {(scholar.streak_shields || 0) > 0 && (
-                  <span className="bg-blue-400/80 text-blue-900 px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
+                  <span className="bg-blue-400/80 text-blue-900 px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
                     <ShieldIcon size={11} /> {scholar.streak_shields} shield{scholar.streak_shields > 1 ? "s" : ""}
                   </span>
                 )}
@@ -912,251 +1021,225 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* ── WEEKLY CHALLENGE BANNER (Y3+ only) ───────────────── */}
+        {/* ── WEEKLY CHALLENGE BANNER (Y3+ only) ───────────────────────── */}
         <WeeklyChallengeBanner
           scholar={scholar}
           weeklyStats={weeklyStats}
           onStart={handleWeeklyChallengeStart}
         />
 
-        {/* ══════════════════════════════════════════════════════════
-            TWO-COLUMN LAYOUT
-            Left sidebar: Quests · Weekly Plan · Tools
-            Right main:   Subjects · Stats · Leaderboard
-        ══════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col lg:flex-row gap-5 items-start">
+        {/* ══════════════════════════════════════════════════════════════════
+            ROW 1: Quick Launch · Mission Control · Daily Streak  (3-col)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-          {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
-          <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:sticky lg:top-[72px]">
+          {/* ── QUICK LAUNCH ────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2.5">
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Quick Launch</p>
 
-            {/* ── QUICK LAUNCH — top for instant access ────────── */}
-            <div className="space-y-2.5">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Quick Launch</p>
+            <button
+              onClick={() => setShowNebulaTrials(true)}
+              className="flex items-center gap-3 w-full text-left rounded-xl p-3 transition-all hover:scale-[1.01] active:scale-[0.98] group"
+              style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)", border: "1.5px solid rgba(99,102,241,0.5)" }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform"
+                style={{ background: "rgba(99,102,241,0.3)" }}>⚡</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-black text-sm leading-tight">Nebula Trials</p>
+                <p className="text-indigo-300 text-[10px] font-medium">Learn your Times Tables</p>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(129,140,248,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
 
-              {/* Nebula Trials */}
+            {isTestEligible(examYear) && (
               <button
-                onClick={() => setShowNebulaTrials(true)}
-                className="w-full text-left rounded-2xl p-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] group"
-                style={{
-                  background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
-                  border: "1.5px solid rgba(99,102,241,0.5)",
-                }}
+                onClick={() => setView("tests")}
+                className="flex items-center gap-3 w-full text-left rounded-xl p-3 transition-all hover:scale-[1.01] active:scale-[0.98] group"
+                style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1.5px solid rgba(99,102,241,0.3)" }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0
-                                  group-hover:scale-110 transition-transform"
-                    style={{ background: "rgba(99,102,241,0.3)" }}>
-                    ⚡
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-sm leading-tight">Nebula Trials - Learn your Times Table.</p>
-                    <p className="text-indigo-300 text-[11px] font-medium mt-0.5">
-                      Orbital Run Mode · Target Lock Mode · Grid Fill Mode · Warp Trial Mode
-                    </p>
-                  </div>
-                  <svg className="shrink-0 group-hover:translate-x-0.5 transition-transform"
-                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(129,140,248,0.8)"
-                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform"
+                  style={{ background: "rgba(99,102,241,0.2)" }}>📋</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-black text-sm leading-tight">Test Centre</p>
+                  <p className="text-slate-400 text-[10px] font-medium">11+ · SATs · WAEC · SAT</p>
                 </div>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
+            )}
+          </div>
 
-              {/* Test Centre */}
-              {isTestEligible(examYear) && (
-                <button
-                  onClick={() => setView("tests")}
-                  className="w-full text-left rounded-2xl p-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] group"
-                  style={{
-                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-                    border: "1.5px solid rgba(99,102,241,0.3)",
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0
-                                    group-hover:scale-110 transition-transform"
-                      style={{ background: "rgba(99,102,241,0.2)" }}>
-                      📋
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-black text-sm leading-tight">Test Centre</p>
-                      <p className="text-slate-400 text-[11px] font-medium mt-0.5">
-                        11+ · SATs · WAEC · SAT
-                      </p>
-                    </div>
-                    <svg className="shrink-0 group-hover:translate-x-0.5 transition-transform"
-                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.7)"
-                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
-                </button>
+          {/* ── MISSION CONTROL (SubjectInsightCard) ────────────── */}
+          <SubjectInsightCard
+            scholar={scholar}
+            weeklyStats={weeklyStats}
+            lastWeekStats={lastWeekStats}
+            streak={streakData.streak}
+          />
+
+          {/* ── DAILY STREAK ─────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col justify-between gap-3">
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Daily Streak</p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl shrink-0">🔥</span>
+              <div className="min-w-0">
+                <StreakTimerDisplay lastActivityAt={streakData.lastActivityAt} />
+                <p className="text-[11px] text-slate-400 font-bold leading-tight mt-0.5">left to keep your streak</p>
+              </div>
+            </div>
+            <div>
+              {(streakData.streak || 0) > 0 ? (
+                <p className="text-xs font-bold text-emerald-600">
+                  🔥 {streakData.streak} day streak — keep it going!
+                </p>
+              ) : (
+                <p className="text-xs font-bold text-slate-500">
+                  Start a mission to begin your streak
+                </p>
               )}
             </div>
+            <button
+              onClick={() => setActiveSubject(subjects[0] || "maths")}
+              className="w-full py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95 shadow-sm"
+            >
+              Start Mission →
+            </button>
+          </div>
+        </div>
 
-            {/* Active Quests */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Active Quests</span>
-                <span className="text-lg">🚀</span>
-              </div>
-              <div className="px-3 pb-3">
-                <QuestPanel scholarId={scholar.id} />
-              </div>
+        {/* ══════════════════════════════════════════════════════════════════
+            ROW 2: Choose Your Mission — full-width subject grid
+        ══════════════════════════════════════════════════════════════════ */}
+        <section>
+          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 px-0.5">
+            Choose Your Mission
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {subjects.map(s => (
+              <SubjectCard
+                key={s}
+                subjectId={s}
+                proficiency={skillProficiency[s]}
+                onClick={() => setActiveSubject(s)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            ROW 3: Active Quests · This Week · Leaderboard  (3-col)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* Active Quests */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Active Quests</span>
+              <span className="text-base">🚀</span>
             </div>
-
-            {/* Weekly Mission Plan */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">This Week</span>
-                <span className="text-lg">📅</span>
-              </div>
-              <div className="px-3 pb-3">
-                <WeeklyMissionPlan
-                  scholar={scholar}
-                  weeklyStats={weeklyStats}
-                  onStartSubject={(subject) => setActiveSubject(subject)}
-                />
-              </div>
+            <div className="px-3 pb-3">
+              <QuestPanel scholarId={scholar.id} />
             </div>
+          </div>
 
-            {/* Badges — compact mini-grid (desktop only) */}
-            <div className="hidden lg:block bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                  Badges
-                </span>
-                <span className="text-xs font-bold text-slate-400">
-                  {earnedBadges.length}/{Object.keys(BADGES).length}
-                </span>
-              </div>
-              <BadgeGrid earnedIds={earnedBadges} />
+          {/* This Week */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">This Week</span>
+              <span className="text-base">📅</span>
             </div>
-
-          </aside>
-
-          {/* ── MAIN COLUMN ──────────────────────────────────────── */}
-          <div className="flex-1 min-w-0 space-y-5">
-
-            {/* Insight + Streak (side by side on md+) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SubjectInsightCard
+            <div className="px-3 pb-3">
+              <WeeklyMissionPlan
                 scholar={scholar}
                 weeklyStats={weeklyStats}
-                lastWeekStats={lastWeekStats}
-                streak={streakData.streak}
-              />
-              <StreakCountdown
-                streak={streakData.streak}
-                lastActivityAt={streakData.lastActivityAt}
-                onStartMission={() => setActiveSubject(subjects[0] || "maths")}
+                onStartSubject={(subject) => setActiveSubject(subject)}
               />
             </div>
+          </div>
 
-            {/* Subject grid */}
-            <section>
-              <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
-                Choose Your Mission
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {subjects.map(s => (
-                  <SubjectCard
-                    key={s}
-                    subjectId={s}
-                    proficiency={skillProficiency[s]}
-                    onClick={() => setActiveSubject(s)}
-                  />
+          {/* Leaderboard */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Leaderboard</span>
+              <div className="flex gap-1">
+                {["year", "friends"].map(m => (
+                  <button key={m} onClick={() => setLbMode(m)}
+                    className={`text-[10px] px-2 py-0.5 rounded-lg font-black capitalize
+                      ${lbMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}>
+                    {m === "year" ? formatGradeLabel(scholar.year_level || scholar.year, curriculum) : "Friends"}
+                  </button>
                 ))}
               </div>
-            </section>
+            </div>
+            <Leaderboard entries={leaderboard.slice(0, 5)} currentScholarId={scholar.id} />
+          </div>
+        </div>
 
-            {/* Badges + Leaderboard (mobile badges shown here; desktop shown in sidebar) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="lg:hidden bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
-                  Badges ({earnedBadges.length}/{Object.keys(BADGES).length})
-                </h3>
-                <BadgeGrid earnedIds={earnedBadges} />
-              </div>
+        {/* ══════════════════════════════════════════════════════════════════
+            ROW 4: Badges · Recent Missions  (2-col)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Badges</span>
+              <span className="text-[10px] font-bold text-slate-400">{earnedBadges.length}/{Object.keys(BADGES).length}</span>
+            </div>
+            <BadgeGrid earnedIds={earnedBadges} />
+          </div>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 md:col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                    Leaderboard
-                  </h3>
-                  <div className="flex gap-1">
-                    {["year", "friends"].map(m => (
-                      <button key={m} onClick={() => setLbMode(m)}
-                        className={`text-xs px-2 py-1 rounded-lg font-black capitalize
-                          ${lbMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}>
-                        {m === "year" ? formatGradeLabel(scholar.year_level || scholar.year, curriculum) : "Friends"}
-                      </button>
-                    ))}
+          {recentQuizzes.length > 0 ? (
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3">Recent Missions</span>
+              <div className="space-y-2">
+                {recentQuizzes.map((q, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-lg">{SUBJECT_ICONS[q.subject] ?? "📚"}</span>
+                    <div className="flex-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-bold text-slate-700 capitalize">{q.subject}</span>
+                        <span className="text-slate-400 text-xs">{q.date}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                        <div className={`h-full rounded-full ${q.pct >= 80 ? "bg-emerald-500" : q.pct >= 50 ? "bg-amber-400" : "bg-rose-400"}`}
+                          style={{ width: `${q.pct}%` }} />
+                      </div>
+                    </div>
+                    <span className={`font-black text-sm w-10 text-right ${q.pct >= 80 ? "text-emerald-600" : q.pct >= 50 ? "text-amber-600" : "text-rose-500"}`}>
+                      {q.score}/{q.total}
+                    </span>
                   </div>
-                </div>
-                <Leaderboard entries={leaderboard.slice(0, 5)} currentScholarId={scholar.id} />
+                ))}
               </div>
             </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-3xl">🛸</span>
+              <p className="text-slate-500 text-sm font-bold">No missions yet</p>
+              <p className="text-slate-400 text-xs">Complete your first mission to see your history here</p>
+            </div>
+          )}
+        </div>
 
-            {/* Recent Missions */}
-            {recentQuizzes.length > 0 && (
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
-                  Recent Missions
-                </h3>
-                <div className="space-y-2">
-                  {recentQuizzes.map((q, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-lg">{SUBJECT_ICONS[q.subject] ?? "📚"}</span>
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-bold text-slate-700 capitalize">{q.subject}</span>
-                          <span className="text-slate-400 text-xs">{q.date}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              q.pct >= 80 ? "bg-emerald-500" : q.pct >= 50 ? "bg-amber-400" : "bg-rose-400"
-                            }`}
-                            style={{ width: `${q.pct}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className={`font-black text-sm w-12 text-right ${
-                        q.pct >= 80 ? "text-emerald-600" : q.pct >= 50 ? "text-amber-600" : "text-rose-500"
-                      }`}>
-                        {q.score}/{q.total}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Progress section */}
-            {showProgress && (
-              <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
-                <h2 className="text-2xl font-black text-slate-800 mb-6">Your Progress</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <SkillHeatmap
-                    skills={fullSkills}
-                    curriculum={curriculum}
-                    subjects={subjects}
-                    grades={(currDef.grades ?? []).filter(g => g >= examYear)}
-                    gradeLabel={currDef.gradeLabel}
-                    startYear={examYear}
-                  />
-                  <ProgressChart
-                    data={chartData}
-                    subjects={subjects}
-                    color="#6366f1"
-                  />
-                </div>
-              </div>
-            )}
-
-          </div>{/* end main column */}
-        </div>{/* end two-col */}
+        {/* Progress section (toggle) */}
+        {showProgress && (
+          <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
+            <h2 className="text-xl font-black text-slate-800 mb-5">Your Progress</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SkillHeatmap
+                skills={fullSkills}
+                curriculum={curriculum}
+                subjects={subjects}
+                grades={(currDef.grades ?? []).filter(g => g >= examYear)}
+                gradeLabel={currDef.gradeLabel}
+                startYear={examYear}
+              />
+              <ProgressChart
+                data={chartData}
+                subjects={subjects}
+                color="#6366f1"
+              />
+            </div>
+          </div>
+        )}
 
       </main>
     </div>
