@@ -27,6 +27,33 @@ const QuestOrchestrator = dynamic(
   { loading: () => <LoadingScreen message="Loading LaunchPad Environment…" /> }
 );
 
+const MockTestHub = dynamic(
+  () => import("../../../components/MockTestHub"),
+  { loading: () => <LoadingScreen message="Loading Test Centre…" /> }
+);
+
+// ── Weekly test flow ───────────────────────────────────────────────
+import {
+  WeeklyChallengeBanner,
+  MissionDebrief,
+  getWeeklyTestConfig,
+  isTestEligible,
+  getQuestsThisWeek,
+  hasCompletedWeeklyTest,
+  markWeeklyTestDone,
+  MIN_YEAR_FOR_TESTS,
+} from "../../../components/WeeklyTestFlow";
+
+const PaperEngine = dynamic(
+  () => import("../../../components/game/PaperEngine"),
+  { loading: () => <LoadingScreen message="Preparing your assessment…" /> }
+);
+
+const NebulaTrials = dynamic(
+  () => import("../../../components/game/NebulaTrials"),
+  { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
+);
+
 // ─── ICONS ────────────────────────────────────────────────────────
 const Icon = ({ d, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -340,7 +367,12 @@ export default function StudentDashboard() {
 
   const [scholar,          setScholar]          = useState(null);
   const [activeSubject,    setActiveSubject]    = useState(null);
+  const [showNebulaTrials,   setShowNebulaTrials]   = useState(false);
+  const [view,             setView]             = useState("dashboard"); // "dashboard" | "tests" | "weekly_test" | "debrief"
   const [prevQuestionIds,  setPrevQuestionIds]  = useState([]);
+  const [weeklyTestConfig, setWeeklyTestConfig] = useState(null);
+  const [weeklyTestResult, setWeeklyTestResult] = useState(null);
+  const [weeklyTestQs,     setWeeklyTestQs]     = useState([]);
   const [fullSkills,       setFullSkills]       = useState([]);
   const [chartData,        setChartData]        = useState([]);
   const [showProgress,     setShowProgress]     = useState(false);
@@ -547,8 +579,9 @@ export default function StudentDashboard() {
   ]);
 
   // ── After quiz completes ─────────────────────────────────────────
-  const handleQuestComplete = useCallback(async () => {
-    setActiveSubject(null);
+  const handleQuestComplete = useCallback(async (payload) => {
+    // DO NOT call setActiveSubject(null) here — that unmounts QuestOrchestrator
+    // before EngineFinished can render. The scholar closes via onClose.
     if (!scholar?.id) return;
 
     await Promise.all([
@@ -557,16 +590,21 @@ export default function StudentDashboard() {
       loadQuests(scholar.id),
     ]);
 
-    const { data: newBadgeData } = await supabase.rpc("check_and_award_badges", {
-      p_scholar_id: scholar.id,
-    });
-    if (newBadgeData?.length) {
-      const details = newBadgeData
-        .map(b => ({ ...BADGES[b.badge_id], xp: b.xp_reward, coins: b.coin_reward }))
-        .filter(Boolean);
-      setNewBadges(details);
-      sounds.badgeEarned();
-      loadBadges(scholar.id);
+    // check_and_award_badges — non-fatal, skip gracefully if RPC doesn't exist
+    try {
+      const { data: newBadgeData, error: badgeErr } = await supabase.rpc("check_and_award_badges", {
+        p_scholar_id: scholar.id,
+      });
+      if (!badgeErr && newBadgeData?.length) {
+        const details = newBadgeData
+          .map(b => ({ ...BADGES[b.badge_id], xp: b.xp_reward, coins: b.coin_reward }))
+          .filter(Boolean);
+        setNewBadges(details);
+        sounds.badgeEarned();
+        loadBadges(scholar.id);
+      }
+    } catch (e) {
+      // Badge RPC not yet deployed — skip silently
     }
 
     const { data: fresh } = await supabase
@@ -583,6 +621,48 @@ export default function StudentDashboard() {
     // ← Tier 1: refresh insight + streak after each completed mission
     await refreshTier1(scholar.id);
   }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, refreshTier1]);
+
+  // ── Launch weekly challenge ──────────────────────────────────────
+  const handleWeeklyChallengeStart = useCallback(async () => {
+    if (!scholar) return;
+    const config = getWeeklyTestConfig(scholar, weeklyStats);
+    setWeeklyTestConfig(config);
+
+    // Fetch questions for this test
+    try {
+      const curriculum = config.curriculum ?? scholar.curriculum ?? "uk_national";
+      const year       = parseInt(scholar.year_level ?? scholar.year ?? 1, 10);
+      const { data } = await supabase
+        .from("question_bank")
+        .select("id, question_text, options, correct_index, explanation, passage, subject, topic")
+        .eq("curriculum", curriculum)
+        .eq("subject", config.subject)
+        .eq("year_level", year)
+        .limit(80);
+
+      const questions = (data ?? [])
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 20)
+        .map(r => ({
+          ...r,
+          q:   r.question_text,
+          opts: Array.isArray(r.options) ? r.options : JSON.parse(r.options ?? "[]"),
+          a:   r.correct_index,
+          exp: r.explanation ?? "",
+        }));
+
+      setWeeklyTestQs(questions);
+      setView("weekly_test");
+    } catch (err) {
+      console.error("[WeeklyTest] Failed to load questions:", err);
+    }
+  }, [scholar, supabase, weeklyStats]);
+
+  // ── Weekly test complete ─────────────────────────────────────────
+  const handleWeeklyTestComplete = useCallback((result) => {
+    setWeeklyTestResult({ ...result, subject: weeklyTestConfig?.subject ?? "maths" });
+    setView("debrief");
+  }, [weeklyTestConfig]);
 
   // ── Avatar purchase ──────────────────────────────────────────────
   const handleAvatarPurchase = async (itemId, item) => {
@@ -618,6 +698,70 @@ export default function StudentDashboard() {
   const examExtras   = examModeDef?.eligibleYears.includes(examYear) ? (examModeDef.extraSubjects ?? []) : [];
   const subjects     = [...new Set([...getSubjectsForCurriculum(curriculum), ...examExtras])];
   const levelInfo    = getLevelInfo(scholar.total_xp || 0);
+
+  // ── Test Centre ──────────────────────────────────────────────────
+  if (view === "tests") {
+    return (
+      <MockTestHub
+        scholar={scholar}
+        supabase={supabase}
+        onBack={() => setView("dashboard")}
+      />
+    );
+  }
+
+  // ── Weekly challenge test ────────────────────────────────────────
+  if (view === "weekly_test" && weeklyTestConfig) {
+    return (
+      <PaperEngine
+        testConfig={weeklyTestConfig}
+        questions={weeklyTestQs}
+        onClose={() => setView("dashboard")}
+        onComplete={handleWeeklyTestComplete}
+      />
+    );
+  }
+
+  // ── Mission debrief ──────────────────────────────────────────────
+  if (view === "debrief" && weeklyTestResult) {
+    return (
+      <MissionDebrief
+        scholar={scholar}
+        testResult={weeklyTestResult}
+        weeklyStats={weeklyStats}
+        onDone={() => {
+          markWeeklyTestDone(scholar?.id);
+          setView("dashboard");
+          setWeeklyTestResult(null);
+          setWeeklyTestConfig(null);
+          setWeeklyTestQs([]);
+          // Refresh stats so banner disappears
+          refreshTier1(scholar.id);
+        }}
+      />
+    );
+  }
+
+  // ── Nebula Trials ───────────────────────────────────────────
+  if (showNebulaTrials) {
+    return (
+      <NebulaTrials
+        student={scholar}
+        onClose={() => setShowNebulaTrials(false)}
+        onXPEarned={async (xp) => {
+          // Award XP to scholar (reuse existing mastery update flow)
+          if (scholar?.id && xp > 0) {
+            await supabase.from("scholar_skill_levels").upsert({
+              scholar_id: scholar.id,
+              subject:    "maths",
+              skill:      "times_tables",
+              xp_total:   xp,
+            }, { onConflict: "scholar_id,subject,skill", ignoreDuplicates: false });
+          }
+        }}
+      />
+    );
+  }
 
   // ── Active quiz (Routed via QuestOrchestrator) ───────────────────
   if (activeSubject) {
@@ -672,9 +816,7 @@ export default function StudentDashboard() {
           >
             <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
           </button>
-          <button onClick={toggleSound} className="p-2 text-slate-400 hover:text-slate-700 transition-colors">
-            {soundOn ? <SoundOnIcon size={18} /> : <SoundOffIcon size={18} />}
-          </button>
+
           <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-200">
             <CoinIcon size={16} />
             <span className="font-black text-yellow-700 text-sm">{scholar.coins || 0}</span>
@@ -770,131 +912,252 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* ── TIER 1: Insight card + Streak countdown (2-col) ──── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <SubjectInsightCard
-            scholar={scholar}
-            weeklyStats={weeklyStats}
-            lastWeekStats={lastWeekStats}
-            streak={streakData.streak}
-          />
-          <StreakCountdown
-            streak={streakData.streak}
-            lastActivityAt={streakData.lastActivityAt}
-            onStartMission={() => setActiveSubject(subjects[0] || "maths")}
-          />
-        </div>
-
-        {/* ── ACTIVE QUESTS ────────────────────────────────────── */}
-        <QuestPanel scholarId={scholar.id} />
-
-        {/* ── TIER 1: Weekly Mission Plan ───────────────────────── */}
-        <WeeklyMissionPlan
+        {/* ── WEEKLY CHALLENGE BANNER (Y3+ only) ───────────────── */}
+        <WeeklyChallengeBanner
           scholar={scholar}
           weeklyStats={weeklyStats}
-          onStartSubject={(subject) => setActiveSubject(subject)}
+          onStart={handleWeeklyChallengeStart}
         />
 
-        {/* ── SUBJECT GRID ─────────────────────────────────────── */}
-        <section>
-          <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
-            Choose Your Mission
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {subjects.map(s => (
-              <SubjectCard
-                key={s}
-                subjectId={s}
-                proficiency={skillProficiency[s]}
-                onClick={() => setActiveSubject(s)}
-              />
-            ))}
-          </div>
-        </section>
+        {/* ══════════════════════════════════════════════════════════
+            TWO-COLUMN LAYOUT
+            Left sidebar: Quests · Weekly Plan · Tools
+            Right main:   Subjects · Stats · Leaderboard
+        ══════════════════════════════════════════════════════════ */}
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
 
-        {/* ── BADGES & LEADERBOARD ─────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
-              Badges ({earnedBadges.length}/{Object.keys(BADGES).length})
-            </h3>
-            <BadgeGrid earnedIds={earnedBadges} />
-          </div>
+          {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
+          <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:sticky lg:top-[72px]">
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                Leaderboard
-              </h3>
-              <div className="flex gap-1">
-                {["year", "friends"].map(m => (
-                  <button key={m} onClick={() => setLbMode(m)}
-                    className={`text-xs px-2 py-1 rounded-lg font-black capitalize
-                      ${lbMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}>
-                    {m === "year" ? formatGradeLabel(scholar.year_level || scholar.year, curriculum) : "Friends"}
-                  </button>
-                ))}
+            {/* ── QUICK LAUNCH — top for instant access ────────── */}
+            <div className="space-y-2.5">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Quick Launch</p>
+
+              {/* Nebula Trials */}
+              <button
+                onClick={() => setShowNebulaTrials(true)}
+                className="w-full text-left rounded-2xl p-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+                style={{
+                  background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
+                  border: "1.5px solid rgba(99,102,241,0.5)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0
+                                  group-hover:scale-110 transition-transform"
+                    style={{ background: "rgba(99,102,241,0.3)" }}>
+                    ⚡
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-black text-sm leading-tight">Nebula Trials - Learn your Times Table.</p>
+                    <p className="text-indigo-300 text-[11px] font-medium mt-0.5">
+                      Orbital Run Mode · Target Lock Mode · Grid Fill Mode · Warp Trial Mode
+                    </p>
+                  </div>
+                  <svg className="shrink-0 group-hover:translate-x-0.5 transition-transform"
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(129,140,248,0.8)"
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* Test Centre */}
+              {isTestEligible(examYear) && (
+                <button
+                  onClick={() => setView("tests")}
+                  className="w-full text-left rounded-2xl p-3.5 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+                  style={{
+                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    border: "1.5px solid rgba(99,102,241,0.3)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0
+                                    group-hover:scale-110 transition-transform"
+                      style={{ background: "rgba(99,102,241,0.2)" }}>
+                      📋
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-black text-sm leading-tight">Test Centre</p>
+                      <p className="text-slate-400 text-[11px] font-medium mt-0.5">
+                        11+ · SATs · WAEC · SAT
+                      </p>
+                    </div>
+                    <svg className="shrink-0 group-hover:translate-x-0.5 transition-transform"
+                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.7)"
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            {/* Active Quests */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Active Quests</span>
+                <span className="text-lg">🚀</span>
+              </div>
+              <div className="px-3 pb-3">
+                <QuestPanel scholarId={scholar.id} />
               </div>
             </div>
-            <Leaderboard entries={leaderboard.slice(0, 5)} currentScholarId={scholar.id} />
-          </div>
-        </div>
 
-        {/* ── RECENT MISSIONS ──────────────────────────────────── */}
-        {recentQuizzes.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
-              Recent Missions
-            </h3>
-            <div className="space-y-2">
-              {recentQuizzes.map((q, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="text-lg">{SUBJECT_ICONS[q.subject] ?? "📚"}</span>
-                  <div className="flex-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-bold text-slate-700 capitalize">{q.subject}</span>
-                      <span className="text-slate-400 text-xs">{q.date}</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          q.pct >= 80 ? "bg-emerald-500" : q.pct >= 50 ? "bg-amber-400" : "bg-rose-400"
-                        }`}
-                        style={{ width: `${q.pct}%` }}
-                      />
-                    </div>
+            {/* Weekly Mission Plan */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">This Week</span>
+                <span className="text-lg">📅</span>
+              </div>
+              <div className="px-3 pb-3">
+                <WeeklyMissionPlan
+                  scholar={scholar}
+                  weeklyStats={weeklyStats}
+                  onStartSubject={(subject) => setActiveSubject(subject)}
+                />
+              </div>
+            </div>
+
+            {/* Badges — compact mini-grid (desktop only) */}
+            <div className="hidden lg:block bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                  Badges
+                </span>
+                <span className="text-xs font-bold text-slate-400">
+                  {earnedBadges.length}/{Object.keys(BADGES).length}
+                </span>
+              </div>
+              <BadgeGrid earnedIds={earnedBadges} />
+            </div>
+
+          </aside>
+
+          {/* ── MAIN COLUMN ──────────────────────────────────────── */}
+          <div className="flex-1 min-w-0 space-y-5">
+
+            {/* Insight + Streak (side by side on md+) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SubjectInsightCard
+                scholar={scholar}
+                weeklyStats={weeklyStats}
+                lastWeekStats={lastWeekStats}
+                streak={streakData.streak}
+              />
+              <StreakCountdown
+                streak={streakData.streak}
+                lastActivityAt={streakData.lastActivityAt}
+                onStartMission={() => setActiveSubject(subjects[0] || "maths")}
+              />
+            </div>
+
+            {/* Subject grid */}
+            <section>
+              <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
+                Choose Your Mission
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {subjects.map(s => (
+                  <SubjectCard
+                    key={s}
+                    subjectId={s}
+                    proficiency={skillProficiency[s]}
+                    onClick={() => setActiveSubject(s)}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Badges + Leaderboard (mobile badges shown here; desktop shown in sidebar) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="lg:hidden bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
+                  Badges ({earnedBadges.length}/{Object.keys(BADGES).length})
+                </h3>
+                <BadgeGrid earnedIds={earnedBadges} />
+              </div>
+
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 md:col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
+                    Leaderboard
+                  </h3>
+                  <div className="flex gap-1">
+                    {["year", "friends"].map(m => (
+                      <button key={m} onClick={() => setLbMode(m)}
+                        className={`text-xs px-2 py-1 rounded-lg font-black capitalize
+                          ${lbMode === m ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}>
+                        {m === "year" ? formatGradeLabel(scholar.year_level || scholar.year, curriculum) : "Friends"}
+                      </button>
+                    ))}
                   </div>
-                  <span className={`font-black text-sm w-12 text-right ${
-                    q.pct >= 80 ? "text-emerald-600" : q.pct >= 50 ? "text-amber-600" : "text-rose-500"
-                  }`}>
-                    {q.score}/{q.total}
-                  </span>
                 </div>
-              ))}
+                <Leaderboard entries={leaderboard.slice(0, 5)} currentScholarId={scholar.id} />
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* ── PROGRESS SECTION ─────────────────────────────────── */}
-        {showProgress && (
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
-            <h2 className="text-2xl font-black text-slate-800 mb-6">Your Progress</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SkillHeatmap
-                skills={fullSkills}
-                curriculum={curriculum}
-                subjects={subjects}
-                grades={currDef.grades}
-                gradeLabel={currDef.gradeLabel}
-              />
-              <ProgressChart
-                data={chartData}
-                subjects={subjects}
-                color="#6366f1"
-              />
-            </div>
-          </div>
-        )}
+            {/* Recent Missions */}
+            {recentQuizzes.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
+                  Recent Missions
+                </h3>
+                <div className="space-y-2">
+                  {recentQuizzes.map((q, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-lg">{SUBJECT_ICONS[q.subject] ?? "📚"}</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-bold text-slate-700 capitalize">{q.subject}</span>
+                          <span className="text-slate-400 text-xs">{q.date}</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              q.pct >= 80 ? "bg-emerald-500" : q.pct >= 50 ? "bg-amber-400" : "bg-rose-400"
+                            }`}
+                            style={{ width: `${q.pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className={`font-black text-sm w-12 text-right ${
+                        q.pct >= 80 ? "text-emerald-600" : q.pct >= 50 ? "text-amber-600" : "text-rose-500"
+                      }`}>
+                        {q.score}/{q.total}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progress section */}
+            {showProgress && (
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
+                <h2 className="text-2xl font-black text-slate-800 mb-6">Your Progress</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <SkillHeatmap
+                    skills={fullSkills}
+                    curriculum={curriculum}
+                    subjects={subjects}
+                    grades={(currDef.grades ?? []).filter(g => g >= examYear)}
+                    gradeLabel={currDef.gradeLabel}
+                    startYear={examYear}
+                  />
+                  <ProgressChart
+                    data={chartData}
+                    subjects={subjects}
+                    color="#6366f1"
+                  />
+                </div>
+              </div>
+            )}
+
+          </div>{/* end main column */}
+        </div>{/* end two-col */}
+
       </main>
     </div>
   );

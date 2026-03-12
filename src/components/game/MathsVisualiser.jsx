@@ -2,13 +2,40 @@
 // ─── MathsVisualiser.jsx ─────────────────────────────────────────────────────
 // LaunchPard-native concrete visuals. Bright panels, WCAG AA accessible.
 // Colour-blind safe: shape + pattern encoding, not colour alone.
-// Covers: Y1–Y4 maths, KS3 physics (forces, velocity), biology (food chains),
-//         Y3–Y5 NVR (shape sequences).
 //
 // Deploy to: src/components/game/MathsVisualiser.jsx
+//
+// ─── FILE MAP ────────────────────────────────────────────────────────────────
+// Ln   1  Imports, design tokens, shared primitives (Panel, Dot, Chip, Op)
+// Ln 136  Visual components: Addition, Subtraction, PlaceValue, Multiplication,
+//         Fraction, NumberBond, Counting, NVR, Forces, Velocity, FoodChain
+// Ln 663  parseVisual()         — Tier 0: basic maths (Y1–Y4)
+// Ln 904  Visual components: Clock, Money, Division, Ruler, Ratio, Alphabet,
+//         Analogy, Sequence, NVRMatrix, Grammar, Synonym, WordBuilder, Comparison
+// Ln 1358 parseTier3()          — Tier 3: extended maths + English + VR + NVR
+//           Ln 1375 Maths: place value, addition, subtraction, multiplication,
+//                   missing-value, division, ruler, ratio
+//           Ln 1464 VR: alphabet, analogy, word builder, synonym
+//           Ln 1530 Maths all-year: coord, angle, area/perim, algebra,
+//                   probability, sequence, fraction, number line, Venn, bar chart
+// Ln 1601 Visual components: Atom, PeriodicTable, StateChanges, PHScale,
+//         Molecule, Cell, FormulaTriangle, EnergyStores, EMSpectrum,
+//         GeneticsCross, NumberLineVis, CoordVis, VennVis, AngleVis,
+//         BarChartVis, AreaVis, ProbabilityVis, SequenceVis, AccountingVis
+// Ln 2205 parseTier4()          — Tier 4: physics, chemistry, biology, accounting
+// Ln 2416 MathsVisualiser (default export) — useMemo, switch dispatch
+// Ln 3065 parseVisualExtended() — Tier 5: area/perim + percent + HCF + mean
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
+
+// ─── SHARED REGEX CONSTANTS ───────────────────────────────────────────────────
+// Centralised so tweaks propagate everywhere
+const RX_NUM       = /\d+(?:\.\d+)?/g;                         // all numbers incl decimals
+const RX_TWO_NUMS  = /(\d+)[^\d]+(\d+)/;                       // first two integers in text
+const RX_UNITS     = /(?:cm|m{1,2}|km|in|ft)/i;               // length units
+const RX_COORD     = /\((-?\d+),\s*(-?\d+)\)/;                 // (x, y) coordinate pair
+const RX_DECIMAL_OP = /\d+\.\d+\s*[×x*]|[×x*]\s*\d+\.\d+/;  // decimal × something
 
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
 const T = {
@@ -37,21 +64,24 @@ const T = {
 
 // ─── PANEL ────────────────────────────────────────────────────────────────────
 // Light background — high contrast, colour-blind safe base
-function Panel({ children, accent = T.indigo, bg, bd }) {
+function Panel({ children, accent = T.indigo, bg, bd, ariaLabel }) {
   const panelBg = bg || "#ffffff";
   const panelBd = bd || `${accent}44`;
   return (
-    <div style={{
-      background: panelBg,
-      borderRadius: 16,
-      border: `2px solid ${panelBd}`,
-      boxShadow: `0 2px 12px ${accent}18`,
-      padding: "16px 14px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 12,
-    }}>
+    <div
+      role={ariaLabel ? "img" : undefined}
+      aria-label={ariaLabel}
+      style={{
+        background: panelBg,
+        borderRadius: 16,
+        border: `2px solid ${panelBd}`,
+        boxShadow: `0 2px 12px ${accent}18`,
+        padding: "16px 14px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+      }}>
       {children}
     </div>
   );
@@ -664,7 +694,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
   const t    = (topic || "").toLowerCase();
   const q    = (questionText || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
-  const nums = ((questionText || "").match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
 
   // ── NVR ──────────────────────────────────────────────────────────────────
   if (subj.includes("verbal") && subj.includes("non") || t.includes("nvr") || t.includes("non_verbal")) {
@@ -781,9 +811,11 @@ function parseVisual(topic, questionText, subject, yearLevel) {
 
   // ── MATHS ────────────────────────────────────────────────────────────────
   if (!subj.includes("math")) return null;
-  if (yearLevel > 4) return null;
+  // NOTE: yearLevel guard removed — clock, money, division, ruler, ratio
+  // are handled below for all year levels via parseVisualExtended fallbacks.
+  // Only truly early-years visuals (counting, word problems) guard internally.
 
-  if (t.includes("count") || t.includes("number_recog")) {
+  if ((t.includes("count") || t.includes("number_recog")) && yearLevel <= 4) {
     const n = nums[0];
     if (n && n <= 10) return { type: "counting", count: n };
   }
@@ -799,18 +831,75 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     return { type: "number_bond", whole, partA: part, partB: whole - part };
   }
 
-  const subMatch = (questionText || "").match(/(\d+)\s*[−\-–]\s*(\d+)/);
+  const subMatch = (questionText || "").match(/(\d+)\s*[−\-–]\s*(\d+)/)
+    || (questionText || "").match(/(\d+)\s*minus\s*(\d+)/i);
   if (subMatch) {
     const from = parseInt(subMatch[1]), remove = parseInt(subMatch[2]);
     if (from <= 15) return { type: "subtraction", from, remove };
   }
 
-  const mulMatch = (questionText || "").match(/(\d+)\s*[×x\*]\s*(\d+)/);
+  // ── WORD PROBLEM DETECTION (Y1/Y2) ────────────────────────────────────────
+  // Catches: "You have 4 bananas and eat 3", "Take away 1 from 4",
+  //          "5 birds, 2 fly away", "6 sweets shared between 3", etc.
+  // Skip entirely for comparison questions — they need a different visual
+  const isComparisonQ = /which is greater|which is (?:bigger|larger|more|less|smaller)|greater than|less than|compare|more than|fewer than/i.test(questionText);
+  if (!isComparisonQ && yearLevel <= 2 && nums.length >= 2) {
+    const a = nums[0], b = nums[1];
+    // Subtraction word problems
+    // Handle "take away X from Y" / "subtract X from Y" — numbers are in reverse order
+    const takeAwayMatch = (questionText || "").match(/take away\s+(\d+)\s+from\s+(\d+)/i)
+      || (questionText || "").match(/subtract\s+(\d+)\s+from\s+(\d+)/i);
+    if (takeAwayMatch) {
+      const remove = parseInt(takeAwayMatch[1]), from = parseInt(takeAwayMatch[2]);
+      if (from > 0 && remove > 0 && from >= remove && from <= 15) {
+        return { type: "subtraction", from, remove };
+      }
+    }
+    const isSubWord = /eat|ate|take away|taken away|fly away|flew away|fall(?:s)? off|lost|left|fewer|less|remove|gives? away|gave away|burst|popped|used|spent|sold|broken|stolen/i.test(q);
+    if (isSubWord && a > 0 && b > 0 && a >= b && a <= 15) {
+      return { type: "subtraction", from: a, remove: b };
+    }
+    // Handle "X from Y" subtraction where larger number comes second
+    if (isSubWord && a > 0 && b > 0 && b > a && b <= 15) {
+      return { type: "subtraction", from: b, remove: a };
+    }
+    // Addition word problems
+    const isAddWord = /more|gets?|got|add|join|arrive[sd]?|come[s]?|found|buy|bought|pick(?:s|ed)?|collect(?:s|ed)?|together|total|altogether|in all/i.test(q);
+    if (isAddWord && a + b <= 20) {
+      return { type: "addition", a, b };
+    }
+    // Multiplication word problems: "3 bags of 4 apples", "5 groups of 2"
+    const mulWordMatch = (questionText || "").match(/(\d+)\s*(?:bags?|boxes?|groups?|rows?|plates?|baskets?|packs?|sets?)\s*(?:of|with|each\s+(?:has|have|containing))\s*(\d+)/i)
+      || (questionText || "").match(/(\d+)\s*(?:children|students|friends|people)\s+(?:each\s+)?(?:get|have|gets|receives?|got)\s+(\d+)/i);
+    if (mulWordMatch) {
+      const r = parseInt(mulWordMatch[1]), c = parseInt(mulWordMatch[2]);
+      if (r <= 6 && c <= 8 && r > 0 && c > 0) return { type: "multiplication", rows: r, cols: c };
+    }
+  }
+
+  // ── MISSING VALUE (12 × ? = 36, ? + 5 = 11) ──────────────────────────────
+  if (subj.includes("math") && /\?|__+/.test(questionText)) {
+    const eqNum = (questionText || "").match(/=\s*(\d+)/);
+    const missingMul = (questionText || "").match(/(\d+)\s*[×x\*]\s*\?/i) || (questionText || "").match(/\?\s*[×x\*]\s*(\d+)/i);
+    const missingAdd = (questionText || "").match(/(\d+)\s*\+\s*\?/i) || (questionText || "").match(/\?\s*\+\s*(\d+)/i);
+    if (eqNum && (missingMul || missingAdd)) {
+      const result = parseInt(eqNum[1]);
+      const known  = parseInt((missingMul || missingAdd)[1]);
+      if (result > 0 && known > 0 && result <= 100) {
+        return { type: "number_line", start: 0, end: result, highlight: known, label: "Find the missing value" };
+      }
+    }
+  }
+
+  // Skip multiplication dot grid if either operand is a decimal (2.5 × 4 etc.)
+  const hasDecimalOperand = /\d+\.\d+\s*[×x\*]|[×x\*]\s*\d+\.\d+/.test(questionText || "");
+  const mulMatch = !hasDecimalOperand && (questionText || "").match(/(\d+)\s*[×x\*]\s*(\d+)/);
   const grpMatch = (questionText || "").match(/(\d+)\s*groups?\s*of\s*(\d+)/i);
   if (mulMatch || grpMatch) {
     const m = mulMatch || grpMatch;
     const r = parseInt(m[1]), c = parseInt(m[2]);
-    if (r <= 6 && c <= 8 && r > 0 && c > 0) return { type: "multiplication", rows: r, cols: c };
+    // Allow up to 12×12
+    if (r <= 12 && c <= 12 && r > 0 && c > 0) return { type: "multiplication", rows: r, cols: c };
   }
 
   const fracMatch = (questionText || "").match(/(\d+)\s*\/\s*(\d+)/);
@@ -829,6 +918,1546 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     if (tm||om) return { type:"place_value", tens: tm?parseInt(tm[1]):0, ones: om?parseInt(om[1]):0 };
   }
 
+  // ── COMPARISON (Y1/Y2) ────────────────────────────────────────────────────
+  if (isComparisonQ && yearLevel <= 4 && nums.length >= 2) {
+    return { type: "comparison", a: nums[0], b: nums[1] };
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW VISUAL COMPONENTS — TIER 3
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Clock / Telling Time ──────────────────────────────────────────────────────
+function ClockVis({ hours, minutes, label }) {
+  const cx = 60, cy = 60, r = 50;
+  const minAngle = (minutes / 60) * 360 - 90;
+  const hrAngle  = ((hours % 12) / 12 + minutes / 720) * 360 - 90;
+  const toXY = (angleDeg, len) => ({
+    x: cx + len * Math.cos((angleDeg * Math.PI) / 180),
+    y: cy + len * Math.sin((angleDeg * Math.PI) / 180),
+  });
+  const minHand = toXY(minAngle, 38);
+  const hrHand  = toXY(hrAngle, 26);
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 360 - 90;
+    const inner = toXY(a, 42);
+    const outer = toXY(a, 48);
+    return { inner, outer, num: i === 0 ? 12 : i };
+  });
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        <circle cx={cx} cy={cy} r={r} fill="white" stroke={T.indigo} strokeWidth={3} />
+        {ticks.map((tk, i) => (
+          <g key={i}>
+            <line x1={tk.inner.x} y1={tk.inner.y} x2={tk.outer.x} y2={tk.outer.y}
+              stroke={T.slate} strokeWidth={i % 3 === 0 ? 2.5 : 1} />
+            <text x={toXY((i / 12) * 360 - 90, 33).x} y={toXY((i / 12) * 360 - 90, 33).y}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize={9} fill={T.slate} fontWeight="600">{tk.num}</text>
+          </g>
+        ))}
+        {/* Minute hand */}
+        <line x1={cx} y1={cy} x2={minHand.x} y2={minHand.y}
+          stroke={T.indigo} strokeWidth={2.5} strokeLinecap="round" />
+        {/* Hour hand */}
+        <line x1={cx} y1={cy} x2={hrHand.x} y2={hrHand.y}
+          stroke={T.nebula} strokeWidth={4} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={4} fill={T.indigo} />
+      </svg>
+      {label && <span style={{ fontSize:12, color:T.slate, fontWeight:600 }}>{label}</span>}
+    </div>
+  );
+}
+
+// ── Money / Coins ─────────────────────────────────────────────────────────────
+function MoneyVis({ coins, total }) {
+  const COIN_STYLES = {
+    "£2":  { bg:"#b8a040", border:"#8a7030", text:"white", size:34 },
+    "£1":  { bg:"#c8a820", border:"#a08010", text:"white", size:30 },
+    "50p": { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:28 },
+    "20p": { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:26 },
+    "10p": { bg:"#c8a820", border:"#a08010", text:"white", size:24 },
+    "5p":  { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:22 },
+    "2p":  { bg:"#c87050", border:"#a05030", text:"white", size:20 },
+    "1p":  { bg:"#c87050", border:"#a05030", text:"white", size:18 },
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", maxWidth:200 }}>
+        {coins.map((coin, i) => {
+          const s = COIN_STYLES[coin] || COIN_STYLES["1p"];
+          return (
+            <div key={i} style={{
+              width:s.size, height:s.size, borderRadius:"50%",
+              background:s.bg, border:`3px solid ${s.border}`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              color:s.text, fontSize:s.size > 25 ? 9 : 7.5, fontWeight:"800",
+              boxShadow:"0 2px 4px rgba(0,0,0,0.25)", letterSpacing:"-0.5px",
+            }}>{coin}</div>
+          );
+        })}
+      </div>
+      {total !== undefined && (
+        <div style={{
+          padding:"4px 14px", background:T.indigoBg, borderRadius:20,
+          fontSize:13, fontWeight:700, color:T.indigo,
+        }}>Total: {total >= 100 ? `£${(total/100).toFixed(2)}` : `${total}p`}</div>
+      )}
+    </div>
+  );
+}
+
+// ── Division Grouping ─────────────────────────────────────────────────────────
+function DivisionVis({ total, groups }) {
+  const perGroup = Math.ceil(total / groups);
+  const groupArr = Array.from({ length: groups }, (_, g) => {
+    const count = g < groups - 1 ? perGroup : total - perGroup * (groups - 1);
+    return Math.max(0, count);
+  });
+  const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
+        {groupArr.map((count, g) => (
+          <div key={g} style={{
+            border:`2px dashed ${COLORS[g % COLORS.length]}`,
+            borderRadius:10, padding:"6px 8px",
+            display:"flex", flexWrap:"wrap", gap:3,
+            minWidth:40, maxWidth:100, justifyContent:"center",
+          }}>
+            {Array.from({ length: count }, (_, i) => (
+              <div key={i} style={{
+                width:10, height:10, borderRadius:"50%",
+                background:COLORS[g % COLORS.length],
+              }} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
+        {total} ÷ {groups} = ?
+      </div>
+    </div>
+  );
+}
+
+// ── Ruler / Measurement ───────────────────────────────────────────────────────
+function RulerVis({ cm, label }) {
+  const totalCm = Math.min(Math.max(cm + 2, 8), 20);
+  const pxPerCm = 180 / totalCm;
+  const markedPx = cm * pxPerCm;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
+      <svg width={200} height={52} viewBox={`0 0 200 52`}>
+        {/* Ruler body */}
+        <rect x={2} y={16} width={196} height={28} rx={4} fill="#fffbe6" stroke="#c8a820" strokeWidth={2} />
+        {/* Tick marks and labels */}
+        {Array.from({ length: totalCm + 1 }, (_, i) => {
+          const x = 2 + i * pxPerCm;
+          const isMajor = Number.isInteger(i);
+          return (
+            <g key={i}>
+              <line x1={x} y1={16} x2={x} y2={isMajor ? 30 : 24} stroke="#c8a820" strokeWidth={isMajor ? 1.5 : 1} />
+              {isMajor && i <= totalCm && (
+                <text x={x} y={44} textAnchor="middle" fontSize={8} fill="#a08010" fontWeight="600">{i}</text>
+              )}
+            </g>
+          );
+        })}
+        {/* Arrow showing measurement */}
+        <line x1={2} y1={10} x2={2 + markedPx} y2={10} stroke={T.indigo} strokeWidth={2} markerEnd="url(#arr)" />
+        <defs>
+          <marker id="arr" markerWidth={6} markerHeight={6} refX={6} refY={3} orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill={T.indigo} />
+          </marker>
+        </defs>
+        <text x={2 + markedPx / 2} y={8} textAnchor="middle" fontSize={9} fill={T.indigo} fontWeight="700">
+          {cm} cm
+        </text>
+      </svg>
+      {label && <span style={{ fontSize:11, color:T.slate }}>{label}</span>}
+    </div>
+  );
+}
+
+// ── Ratio / Proportion Bar ────────────────────────────────────────────────────
+function RatioVis({ partA, partB, labelA, labelB }) {
+  const total = partA + partB;
+  const pctA  = (partA / total) * 100;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
+      <div style={{
+        display:"flex", height:28, borderRadius:8, overflow:"hidden",
+        border:`2px solid ${T.indigo}22`,
+      }}>
+        <div style={{
+          width:`${pctA}%`, background:T.indigo, display:"flex",
+          alignItems:"center", justifyContent:"center",
+          color:"white", fontSize:11, fontWeight:700,
+        }}>{partA}</div>
+        <div style={{
+          width:`${100 - pctA}%`, background:T.nebula, display:"flex",
+          alignItems:"center", justifyContent:"center",
+          color:"white", fontSize:11, fontWeight:700,
+        }}>{partB}</div>
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.slate }}>
+        <span style={{ color:T.indigo, fontWeight:700 }}>{labelA || "Part A"}: {partA}</span>
+        <span style={{ color:T.nebula, fontWeight:700 }}>{labelB || "Part B"}: {partB}</span>
+      </div>
+      <div style={{ fontSize:11, color:T.slate, textAlign:"center" }}>
+        Ratio {partA}:{partB} &nbsp;•&nbsp; Total: {total}
+      </div>
+    </div>
+  );
+}
+
+// ── VR Alphabet Strip ─────────────────────────────────────────────────────────
+function AlphabetStripVis({ highlighted, offset }) {
+  const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const hiSet = new Set((highlighted || []).map(c => c.toUpperCase()));
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center" }}>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:2, justifyContent:"center" }}>
+        {alpha.map((c, i) => {
+          const isHi = hiSet.has(c);
+          return (
+            <div key={c} style={{
+              width:18, height:22, borderRadius:4,
+              background: isHi ? T.indigo : T.indigoBg,
+              border: `1.5px solid ${isHi ? T.indigo : "#e0e7ff"}`,
+              display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+              color: isHi ? "white" : T.slate, fontWeight: isHi ? 800 : 500, fontSize:8.5,
+            }}>
+              <span>{c}</span>
+              <span style={{ fontSize:6.5, opacity:0.7 }}>{i+1}</span>
+            </div>
+          );
+        })}
+      </div>
+      {offset && (
+        <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
+          +{offset} positions forward
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── VR Word Analogy ───────────────────────────────────────────────────────────
+function AnalogyVis({ wordA, wordB, wordC, relationship }) {
+  const Box = ({ word, color }) => (
+    <div style={{
+      padding:"6px 12px", background:color + "22", border:`2px solid ${color}`,
+      borderRadius:8, fontSize:13, fontWeight:700, color,
+      minWidth:52, textAlign:"center",
+    }}>{word}</div>
+  );
+  const Arrow = ({ label }) => (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
+      <span style={{ fontSize:9, color:T.slate, fontWeight:600 }}>{label}</span>
+      <span style={{ fontSize:16, color:T.slate }}>→</span>
+    </div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8, alignItems:"center" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
+        <Box word={wordA} color={T.indigo} />
+        <Arrow label={relationship || "relates to"} />
+        <Box word={wordB} color={T.indigo} />
+      </div>
+      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>same as</div>
+      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
+        <Box word={wordC} color={T.nebula} />
+        <Arrow label={relationship || "relates to"} />
+        <div style={{
+          padding:"6px 12px", background:T.nebulaBg, border:`2px dashed ${T.nebula}`,
+          borderRadius:8, fontSize:13, fontWeight:700, color:T.nebula,
+          minWidth:52, textAlign:"center",
+        }}>?</div>
+      </div>
+    </div>
+  );
+}
+
+// ── VR Number Sequence ────────────────────────────────────────────────────────
+function NumberSequenceVis({ sequence, gapIndex, rule }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap", justifyContent:"center" }}>
+        {sequence.map((val, i) => {
+          const isGap = i === gapIndex;
+          return (
+            <React.Fragment key={i}>
+              <div style={{
+                width:40, height:40, borderRadius:8,
+                background: isGap ? T.nebulaBg : T.indigoBg,
+                border: `2px ${isGap ? "dashed" : "solid"} ${isGap ? T.nebula : T.indigo}`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:15, fontWeight:800, color: isGap ? T.nebula : T.indigo,
+              }}>{isGap ? "?" : val}</div>
+              {i < sequence.length - 1 && (
+                <span style={{ fontSize:16, color:T.slate, opacity:0.5 }}>→</span>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {rule && <div style={{ fontSize:11, color:T.slate, fontWeight:600, fontStyle:"italic" }}>Rule: {rule}</div>}
+    </div>
+  );
+}
+
+// ── NVR Matrix (2×2 pattern) ──────────────────────────────────────────────────
+function NVRMatrixVis({ cells }) {
+  // cells = array of 4 objects: { shape, fill, rotate } — last one is ?
+  const SHAPE_SVG = {
+    circle:    (f,s) => <circle cx={20} cy={20} r={14} fill={f} stroke={s} strokeWidth={2}/>,
+    square:    (f,s) => <rect x={6} y={6} width={28} height={28} fill={f} stroke={s} strokeWidth={2}/>,
+    triangle:  (f,s) => <polygon points="20,4 36,36 4,36" fill={f} stroke={s} strokeWidth={2}/>,
+    diamond:   (f,s) => <polygon points="20,4 36,20 20,36 4,20" fill={f} stroke={s} strokeWidth={2}/>,
+    cross:     (f,s) => <g><rect x={14} y={4} width={12} height={32} fill={f} stroke={s} strokeWidth={1}/><rect x={4} y={14} width={32} height={12} fill={f} stroke={s} strokeWidth={1}/></g>,
+  };
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, width:100 }}>
+      {cells.slice(0, 4).map((cell, i) => {
+        const isLast = i === 3;
+        const shapeFn = SHAPE_SVG[cell?.shape || "circle"];
+        return (
+          <div key={i} style={{
+            width:44, height:44, borderRadius:6,
+            background: isLast ? T.nebulaBg : T.indigoBg,
+            border: `2px ${isLast ? "dashed" : "solid"} ${isLast ? T.nebula : T.indigo}`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            {isLast ? (
+              <span style={{ fontSize:20, fontWeight:800, color:T.nebula }}>?</span>
+            ) : (
+              <svg width={40} height={40} viewBox="0 0 40 40"
+                style={{ transform:`rotate(${cell?.rotate || 0}deg)` }}>
+                {shapeFn && shapeFn(cell.fill || T.indigoBg, cell.stroke || T.indigo)}
+              </svg>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Grammar Parts-of-Speech Labeller ─────────────────────────────────────────
+function GrammarVis({ sentence, labels }) {
+  // labels = [{ word, pos, color }]  pos = noun|verb|adjective|adverb|preposition
+  const POS_COLORS = {
+    noun:        { bg:"#dbeafe", border:"#3b82f6", text:"#1d4ed8" },
+    verb:        { bg:"#dcfce7", border:"#22c55e", text:"#15803d" },
+    adjective:   { bg:"#fef9c3", border:"#eab308", text:"#854d0e" },
+    adverb:      { bg:"#fce7f3", border:"#ec4899", text:"#9d174d" },
+    preposition: { bg:"#f3e8ff", border:"#a855f7", text:"#6b21a8" },
+    article:     { bg:"#f1f5f9", border:"#94a3b8", text:"#475569" },
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center" }}>
+        {labels.map((item, i) => {
+          const c = POS_COLORS[item.pos] || POS_COLORS.article;
+          return (
+            <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{
+                padding:"4px 10px", background:c.bg, border:`2px solid ${c.border}`,
+                borderRadius:6, fontSize:13, fontWeight:700, color:c.text,
+              }}>{item.word}</div>
+              <span style={{ fontSize:9, color:c.text, fontWeight:600, textTransform:"uppercase" }}>{item.pos}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        padding:"6px 10px", background:T.indigoBg, borderRadius:8,
+        fontSize:11, color:T.slate, textAlign:"center", fontStyle:"italic",
+      }}>{sentence}</div>
+    </div>
+  );
+}
+
+// ── Synonym Strength Ladder ───────────────────────────────────────────────────
+function SynonymLadderVis({ words, concept }) {
+  // words = [{word, strength}] where strength 1–5
+  const sorted = [...words].sort((a, b) => a.strength - b.strength);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", width:"100%" }}>
+      {concept && (
+        <div style={{ fontSize:11, color:T.slate, textAlign:"center", fontWeight:600, marginBottom:2 }}>
+          Meaning strength: {concept}
+        </div>
+      )}
+      {sorted.map((item, i) => {
+        const pct = (item.strength / 5) * 100;
+        const color = item.strength <= 2 ? T.indigo : item.strength === 3 ? "#f59e0b" : T.nebula;
+        return (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, width:72, textAlign:"right", color }}>{item.word}</span>
+            <div style={{ flex:1, height:14, background:"#f1f5f9", borderRadius:7, overflow:"hidden" }}>
+              <div style={{ width:`${pct}%`, height:"100%", background:color, borderRadius:7 }} />
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:T.slate, paddingLeft:78 }}>
+        <span>mild</span><span>strong</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Prefix / Suffix Word Builder ──────────────────────────────────────────────
+function WordBuilderVis({ prefix, root, suffix }) {
+  const Block = ({ text, label, color }) => text ? (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+      <div style={{
+        padding:"6px 12px", background:color + "22", border:`2px solid ${color}`,
+        borderRadius:6, fontSize:14, fontWeight:800, color,
+        minWidth:40, textAlign:"center", fontFamily:"monospace",
+      }}>{text}</div>
+      <span style={{ fontSize:9, color, fontWeight:600, textTransform:"uppercase" }}>{label}</span>
+    </div>
+  ) : null;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:0 }}>
+        {prefix && <Block text={prefix} label="prefix" color={T.nebula} />}
+        <Block text={root} label="root word" color={T.indigo} />
+        {suffix && <Block text={suffix} label="suffix" color={T.emerald} />}
+      </div>
+      <div style={{
+        padding:"4px 14px", background:T.indigoBg, borderRadius:20,
+        fontSize:13, fontWeight:700, color:T.indigo,
+      }}>
+        {(prefix || "") + root + (suffix || "")}
+      </div>
+    </div>
+  );
+}
+
+
+// ── Comparison Visual (greater/less than) ─────────────────────────────────────
+function ComparisonVis({ a, b }) {
+  const isAGreater = a > b;
+  const isEqual    = a === b;
+  const symbol     = isEqual ? "=" : isAGreater ? ">" : "<";
+  const DOT_COLORS = [T.indigo, T.nebula];
+  const maxDots    = Math.max(a, b);
+  const renderDots = (n, color) => Array.from({ length: maxDots }, (_, i) => (
+    <div key={i} style={{
+      width:12, height:12, borderRadius:"50%",
+      background: i < n ? color : "transparent",
+      border: `2px solid ${i < n ? color : "#e2e8f0"}`,
+      transition:"background 0.2s",
+    }} />
+  ));
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        {/* Group A */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
+            {renderDots(a, DOT_COLORS[0])}
+          </div>
+          <div style={{
+            fontSize:22, fontWeight:900, color:DOT_COLORS[0],
+            padding:"2px 10px", background: DOT_COLORS[0]+"22",
+            borderRadius:8, border:`2px solid ${DOT_COLORS[0]}`,
+          }}>{a}</div>
+        </div>
+        {/* Symbol */}
+        <div style={{
+          fontSize:28, fontWeight:900,
+          color: isEqual ? T.slate : isAGreater ? T.emerald : T.nebula,
+          width:32, textAlign:"center",
+        }}>{symbol}</div>
+        {/* Group B */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
+            {renderDots(b, DOT_COLORS[1])}
+          </div>
+          <div style={{
+            fontSize:22, fontWeight:900, color:DOT_COLORS[1],
+            padding:"2px 10px", background: DOT_COLORS[1]+"22",
+            borderRadius:8, border:`2px solid ${DOT_COLORS[1]}`,
+          }}>{b}</div>
+        </div>
+      </div>
+      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
+        {isEqual ? "Both are equal" : `${a} is ${isAGreater ? "greater" : "less"} than ${b}`}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PARSER EXTENSIONS — Tier 3
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseTier3(topic, questionText, subject, yearLevel) {
+  const t    = (topic || "").toLowerCase();
+  const q    = (questionText || "").toLowerCase();
+  const subj = (subject || "").toLowerCase();
+  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
+
+  // ── TIME / CLOCK ───────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("time") || t.includes("clock") || /o'clock|half past|quarter past|quarter to/i.test(questionText))) {
+    // "What time is shown?" / "3 o'clock" / "half past 4" / "quarter to 7"
+    const oclockMatch  = (questionText || "").match(/(\d{1,2})\s*o'?clock/i);
+    const halfPast     = (questionText || "").match(/half\s+past\s+(\d{1,2})/i);
+    const quarterPast  = (questionText || "").match(/quarter\s+past\s+(\d{1,2})/i);
+    const quarterTo    = (questionText || "").match(/quarter\s+to\s+(\d{1,2})/i);
+    const colonTime    = (questionText || "").match(/(\d{1,2}):(\d{2})/);
+    if (oclockMatch)  return { type:"clock", hours:parseInt(oclockMatch[1]), minutes:0, label:`${oclockMatch[1]} o'clock` };
+    if (halfPast)     return { type:"clock", hours:parseInt(halfPast[1]), minutes:30, label:`Half past ${halfPast[1]}` };
+    if (quarterPast)  return { type:"clock", hours:parseInt(quarterPast[1]), minutes:15, label:`Quarter past ${quarterPast[1]}` };
+    if (quarterTo)    { const h = parseInt(quarterTo[1]); return { type:"clock", hours:h-1, minutes:45, label:`Quarter to ${h}` }; }
+    if (colonTime)    return { type:"clock", hours:parseInt(colonTime[1]), minutes:parseInt(colonTime[2]), label:`${colonTime[1]}:${colonTime[2]}` };
+    if (nums[0] >= 1 && nums[0] <= 12) return { type:"clock", hours:nums[0], minutes:nums[1] || 0 };
+  }
+
+  // ── MONEY / COINS ──────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("money") || t.includes("coin") || /pence|penny|pennies|£|\bp\b/i.test(questionText))) {
+    // Parse coin denominations mentioned
+    const coinPatterns = [
+      { re: /£2\s*coin/gi, coin:"£2" },
+      { re: /£1\s*coin/gi, coin:"£1" },
+      { re: /50p?\s*coin/gi, coin:"50p" },
+      { re: /20p?\s*coin/gi, coin:"20p" },
+      { re: /10p?\s*coin/gi, coin:"10p" },
+      { re: /5p?\s*coin/gi, coin:"5p" },
+      { re: /2p?\s*coin/gi, coin:"2p" },
+      { re: /1p?\s*coin/gi, coin:"1p" },
+    ];
+    const coins = [];
+    for (const { re, coin } of coinPatterns) {
+      const matches = (questionText || "").match(re) || [];
+      matches.forEach(() => coins.push(coin));
+    }
+    // If specific coins named, show them; else synthesise from total
+    if (coins.length > 0) {
+      const totalP = coins.reduce((s, c) => {
+        const map = {"£2":200,"£1":100,"50p":50,"20p":20,"10p":10,"5p":5,"2p":2,"1p":1};
+        return s + (map[c] || 0);
+      }, 0);
+      return { type:"money", coins, total:totalP };
+    }
+    // If just a total amount mentioned, show representative coins
+    const totalPMatch = (questionText || "").match(/£(\d+)(?:\.(\d{2}))?/);
+    const totalPences = (questionText || "").match(/(\d+)\s*p\b/i);
+    if (totalPMatch) {
+      const p = parseInt(totalPMatch[1]) * 100 + parseInt(totalPMatch[2] || 0);
+      if (p <= 500) { // only render sensible amounts
+        const coins = [];
+        let rem = p;
+        for (const [denom, coin] of [[200,"£2"],[100,"£1"],[50,"50p"],[20,"20p"],[10,"10p"],[5,"5p"],[2,"2p"],[1,"1p"]]) {
+          while (rem >= denom && coins.length < 8) { coins.push(coin); rem -= denom; }
+        }
+        return { type:"money", coins, total:p };
+      }
+    }
+    if (totalPences) {
+      const p = parseInt(totalPences[1]);
+      if (p <= 100) {
+        const coins = [];
+        let rem = p;
+        for (const [denom, coin] of [[50,"50p"],[20,"20p"],[10,"10p"],[5,"5p"],[2,"2p"],[1,"1p"]]) {
+          while (rem >= denom && coins.length < 8) { coins.push(coin); rem -= denom; }
+        }
+        return { type:"money", coins, total:p };
+      }
+    }
+  }
+
+  // ── DIVISION GROUPING ──────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("division") || t.includes("sharing") ||
+      /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups/i.test(questionText))) {
+    if (nums.length >= 2) {
+      const total  = Math.max(...nums.slice(0, 3));
+      // divisor: smallest number that isn't the total, between 2 and 10
+      const groups = nums.find(n => n !== total && n >= 2 && n <= 10);
+      if (total && groups && total <= 60) {
+        return { type:"division", total, groups };
+      }
+    }
+  }
+
+  // ── RULER / MEASUREMENT ────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("measure") || t.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(questionText))) {
+    const cmMatch = (questionText || "").match(/(\d+(?:\.\d+)?)\s*cm/i);
+    if (cmMatch) {
+      const cm = parseFloat(cmMatch[1]);
+      if (cm > 0 && cm <= 18) return { type:"ruler", cm };
+    }
+  }
+
+  // ── RATIO / PROPORTION ─────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("ratio") || t.includes("proportion") || /ratio|for every|:\s*\d/i.test(questionText))) {
+    const ratioMatch = (questionText || "").match(/(\d+)\s*:\s*(\d+)/);
+    if (ratioMatch) {
+      const a = parseInt(ratioMatch[1]), b = parseInt(ratioMatch[2]);
+      if (a <= 10 && b <= 10) {
+        return { type:"ratio", partA:a, partB:b, labelA:"Part A", labelB:"Part B" };
+      }
+    }
+  }
+
+  // ── VERBAL REASONING: ALPHABET STRIP ──────────────────────────────────────
+  if (subj.includes("verbal") && !subj.includes("non")) {
+    // Letter codes: "A=1, B=2..." / "What is the 5th letter?" / "3 letters after D"
+    const letterQ = (questionText || "").match(/letter[s]?\s+(?:after|before|from|of)/i)
+      || /alphabet|code|cipher|positions?/i.test(questionText)
+      || t.includes("letter_code") || t.includes("alphabet");
+    if (letterQ) {
+      const mentioned = ((questionText || "").match(/\b([A-Z])\b/g) || []).filter((c, i, a) => a.indexOf(c) === i);
+      const offsetM = (questionText || "").match(/(\d+)\s*(?:letters?|places?|positions?)\s*(?:after|forward|on)/i);
+      return { type:"alphabet_strip", highlighted: mentioned.slice(0, 4), offset: offsetM ? parseInt(offsetM[1]) : null };
+    }
+
+    // Analogies: "Hot is to Cold as Day is to ___"
+    const analogyM = (questionText || "").match(/(\w+)\s+is\s+to\s+(\w+)\s+as\s+(\w+)\s+is\s+to/i);
+    if (analogyM) {
+      return { type:"analogy", wordA:analogyM[1], wordB:analogyM[2], wordC:analogyM[3] };
+    }
+
+    // Number sequences: "2, 4, 6, __, 10"
+    const seqNums = ((questionText || "").match(/\d+/g) || []).map(Number);
+    const hasGap  = /\?|__|___|\.\.\.|blank/i.test(questionText);
+    if (seqNums.length >= 3 && hasGap) {
+      // Simple arithmetic sequence detection
+      const diffs = seqNums.slice(1).map((n, i) => n - seqNums[i]);
+      const isAP  = diffs.every(d => Math.abs(d - diffs[0]) < 1);
+      const rule  = isAP ? (diffs[0] > 0 ? `+${diffs[0]} each time` : `${diffs[0]} each time`) : null;
+      return { type:"number_sequence", sequence:seqNums, gapIndex:seqNums.length, rule };
+    }
+
+    // Odd one out
+    const oddOneMatch = /odd one out|doesn.t belong|which.*different/i.test(questionText);
+    if (oddOneMatch) return null; // No visual for odd-one-out yet
+  }
+
+  // ── NVR: MATRIX ───────────────────────────────────────────────────────────
+  if ((subj.includes("verbal") && subj.includes("non")) || t.includes("matrix") || t.includes("nvr")) {
+    if (t.includes("matrix") || /complete.*(?:grid|matrix|pattern)|which.*(?:fits|completes|goes)/i.test(questionText)) {
+      const shapes = ["circle","square","triangle","diamond"];
+      const fills  = [T.indigoBg, T.nebulaBg, "#dcfce7", "#fef9c3"];
+      const cells  = [
+        { shape:"circle",   fill:fills[0], stroke:T.indigo,  rotate:0   },
+        { shape:"square",   fill:fills[1], stroke:T.nebula,  rotate:0   },
+        { shape:"triangle", fill:fills[2], stroke:T.emerald, rotate:0   },
+        null, // question mark
+      ];
+      return { type:"nvr_matrix", cells };
+    }
+  }
+
+  // ── ENGLISH: GRAMMAR ───────────────────────────────────────────────────────
+  if (subj.includes("english")) {
+    // Parts of speech
+    if (t.includes("grammar") || t.includes("noun") || t.includes("verb") || t.includes("adjective")
+      || /parts? of speech|identify the (noun|verb|adjective|adverb)|which word is/i.test(questionText)) {
+      // Try to extract a short sentence and label it
+      const sentM = (questionText || "").match(/"([^"]{5,60})"/);
+      if (sentM) {
+        const words = sentM[1].split(/\s+/).slice(0, 6);
+        // Simple heuristic labelling
+        const POS_HINTS = {
+          noun:["dog","cat","ball","house","school","teacher","city","boy","girl","car","rain","sun","tree"],
+          verb:["ran","runs","jumped","eating","played","is","was","said","went","bought","made","took","gave"],
+          adjective:["big","small","red","blue","fast","slow","happy","old","new","bright","dark","long","short"],
+          adverb:["quickly","slowly","very","really","always","never","often","happily","loudly","softly"],
+        };
+        const labels = words.map(w => {
+          const clean = w.replace(/[^a-zA-Z]/g,"").toLowerCase();
+          for (const [pos, hints] of Object.entries(POS_HINTS)) {
+            if (hints.includes(clean)) return { word:w, pos };
+          }
+          if (/^(the|a|an)$/i.test(clean)) return { word:w, pos:"article" };
+          return { word:w, pos:"noun" }; // default fallback
+        });
+        return { type:"grammar", sentence:sentM[1], labels };
+      }
+    }
+
+    // Prefix/suffix
+    if (t.includes("prefix") || t.includes("suffix") || /prefix|suffix|root word|word family/i.test(questionText)) {
+      const prefixMap = { un:"happy", re:"write", pre:"view", dis:"agree", mis:"spell", over:"come", im:"possible", in:"visible" };
+      const suffixMap = { ness:"happy", ful:"care", less:"hope", tion:"invent", ing:"play", ed:"play", er:"teach" };
+      for (const [pre, root] of Object.entries(prefixMap)) {
+        if (q.includes(pre) || q.includes(`${pre}${root}`)) {
+          return { type:"word_builder", prefix:pre, root, suffix:null };
+        }
+      }
+      for (const [suf, root] of Object.entries(suffixMap)) {
+        if (q.includes(suf) || q.includes(`${root}${suf}`)) {
+          return { type:"word_builder", prefix:null, root, suffix:suf };
+        }
+      }
+    }
+
+    // Synonyms / vocabulary strength
+    if (t.includes("synonym") || t.includes("vocabulary") || /synonym|means the same|similar meaning|word for/i.test(questionText)) {
+      // Static sets for common concepts
+      const SYNONYM_SETS = {
+        happy:  [{word:"content",strength:2},{word:"pleased",strength:3},{word:"delighted",strength:4},{word:"ecstatic",strength:5}],
+        sad:    [{word:"unhappy",strength:2},{word:"gloomy",strength:3},{word:"miserable",strength:4},{word:"devastated",strength:5}],
+        big:    [{word:"large",strength:2},{word:"huge",strength:3},{word:"enormous",strength:4},{word:"colossal",strength:5}],
+        angry:  [{word:"annoyed",strength:2},{word:"irritated",strength:3},{word:"furious",strength:4},{word:"enraged",strength:5}],
+        cold:   [{word:"cool",strength:2},{word:"chilly",strength:3},{word:"freezing",strength:4},{word:"arctic",strength:5}],
+        fast:   [{word:"quick",strength:2},{word:"swift",strength:3},{word:"rapid",strength:4},{word:"lightning",strength:5}],
+      };
+      for (const [concept, words] of Object.entries(SYNONYM_SETS)) {
+        if (q.includes(concept)) return { type:"synonym_ladder", words, concept:`words for "${concept}"` };
+      }
+    }
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TIER 4 — HIGHER SCIENCES + ACCOUNTING/COMMERCE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Bohr Atom Diagram ─────────────────────────────────────────────────────────
+function AtomVis({ protons, neutrons, electrons, element }) {
+  const shells = [2, 8, 8, 18];
+  let rem = electrons;
+  const shellCounts = shells.map(cap => { const n = Math.min(rem, cap); rem -= n; return n; });
+  const usedShells = shellCounts.filter(n => n > 0);
+  const maxR = 56 + usedShells.length * 20;
+  const cx = maxR + 4, cy = maxR + 4, W = (maxR + 4) * 2;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <svg width={W} height={W} viewBox={`0 0 ${W} ${W}`}>
+        {/* Nucleus */}
+        <circle cx={cx} cy={cy} r={18} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>{protons}p</text>
+        <text x={cx} y={cy + 6} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.nebula}>{neutrons}n</text>
+        {/* Electron shells */}
+        {usedShells.map((count, si) => {
+          const r = 30 + (si + 1) * 22;
+          return (
+            <g key={si}>
+              <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
+              {Array.from({ length: count }, (_, ei) => {
+                const angle = (ei / count) * 2 * Math.PI - Math.PI / 2;
+                const ex = cx + r * Math.cos(angle);
+                const ey = cy + r * Math.sin(angle);
+                return <circle key={ei} cx={ex} cy={ey} r={4} fill={T.emerald} stroke="white" strokeWidth={1} />;
+              })}
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
+        {element && <span style={{ color:T.indigo, fontWeight:800 }}>{element} · </span>}
+        {protons}p · {neutrons}n · {electrons}e⁻
+      </div>
+    </div>
+  );
+}
+
+// ── Periodic Table Section ────────────────────────────────────────────────────
+function PeriodicTableVis({ symbol, name, atomicNumber, atomicMass, group, period, category }) {
+  const CAT_COLORS = {
+    "alkali metal":       { bg:"#fef3c7", border:"#f59e0b", text:"#92400e" },
+    "alkaline earth":     { bg:"#fce7f3", border:"#ec4899", text:"#9d174d" },
+    "transition metal":   { bg:"#dbeafe", border:"#3b82f6", text:"#1e40af" },
+    "non-metal":          { bg:"#dcfce7", border:"#22c55e", text:"#14532d" },
+    "noble gas":          { bg:"#f3e8ff", border:"#a855f7", text:"#581c87" },
+    "halogen":            { bg:"#ffedd5", border:"#f97316", text:"#7c2d12" },
+    "metalloid":          { bg:"#ecfccb", border:"#84cc16", text:"#365314" },
+    "metal":              { bg:"#f1f5f9", border:"#64748b", text:"#1e293b" },
+  };
+  const c = CAT_COLORS[category?.toLowerCase()] || CAT_COLORS["metal"];
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      <div style={{
+        width:100, border:`3px solid ${c.border}`, borderRadius:8,
+        background:c.bg, padding:"10px 12px", textAlign:"center",
+        boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+      }}>
+        <div style={{ fontSize:10, color:c.text, fontWeight:600 }}>{atomicNumber}</div>
+        <div style={{ fontSize:32, fontWeight:900, color:c.text, lineHeight:1.1 }}>{symbol}</div>
+        <div style={{ fontSize:9, color:c.text, fontWeight:600, marginTop:2 }}>{name}</div>
+        <div style={{ fontSize:9, color:c.text, opacity:0.8 }}>{atomicMass}</div>
+      </div>
+      <div style={{ display:"flex", gap:12, fontSize:11, color:T.slate }}>
+        {group && <span>Group {group}</span>}
+        {period && <span>Period {period}</span>}
+        {category && <span style={{ color:c.border, fontWeight:700 }}>{category}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── State Changes (Solid/Liquid/Gas) ─────────────────────────────────────────
+function StateChangesVis({ highlighted }) {
+  const states = ["Solid","Liquid","Gas"];
+  const transitions = [
+    { from:0, to:1, label:"Melting",     dir:"→", energy:"+ heat" },
+    { from:1, to:0, label:"Freezing",    dir:"←", energy:"- heat" },
+    { from:1, to:2, label:"Evaporation", dir:"→", energy:"+ heat" },
+    { from:2, to:1, label:"Condensation",dir:"←", energy:"- heat" },
+    { from:0, to:2, label:"Sublimation", dir:"↑", energy:"+ heat", skip:true },
+  ];
+  const hiSet = new Set((highlighted||[]).map(s=>s.toLowerCase()));
+  const STATE_ICONS = ["🧊","💧","💨"];
+  const STATE_COLORS = [
+    { bg:"#dbeafe", border:"#3b82f6" },
+    { bg:"#bfdbfe", border:"#60a5fa" },
+    { bg:"#e0f2fe", border:"#38bdf8" },
+  ];
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+        {states.map((s, i) => {
+          const isHi = hiSet.has(s.toLowerCase());
+          const c = STATE_COLORS[i];
+          return (
+            <React.Fragment key={s}>
+              <div style={{
+                padding:"8px 10px", background: isHi ? c.border : c.bg,
+                border:`2px solid ${c.border}`, borderRadius:8,
+                textAlign:"center", minWidth:52,
+              }}>
+                <div style={{ fontSize:18 }}>{STATE_ICONS[i]}</div>
+                <div style={{ fontSize:11, fontWeight:700, color: isHi ? "white" : c.border }}>{s}</div>
+              </div>
+              {i < 2 && <span style={{ fontSize:18, color:T.slate }}>⇌</span>}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, width:"100%" }}>
+        {transitions.filter(t => !t.skip).map((tr, i) => (
+          <div key={i} style={{
+            padding:"3px 8px", background:T.indigoBg, borderRadius:6,
+            fontSize:10, color:T.slate, textAlign:"center",
+          }}>
+            <span style={{ fontWeight:700, color:T.indigo }}>{tr.label}</span>
+            {" "}({tr.energy})
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── pH Scale ──────────────────────────────────────────────────────────────────
+function PHScaleVis({ value, substance }) {
+  const gradient = "linear-gradient(to right, #dc2626,#ea580c,#d97706,#ca8a04,#65a30d,#16a34a,#0d9488,#0891b2,#2563eb,#7c3aed,#6d28d9,#4c1d95,#1e1b4b,#0f172a)";
+  const pct = (value / 14) * 100;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
+      <div style={{ position:"relative", height:24, borderRadius:12, background:gradient, border:"2px solid #e2e8f0" }}>
+        {value !== undefined && (
+          <div style={{
+            position:"absolute", left:`${pct}%`, top:-6,
+            transform:"translateX(-50%)",
+            width:12, height:36, display:"flex", flexDirection:"column", alignItems:"center",
+          }}>
+            <div style={{ width:2, height:10, background:"#1e293b" }} />
+            <div style={{
+              background:"#1e293b", color:"white", borderRadius:4,
+              padding:"2px 6px", fontSize:10, fontWeight:800, whiteSpace:"nowrap",
+            }}>{value}</div>
+          </div>
+        )}
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:T.slate, fontWeight:600 }}>
+        <span style={{ color:"#dc2626" }}>0 — Strong Acid</span>
+        <span style={{ color:"#16a34a" }}>7 — Neutral</span>
+        <span style={{ color:"#4c1d95" }}>14 — Strong Alkali</span>
+      </div>
+      {substance && (
+        <div style={{ textAlign:"center", fontSize:11, color:T.slate }}>
+          <span style={{ fontWeight:700, color:T.indigo }}>{substance}</span> — pH {value}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Molecule Structure (ball-and-stick) ───────────────────────────────────────
+function MoleculeVis({ formula, bonds }) {
+  // bonds = [{ from:{x,y,label,color}, to:{x,y,label,color}, type:"single"|"double" }]
+  const PRESET_MOLECULES = {
+    H2O: {
+      atoms:[{x:50,y:30,label:"O",color:"#ef4444",r:14},{x:18,y:62,label:"H",color:"#94a3b8",r:10},{x:82,y:62,label:"H",color:"#94a3b8",r:10}],
+      bonds:[{from:0,to:1,type:"single"},{from:0,to:2,type:"single"}],
+    },
+    CO2: {
+      atoms:[{x:50,y:45,label:"C",color:"#374151",r:12},{x:14,y:45,label:"O",color:"#ef4444",r:14},{x:86,y:45,label:"O",color:"#ef4444",r:14}],
+      bonds:[{from:0,to:1,type:"double"},{from:0,to:2,type:"double"}],
+    },
+    CH4: {
+      atoms:[{x:50,y:50,label:"C",color:"#374151",r:12},{x:50,y:14,label:"H",color:"#94a3b8",r:9},{x:80,y:68,label:"H",color:"#94a3b8",r:9},{x:20,y:68,label:"H",color:"#94a3b8",r:9},{x:50,y:86,label:"H",color:"#94a3b8",r:9}],
+      bonds:[{from:0,to:1,type:"single"},{from:0,to:2,type:"single"},{from:0,to:3,type:"single"},{from:0,to:4,type:"single"}],
+    },
+    O2: {
+      atoms:[{x:30,y:45,label:"O",color:"#ef4444",r:14},{x:70,y:45,label:"O",color:"#ef4444",r:14}],
+      bonds:[{from:0,to:1,type:"double"}],
+    },
+    N2: {
+      atoms:[{x:30,y:45,label:"N",color:"#3b82f6",r:13},{x:70,y:45,label:"N",color:"#3b82f6",r:13}],
+      bonds:[{from:0,to:1,type:"triple"}],
+    },
+    HCl: {
+      atoms:[{x:28,y:45,label:"H",color:"#94a3b8",r:9},{x:72,y:45,label:"Cl",color:"#84cc16",r:14}],
+      bonds:[{from:0,to:1,type:"single"}],
+    },
+    NaCl: {
+      atoms:[{x:28,y:45,label:"Na⁺",color:"#f59e0b",r:14},{x:72,y:45,label:"Cl⁻",color:"#84cc16",r:14}],
+      bonds:[{from:0,to:1,type:"ionic"}],
+    },
+  };
+  const mol = PRESET_MOLECULES[formula] || null;
+  if (!mol) return <div style={{ fontSize:12, color:T.slate, padding:8 }}>{formula}</div>;
+  const BOND_COLORS = { single:"#475569", double:"#2563eb", triple:"#7c3aed", ionic:"#f59e0b" };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+      <svg width={100} height={100} viewBox="0 0 100 100">
+        {mol.bonds.map((b, i) => {
+          const a1 = mol.atoms[b.from], a2 = mol.atoms[b.to];
+          const dx = a2.x - a1.x, dy = a2.y - a1.y;
+          const len = Math.sqrt(dx*dx + dy*dy);
+          const nx = -dy/len * 3, ny = dx/len * 3;
+          const count = b.type === "triple" ? 3 : b.type === "double" ? 2 : 1;
+          const offsets = count === 1 ? [0] : count === 2 ? [-1,1] : [-2,0,2];
+          return offsets.map((o, oi) => (
+            <line key={`${i}-${oi}`}
+              x1={a1.x + nx*o} y1={a1.y + ny*o} x2={a2.x + nx*o} y2={a2.y + ny*o}
+              stroke={BOND_COLORS[b.type] || "#475569"}
+              strokeWidth={b.type === "ionic" ? 1.5 : 2}
+              strokeDasharray={b.type === "ionic" ? "4,2" : undefined}
+            />
+          ));
+        })}
+        {mol.atoms.map((a, i) => (
+          <g key={i}>
+            <circle cx={a.x} cy={a.y} r={a.r} fill={a.color} stroke="white" strokeWidth={1.5} />
+            <text x={a.x} y={a.y} textAnchor="middle" dominantBaseline="central"
+              fontSize={a.r > 12 ? 9 : 8} fontWeight="800" fill="white">{a.label}</text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ fontSize:12, fontWeight:800, color:T.indigo, fontFamily:"monospace" }}>{formula}</div>
+    </div>
+  );
+}
+
+// ── Cell Diagram ──────────────────────────────────────────────────────────────
+function CellVis({ cellType }) {
+  const isPlant = cellType === "plant";
+  const parts = isPlant
+    ? [
+        { label:"Cell wall", desc:"Rigid outer layer" },
+        { label:"Cell membrane", desc:"Controls what enters/leaves" },
+        { label:"Nucleus", desc:"Controls cell activities" },
+        { label:"Cytoplasm", desc:"Jelly-like fluid" },
+        { label:"Chloroplast", desc:"Site of photosynthesis" },
+        { label:"Vacuole", desc:"Stores water/sap" },
+        { label:"Mitochondria", desc:"Releases energy" },
+      ]
+    : [
+        { label:"Cell membrane", desc:"Controls what enters/leaves" },
+        { label:"Nucleus", desc:"Controls cell activities" },
+        { label:"Cytoplasm", desc:"Jelly-like fluid" },
+        { label:"Mitochondria", desc:"Releases energy" },
+        { label:"Ribosome", desc:"Makes proteins" },
+      ];
+  const colors = [T.emerald, T.indigo, T.nebula, "#f59e0b", "#22c55e", "#0891b2", "#ec4899"];
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+      <div style={{
+        padding:"6px 12px", background: isPlant ? "#dcfce7" : "#dbeafe",
+        border:`2px solid ${isPlant ? T.emerald : T.indigo}`, borderRadius:8,
+        fontSize:12, fontWeight:700, color: isPlant ? "#14532d" : "#1e40af",
+        textAlign:"center",
+      }}>{isPlant ? "🌿 Plant Cell" : "🔬 Animal Cell"}</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+        {parts.map((p, i) => (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <div style={{ width:8, height:8, borderRadius:"50%", background:colors[i % colors.length], flexShrink:0 }} />
+            <div style={{ fontSize:11 }}>
+              <span style={{ fontWeight:700, color:colors[i % colors.length] }}>{p.label}</span>
+              <span style={{ color:T.slate }}> — {p.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Punnett Square ────────────────────────────────────────────────────────────
+function PunnettVis({ parent1, parent2, trait }) {
+  // parent1 = "Aa", parent2 = "Aa"
+  const a1 = parent1.split(""), a2 = parent2.split("");
+  const combos = [
+    a1[0]+a2[0], a1[0]+a2[1],
+    a1[1]+a2[0], a1[1]+a2[1],
+  ];
+  const isDom = (g) => g[0] === g[0].toUpperCase() && g[0] !== g[1];
+  const isHom = (g) => g[0] === g[1];
+  const getLabel = (g) => isHom(g) ? (isDom(g) ? "Dom. Homozygous" : "Rec. Homozygous") : "Heterozygous";
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      {trait && <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>{trait}</div>}
+      <div style={{ display:"grid", gridTemplateColumns:"28px 1fr 1fr", gridTemplateRows:"28px 1fr 1fr", gap:3 }}>
+        <div />
+        {a2.map((g,i) => (
+          <div key={i} style={{ textAlign:"center", fontSize:14, fontWeight:800, color:T.nebula }}>{g}</div>
+        ))}
+        {a1.map((g1, ri) => (
+          <React.Fragment key={ri}>
+            <div style={{ fontSize:14, fontWeight:800, color:T.indigo, alignSelf:"center", textAlign:"center" }}>{g1}</div>
+            {a2.map((g2, ci) => {
+              const combo = ri === 0 ? combos[ci] : combos[ci + 2];
+              const dom = combo.includes(combo[0].toUpperCase()) && combo[0] !== combo[1];
+              return (
+                <div key={ci} style={{
+                  width:52, height:40, borderRadius:6,
+                  background: dom ? T.indigoBg : T.nebulaBg,
+                  border:`2px solid ${dom ? T.indigo : T.nebula}`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:14, fontWeight:800, color: dom ? T.indigo : T.nebula,
+                }}>{combo}</div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ fontSize:10, color:T.slate }}>
+        {combos.filter(g => g.includes(g[0].toUpperCase()) && g[0] !== g[1]).length}/4 heterozygous
+      </div>
+    </div>
+  );
+}
+
+// ── Energy Stores Transfer ─────────────────────────────────────────────────────
+function EnergyStoresVis({ stores, transfers }) {
+  const STORE_ICONS = {
+    kinetic:"⚡", thermal:"🔥", chemical:"⚗️", gravitational:"⬆️",
+    elastic:"🌀", nuclear:"☢️", electromagnetic:"💡", sound:"🔊",
+  };
+  const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8, alignItems:"center" }}>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
+        {stores.map((s, i) => (
+          <div key={i} style={{
+            padding:"6px 10px", background:COLORS[i % COLORS.length] + "22",
+            border:`2px solid ${COLORS[i % COLORS.length]}`, borderRadius:8,
+            textAlign:"center", minWidth:70,
+          }}>
+            <div style={{ fontSize:20 }}>{STORE_ICONS[s.type] || "⚡"}</div>
+            <div style={{ fontSize:10, fontWeight:700, color:COLORS[i % COLORS.length] }}>{s.label || s.type}</div>
+            {s.value && <div style={{ fontSize:10, color:T.slate }}>{s.value} J</div>}
+          </div>
+        ))}
+      </div>
+      {transfers && transfers.map((tr, i) => (
+        <div key={i} style={{
+          display:"flex", alignItems:"center", gap:4, fontSize:11, color:T.slate,
+        }}>
+          <span style={{ fontWeight:700, color:T.indigo }}>{tr.from}</span>
+          <span>→</span>
+          <span style={{ fontStyle:"italic" }}>{tr.method}</span>
+          <span>→</span>
+          <span style={{ fontWeight:700, color:T.nebula }}>{tr.to}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Wave Diagram ──────────────────────────────────────────────────────────────
+function WaveVis({ type, wavelength, amplitude, label }) {
+  const W = 200, H = 80, mid = H / 2;
+  const isLongitudinal = type === "longitudinal";
+  const wavePath = () => {
+    const cycles = 2;
+    const pts = [];
+    for (let i = 0; i <= W; i += 2) {
+      const y = mid - (amplitude || 24) * Math.sin((i / W) * cycles * 2 * Math.PI);
+      pts.push(`${i},${y}`);
+    }
+    return "M " + pts.join(" L ");
+  };
+  if (isLongitudinal) {
+    const bars = Array.from({ length: 20 }, (_, i) => {
+      const x = (i / 20) * W;
+      const compression = Math.sin((i / 20) * 4 * Math.PI);
+      const opacity = (compression + 1) / 2;
+      return { x, opacity };
+    });
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+        <svg width={W} height={40} viewBox={`0 0 ${W} 40`}>
+          {bars.map((b, i) => (
+            <rect key={i} x={b.x} y={8} width={W/20 - 1} height={24}
+              fill={T.indigo} opacity={b.opacity * 0.8 + 0.1} rx={1} />
+          ))}
+          <text x={W/2} y={36} textAnchor="middle" fontSize={9} fill={T.slate}>Compressions and rarefactions</text>
+        </svg>
+        <div style={{ fontSize:11, fontWeight:700, color:T.indigo }}>{label || "Longitudinal wave (e.g. sound)"}</div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <line x1={0} y1={mid} x2={W} y2={mid} stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
+        <path d={wavePath()} fill="none" stroke={T.indigo} strokeWidth={2.5} />
+        {/* Wavelength arrow */}
+        <line x1={10} y1={16} x2={10 + W/2} y2={16} stroke={T.nebula} strokeWidth={1.5} markerEnd="url(#wEnd)" />
+        <text x={10 + W/4} y={13} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">λ (wavelength)</text>
+        {/* Amplitude arrow */}
+        <line x1={W-12} y1={mid} x2={W-12} y2={mid - (amplitude||24)} stroke={T.emerald} strokeWidth={1.5} />
+        <text x={W-22} y={mid - 10} fontSize={8} fill={T.emerald} fontWeight="700">A</text>
+      </svg>
+      <div style={{ fontSize:11, fontWeight:700, color:T.indigo }}>{label || "Transverse wave (e.g. light)"}</div>
+    </div>
+  );
+}
+
+// ── Electromagnetic Spectrum ──────────────────────────────────────────────────
+function EMSpectrumVis({ highlighted }) {
+  const bands = [
+    { name:"Radio",     color:"#7c3aed", freq:"<10⁹ Hz",   use:"Broadcasting" },
+    { name:"Microwave", color:"#2563eb", freq:"10⁹–10¹² Hz", use:"Cooking, comms" },
+    { name:"Infrared",  color:"#ea580c", freq:"10¹²–10¹⁴", use:"Thermal imaging" },
+    { name:"Visible",   color:"#16a34a", freq:"10¹⁴–10¹⁵", use:"Sight, cameras" },
+    { name:"UV",        color:"#ca8a04", freq:"10¹⁵–10¹⁶", use:"Sterilisation" },
+    { name:"X-ray",     color:"#dc2626", freq:"10¹⁶–10¹⁹", use:"Medical imaging" },
+    { name:"Gamma",     color:"#991b1b", freq:">10¹⁹ Hz",  use:"Cancer treatment" },
+  ];
+  const hiSet = new Set((highlighted || []).map(s => s.toLowerCase()));
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, width:"100%" }}>
+      <div style={{ display:"flex", height:20, borderRadius:6, overflow:"hidden" }}>
+        {bands.map((b, i) => (
+          <div key={i} style={{
+            flex:1, background:b.color,
+            opacity: hiSet.size === 0 || hiSet.has(b.name.toLowerCase()) ? 1 : 0.3,
+          }} />
+        ))}
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:8, color:T.slate }}>
+        <span>← longer wavelength / lower frequency / less energy</span>
+        <span>shorter wavelength / higher frequency / more energy →</span>
+      </div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginTop:2 }}>
+        {bands.map((b, i) => {
+          const isHi = hiSet.size === 0 || hiSet.has(b.name.toLowerCase());
+          return (
+            <div key={i} style={{
+              padding:"2px 6px", background: isHi ? b.color + "22" : "#f8fafc",
+              border:`1px solid ${isHi ? b.color : "#e2e8f0"}`, borderRadius:4,
+              fontSize:9, fontWeight: isHi ? 700 : 400, color: isHi ? b.color : T.slate,
+            }}>{b.name}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Free Body Diagram ─────────────────────────────────────────────────────────
+function FreeBodyVis({ forces }) {
+  // forces = [{ label, value, direction:"up"|"down"|"left"|"right", color }]
+  const cx = 60, cy = 60;
+  const DIR = {
+    up:    { dx:0, dy:-1, lx:0,   ly:-52 },
+    down:  { dx:0, dy:1,  lx:0,   ly:52  },
+    left:  { dx:-1, dy:0, lx:-52, ly:0   },
+    right: { dx:1, dy:0,  lx:52,  ly:0   },
+  };
+  const FORCE_COLORS = { up:T.emerald, down:T.nebula, left:T.indigo, right:"#f59e0b" };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        <defs>
+          {["up","down","left","right"].map(dir => (
+            <marker key={dir} id={`fbArrow-${dir}`} markerWidth={8} markerHeight={8} refX={4} refY={3} orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill={FORCE_COLORS[dir]} />
+            </marker>
+          ))}
+        </defs>
+        {/* Object */}
+        <rect x={cx-14} y={cy-14} width={28} height={28} rx={4} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={8} fill={T.indigo} fontWeight="700">obj</text>
+        {/* Force arrows */}
+        {forces.map((f, i) => {
+          const d = DIR[f.direction];
+          if (!d) return null;
+          const mag = Math.min(Math.max((f.value || 1) / 20, 0.4), 1);
+          const len = 32 * mag + 14;
+          const ex = cx + d.dx * len, ey = cy + d.dy * len;
+          const color = FORCE_COLORS[f.direction];
+          return (
+            <g key={i}>
+              <line x1={cx + d.dx*14} y1={cy + d.dy*14} x2={ex} y2={ey}
+                stroke={color} strokeWidth={2.5} markerEnd={`url(#fbArrow-${f.direction})`} />
+              <text x={cx + d.lx * 0.8} y={cy + d.ly * 0.8}
+                textAnchor="middle" dominantBaseline="central" fontSize={8} fill={color} fontWeight="700">
+                {f.label}{f.value ? ` (${f.value}N)` : ""}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ── T-Account (Accounting) ────────────────────────────────────────────────────
+function TAccountVis({ account, debits, credits }) {
+  const debitTotal  = (debits  || []).reduce((s, r) => s + r.amount, 0);
+  const creditTotal = (credits || []).reduce((s, r) => s + r.amount, 0);
+  const balance     = debitTotal - creditTotal;
+  const Col = ({ entries, title, color }) => (
+    <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+      <div style={{ padding:"4px 8px", background:color+"22", fontSize:11, fontWeight:700, color, textAlign:"center", borderBottom:`2px solid ${color}` }}>
+        {title}
+      </div>
+      {(entries||[]).map((e, i) => (
+        <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"3px 8px", fontSize:10, color:T.slate, borderBottom:"1px solid #f1f5f9" }}>
+          <span>{e.label}</span>
+          <span style={{ fontWeight:600 }}>£{e.amount.toLocaleString()}</span>
+        </div>
+      ))}
+      <div style={{ display:"flex", justifyContent:"space-between", padding:"4px 8px", fontSize:11, fontWeight:700, color, borderTop:`2px solid ${color}`, marginTop:"auto" }}>
+        <span>Total</span>
+        <span>£{(entries||[]).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, width:"100%" }}>
+      <div style={{ textAlign:"center", fontSize:12, fontWeight:700, color:T.slate, textDecoration:"underline" }}>
+        {account}
+      </div>
+      <div style={{ display:"flex", border:`2px solid ${T.slate}`, borderRadius:8, overflow:"hidden", minHeight:100 }}>
+        <Col entries={debits}  title="Dr (Debit)"  color={T.indigo} />
+        <div style={{ width:2, background:T.slate }} />
+        <Col entries={credits} title="Cr (Credit)" color={T.nebula} />
+      </div>
+      <div style={{ textAlign:"center", fontSize:11, color:T.slate }}>
+        Balance: <span style={{ fontWeight:700, color: balance >= 0 ? T.indigo : T.nebula }}>
+          £{Math.abs(balance).toLocaleString()} {balance >= 0 ? "Dr" : "Cr"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Break-Even Chart ──────────────────────────────────────────────────────────
+function BreakEvenVis({ fixedCost, variableCostPerUnit, pricePerUnit, breakEvenQty }) {
+  const W = 200, H = 140, PAD = 30;
+  const maxQ = (breakEvenQty || 100) * 1.6;
+  const maxC = pricePerUnit * maxQ;
+  const scaleX = (q) => PAD + (q / maxQ) * (W - PAD);
+  const scaleY = (c) => H - PAD - (c / maxC) * (H - PAD);
+  const fixedY = scaleY(fixedCost);
+  const beX = scaleX(breakEvenQty || 0);
+  const beY = scaleY((breakEvenQty || 0) * pricePerUnit);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {/* Axes */}
+        <line x1={PAD} y1={H-PAD} x2={W} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <line x1={PAD} y1={0}    x2={PAD} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <text x={W/2} y={H-4} textAnchor="middle" fontSize={8} fill={T.slate}>Quantity (units)</text>
+        <text x={8} y={H/2} textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Cost / Revenue (£)</text>
+        {/* Fixed cost line */}
+        <line x1={PAD} y1={fixedY} x2={W} y2={fixedY} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4,3" />
+        <text x={W-4} y={fixedY - 4} textAnchor="end" fontSize={8} fill="#94a3b8" fontWeight="600">FC</text>
+        {/* Total cost line */}
+        <line x1={PAD} y1={fixedY} x2={W} y2={scaleY(fixedCost + (maxQ * variableCostPerUnit))}
+          stroke={T.indigo} strokeWidth={2} />
+        <text x={W-4} y={scaleY(fixedCost + maxQ*variableCostPerUnit)-4} textAnchor="end" fontSize={8} fill={T.indigo} fontWeight="700">TC</text>
+        {/* Revenue line */}
+        <line x1={PAD} y1={H-PAD} x2={W} y2={scaleY(maxQ * pricePerUnit)}
+          stroke={T.emerald} strokeWidth={2} />
+        <text x={W-4} y={scaleY(maxQ*pricePerUnit)-4} textAnchor="end" fontSize={8} fill={T.emerald} fontWeight="700">TR</text>
+        {/* Break-even point */}
+        {breakEvenQty && (
+          <>
+            <line x1={beX} y1={H-PAD} x2={beX} y2={beY} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+            <circle cx={beX} cy={beY} r={5} fill={T.nebula} />
+            <text x={beX} y={beY - 8} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">BEP</text>
+          </>
+        )}
+      </svg>
+      {breakEvenQty && (
+        <div style={{ fontSize:11, color:T.slate }}>
+          Break-even: <span style={{ fontWeight:700, color:T.nebula }}>{breakEvenQty} units</span>
+          {" "} · Revenue = Cost = <span style={{ fontWeight:700 }}>£{(breakEvenQty * pricePerUnit).toLocaleString()}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Supply & Demand Curves ────────────────────────────────────────────────────
+function SupplyDemandVis({ eqPrice, eqQty, shift }) {
+  const W = 180, H = 150, PAD = 28;
+  const scaleX = (q) => PAD + q * ((W - PAD) / 100);
+  const scaleY = (p) => H - PAD - p * ((H - PAD) / 100);
+  // Demand: downward slope  D: P = 90 - 0.8Q
+  // Supply: upward slope    S: P = 10 + 0.8Q
+  const demandPath = `M ${scaleX(0)} ${scaleY(90)} L ${scaleX(100)} ${scaleY(10)}`;
+  const supplyPath = `M ${scaleX(0)} ${scaleY(10)} L ${scaleX(100)} ${scaleY(90)}`;
+  const eq = eqQty || 50, ep = eqPrice || 50;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <line x1={PAD} y1={H-PAD} x2={W}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <line x1={PAD} y1={0}    x2={PAD}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <text x={W/2}  y={H-6}  textAnchor="middle" fontSize={8} fill={T.slate}>Quantity</text>
+        <text x={8}    y={H/2}  textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Price</text>
+        {/* Demand curve */}
+        <path d={demandPath} fill="none" stroke={T.indigo} strokeWidth={2} />
+        <text x={W-8} y={scaleY(12)} textAnchor="end" fontSize={9} fill={T.indigo} fontWeight="800">D</text>
+        {/* Supply curve */}
+        <path d={supplyPath} fill="none" stroke={T.emerald} strokeWidth={2} />
+        <text x={W-8} y={scaleY(88)} textAnchor="end" fontSize={9} fill={T.emerald} fontWeight="800">S</text>
+        {/* Equilibrium */}
+        <line x1={scaleX(eq)} y1={H-PAD} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+        <line x1={PAD} y1={scaleY(ep)} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+        <circle cx={scaleX(eq)} cy={scaleY(ep)} r={5} fill={T.nebula} />
+        <text x={scaleX(eq)+4} y={scaleY(ep)-4} fontSize={8} fill={T.nebula} fontWeight="700">E</text>
+      </svg>
+      <div style={{ fontSize:11, color:T.slate, textAlign:"center" }}>
+        Equilibrium: P = <span style={{ fontWeight:700, color:T.nebula }}>{ep}</span>
+        {" "} · Q = <span style={{ fontWeight:700, color:T.nebula }}>{eq}</span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PARSER — TIER 4
+// ═══════════════════════════════════════════════════════════════════════════════
+function parseTier4(topic, questionText, subject, yearLevel) {
+  const t    = (topic || "").toLowerCase();
+  const q    = (questionText || "").toLowerCase();
+  const subj = (subject || "").toLowerCase();
+  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
+
+  const isPhysics   = subj.includes("physics")   || (subj.includes("science") && (t.includes("force") || t.includes("wave") || t.includes("energy") || t.includes("electr")));
+  const isChem      = subj.includes("chem")       || (subj.includes("science") && (t.includes("atom") || t.includes("element") || t.includes("react") || t.includes("periodic") || t.includes("ph") || t.includes("state") || t.includes("molecul")));
+  const isBio       = subj.includes("biol")       || (subj.includes("science") && (t.includes("cell") || t.includes("gene") || t.includes("organ") || t.includes("punnett") || t.includes("inherit")));
+  const isAccounting = subj.includes("account")   || subj.includes("commerce") || subj.includes("business") || subj.includes("economics") || subj.includes("econ");
+
+  // ── PHYSICS ─────────────────────────────────────────────────────────────────
+
+  // Wave
+  if (isPhysics && (t.includes("wave") || /wavelength|amplitude|frequency|transverse|longitudinal/i.test(questionText))) {
+    const isLong = /longitudinal|sound|compression|rarefaction/i.test(questionText);
+    const amp = nums.find(n => n > 0 && n < 50) || 24;
+    return { type:"wave", waveType: isLong ? "longitudinal" : "transverse", amplitude:amp,
+      label: isLong ? "Longitudinal wave (e.g. sound)" : "Transverse wave (e.g. light)" };
+  }
+
+  // EM Spectrum
+  if (isPhysics && (t.includes("electromagnetic") || t.includes("em_spectrum") || /electromagnetic spectrum|radio wave|microwave|infrared|ultraviolet|x.ray|gamma ray|visible light/i.test(questionText))) {
+    const BANDS = ["radio","microwave","infrared","visible","uv","ultraviolet","x-ray","x ray","gamma"];
+    const found = BANDS.filter(b => q.includes(b));
+    return { type:"em_spectrum", highlighted: found };
+  }
+
+  // Free body / resultant forces
+  if (isPhysics && (t.includes("resultant") || t.includes("free_body") || /resultant force|free body|balanced force|unbalanced/i.test(questionText))) {
+    const directions = ["up","down","left","right"];
+    const forces = [];
+    const forceMatches = (questionText || "").matchAll(/(\d+)\s*n\s*(?:acting\s+)?(?:to\s+the\s+)?(up|down|left|right|upward|downward)/gi);
+    for (const m of forceMatches) {
+      const dir = m[2].toLowerCase().replace("ward","");
+      forces.push({ label:dir, value:parseInt(m[1]), direction:dir });
+    }
+    if (forces.length === 0) {
+      forces.push({ label:"Weight", value:20, direction:"down" });
+      forces.push({ label:"Normal", value:20, direction:"up" });
+    }
+    return { type:"free_body", forces };
+  }
+
+  // Energy stores
+  if (isPhysics && (t.includes("energy") || /energy store|kinetic energy|potential energy|thermal energy|energy transfer/i.test(questionText))) {
+    const STORES = [
+      { key:"kinetic",       patterns:/kinetic|moving/ },
+      { key:"thermal",       patterns:/thermal|heat|temperature/ },
+      { key:"chemical",      patterns:/chemical|fuel|food|battery/ },
+      { key:"gravitational", patterns:/gravitational|potential|height/ },
+      { key:"elastic",       patterns:/elastic|spring|stretched/ },
+      { key:"sound",         patterns:/sound|acoustic/ },
+    ];
+    const found = STORES.filter(s => s.patterns.test(q)).map(s => ({ type:s.key, label:s.key.charAt(0).toUpperCase()+s.key.slice(1) }));
+    if (found.length >= 2) {
+      return { type:"energy_stores", stores:found.slice(0,4),
+        transfers:[{ from:found[0].label, method:"transfer", to:found[1].label }] };
+    }
+  }
+
+  // ── CHEMISTRY ───────────────────────────────────────────────────────────────
+
+  // Atom / Bohr model
+  if (isChem && (t.includes("atom") || t.includes("electron") || /atomic structure|electron shell|bohr|proton|neutron|electron/i.test(questionText))) {
+    // Try to extract element
+    const ELEMENTS = {
+      hydrogen:  { protons:1, neutrons:0, electrons:1, element:"H" },
+      helium:    { protons:2, neutrons:2, electrons:2, element:"He" },
+      lithium:   { protons:3, neutrons:4, electrons:3, element:"Li" },
+      carbon:    { protons:6, neutrons:6, electrons:6, element:"C" },
+      nitrogen:  { protons:7, neutrons:7, electrons:7, element:"N" },
+      oxygen:    { protons:8, neutrons:8, electrons:8, element:"O" },
+      fluorine:  { protons:9, neutrons:10, electrons:9, element:"F" },
+      neon:      { protons:10, neutrons:10, electrons:10, element:"Ne" },
+      sodium:    { protons:11, neutrons:12, electrons:11, element:"Na" },
+      magnesium: { protons:12, neutrons:12, electrons:12, element:"Mg" },
+      chlorine:  { protons:17, neutrons:18, electrons:17, element:"Cl" },
+      calcium:   { protons:20, neutrons:20, electrons:20, element:"Ca" },
+    };
+    for (const [name, data] of Object.entries(ELEMENTS)) {
+      if (q.includes(name)) return { type:"atom", ...data };
+    }
+    // Generic: extract p/n from question
+    const pMatch = (questionText||"").match(/(\d+)\s*protons?/i);
+    const nMatch = (questionText||"").match(/(\d+)\s*neutrons?/i);
+    const eMatch = (questionText||"").match(/(\d+)\s*electrons?/i);
+    if (pMatch || nMatch) {
+      const p = parseInt(pMatch?.[1] || "6");
+      const n = parseInt(nMatch?.[1] || p.toString());
+      const e = parseInt(eMatch?.[1] || p.toString());
+      return { type:"atom", protons:p, neutrons:n, electrons:e };
+    }
+  }
+
+  // Periodic table element
+  if (isChem && (t.includes("periodic") || t.includes("element") || /group \d|period \d|periodic table|noble gas|alkali metal|halogen|transition metal/i.test(questionText))) {
+    const ELEM_DB = {
+      hydrogen:  { symbol:"H",  name:"Hydrogen",  atomicNumber:1,  atomicMass:"1",   group:1,  period:1, category:"non-metal" },
+      helium:    { symbol:"He", name:"Helium",     atomicNumber:2,  atomicMass:"4",   group:18, period:1, category:"noble gas" },
+      lithium:   { symbol:"Li", name:"Lithium",    atomicNumber:3,  atomicMass:"7",   group:1,  period:2, category:"alkali metal" },
+      sodium:    { symbol:"Na", name:"Sodium",     atomicNumber:11, atomicMass:"23",  group:1,  period:3, category:"alkali metal" },
+      potassium: { symbol:"K",  name:"Potassium",  atomicNumber:19, atomicMass:"39",  group:1,  period:4, category:"alkali metal" },
+      magnesium: { symbol:"Mg", name:"Magnesium",  atomicNumber:12, atomicMass:"24",  group:2,  period:3, category:"alkaline earth" },
+      calcium:   { symbol:"Ca", name:"Calcium",    atomicNumber:20, atomicMass:"40",  group:2,  period:4, category:"alkaline earth" },
+      carbon:    { symbol:"C",  name:"Carbon",     atomicNumber:6,  atomicMass:"12",  group:14, period:2, category:"non-metal" },
+      nitrogen:  { symbol:"N",  name:"Nitrogen",   atomicNumber:7,  atomicMass:"14",  group:15, period:2, category:"non-metal" },
+      oxygen:    { symbol:"O",  name:"Oxygen",     atomicNumber:8,  atomicMass:"16",  group:16, period:2, category:"non-metal" },
+      chlorine:  { symbol:"Cl", name:"Chlorine",   atomicNumber:17, atomicMass:"35.5",group:17, period:3, category:"halogen" },
+      fluorine:  { symbol:"F",  name:"Fluorine",   atomicNumber:9,  atomicMass:"19",  group:17, period:2, category:"halogen" },
+      neon:      { symbol:"Ne", name:"Neon",       atomicNumber:10, atomicMass:"20",  group:18, period:2, category:"noble gas" },
+      argon:     { symbol:"Ar", name:"Argon",      atomicNumber:18, atomicMass:"40",  group:18, period:3, category:"noble gas" },
+      iron:      { symbol:"Fe", name:"Iron",       atomicNumber:26, atomicMass:"56",  group:8,  period:4, category:"transition metal" },
+      copper:    { symbol:"Cu", name:"Copper",     atomicNumber:29, atomicMass:"64",  group:11, period:4, category:"transition metal" },
+      zinc:      { symbol:"Zn", name:"Zinc",       atomicNumber:30, atomicMass:"65",  group:12, period:4, category:"transition metal" },
+      gold:      { symbol:"Au", name:"Gold",       atomicNumber:79, atomicMass:"197", group:11, period:6, category:"transition metal" },
+      silver:    { symbol:"Ag", name:"Silver",     atomicNumber:47, atomicMass:"108", group:11, period:5, category:"transition metal" },
+      aluminium: { symbol:"Al", name:"Aluminium",  atomicNumber:13, atomicMass:"27",  group:13, period:3, category:"metal" },
+      silicon:   { symbol:"Si", name:"Silicon",    atomicNumber:14, atomicMass:"28",  group:14, period:3, category:"metalloid" },
+    };
+    for (const [name, data] of Object.entries(ELEM_DB)) {
+      if (q.includes(name)) return { type:"periodic_element", ...data };
+    }
+  }
+
+  // State changes
+  if (isChem && (t.includes("state") || /melting|freezing|evaporation|condensation|sublimation|solid|liquid|gas|boiling/i.test(questionText))) {
+    const STATES = ["solid","liquid","gas"];
+    const found = STATES.filter(s => q.includes(s));
+    return { type:"state_changes", highlighted: found };
+  }
+
+  // Molecule
+  if (isChem && (t.includes("molecule") || t.includes("compound") || /\bH2O\b|\bCO2\b|\bCH4\b|\bO2\b|\bN2\b|\bHCl\b|\bNaCl\b/i.test(questionText))) {
+    const FORMULAS = ["H2O","CO2","CH4","O2","N2","HCl","NaCl"];
+    const found = FORMULAS.find(f => new RegExp(`\\b${f}\\b`, "i").test(questionText));
+    if (found) return { type:"molecule", formula:found };
+    // Check names
+    if (/water/i.test(questionText)) return { type:"molecule", formula:"H2O" };
+    if (/carbon dioxide/i.test(questionText)) return { type:"molecule", formula:"CO2" };
+    if (/methane/i.test(questionText)) return { type:"molecule", formula:"CH4" };
+    if (/oxygen/i.test(questionText) && !/carbon|water/i.test(questionText)) return { type:"molecule", formula:"O2" };
+    if (/sodium chloride|salt/i.test(questionText)) return { type:"molecule", formula:"NaCl" };
+  }
+
+  // pH scale
+  if (isChem && (t.includes("ph") || /\bpH\b|acid|alkali|alkaline|neutral|indicator/i.test(questionText))) {
+    const phMatch = (questionText||"").match(/pH\s*(?:of\s*)?(?:=\s*)?(\d+(?:\.\d+)?)/i);
+    const SUBSTANCE_PH = {
+      "lemon juice":3, "vinegar":3, "cola":4, "rain":6, "pure water":7, "water":7,
+      "milk":7, "blood":7.4, "sea water":8, "baking soda":9, "bleach":13, "stomach acid":2,
+    };
+    let value = phMatch ? parseFloat(phMatch[1]) : null;
+    let substance = null;
+    for (const [sub, ph] of Object.entries(SUBSTANCE_PH)) {
+      if (q.includes(sub)) { value = value ?? ph; substance = sub; break; }
+    }
+    if (value !== null) return { type:"ph_scale", value, substance };
+    return { type:"ph_scale", value:7, substance:"neutral" };
+  }
+
+  // ── BIOLOGY ─────────────────────────────────────────────────────────────────
+
+  // Cell
+  if (isBio && (t.includes("cell") || /animal cell|plant cell|cell membrane|cell wall|nucleus|chloroplast|vacuole|mitochondria/i.test(questionText))) {
+    const isPlant = /plant/i.test(questionText) || /chloroplast|cell wall|vacuole/i.test(questionText);
+    return { type:"cell", cellType: isPlant ? "plant" : "animal" };
+  }
+
+  // Punnett square
+  if (isBio && (t.includes("punnett") || t.includes("inherit") || t.includes("genetic") || /dominant|recessive|allele|genotype|phenotype|cross.*\b[A-Z][a-z]\b/i.test(questionText))) {
+    const crossMatch = (questionText||"").match(/\b([A-Z][a-z])\s*[×x]\s*([A-Z][a-z])\b/);
+    const parent1 = crossMatch?.[1] || "Aa";
+    const parent2 = crossMatch?.[2] || "Aa";
+    const traitM  = (questionText||"").match(/trait[:\s]+([^.?\n]{3,30})/i);
+    return { type:"punnett", parent1, parent2, trait:traitM?.[1]?.trim() };
+  }
+
+  // ── ACCOUNTING / COMMERCE / ECONOMICS ────────────────────────────────────────
+
+  // T-Account
+  if (isAccounting && (t.includes("t-account") || t.includes("t_account") || t.includes("double entry") || t.includes("debit") || t.includes("credit") || /\bdebit\b|\bcredit\b|ledger|journal/i.test(questionText))) {
+    const accountMatch = (questionText||"").match(/(?:account(?:s?)|ledger)\s+(?:for\s+)?([A-Z][a-zA-Z\s]{2,20})/i);
+    const debits  = [{ label:"Opening balance", amount:1000 }, { label:"Sales", amount:500 }];
+    const credits = [{ label:"Purchases", amount:300 }, { label:"Expenses", amount:200 }];
+    return { type:"t_account", account: accountMatch?.[1]?.trim() || "Account Name", debits, credits };
+  }
+
+  // Break-even
+  if (isAccounting && (t.includes("break") || t.includes("break_even") || /break.even|breakeven|fixed cost|variable cost|contribution/i.test(questionText))) {
+    const fcMatch  = (questionText||"").match(/fixed costs?\s*(?:of|=|:)?\s*[£$]?(\d[\d,]*)/i);
+    const vcMatch  = (questionText||"").match(/variable costs?\s*(?:per unit)?\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
+    const spMatch  = (questionText||"").match(/(?:selling price|price per unit|revenue per unit)\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
+    const fc  = fcMatch  ? parseInt(fcMatch[1].replace(",",""))  : 2000;
+    const vc  = vcMatch  ? parseFloat(vcMatch[1])                 : 4;
+    const sp  = spMatch  ? parseFloat(spMatch[1])                 : 8;
+    const beq = sp > vc  ? Math.ceil(fc / (sp - vc))             : null;
+    return { type:"break_even", fixedCost:fc, variableCostPerUnit:vc, pricePerUnit:sp, breakEvenQty:beq };
+  }
+
+  // Supply & Demand
+  if (isAccounting && (t.includes("supply") || t.includes("demand") || t.includes("equilibrium") || /supply|demand|equilibrium|market price|price mechanism/i.test(questionText))) {
+    const pMatch = (questionText||"").match(/price\s*(?:of|=|:)?\s*[£$]?(\d+)/i);
+    const qMatch = (questionText||"").match(/quantity\s*(?:of|=|:)?\s*(\d+)/i);
+    return { type:"supply_demand", eqPrice: pMatch ? parseInt(pMatch[1]) : 50, eqQty: qMatch ? parseInt(qMatch[1]) : 50 };
+  }
+
   return null;
 }
 
@@ -841,21 +2470,99 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
     const subj = (subject || "").toLowerCase();
     const year = parseInt(yearLevel ?? question?.year_level ?? 99, 10);
 
-    const isMaths   = subj.includes("math");
-    const isScience = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
-    const isNVR     = subj.includes("verbal") || subj.includes("nvr");
-    if (!isMaths && !isScience && !isNVR) return null;
-    // Note: year guard is per-visual-type inside parseVisualExtended, not global
+    const isMaths      = subj.includes("math");
+    const isScience    = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
+    const isNVR        = subj.includes("verbal") || subj.includes("nvr");
+    const isEnglish    = subj.includes("english");
+    const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
+    if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce) return null;
+
+    // "science" as a generic subject — infer biology/physics/chemistry from topic/question
+    // so Tier 4 parsers (which check subj.includes("biol") etc.) still fire
+    let enrichedSubject = subject || "";
+    if (subj === "science" || subj.includes("science")) {
+      const q2 = (question.q || question.question_text || "").toLowerCase();
+      const t2 = (question.topic || "").toLowerCase();
+      if (/cell|mitochondria|photosynthesis|organ|plant|animal|dna|gene|inherit|chloroplast|vacuole|nucleus|ribosome|membrane/i.test(q2 + t2))
+        enrichedSubject = "biology";
+      else if (/force|velocity|speed|wave|circuit|energy|electric|magnet|light|sound|pressure|gravity|motion|newton/i.test(q2 + t2))
+        enrichedSubject = "physics";
+      else if (/atom|element|compound|reaction|acid|alkali|periodic|molecule|ph|bond|oxidat|precipitat|dissolv|solut/i.test(q2 + t2))
+        enrichedSubject = "chemistry";
+    }
+
+    // Tier 4 first: higher science, accounting, economics
+    const t4 = parseTier4(
+      question.topic || question._anchorTopic || "",
+      question.q || question.question_text || "",
+      enrichedSubject,
+      year
+    );
+    if (t4) return t4;
+
+    // Tier 3: English, VR, new maths types
+    const t3 = parseTier3(
+      question.topic || question._anchorTopic || "",
+      question.q || question.question_text || "",
+      enrichedSubject,
+      year
+    );
+    if (t3) return t3;
 
     return parseVisualExtended(
       question.topic || question._anchorTopic || "",
       question.q || question.question_text || "",
-      subject || "",
+      enrichedSubject,
       year
     );
   }, [question, subject, yearLevel]);
 
   if (!visual) return null;
+
+  // Generate accessible description for screen readers
+  const ariaLabel = (() => {
+    switch (visual.type) {
+      case "addition":         return `Addition visual: ${visual.a} plus ${visual.b}`;
+      case "subtraction":      return `Subtraction visual: ${visual.from} minus ${visual.remove}`;
+      case "multiplication":   return `Multiplication grid: ${visual.rows} rows of ${visual.cols}`;
+      case "division":         return `Division visual: ${visual.total} shared into groups of ${visual.groups}`;
+      case "fraction":         return `Fraction diagram: ${visual.numerator} out of ${visual.denominator}`;
+      case "number_bond":      return `Number bond: ${visual.whole} splits into ${visual.partA} and ${visual.partB}`;
+      case "place_value":      return `Place value: ${visual.tens} tens and ${visual.ones} ones`;
+      case "counting":         return `Counting visual: ${visual.count} objects`;
+      case "clock":            return `Clock showing ${visual.hours}:${String(visual.minutes||0).padStart(2,'0')}`;
+      case "money":            return `Money visual: ${visual.total}p in coins`;
+      case "ruler":            return `Ruler measuring ${visual.cm} centimetres`;
+      case "ratio":            return `Ratio diagram: ${visual.partA} to ${visual.partB}`;
+      case "area":             return `${visual.mode === "perimeter" ? "Perimeter" : "Area"} diagram: ${visual.width} by ${visual.height} rectangle`;
+      case "angle":            return `Angle diagram showing ${visual.degrees} degrees`;
+      case "comparison":       return `Comparison bar: ${visual.a} compared to ${visual.b}`;
+      case "number_line":      return `Number line from ${visual.start} to ${visual.end}`;
+      case "coordinate":       return `Coordinate grid showing point (${visual.x}, ${visual.y})`;
+      case "venn":             return `Venn diagram: ${visual.labelA || "Set A"} and ${visual.labelB || "Set B"}`;
+      case "bar_chart":        return `Bar chart with ${(visual.labels||[]).length} values`;
+      case "probability":      return `Probability visual`;
+      case "number_sequence":  return `Number sequence: ${(visual.sequence||[]).join(", ")}`;
+      case "fraction_decimal_percent": return `Fraction, decimal and percentage equivalence diagram`;
+      case "atom":             return `Atom diagram for ${visual.element || "element"}`;
+      case "molecule":         return `Molecule diagram: ${visual.formula}`;
+      case "ph_scale":         return `pH scale showing value ${visual.value}`;
+      case "cell":             return `${visual.cellType || "Cell"} diagram`;
+      case "state_changes":    return `States of matter diagram`;
+      case "forces":           return `Forces diagram: ${visual.label1} and ${visual.label2}`;
+      case "wave":             return `Wave diagram: ${visual.type} wave`;
+      case "food_chain":       return `Food chain: ${(visual.chain||[]).join(" → ")}`;
+      case "formula_triangle": return `Formula triangle: ${visual.title || ""}`;
+      case "nvr":              return `Non-verbal reasoning pattern sequence`;
+      case "nvr_matrix":       return `Non-verbal reasoning matrix`;
+      case "alphabet_strip":   return `Alphabet strip`;
+      case "analogy":          return `Word analogy: ${visual.wordA} is to ${visual.wordB}`;
+      case "grammar":          return `Grammar labelling diagram`;
+      case "synonym_ladder":   return `Synonym word ladder`;
+      case "word_builder":     return `Word parts: prefix, root, suffix`;
+      default:                 return "Maths visual aid";
+    }
+  })();
 
   const inner = (() => {
     switch (visual.type) {
@@ -885,6 +2592,35 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "circuit":         return <CircuitVis        type={visual.circuitType} />;
       case "quadratic":       return <QuadraticVis      {...visual} />;
       case "element":         return <ElementVis        {...visual} />;
+      // ── Tier 3 (cross-subject expansion) ───────────────────────────────────
+      case "clock":           return <ClockVis          {...visual} />;
+      case "money":           return <MoneyVis          {...visual} />;
+      case "division":        return <DivisionVis       {...visual} />;
+      case "ruler":           return <RulerVis          {...visual} />;
+      case "ratio":           return <RatioVis          {...visual} />;
+      case "alphabet_strip":  return <AlphabetStripVis  {...visual} />;
+      case "analogy":         return <AnalogyVis        {...visual} />;
+      case "number_sequence": return <NumberSequenceVis {...visual} />;
+      case "nvr_matrix":      return <NVRMatrixVis      {...visual} />;
+      case "grammar":         return <GrammarVis        {...visual} />;
+      case "comparison":      return <ComparisonVis     a={visual.a} b={visual.b} />;
+      case "synonym_ladder":  return <SynonymLadderVis  {...visual} />;
+      case "word_builder":    return <WordBuilderVis    {...visual} />;
+      // ── Tier 4 (higher sciences + commerce) ────────────────────────────────
+      case "atom":            return <AtomVis             {...visual} />;
+      case "periodic_element":return <PeriodicTableVis   {...visual} />;
+      case "state_changes":   return <StateChangesVis    highlighted={visual.highlighted} />;
+      case "molecule":        return <MoleculeVis         {...visual} />;
+      case "ph_scale":        return <PHScaleVis          value={visual.value} substance={visual.substance} />;
+      case "cell":            return <CellVis             cellType={visual.cellType} />;
+      case "punnett":         return <PunnettVis          {...visual} />;
+      case "wave":            return <WaveVis             type={visual.waveType} amplitude={visual.amplitude} label={visual.label} />;
+      case "em_spectrum":     return <EMSpectrumVis       highlighted={visual.highlighted} />;
+      case "free_body":       return <FreeBodyVis         forces={visual.forces} />;
+      case "energy_stores":   return <EnergyStoresVis     stores={visual.stores} transfers={visual.transfers} />;
+      case "t_account":       return <TAccountVis         {...visual} />;
+      case "break_even":      return <BreakEvenVis        {...visual} />;
+      case "supply_demand":   return <SupplyDemandVis     {...visual} />;
       default:                return null;
     }
   })();
@@ -892,10 +2628,10 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
   if (!inner) return null;
 
   return (
-    <>
+    <div role="img" aria-label={ariaLabel}>
       <style>{`@keyframes lp-pulse{0%,100%{opacity:1}50%{opacity:0.6}}`}</style>
       {inner}
-    </>
+    </div>
   );
 }
 
@@ -1504,14 +3240,15 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
 
   // ── AREA / PERIMETER ──────────────────────────────────────────────────────
   if ((t.includes("area") || t.includes("perimeter")) && subj.includes("math")) {
-    // Look for "N by M" or "N × M" or "length N width M"
-    const byMatch = (questionText||"").match(/(\d+)\s*(?:by|×|x)\s*(\d+)/i);
+    // Match "5cm × 6cm", "5 by 6", "5x6", "3m × 4m" — allow optional unit suffix on first number
+    const byMatch = (questionText||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:by|×|x)\s*(\d+)/i);
     const lwMatch = (questionText||"").match(/length[^\d]*(\d+)[^\d]*width[^\d]*(\d+)/i);
     const wlMatch = (questionText||"").match(/width[^\d]*(\d+)[^\d]*height[^\d]*(\d+)/i);
     const m = byMatch || lwMatch || wlMatch;
     if (m) {
       const w = parseInt(m[1]), h = parseInt(m[2]);
-      if (w<=9 && h<=7 && w>0 && h>0)
+      // Cap at 12×10 so the grid stays renderable
+      if (w<=12 && h<=10 && w>0 && h>0)
         return { type:"area", width:w, height:h, mode: t.includes("perim") ? "perimeter" : "area" };
     }
   }
@@ -1626,6 +3363,47 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
       const el = ELEMENTS[symMatch];
       return { type:"element", symbol:symMatch, name:el.name, atomicNumber:el.n,
         mass:el.mass, group:el.group, period:el.period, groupType:el.groupType };
+    }
+  }
+
+  // ── PERCENTAGE BAR ─────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("percent") || /%/.test(questionText) || /percent/i.test(questionText))) {
+    const pctMatch = (questionText || "").match(/(\d+)\s*%\s*(?:of\s*)?(\d+)/i)
+      || (questionText || "").match(/(\d+)\s*percent(?:\s+of)?\s+(\d+)/i);
+    if (pctMatch) {
+      const pct = parseInt(pctMatch[1]), whole = parseInt(pctMatch[2]);
+      if (pct > 0 && pct <= 100 && whole > 0 && whole <= 200) {
+        return { type: "comparison", a: Math.round(whole * pct / 100), b: whole };
+      }
+    }
+  }
+
+  // ── HCF / LCM ──────────────────────────────────────────────────────────────
+  if (subj.includes("math") && /hcf|lcm|highest common factor|lowest common multiple|common factor|common multiple/i.test(questionText)) {
+    const twoNums = (questionText || "").match(/(\d+)\s*and\s*(\d+)/i);
+    if (twoNums) {
+      const a = parseInt(twoNums[1]), b = parseInt(twoNums[2]);
+      if (a > 0 && b > 0 && a <= 100 && b <= 100) {
+        const factorsA = Array.from({length:a},(_,i)=>i+1).filter(n=>a%n===0);
+        const factorsB = Array.from({length:b},(_,i)=>i+1).filter(n=>b%n===0);
+        const common   = factorsA.filter(n=>factorsB.includes(n));
+        return { type:"venn",
+          setA: factorsA.filter(n=>!common.includes(n)).slice(0,4),
+          setB: factorsB.filter(n=>!common.includes(n)).slice(0,4),
+          intersection: common.slice(0,4),
+          labelA:`Factors of ${a}`, labelB:`Factors of ${b}` };
+      }
+    }
+  }
+
+  // ── MEAN / AVERAGE ─────────────────────────────────────────────────────────
+  if (subj.includes("math") && /\bmean\b|\baverage\b|\bmode\b|\bmedian\b/i.test(questionText)) {
+    const allNums = (questionText || "").match(/\d+/g);
+    if (allNums && allNums.length >= 3) {
+      const values = allNums.map(Number).filter(n=>n>0&&n<=100);
+      if (values.length >= 3) {
+        return { type:"bar_chart", labels:values.map((_,i)=>`v${i+1}`), values, title:"Data set", yLabel:"" };
+      }
     }
   }
 

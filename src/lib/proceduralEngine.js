@@ -109,7 +109,10 @@ async function fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficu
 export async function generateSessionQuestions(scholar, subject, difficultyTier = 'foundation', count = 10) {
   try {
     const curriculum = scholar.curriculum || 'uk_national';
-    const yearLevel  = scholar.year_level || scholar.year || 3;
+    const rawYear    = scholar.year_level || scholar.year || 3;
+    // uk_11plus content starts at Year 3 — clamp so Y1/Y2 scholars get appropriate content
+    const CURRICULUM_MIN_YEAR = { uk_11plus: 3 }; // uk_national has real Y1/Y2 content
+    const yearLevel  = Math.max(rawYear, CURRICULUM_MIN_YEAR[curriculum] ?? 1);
 
     let questions = await fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficultyTier, limit: count });
 
@@ -132,20 +135,23 @@ export async function generateSessionQuestions(scholar, subject, difficultyTier 
       const y  = parseInt(yearLevel, 10) || 3;
       const sy = normaliseStemYear(y);
       for (let i = 0; i < needed; i++) {
-        if      (s === 'maths')                questions.push(Math.random() > 0.7 ? generateRealWorldMaths(y) : generateLocalMaths(y));
-        else if (s === 'english')              questions.push(generateLocalEnglish(y));
-        else if (s === 'verbal')               questions.push(generateLocalVerbal(y));
-        else if (s === 'nvr')                  questions.push(generateLocalNVR(y));
-        else if (s === 'physics')              questions.push(generateLocalPhysics(sy));
-        else if (s === 'chemistry')            questions.push(generateLocalChemistry(sy));
-        else if (s === 'biology')              questions.push(generateLocalBiology(sy));
-        else if (s === 'science')              questions.push(generateLocalBiology(sy));
-        else if (s === 'basic_science')        questions.push(generateLocalBiology(sy));
-        else if (s === 'further_mathematics')  questions.push(generateLocalMaths(y));
-        else if (s === 'financial_accounting') questions.push(generateLocalMaths(y));
-        else if (s === 'commerce')             questions.push(generateLocalMaths(y));
-        else if (s === 'basic_technology')     questions.push(generateLocalMaths(y));
-        else                                   questions.push(generateLocalMaths(y));
+        let q;
+        if      (s === 'maths')                q = Math.random() > 0.7 ? generateRealWorldMaths(y) : generateLocalMaths(y);
+        else if (s === 'english')              q = generateLocalEnglish(y);
+        else if (s === 'verbal')               q = generateLocalVerbal(y);
+        else if (s === 'nvr')                  q = generateLocalNVR(y);
+        else if (s === 'physics')              q = y <= 6 ? generatePrimaryScience(y) : generateLocalPhysics(sy);
+        else if (s === 'chemistry')            q = y <= 6 ? generatePrimaryScience(y) : generateLocalChemistry(sy);
+        else if (s === 'biology')              q = y <= 6 ? generatePrimaryScience(y) : generateLocalBiology(sy);
+        else if (s === 'science')              q = y <= 6 ? generatePrimaryScience(y) : generateLocalBiology(sy);
+        else if (s === 'basic_science')        q = y <= 6 ? generatePrimaryScience(y) : generateLocalBiology(sy);
+        else if (s === 'further_mathematics')  q = generateLocalMaths(y);
+        else if (s === 'financial_accounting') q = generateLocalMaths(y);
+        else if (s === 'commerce')             q = generateLocalMaths(y);
+        else if (s === 'basic_technology')     q = generateLocalMaths(y);
+        else                                   q = generateLocalMaths(y);
+        // Tag with year_level so MathsVisualiser and hasMathsVisual can render correctly
+        questions.push({ ...q, year_level: y });
       }
     }
 
@@ -249,14 +255,17 @@ export const generateSession = async ({
     const afterTier1 = n - subjectQuestions.length;
     if (afterTier1 > 0) {
       for (let i = 0; i < afterTier1; i++) {
-        if      (s === 'maths')   subjectQuestions.push(Math.random() > 0.7 ? generateRealWorldMaths(year) : generateLocalMaths(year));
-        else if (s === 'english') subjectQuestions.push(generateLocalEnglish(year));
-        else if (s === 'verbal')  subjectQuestions.push(generateLocalVerbal(year));
-        else if (s === 'nvr')     subjectQuestions.push(generateLocalNVR(year));
-        else if (s === 'science')   subjectQuestions.push(generateLocalBiology(normaliseStemYear(year)));
-        else if (s === 'physics')   subjectQuestions.push(generateLocalPhysics(normaliseStemYear(year)));
-        else if (s === 'chemistry') subjectQuestions.push(generateLocalChemistry(normaliseStemYear(year)));
-        else if (s === 'biology')   subjectQuestions.push(generateLocalBiology(normaliseStemYear(year)));
+        let q;
+        if      (s === 'maths')   q = Math.random() > 0.7 ? generateRealWorldMaths(year) : generateLocalMaths(year);
+        else if (s === 'english') q = generateLocalEnglish(year);
+        else if (s === 'verbal')  q = generateLocalVerbal(year);
+        else if (s === 'nvr')     q = generateLocalNVR(year);
+        else if (s === 'science')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(normaliseStemYear(year));
+        else if (s === 'physics')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalPhysics(normaliseStemYear(year));
+        else if (s === 'chemistry') q = year <= 6 ? generatePrimaryScience(year) : generateLocalChemistry(normaliseStemYear(year));
+        else if (s === 'biology')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(normaliseStemYear(year));
+        else q = generateLocalMaths(year);
+        subjectQuestions.push({ ...q, year_level: year });
       }
     }
 
@@ -629,6 +638,8 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
 
 // ─── REAL WORLD MATHS ─────────────────────────────────────────────────────────
 export const generateRealWorldMaths = (year, difficultyMultiplier = 1) => {
+  // Real World Challenge requires division — not appropriate for Y1/Y2/Y3
+  if (year <= 3) return generateLocalMaths(year, difficultyMultiplier);
   const items = ["video game","bicycle","skateboard","book set","toy spaceship","art kit","soccer ball","puzzle","comic books"];
   const item          = pick(items);
   const cost          = rand(20, Math.floor(30 * difficultyMultiplier) + 20);
@@ -1054,6 +1065,69 @@ export const generateAIQuestions = async ({ year, region, subject, count, profic
   }
 };
 // ─── PHYSICS GENERATOR ─────────────────────────────────────────────────────
+
+
+// ─── PRIMARY SCIENCE GENERATOR (UK Y1–Y6) ────────────────────────────────────
+// Age-appropriate science for primary school — living things, plants, weather,
+// materials, body, seasons. NOT secondary school biology.
+export const generatePrimaryScience = (year) => {
+  const y = parseInt(year, 10) || 1;
+
+  const Y1_Y2 = [
+    { q:"What do plants need to grow?", opts:["Sunlight, water and soil","Only water","Only sunlight","Just soil"], a:0, exp:"Plants need sunlight for energy, water to stay alive, and soil for nutrients.", topic:"plants" },
+    { q:"Which of these is a living thing?", opts:["Rock","Cloud","Dog","Chair"], a:2, exp:"A dog is a living thing — it breathes, eats, moves and grows.", topic:"living_things" },
+    { q:"What season comes after winter?", opts:["Autumn","Spring","Summer","Winter again"], a:1, exp:"The seasons go: Spring → Summer → Autumn → Winter, then back to Spring.", topic:"seasons" },
+    { q:"Which part of a plant takes in water from the soil?", opts:["Leaves","Flowers","Roots","Stem"], a:2, exp:"Roots absorb water and nutrients from the soil for the plant.", topic:"plants" },
+    { q:"What do we use our lungs for?", opts:["Digesting food","Pumping blood","Breathing","Seeing"], a:2, exp:"Our lungs allow us to breathe in oxygen and breathe out carbon dioxide.", topic:"human_body" },
+    { q:"Which of these is NOT a material?", opts:["Wood","Plastic","Metal","Running"], a:3, exp:"Running is an action, not a material. Wood, plastic and metal are all materials.", topic:"materials" },
+    { q:"What is the Sun?", opts:["A planet","A moon","A star","A comet"], a:2, exp:"The Sun is a star — a huge ball of hot gas that gives us light and heat.", topic:"space" },
+    { q:"Which animal lays eggs?", opts:["Dog","Cat","Hen","Cow"], a:2, exp:"Hens are birds and lay eggs. Dogs, cats and cows give birth to live young.", topic:"animals" },
+    { q:"What happens to water when it freezes?", opts:["It becomes gas","It becomes ice","It disappears","It gets hotter"], a:1, exp:"When water gets very cold (below 0°C), it freezes and turns to ice.", topic:"materials" },
+    { q:"Where does a fish live?", opts:["In the desert","Up in trees","In water","Underground"], a:2, exp:"Fish live in water — they breathe through gills and need water to survive.", topic:"habitats" },
+  ];
+
+  const Y3_Y4 = [
+    { q:"What gas do plants absorb to make food?", opts:["Oxygen","Nitrogen","Carbon dioxide","Hydrogen"], a:2, exp:"Plants absorb carbon dioxide from the air and use sunlight to turn it into food — a process called photosynthesis.", topic:"plants" },
+    { q:"What is the function of the heart?", opts:["To digest food","To pump blood around the body","To filter air","To store energy"], a:1, exp:"The heart is a muscle that pumps blood around the body, delivering oxygen and nutrients to all cells.", topic:"human_body" },
+    { q:"Which type of skeleton do insects have?", opts:["Endoskeleton","No skeleton","Exoskeleton","Fluid skeleton"], a:2, exp:"Insects have an exoskeleton — a hard outer shell that protects their soft body inside.", topic:"animals" },
+    { q:"What is the role of the stomach?", opts:["Circulate blood","Digest food","Filter waste","Absorb oxygen"], a:1, exp:"The stomach breaks down food using acids and enzymes so nutrients can be absorbed.", topic:"human_body" },
+    { q:"How does sound travel?", opts:["As light beams","Through vibrations in materials","As electrical signals only","It cannot travel through solids"], a:1, exp:"Sound travels as vibrations that pass through solids, liquids, and gases.", topic:"sound" },
+    { q:"What do all mammals have in common?", opts:["They lay eggs","They have scales","They feed young on milk","They live in water"], a:2, exp:"All mammals feed their young on milk. Most also have hair or fur and give birth to live young.", topic:"animals" },
+    { q:"Which force pulls objects towards the Earth?", opts:["Magnetism","Friction","Gravity","Electricity"], a:2, exp:"Gravity is the force that pulls objects towards Earth — it's why things fall when you drop them.", topic:"forces" },
+    { q:"What is evaporation?", opts:["Water turning to ice","Water turning to steam/vapour","Steam turning to water","Ice turning to water"], a:1, exp:"Evaporation is when liquid water turns into water vapour (gas) due to heat.", topic:"water_cycle" },
+  ];
+
+  const Y5_Y6 = [
+    { q:"What is the role of chlorophyll in plants?", opts:["To store water","To absorb sunlight for photosynthesis","To absorb nutrients from soil","To attract insects"], a:1, exp:"Chlorophyll is the green pigment in leaves that absorbs sunlight, powering photosynthesis.", topic:"plants" },
+    { q:"What is the Earth's atmosphere mainly made of?", opts:["Mostly oxygen","Mostly carbon dioxide","Mostly nitrogen","Mostly hydrogen"], a:2, exp:"About 78% of Earth's atmosphere is nitrogen. Oxygen makes up about 21%.", topic:"earth_science" },
+    { q:"What is the function of white blood cells?", opts:["Carry oxygen","Fight infection","Clot wounds","Digest food"], a:1, exp:"White blood cells are part of the immune system — they fight bacteria, viruses, and infection.", topic:"human_body" },
+    { q:"What is a producer in a food chain?", opts:["An animal that eats other animals","A plant that makes its own food","An animal that eats plants","A decomposer"], a:1, exp:"Producers (plants) make their own food using sunlight. They sit at the start of every food chain.", topic:"food_chains" },
+    { q:"Which of these is a renewable energy source?", opts:["Coal","Oil","Natural gas","Solar"], a:3, exp:"Solar power is renewable — it comes from the Sun which will not run out. Coal, oil and gas are non-renewable.", topic:"energy" },
+    { q:"What is the difference between a solid and a liquid?", opts:["Solids can be seen, liquids cannot","Solids have a fixed shape, liquids take the shape of their container","Solids are hot, liquids are cold","There is no difference"], a:1, exp:"Solids have a fixed shape and volume. Liquids have a fixed volume but take the shape of any container.", topic:"materials" },
+  ];
+
+  const pool = y <= 2 ? Y1_Y2 : y <= 4 ? [...Y1_Y2, ...Y3_Y4] : [...Y3_Y4, ...Y5_Y6];
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  const opts = [...q.opts];
+  const correct = opts[q.a];
+  // Shuffle
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  const newA = opts.indexOf(correct);
+  return {
+    q:            q.q,
+    opts,
+    a:            newA,
+    correct_index: newA,
+    exp:          q.exp,
+    subject:      'science',
+    topic:        q.topic,
+    difficulty_tier: y <= 2 ? 'foundation' : y <= 4 ? 'developing' : 'expected',
+    year_level:   y,
+  };
+};
 
 // ─── STEM YEAR NORMALISER ─────────────────────────────────────────────────────
 // generateLocalPhysics/Chemistry/Biology use keys 1/2/3 (Nigerian SS1/SS2/SS3).
