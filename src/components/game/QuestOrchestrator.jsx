@@ -509,6 +509,11 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   const hasVisual  = q.image_url || hasMathsVisual(q, subject);
   const hasPassage = !!q.passage;
 
+  // For English w/o passage: use topic as panel label not generic "Reading Passage"
+  const panelScenarioLabel = (subject === "english" && !hasPassage)
+    ? (labels.scenarioNoPassage || formatTopicLabel(q.topic || "english", sessionQuestions))
+    : labels.scenario;
+
   const leftPanelContent = hasPassage ? (
     // Passage / reading context
     <div className="flex flex-col gap-3 h-full">
@@ -518,8 +523,8 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
           <BookOpen size={13} />
         </span>
         <div>
-          <p className="text-xs font-black text-slate-800">{labels.scenario}</p>
-          <p className="text-[10px] text-slate-400 font-semibold">Read carefully before answering</p>
+          <p className="text-xs font-black text-slate-800">{panelScenarioLabel}</p>
+          <p className="text-[10px] text-slate-400 font-semibold">Read this passage carefully</p>
         </div>
       </div>
       <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-700 font-medium leading-relaxed overflow-y-auto">
@@ -535,7 +540,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
           <LayoutGrid size={13} />
         </span>
         <div>
-          <p className="text-xs font-black text-slate-800">{labels.scenario}</p>
+          <p className="text-xs font-black text-slate-800">{panelScenarioLabel}</p>
           <p className="text-[10px] text-slate-400 font-semibold">Study this carefully</p>
         </div>
       </div>

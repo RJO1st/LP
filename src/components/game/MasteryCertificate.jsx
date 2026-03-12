@@ -1,439 +1,439 @@
 "use client";
 /**
- * MasteryCertificate.jsx
+ * MasteryCertificate.jsx — Stage-gated topic mastery certificate
  * Deploy to: src/components/game/MasteryCertificate.jsx
  *
- * Shown when a scholar hits ≥90% accuracy (Distinction grade).
- * Features:
- *   - Animated certificate with space/mission theme
- *   - Confetti burst on mount
- *   - Print / Save as PDF (native browser print dialog, print-optimised CSS)
- *   - Share via Web Share API (falls back to clipboard copy)
- *   - Dismissible — calls onClose when done
+ * Awarded per TOPIC at each mastery stage (not per quest score):
+ *   Stage 1 "Building"  — P(mastery) first crosses 0.55 (developing tier)
+ *   Stage 2 "On Track"  — P(mastery) first crosses 0.70 (expected tier)
+ *   Stage 3 "Stellar"   — P(mastery) first crosses 0.80 (exceeding tier)
  *
- * Usage (from EngineFinished in QuizShell.jsx):
- *   import MasteryCertificate from "./MasteryCertificate";
- *
- *   {showCert && (
- *     <MasteryCertificate
- *       scholarName="Amara"
- *       subject="Maths"
- *       topic="Fractions"
- *       accuracy={94}
- *       xpEarned={120}
- *       date={new Date()}
- *       onClose={() => setShowCert(false)}
- *     />
- *   )}
+ * Props:
+ *   scholarName  {string}
+ *   subject      {string}  — e.g. "maths"
+ *   topic        {string}  — e.g. "2D Shapes"
+ *   masteryTier  {string}  — "developing" | "expected" | "exceeding"
+ *   masteryScore {number}  — 0–1 BKT probability (displayed as %)
+ *   accuracy     {number}  — session accuracy % (shown as supporting info)
+ *   xpEarned     {number}
+ *   date         {Date}
+ *   onClose      {fn}
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { X, Download, Share2, Star, Rocket, Zap, Award, CheckCircle } from "lucide-react";
+import { X, Download, Share2, Star, Rocket, Award, CheckCircle, Trophy, Sparkles } from "lucide-react";
 
-// ─── CONFETTI ────────────────────────────────────────────────────────────────
-function Confetti({ active }) {
+// ── STAGE CONFIG ──────────────────────────────────────────────────────────────
+const MASTERY_STAGES = {
+  developing: {
+    label:    "Building",
+    stageNum: 1,
+    emoji:    "🌱",
+    starCount: 1,
+    accent:   "#0891b2",
+    accentLight: "#ecfeff",
+    gradient: "linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0369a1 100%)",
+    tagline:  "You're building real skills in this topic!",
+    medal:    "🥉",
+  },
+  expected: {
+    label:    "On Track",
+    stageNum: 2,
+    emoji:    "⭐",
+    starCount: 2,
+    accent:   "#7c3aed",
+    accentLight: "#f5f3ff",
+    gradient: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)",
+    tagline:  "Solid understanding — you're on track for mastery!",
+    medal:    "🥈",
+  },
+  exceeding: {
+    label:    "Stellar",
+    stageNum: 3,
+    emoji:    "🏆",
+    starCount: 3,
+    accent:   "#d97706",
+    accentLight: "#fffbeb",
+    gradient: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%)",
+    tagline:  "Outstanding — you've mastered this topic completely!",
+    medal:    "🥇",
+  },
+};
+
+// ── SUBJECT THEME ─────────────────────────────────────────────────────────────
+const SUBJECT_THEMES = {
+  maths:          { icon: "🔢", color: "#4f46e5" },
+  english:        { icon: "📚", color: "#0891b2" },
+  science:        { icon: "🔬", color: "#059669" },
+  verbal:         { icon: "💬", color: "#7c3aed" },
+  verbal_reasoning: { icon: "💬", color: "#7c3aed" },
+  nvr:            { icon: "🔷", color: "#ec4899" },
+  history:        { icon: "🏛️", color: "#92400e" },
+  geography:      { icon: "🌍", color: "#065f46" },
+  biology:        { icon: "🧬", color: "#059669" },
+  chemistry:      { icon: "⚗️", color: "#d97706" },
+  physics:        { icon: "⚡", color: "#2563eb" },
+};
+const subjectTheme = (s) => SUBJECT_THEMES[s?.toLowerCase()] || { icon: "🚀", color: "#4f46e5" };
+
+// ── CERT ID ───────────────────────────────────────────────────────────────────
+function certId(name, subject, topic, tier, date) {
+  const seed = `${name}${subject}${topic}${tier}${date.getFullYear()}`;
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  return `LP-${Math.abs(h).toString(16).slice(0,3).toUpperCase()}-${date.getFullYear()}`;
+}
+
+// ── CONFETTI ──────────────────────────────────────────────────────────────────
+function Confetti({ active, stageNum }) {
   const canvasRef = useRef(null);
   const animRef   = useRef(null);
-  const particles = useRef([]);
 
   useEffect(() => {
     if (!active) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+    canvas.width = W; canvas.height = H;
 
-    const W = canvas.offsetWidth;
-    const H = canvas.offsetHeight;
-    canvas.width  = W;
-    canvas.height = H;
+    const COLORS = stageNum >= 3
+      ? ["#fbbf24","#f59e0b","#ec4899","#6366f1","#10b981","#3b82f6"]
+      : stageNum >= 2
+      ? ["#8b5cf6","#6366f1","#3b82f6","#06b6d4","#10b981"]
+      : ["#06b6d4","#0891b2","#3b82f6","#6366f1","#10b981"];
 
-    const COLORS = ["#6366f1","#a855f7","#ec4899","#f59e0b","#10b981","#3b82f6","#f97316"];
-    const COUNT  = 120;
-
-    particles.current = Array.from({ length: COUNT }, () => ({
-      x:     Math.random() * W,
-      y:     -10 - Math.random() * 60,
-      w:     6 + Math.random() * 8,
-      h:     10 + Math.random() * 8,
+    const parts = Array.from({ length: stageNum >= 3 ? 80 : stageNum >= 2 ? 55 : 35 }, () => ({
+      x: Math.random() * W,
+      y: -10,
+      w: Math.random() * 8 + 3,
+      h: Math.random() * 4 + 2,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      vx:    (Math.random() - 0.5) * 3,
-      vy:    2 + Math.random() * 4,
-      angle: Math.random() * 360,
-      spin:  (Math.random() - 0.5) * 6,
-      opacity: 1,
+      vy: Math.random() * 2 + 1.5,
+      vx: (Math.random() - 0.5) * 2,
+      rot: Math.random() * 360,
+      drot: (Math.random() - 0.5) * 6,
+      life: 1,
     }));
 
-    let frame = 0;
     const draw = () => {
       ctx.clearRect(0, 0, W, H);
-      frame++;
-      particles.current.forEach(p => {
-        p.x     += p.vx;
-        p.y     += p.vy;
-        p.angle += p.spin;
-        if (frame > 90) p.opacity = Math.max(0, p.opacity - 0.012);
+      let alive = false;
+      parts.forEach(p => {
+        p.y += p.vy; p.x += p.vx; p.rot += p.drot; p.life -= 0.008;
+        if (p.life <= 0 || p.y > H) return;
+        alive = true;
         ctx.save();
-        ctx.globalAlpha = p.opacity;
-        ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
-        ctx.rotate((p.angle * Math.PI) / 180);
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
         ctx.fillStyle = p.color;
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
         ctx.restore();
       });
-      if (particles.current.some(p => p.opacity > 0)) {
-        animRef.current = requestAnimationFrame(draw);
-      }
+      if (alive) animRef.current = requestAnimationFrame(draw);
     };
     animRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animRef.current);
-  }, [active]);
+  }, [active, stageNum]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 10 }}
-    />
+    <canvas ref={canvasRef} className="pointer-events-none"
+      style={{ position:"absolute", inset:0, width:"100%", height:"100%", zIndex:10 }}/>
   );
 }
 
-// ─── STAR FIELD ──────────────────────────────────────────────────────────────
-const STARS = Array.from({ length: 28 }, (_, i) => ({
-  x:    `${5 + (i * 17.3) % 90}%`,
-  y:    `${3 + (i * 23.7) % 90}%`,
-  size: 1 + (i % 3),
-  delay: `${(i * 0.3) % 2}s`,
-}));
-
-// ─── SUBJECT COLOURS ─────────────────────────────────────────────────────────
-const SUBJECT_THEME = {
-  maths:             { from: "#4f46e5", to: "#7c3aed", label: "Mathematics",      icon: "🔢" },
-  english:           { from: "#0891b2", to: "#0e7490", label: "English",           icon: "📖" },
-  verbal_reasoning:  { from: "#7c3aed", to: "#6d28d9", label: "Verbal Reasoning",  icon: "🧩" },
-  nvr:               { from: "#b45309", to: "#92400e", label: "Non-Verbal Reasoning", icon: "🔷" },
-  science:           { from: "#059669", to: "#047857", label: "Science",           icon: "🔬" },
-  physics:           { from: "#1d4ed8", to: "#1e40af", label: "Physics",           icon: "⚡" },
-  chemistry:         { from: "#dc2626", to: "#b91c1c", label: "Chemistry",         icon: "⚗️" },
-  biology:           { from: "#16a34a", to: "#15803d", label: "Biology",           icon: "🌿" },
-  history:           { from: "#92400e", to: "#78350f", label: "History",           icon: "🏛️" },
-  geography:         { from: "#065f46", to: "#064e3b", label: "Geography",         icon: "🌍" },
-  default:           { from: "#4f46e5", to: "#7c3aed", label: "Subject",           icon: "⭐" },
-};
-
-function subjectTheme(subject) {
-  const key = (subject || "").toLowerCase().replace(/\s+/g, "_");
-  return SUBJECT_THEME[key] || SUBJECT_THEME.default;
+// ── STAR ROW ──────────────────────────────────────────────────────────────────
+function StarRow({ filled, total = 3, color }) {
+  return (
+    <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
+      {Array.from({ length: total }, (_, i) => (
+        <Star key={i} size={22}
+          fill={i < filled ? color : "transparent"}
+          stroke={i < filled ? color : "#cbd5e1"}
+          strokeWidth={1.5}/>
+      ))}
+    </div>
+  );
 }
 
-// ─── FORMAT DATE ─────────────────────────────────────────────────────────────
-function fmtDate(d) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric", month: "long", year: "numeric",
-  }).format(d instanceof Date ? d : new Date(d));
-}
-
-// ─── CERTIFICATE ID ──────────────────────────────────────────────────────────
-function certId(scholarName, subject, topic, date) {
-  const seed = `${scholarName}${subject}${topic}${date.getFullYear()}`;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-  return `LP-${Math.abs(h).toString(16).toUpperCase().slice(0, 8)}`;
-}
-
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function MasteryCertificate({
-  scholarName = "Cadet",
-  subject     = "Maths",
-  topic       = "Topic",
-  accuracy    = 100,
-  xpEarned    = 0,
-  date        = new Date(),
+  scholarName  = "Cadet",
+  subject      = "Maths",
+  topic        = "Topic",
+  masteryTier  = "exceeding",
+  masteryScore = 0.85,
+  accuracy     = 100,
+  xpEarned     = 0,
+  date         = new Date(),
   onClose,
 }) {
-  const theme     = subjectTheme(subject);
+  const stage     = MASTERY_STAGES[masteryTier] || MASTERY_STAGES.exceeding;
+  const subj      = subjectTheme(subject);
+  const certDate  = date instanceof Date ? date : new Date(date);
+  const id        = certId(scholarName, subject, topic, masteryTier, certDate);
   const certRef   = useRef(null);
-  const [copied,  setCopied]  = useState(false);
   const [visible, setVisible] = useState(false);
-  const id = certId(scholarName, subject, topic, date instanceof Date ? date : new Date(date));
+  const [copied,  setCopied]  = useState(false);
+
+  const dateStr = certDate.toLocaleDateString("en-GB", {
+    day:"numeric", month:"long", year:"numeric"
+  });
 
   useEffect(() => {
-    // Stagger entrance
-    const t = setTimeout(() => setVisible(true), 50);
+    const t = setTimeout(() => setVisible(true), 60);
     return () => clearTimeout(t);
   }, []);
 
-  // ── Print / Save as PDF ──────────────────────────────────────────────────
   const handlePrint = () => {
-    // Add print-only styles then trigger print dialog
     const styleId = "cert-print-style";
     if (!document.getElementById(styleId)) {
       const s = document.createElement("style");
       s.id = styleId;
-      s.textContent = `
-        @media print {
-          body > * { display: none !important; }
-          #launchpard-cert-printroot { display: flex !important; }
-          #launchpard-cert-printroot .no-print { display: none !important; }
-          @page { margin: 0; size: A4 landscape; }
-        }
-      `;
+      s.textContent = `@media print {
+        body > *:not(#cert-print-root) { display:none!important; }
+        #cert-print-root { position:fixed!important; inset:0!important; z-index:99999!important; }
+        .no-print { display:none!important; }
+      }`;
       document.head.appendChild(s);
     }
-    // Mark the cert root for print targeting
-    if (certRef.current) certRef.current.id = "launchpard-cert-printroot";
+    const el = certRef.current;
+    const prev = el?.id;
+    if (el) el.id = "cert-print-root";
     window.print();
+    if (el && prev !== undefined) el.id = prev || "";
   };
-
-  // ── Share ────────────────────────────────────────────────────────────────
-  const shareText = `🚀 ${scholarName} just achieved MASTERY in ${topic} (${theme.label}) on LaunchPard! Accuracy: ${accuracy}% — Certificate ID: ${id}`;
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "LaunchPard Mastery Certificate", text: shareText });
-        return;
-      } catch {}
-    }
-    await navigator.clipboard.writeText(shareText).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    const text = `🚀 ${scholarName} earned a ${stage.label} mastery certificate in ${topic} on LaunchPard! ${stage.emoji} Certificate ID: ${id}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "LaunchPard Certificate", text });
+      else { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2500); }
+    } catch {}
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <>
-      {/* Print-safe global style */}
-      <style>{`
-        @keyframes certFloat {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-6px); }
-        }
-        @keyframes certGlow {
-          0%, 100% { box-shadow: 0 0 24px 4px rgba(99,102,241,0.35); }
-          50%       { box-shadow: 0 0 48px 12px rgba(168,85,247,0.55); }
-        }
-        @keyframes certStarPulse {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50%       { opacity: 1;   transform: scale(1.4); }
-        }
-        @keyframes certSlideIn {
-          from { opacity: 0; transform: translateY(32px) scale(0.96); }
-          to   { opacity: 1; transform: translateY(0)    scale(1); }
-        }
-        @keyframes certBadgeSpin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        .cert-star { animation: certStarPulse var(--d, 2s) ease-in-out infinite; }
-        .cert-float { animation: certFloat 4s ease-in-out infinite; }
-        .cert-glow  { animation: certGlow  3s ease-in-out infinite; }
-        .cert-slide { animation: certSlideIn 0.55s cubic-bezier(.22,.68,0,1.2) forwards; }
-      `}</style>
+    <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4"
+      style={{ background:"rgba(15,23,42,0.85)", backdropFilter:"blur(16px)" }}>
 
-      {/* Overlay */}
-      <div
-        ref={certRef}
-        className="fixed inset-0 z-[9000] flex items-center justify-center p-4"
+      {/* Confetti */}
+      <div style={{ position:"absolute", inset:0, pointerEvents:"none", overflow:"hidden" }}>
+        <Confetti active={visible} stageNum={stage.stageNum} />
+      </div>
+
+      {/* Certificate card */}
+      <div ref={certRef}
         style={{
-          background: "radial-gradient(ellipse at 50% 30%, #1e1b4b 0%, #0f0e1a 60%, #000 100%)",
-        }}
-      >
-        <Confetti active={visible} />
+          background: "#ffffff",
+          borderRadius: 24,
+          maxWidth: 440,
+          width: "100%",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          boxShadow: `0 25px 60px rgba(0,0,0,0.4), 0 0 0 2px ${stage.accent}40`,
+          transform: visible ? "scale(1)" : "scale(0.92)",
+          opacity: visible ? 1 : 0,
+          transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+          position: "relative",
+          zIndex: 20,
+        }}>
 
-        {/* Stars bg */}
-        {STARS.map((s, i) => (
-          <div
-            key={i}
-            className="cert-star absolute rounded-full bg-white pointer-events-none"
-            style={{
-              left: s.x, top: s.y,
-              width: s.size, height: s.size,
-              "--d": `${1.2 + i * 0.15}s`,
-              animationDelay: s.delay,
-            }}
-          />
-        ))}
+        {/* ── HERO BANNER ── */}
+        <div style={{
+          background: stage.gradient,
+          borderRadius: "24px 24px 0 0",
+          padding: "28px 24px 24px",
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          {/* Decorative dots */}
+          <div style={{ position:"absolute", top:8, left:12, fontSize:18, opacity:0.3 }}>✦</div>
+          <div style={{ position:"absolute", top:16, right:20, fontSize:14, opacity:0.3 }}>✦</div>
+          <div style={{ position:"absolute", bottom:8, left:"40%", fontSize:10, opacity:0.2 }}>✦</div>
 
-        {/* Close button — top right of overlay */}
-        <button
-          onClick={onClose}
-          className="no-print absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-        >
-          <X size={18} />
-        </button>
-
-        {/* Certificate card */}
-        <div
-          className={`cert-float cert-glow relative z-10 w-full rounded-3xl overflow-hidden
-            ${visible ? "cert-slide" : "opacity-0"}`}
-          style={{
-            maxWidth: 680,
-            background: "linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #1e1b4b 100%)",
-            border: "2px solid rgba(99,102,241,0.4)",
-          }}
-        >
-          {/* Top gradient bar */}
-          <div
-            className="h-2 w-full"
-            style={{ background: `linear-gradient(90deg, ${theme.from}, ${theme.to}, #ec4899, #f59e0b)` }}
-          />
-
-          {/* Inner gold border frame */}
-          <div className="m-4 rounded-2xl p-1" style={{
-            background: "linear-gradient(135deg, rgba(251,191,36,0.5), rgba(167,139,250,0.3), rgba(251,191,36,0.5))",
+          {/* Stage badge */}
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:6,
+            background:"rgba(255,255,255,0.2)", borderRadius:999,
+            padding:"4px 14px", marginBottom:12,
           }}>
-            <div className="rounded-xl overflow-hidden" style={{ background: "#0f0e1a" }}>
+            <span style={{ fontSize:14 }}>{stage.medal}</span>
+            <span style={{ color:"white", fontWeight:800, fontSize:11, letterSpacing:"0.1em", textTransform:"uppercase" }}>
+              Stage {stage.stageNum} — {stage.label}
+            </span>
+          </div>
 
-              {/* Header */}
-              <div className="px-8 pt-7 pb-4 text-center relative" style={{
-                background: `linear-gradient(180deg, ${theme.from}22 0%, transparent 100%)`,
+          {/* Big emoji */}
+          <div style={{ fontSize:52, marginBottom:8, lineHeight:1 }}>{stage.emoji}</div>
+
+          {/* Stars */}
+          <div style={{ marginBottom:12 }}>
+            <StarRow filled={stage.starCount} total={3} color="rgba(255,255,255,0.9)" />
+          </div>
+
+          {/* Title */}
+          <h1 style={{
+            color:"white", fontWeight:900, fontSize:20,
+            lineHeight:1.2, margin:0, textShadow:"0 2px 8px rgba(0,0,0,0.2)",
+          }}>
+            Mastery Certificate
+          </h1>
+          <p style={{ color:"rgba(255,255,255,0.85)", fontSize:12, fontWeight:600, margin:"4px 0 0" }}>
+            {stage.tagline}
+          </p>
+        </div>
+
+        {/* ── CERTIFICATE BODY ── */}
+        <div style={{ padding:"24px 24px 20px" }}>
+
+          {/* Scholar info */}
+          <div style={{ textAlign:"center", marginBottom:20 }}>
+            <p style={{ color:"#64748b", fontSize:11, fontWeight:700, letterSpacing:"0.08em",
+              textTransform:"uppercase", margin:"0 0 4px" }}>This certifies that</p>
+            <p style={{
+              color:"#1e293b", fontSize:24, fontWeight:900,
+              margin:"0 0 2px", letterSpacing:"-0.02em",
+            }}>{scholarName}</p>
+            <p style={{ color:"#64748b", fontSize:11, fontWeight:600, margin:0 }}>
+              has demonstrated <strong style={{ color: stage.accent }}>{stage.label}</strong> mastery in
+            </p>
+          </div>
+
+          {/* Topic block */}
+          <div style={{
+            background: stage.accentLight,
+            border: `2px solid ${stage.accent}40`,
+            borderRadius: 16,
+            padding: "16px 20px",
+            textAlign: "center",
+            marginBottom: 16,
+          }}>
+            <div style={{ fontSize:28, marginBottom:6 }}>{subj.icon}</div>
+            <p style={{
+              color:"#1e293b", fontSize:18, fontWeight:900,
+              margin:"0 0 2px", letterSpacing:"-0.01em",
+            }}>{topic}</p>
+            <p style={{ color:"#64748b", fontSize:12, fontWeight:600, margin:0, textTransform:"capitalize" }}>
+              {subject.replace(/_/g," ")}
+            </p>
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+            {[
+              { label:"Mastery", value:`${Math.round(masteryScore * 100)}%`, icon:"🧠" },
+              { label:"Accuracy", value:`${accuracy}%`, icon:"🎯" },
+              { label:"XP Earned", value:`+${xpEarned}`, icon:"⭐" },
+            ].map(({ label, value, icon }) => (
+              <div key={label} style={{
+                background:"#f8fafc", borderRadius:12, padding:"10px 8px",
+                textAlign:"center", border:"1px solid #e2e8f0",
               }}>
-                {/* Logo row */}
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <Rocket size={20} className="text-indigo-400" />
-                  <span className="text-indigo-300 text-sm font-black tracking-[0.25em] uppercase">
-                    LaunchPard
-                  </span>
-                  <Rocket size={20} className="text-indigo-400 scale-x-[-1]" />
-                </div>
-
-                {/* "Certificate of Mastery" */}
-                <p className="text-amber-400 text-xs font-black tracking-[0.3em] uppercase mb-1">
-                  Certificate of Mastery
-                </p>
-                <div className="w-24 h-px mx-auto mb-4" style={{
-                  background: "linear-gradient(90deg, transparent, #f59e0b, transparent)",
-                }} />
-
-                {/* Cadet name */}
-                <p className="text-slate-400 text-sm mb-1">This certifies that</p>
-                <h1
-                  className="font-black text-white mb-1 leading-tight"
-                  style={{
-                    fontSize: "clamp(1.6rem, 4vw, 2.8rem)",
-                    textShadow: `0 0 32px ${theme.from}aa`,
-                    fontFamily: "'Georgia', serif",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {scholarName}
-                </h1>
-                <p className="text-slate-400 text-sm mb-4">has achieved mastery in</p>
-
-                {/* Subject + Topic badge */}
-                <div className="inline-flex flex-col items-center gap-2 mb-4">
-                  <div
-                    className="px-8 py-3 rounded-2xl"
-                    style={{
-                      background: `linear-gradient(135deg, ${theme.from}33, ${theme.to}55)`,
-                      border: `1px solid ${theme.from}66`,
-                    }}
-                  >
-                    <p className="text-2xl mb-1">{theme.icon}</p>
-                    <p className="text-white font-black text-xl leading-tight">{topic}</p>
-                    <p style={{ color: `${theme.from}` }} className="text-sm font-bold mt-0.5">
-                      {theme.label}
-                    </p>
-                  </div>
-                </div>
+                <div style={{ fontSize:16, marginBottom:2 }}>{icon}</div>
+                <p style={{ color:"#1e293b", fontWeight:900, fontSize:14, margin:"0 0 1px" }}>{value}</p>
+                <p style={{ color:"#94a3b8", fontSize:9, fontWeight:700, textTransform:"uppercase",
+                  letterSpacing:"0.06em", margin:0 }}>{label}</p>
               </div>
+            ))}
+          </div>
 
-              {/* Stats row */}
-              <div
-                className="mx-6 mb-5 rounded-2xl p-4 grid grid-cols-3 gap-3 text-center"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <CheckCircle size={12} className="text-emerald-400" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Accuracy</span>
-                  </div>
-                  <p className="text-2xl font-black text-emerald-400">{accuracy}%</p>
+          {/* Stage progression bar */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+              {["Building","On Track","Stellar"].map((s, i) => (
+                <div key={s} style={{ textAlign:"center", flex:1 }}>
+                  <div style={{
+                    width:24, height:24, borderRadius:"50%",
+                    background: i < stage.stageNum ? stage.accent : "#e2e8f0",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    margin:"0 auto 2px", fontSize:11, color:"white", fontWeight:800,
+                  }}>{i < stage.stageNum ? "✓" : i+1}</div>
+                  <p style={{
+                    fontSize:9, fontWeight:700, color: i < stage.stageNum ? stage.accent : "#94a3b8",
+                    textTransform:"uppercase", letterSpacing:"0.05em", margin:0,
+                  }}>{s}</p>
                 </div>
-                <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Award size={12} className="text-amber-400" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Grade</span>
-                  </div>
-                  <p className="text-2xl font-black text-amber-400">
-                    {accuracy >= 95 ? "⭐ Star" : "Distinction"}
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Zap size={12} className="text-purple-400" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stardust</span>
-                  </div>
-                  <p className="text-2xl font-black text-purple-400">+{xpEarned}</p>
-                </div>
-              </div>
+              ))}
+            </div>
+            <div style={{ height:4, background:"#e2e8f0", borderRadius:99, position:"relative" }}>
+              <div style={{
+                height:"100%", borderRadius:99, background: stage.gradient,
+                width: stage.stageNum === 1 ? "33%" : stage.stageNum === 2 ? "66%" : "100%",
+                transition:"width 1s ease",
+              }}/>
+            </div>
+          </div>
 
-              {/* Date + cert ID */}
-              <div className="px-6 pb-5 flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] text-slate-600 uppercase tracking-widest mb-0.5">Awarded</p>
-                  <p className="text-slate-400 text-sm font-bold">{fmtDate(date)}</p>
-                </div>
-
-                {/* Seal */}
-                <div className="relative w-16 h-16 flex items-center justify-center">
-                  <div
-                    className="absolute inset-0 rounded-full opacity-30"
-                    style={{
-                      background: `conic-gradient(${theme.from}, ${theme.to}, #f59e0b, ${theme.from})`,
-                      animation: "certBadgeSpin 8s linear infinite",
-                    }}
-                  />
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center z-10"
-                    style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}
-                  >
-                    <Star size={18} className="text-white fill-white" />
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-[10px] text-slate-600 uppercase tracking-widest mb-0.5">Certificate ID</p>
-                  <p className="text-slate-500 text-xs font-mono">{id}</p>
-                </div>
-              </div>
-
-              {/* Bottom bar */}
-              <div
-                className="h-1 w-full"
-                style={{ background: `linear-gradient(90deg, ${theme.from}, ${theme.to}, #ec4899)` }}
-              />
+          {/* Footer */}
+          <div style={{
+            borderTop:"1px solid #e2e8f0", paddingTop:12, marginBottom:16,
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+          }}>
+            <div>
+              <p style={{ color:"#94a3b8", fontSize:9, fontWeight:700, textTransform:"uppercase",
+                letterSpacing:"0.06em", margin:"0 0 1px" }}>Issued by LaunchPard</p>
+              <p style={{ color:"#64748b", fontSize:11, fontWeight:600, margin:0 }}>{dateStr}</p>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <p style={{ color:"#94a3b8", fontSize:9, fontWeight:700, textTransform:"uppercase",
+                letterSpacing:"0.06em", margin:"0 0 1px" }}>Certificate ID</p>
+              <p style={{ color:"#64748b", fontSize:11, fontWeight:800, fontFamily:"monospace", margin:0 }}>{id}</p>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="no-print px-6 pb-6 pt-2 flex gap-3">
-            {/* Print / Save PDF */}
+          <div style={{ display:"flex", gap:10 }}>
             <button
               onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm text-white transition-all active:scale-95"
-              style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}
-            >
-              <Download size={15} />
-              Save as PDF
+              style={{
+                flex:1, padding:"12px 0", borderRadius:14, border:"none",
+                background: stage.gradient, color:"white", fontWeight:800, fontSize:13,
+                cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              }}>
+              <Download size={15}/> Save PDF
             </button>
-
-            {/* Share */}
             <button
               onClick={handleShare}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm transition-all active:scale-95"
               style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                color: copied ? "#10b981" : "white",
-              }}
-            >
-              <Share2 size={15} />
-              {copied ? "Copied! ✓" : "Share"}
+                flex:1, padding:"12px 0", borderRadius:14, border:"2px solid #e2e8f0",
+                background:"white", color:"#334155", fontWeight:800, fontSize:13,
+                cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              }}>
+              <Share2 size={15}/> {copied ? "Copied!" : "Share"}
             </button>
           </div>
+
+          {/* Next stage hint */}
+          {stage.stageNum < 3 && (
+            <div style={{
+              marginTop:12, background:"#f8fafc", borderRadius:12,
+              padding:"10px 14px", textAlign:"center",
+            }}>
+              <p style={{ color:"#64748b", fontSize:11, fontWeight:700, margin:0 }}>
+                🎯 Keep practising {topic} to unlock Stage {stage.stageNum + 1} —{" "}
+                <strong style={{ color: stage.accent }}>
+                  {stage.stageNum === 1 ? "On Track" : "Stellar"}
+                </strong>
+                !
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Close */}
+        <button onClick={onClose} className="no-print"
+          style={{
+            position:"absolute", top:12, right:12, zIndex:30,
+            width:32, height:32, borderRadius:"50%", border:"none",
+            background:"rgba(255,255,255,0.25)", color:"white",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            cursor:"pointer", backdropFilter:"blur(4px)",
+          }}>
+          <X size={16}/>
+        </button>
       </div>
-    </>
+    </div>
   );
 }

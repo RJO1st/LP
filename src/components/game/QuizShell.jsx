@@ -44,7 +44,7 @@ const SUBJECT_LABELS = {
   geography:            { header: "Geography Field Study",        scenario: "Field Data",             loading: "Reading the terrain...",        finish: "Field Study Complete!"           },
   social_studies:       { header: "Social Studies Investigation", scenario: "Case Study",             loading: "Reviewing evidence...",         finish: "Investigation Complete!"         },
   hass:                 { header: "HASS Investigation",           scenario: "Source Material",        loading: "Gathering sources...",          finish: "Investigation Complete!"         },
-  english:              { header: "Reading Comprehension",        scenario: "Reading Passage",        loading: "Loading passage...",            finish: "Passage Complete!"               },
+  english:              { header: "Reading Comprehension",        scenario: "Reading Passage",        scenarioNoPassage: "Study Material",       loading: "Loading passage...",            finish: "Passage Complete!"               },
   financial_accounting: { header: "Financial Accounting",         scenario: "Ledger Data",            loading: "Crunching numbers...",          finish: "Accounting Complete!"            },
   commerce:             { header: "Commerce Analysis",            scenario: "Market Data",            loading: "Analyzing trade...",            finish: "Commerce Complete!"              },
   basic_technology:     { header: "Technology Workshop",          scenario: "Technical Data",         loading: "Setting up equipment...",       finish: "Workshop Complete!"              },
@@ -352,13 +352,20 @@ export function EngineFinished({
   const accuracy    = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;
   const wrongList   = answers.filter(a => !a.isCorrect);
   const xp          = xpEarned ?? finalScore * 10;
-  const isMastery   = accuracy >= 90;
+  // Stage-gated mastery: check what tier the session performance corresponds to
+  // In production this is driven by BKT from DB; here we derive from session accuracy
+  const masteryScore  = accuracy / 100;
+  const masteryTier   = masteryScore >= 0.80 ? "exceeding"
+                      : masteryScore >= 0.70 ? "expected"
+                      : masteryScore >= 0.55 ? "developing"
+                      : null;
+  const isMastery     = masteryTier !== null;   // any stage threshold crossed
 
   const grade =
-    accuracy >= 90 ? { label: "Distinction", color: "#059669", bg: "#ecfdf5" } :
-    accuracy >= 75 ? { label: "Merit",        color: "#0891b2", bg: "#ecfeff" } :
-    accuracy >= 60 ? { label: "Pass",         color: "#d97706", bg: "#fffbeb" } :
-                     { label: "Keep Going",   color: "#dc2626", bg: "#fef2f2" };
+    accuracy >= 80 ? { label: "Stellar 🏆",    color: "#d97706", bg: "#fffbeb" } :
+    accuracy >= 70 ? { label: "On Track ⭐",   color: "#7c3aed", bg: "#f5f3ff" } :
+    accuracy >= 55 ? { label: "Building 🌱",   color: "#0891b2", bg: "#ecfeff" } :
+                     { label: "Keep Going 💪", color: "#dc2626", bg: "#fef2f2" };
 
   const insights = buildInsights(accuracy, wrongList, totalQuestions);
 
@@ -376,6 +383,8 @@ export function EngineFinished({
         scholarName={scholarName || "Cadet"}
         subject={subject}
         topic={topic || subject}
+        masteryTier={masteryTier || "developing"}
+        masteryScore={masteryScore}
         accuracy={accuracy}
         xpEarned={xp}
         date={new Date()}
@@ -520,7 +529,9 @@ export function EngineFinished({
               }}
             >
               <span className="text-lg">🏆</span>
-              Claim Your Mastery Certificate
+              {masteryTier === "exceeding" ? "🏆 Stellar Mastery Certificate"
+               : masteryTier === "expected" ? "⭐ On Track Certificate"
+               : "🌱 Building Stage Certificate"}
               <span className="text-lg">✨</span>
             </button>
             <p className="text-center text-[10px] text-slate-400 mt-1.5">

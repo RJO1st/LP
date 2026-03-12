@@ -50,7 +50,7 @@ const PaperEngine = dynamic(
 );
 
 const NebulaTrials = dynamic(
-  () => import("../../../components/game/NebulaTrials"),
+  () => import("../../../components/game/TimesTablesArena"),
   { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
 );
 
@@ -171,6 +171,143 @@ function AvatarDisplay({ avatar, size = "md", onClick }) {
         <span className={`absolute -bottom-1 -right-1 ${sizeCfg.pet}`}>{AVATAR_ITEMS[avatar.pet]?.icon}</span>
       )}
     </button>
+  );
+}
+
+// ─── CERTIFICATES PANEL ───────────────────────────────────────────
+const STAGE_META = {
+  developing: { label: "Building",  emoji: "🌱", stars: 1, color: "#0891b2", bg: "#ecfeff",  border: "#a5f3fc" },
+  expected:   { label: "On Track",  emoji: "⭐", stars: 2, color: "#7c3aed", bg: "#f5f3ff",  border: "#ddd6fe" },
+  exceeding:  { label: "Stellar",   emoji: "🏆", stars: 3, color: "#d97706", bg: "#fffbeb",  border: "#fde68a" },
+};
+
+function CertificateCard({ record, scholarName, onView }) {
+  const stage = STAGE_META[record.current_tier] || STAGE_META.exceeding;
+  const subjIcon = SUBJECT_ICONS[record.subject] ?? "📚";
+  const topicLabel = record.topic
+    ? record.topic.replace(/_/g, " ").replace(/\w/g, c => c.toUpperCase())
+    : record.subject;
+  const dateStr = record.updated_at
+    ? new Date(record.updated_at).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })
+    : "";
+  const pct = Math.round((record.mastery_score ?? 0) * 100);
+
+  return (
+    <div
+      onClick={() => onView(record)}
+      style={{ background: stage.bg, borderColor: stage.border }}
+      className="border-2 rounded-xl p-3 cursor-pointer hover:scale-[1.02] active:scale-[0.98]
+                 transition-all flex flex-col gap-2 relative overflow-hidden"
+    >
+      {/* Stage badge top-right */}
+      <div className="absolute top-2 right-2 flex gap-0.5">
+        {Array.from({ length: 3 }, (_, i) => (
+          <svg key={i} width="10" height="10" viewBox="0 0 10 10">
+            <path d="M5 1 L6.2 3.7 L9.5 4 L7.2 6.1 L7.9 9.5 L5 7.9 L2.1 9.5 L2.8 6.1 L0.5 4 L3.8 3.7 Z"
+              fill={i < stage.stars ? stage.color : "#e2e8f0"}/>
+          </svg>
+        ))}
+      </div>
+      {/* Subject icon + topic */}
+      <div className="flex items-start gap-2 pr-8">
+        <span className="text-2xl shrink-0">{subjIcon}</span>
+        <div className="min-w-0">
+          <p className="text-xs font-black text-slate-800 leading-tight truncate">{topicLabel}</p>
+          <p className="text-[10px] font-bold capitalize" style={{ color: stage.color }}>
+            {stage.emoji} {stage.label}
+          </p>
+        </div>
+      </div>
+      {/* Mastery bar */}
+      <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, background: stage.color }}/>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-[10px] font-bold text-slate-500">{pct}% mastery</span>
+        <span className="text-[9px] font-semibold text-slate-400">{dateStr}</span>
+      </div>
+    </div>
+  );
+}
+
+function CertificatesPanel({ records, scholarName, subjects }) {
+  const [filter,   setFilter]   = React.useState("all");
+  const [viewing,  setViewing]  = React.useState(null);
+  const [LazyMC,   setLazyMC]   = React.useState(null);
+
+  // Lazy-load MasteryCertificate only when needed
+  const handleView = React.useCallback(async (record) => {
+    if (!LazyMC) {
+      const mod = await import("../../../components/game/MasteryCertificate");
+      setLazyMC(() => mod.default);
+    }
+    setViewing(record);
+  }, [LazyMC]);
+
+  const filtered = filter === "all"
+    ? records
+    : records.filter(r => r.current_tier === filter);
+
+  const totalByTier = {
+    developing: records.filter(r => r.current_tier === "developing").length,
+    expected:   records.filter(r => r.current_tier === "expected").length,
+    exceeding:  records.filter(r => r.current_tier === "exceeding").length,
+  };
+
+  if (records.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center gap-2 py-6">
+        <span className="text-3xl">📜</span>
+        <p className="text-slate-500 text-sm font-bold">No certificates yet</p>
+        <p className="text-slate-400 text-xs">Complete missions to earn mastery certificates!</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Overlay cert viewer */}
+      {viewing && LazyMC && (
+        <LazyMC
+          scholarName={scholarName}
+          subject={viewing.subject}
+          topic={(viewing.topic || viewing.subject).replace(/_/g," ").replace(/\w/g,c=>c.toUpperCase())}
+          masteryTier={viewing.current_tier}
+          masteryScore={viewing.mastery_score ?? 0}
+          accuracy={Math.round((viewing.mastery_score ?? 0) * 100)}
+          xpEarned={0}
+          date={viewing.updated_at ? new Date(viewing.updated_at) : new Date()}
+          onClose={() => setViewing(null)}
+        />
+      )}
+
+      {/* Filter tabs */}
+      <div className="flex gap-1.5 mb-3 flex-wrap">
+        {[
+          { key:"all",        label:`All (${records.length})`,                  color:"#4f46e5" },
+          { key:"exceeding",  label:`🏆 Stellar (${totalByTier.exceeding})`,   color:"#d97706" },
+          { key:"expected",   label:`⭐ On Track (${totalByTier.expected})`,   color:"#7c3aed" },
+          { key:"developing", label:`🌱 Building (${totalByTier.developing})`, color:"#0891b2" },
+        ].map(({ key, label, color }) => (
+          <button key={key} onClick={() => setFilter(key)}
+            className="text-[10px] font-black px-2.5 py-1 rounded-lg transition-all"
+            style={{
+              background: filter === key ? color : "#f1f5f9",
+              color:      filter === key ? "white" : "#64748b",
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid of certificates */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-0.5">
+        {filtered.map((r, i) => (
+          <CertificateCard key={i} record={r} scholarName={scholarName} onView={handleView} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -470,6 +607,7 @@ export default function StudentDashboard() {
   const [activeQuests,     setActiveQuests]     = useState([]);
   const [newQuestComplete, setNewQuestComplete] = useState(null);
   const [leaderboard,      setLeaderboard]      = useState([]);
+  const [masteryRecords,   setMasteryRecords]   = useState([]);   // for certificates
   const [skillProficiency, setSkillProficiency] = useState({});
   const [recentQuizzes,    setRecentQuizzes]    = useState([]);
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
@@ -527,6 +665,16 @@ export default function StudentDashboard() {
       .select("question_id")
       .eq("scholar_id", id);
     if (data) setPrevQuestionIds(data.map(h => h.question_id));
+  }, [supabase]);
+
+  const loadMasteryRecords = useCallback(async (id) => {
+    const { data } = await supabase
+      .from("scholar_topic_mastery")
+      .select("subject, topic, mastery_score, current_tier, updated_at")
+      .eq("scholar_id", id)
+      .in("current_tier", ["developing", "expected", "exceeding"])
+      .order("updated_at", { ascending: false });
+    if (data) setMasteryRecords(data);
   }, [supabase]);
 
   const loadLeaderboard = useCallback(async (yearLevel, curriculum) => {
@@ -641,6 +789,7 @@ export default function StudentDashboard() {
     Promise.all([
       refreshHistory(id),
       loadBadges(id),
+      loadMasteryRecords(id),
       loadQuests(id),
       loadLeaderboard(yearLevel, curriculum),
       loadSkills(id),
@@ -1098,10 +1247,17 @@ export default function StudentDashboard() {
               )}
             </div>
             <button
-              onClick={() => setActiveSubject(subjects[0] || "maths")}
+              onClick={() => {
+                // Pick: weakest subject (lowest proficiency) or first available
+                const weakest = subjects.reduce((best, s) => {
+                  const p = skillProficiency[s] ?? 0;
+                  return (p < (skillProficiency[best] ?? 0)) ? s : best;
+                }, subjects[0]);
+                setActiveSubject(weakest || subjects[0] || "maths");
+              }}
               className="w-full py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95 shadow-sm"
             >
-              Start Mission →
+              Start Weakest Subject →
             </button>
           </div>
         </div>
@@ -1218,6 +1374,29 @@ export default function StudentDashboard() {
             </div>
           )}
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            ROW 5: Certificates earned
+        ══════════════════════════════════════════════════════════════════ */}
+        {masteryRecords.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-0.5">
+                🏅 My Certificates
+              </h2>
+              <span className="text-[10px] font-bold text-slate-400">
+                {masteryRecords.length} earned
+              </span>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+              <CertificatesPanel
+                records={masteryRecords}
+                scholarName={scholar?.name || "Cadet"}
+                subjects={subjects}
+              />
+            </div>
+          </section>
+        )}
 
         {/* Progress section (toggle) */}
         {showProgress && (

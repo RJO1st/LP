@@ -255,19 +255,27 @@ function PlaceValueVis({ tens, ones }) {
 
 // MULTIPLICATION — clean array with row/col separators ────────────────────────
 function MultiplicationVis({ rows, cols }) {
-  const r = Math.min(rows, 6), c = Math.min(cols, 8);
+  // rows/cols = true operands from question (e.g. 7, 2 for 7×2)
+  // Visual cap: max 6 rows × 10 cols to fit panel; label always shows true values
+  const dispR = Math.min(rows, 6);
+  const dispC = Math.min(cols, 10);
+  const truncated = rows > 6 || cols > 10;
+  const dotSize = cols > 6 ? 14 : 18;
   return (
-    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "center" }}>
-        {Array.from({ length: r }).map((_, ri) => (
-          <div key={ri} style={{ display: "flex", gap: 5, alignItems: "center" }}>
-            {Array.from({ length: c }).map((_, ci) => (
-              <Dot key={ci} color={T.emerald} bg={T.emeraldBg} border={T.emerald} size={18} />
+    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}
+      ariaLabel={`${rows} groups of ${cols}`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
+        {Array.from({ length: dispR }).map((_, ri) => (
+          <div key={ri} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {Array.from({ length: dispC }).map((_, ci) => (
+              <Dot key={ci} color={T.emerald} bg={T.emeraldBg} border={T.emerald} size={dotSize} />
             ))}
           </div>
         ))}
       </div>
-      <Chip color={T.emerald} bg={T.emeraldBg}>{r} groups of {c}</Chip>
+      <Chip color={T.emerald} bg={T.emeraldBg}>
+        {rows} groups of {cols}{truncated ? " (partial view)" : ""}
+      </Chip>
     </Panel>
   );
 }
@@ -533,6 +541,128 @@ function Arrow({ length, color, label, direction = "right", y = 24 }) {
 // FORCES ──────────────────────────────────────────────────────────────────────
 // Arrows are FIXED LENGTH — they show direction + identity only, not magnitude.
 // Magnitude is only communicated via labels. This ensures the visual doesn't
+// ─── NVR REFLECTION VISUAL ────────────────────────────────────────────────────
+function NVRReflectionVis({ letter = "d" }) {
+  const W = 180, H = 80;
+  return (
+    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
+      ariaLabel={`What is the reflection of ${letter} in a vertical mirror?`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {/* Original letter */}
+        <text x={52} y={52} textAnchor="middle" fontSize={36} fontWeight="900"
+          fill={T.indigo} fontFamily="monospace">{letter}</text>
+        {/* Mirror line */}
+        <line x1={90} y1={6} x2={90} y2={74} stroke={T.slate} strokeWidth={2}
+          strokeDasharray="4,3"/>
+        <text x={90} y={5} textAnchor="middle" fontSize={7} fill={T.textMid}
+          dominantBaseline="hanging">mirror</text>
+        {/* Question mark on reflected side */}
+        <text x={128} y={52} textAnchor="middle" fontSize={36} fontWeight="900"
+          fill={T.nebula} fontFamily="monospace" opacity={0.6}>?</text>
+        {/* Arrow hint */}
+        <path d="M 68 42 Q 90 30 112 42" fill="none" stroke={T.slate}
+          strokeWidth={1.5} strokeDasharray="3,2" markerEnd="url(#arrowhead)"/>
+        <defs>
+          <marker id="arrowhead" markerWidth="6" markerHeight="6"
+            refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill={T.slate}/>
+          </marker>
+        </defs>
+      </svg>
+      <Chip color={T.nebula} bg={T.nebulaBg}>What does {letter} look like in the mirror?</Chip>
+    </Panel>
+  );
+}
+
+// ─── NVR NET VISUAL ────────────────────────────────────────────────────────────
+function NVRNetVis({ shape3d = "cube" }) {
+  const W = 180, H = 90;
+  const SQ = 22;
+  // Cross net for cube: 6 squares in a cross pattern
+  const cubeSquares = [
+    [2,0], [0,1],[1,1],[2,1],[3,1],
+    [2,2],
+  ];
+  // Triangular pyramid net: 4 triangles
+  const pyramidTris = [
+    { x:60, y:10, pts: "80,10 60,46 100,46" },
+    { x:40, y:46, pts: "60,46 40,82 80,82" },
+    { x:80, y:46, pts: "100,46 80,82 120,82" },
+    { x:20, y:46, pts: "40,46 20,82 60,82" },
+  ];
+  return (
+    <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}
+      ariaLabel={`3D net of a ${shape3d}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {shape3d === "cube" && (
+          <g transform={`translate(${(W - SQ*4) / 2}, 4)`}>
+            {cubeSquares.map(([col, row], i) => (
+              <rect key={i} x={col*SQ} y={row*SQ} width={SQ-2} height={SQ-2}
+                fill={T.amberBg} stroke={T.amber} strokeWidth={2} rx={2}/>
+            ))}
+          </g>
+        )}
+        {shape3d !== "cube" && pyramidTris.map((t, i) => (
+          <polygon key={i} points={t.pts}
+            fill={T.amberBg} stroke={T.amber} strokeWidth={2}/>
+        ))}
+      </svg>
+      <Chip color={T.amber} bg="white">Net of a {shape3d} — fold the faces</Chip>
+    </Panel>
+  );
+}
+
+// ─── NVR ROTATION VISUAL ───────────────────────────────────────────────────────
+function NVRRotationVis({ degrees = 90, clockwise = true }) {
+  const W = 180, H = 90;
+  const cx = 50, cy = 45, r = 28;
+  const rot2 = clockwise ? degrees : -degrees;
+  const arrowAng = (rot2 * Math.PI) / 180;
+  const ax = cx + r * Math.sin(arrowAng);
+  const ay = cy - r * Math.cos(arrowAng);
+  return (
+    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
+      ariaLabel={`Rotation of ${degrees} degrees ${clockwise ? "clockwise" : "anti-clockwise"}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {/* Original arrow shape */}
+        <text x={cx} y={cy+6} textAnchor="middle" fontSize={30} fill={T.indigo}>→</text>
+        {/* Rotated arrow */}
+        <text x={cx + 90} y={cy+6} textAnchor="middle" fontSize={30} fill={T.nebula}
+          transform={`rotate(${rot2}, ${cx+90}, ${cy})`}>→</text>
+        {/* Arc label */}
+        <path d={`M ${cx+62},${cy-8} A 15 15 0 0 ${clockwise?1:0} ${cx+68},${cy+8}`}
+          fill="none" stroke={T.slate} strokeWidth={1.5} strokeDasharray="3,2"/>
+        <text x={cx+62} y={cy-14} textAnchor="middle" fontSize={8} fill={T.textMid}>
+          {degrees}° {clockwise?"↻":"↺"}
+        </text>
+      </svg>
+      <Chip color={T.nebula} bg={T.nebulaBg}>
+        {degrees}° {clockwise ? "clockwise" : "anti-clockwise"} rotation
+      </Chip>
+    </Panel>
+  );
+}
+
+// ─── NVR ODD ONE OUT ────────────────────────────────────────────────────────────
+function NVROddOneOutVis() {
+  const shapes = [
+    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
+    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
+    { shape: "triangle", fill: T.nebulaBg, stroke: T.nebula },
+    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
+  ];
+  return (
+    <Panel accent={T.rose} bg={T.roseBg} bd={T.roseBd} ariaLabel="Odd one out pattern">
+      <div style={{ display:"flex", gap:10, justifyContent:"center", alignItems:"center" }}>
+        {shapes.map((s, i) => (
+          <NVRShapeItem key={i} {...s} size={16}/>
+        ))}
+      </div>
+      <Chip color={T.rose} bg={T.roseBg}>Which does not belong?</Chip>
+    </Panel>
+  );
+}
+
 // give away the answer to "what is the net force?" questions.
 function ForcesVis({ force1, force2, label1 = "Push", label2 = "Friction" }) {
   const FIXED = 64; // all arrows same length — direction only
@@ -751,6 +881,35 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       ];
       return { type: "nvr", sequence };
     }
+
+    // ── Reflection / mirror ─────────────────────────────────────────────────
+    if (/reflect|mirror/i.test(questionText)) {
+      // Extract the letter/shape being reflected if present
+      const letterM = (questionText || "").match(/reflection of ['"]?([a-z])['"]?/i);
+      const letter  = letterM ? letterM[1].toUpperCase() : "d";
+      return { type: "nvr_reflection", letter };
+    }
+
+    // ── 3D nets / folding ────────────────────────────────────────────────────
+    if (/net|fold|cube|cuboid|prism|pyramid|3d shape/i.test(questionText)) {
+      const shape3d = /pyramid/i.test(questionText) ? "pyramid"
+                    : /prism/i.test(questionText)   ? "prism"
+                    : "cube";
+      return { type: "nvr_net", shape3d };
+    }
+
+    // ── Rotation / transformation ───────────────────────────────────────────
+    if (/rotat|turn|clockwise|anti.clockwise|degrees?/i.test(questionText)) {
+      const degM  = (questionText || "").match(/(\d+)\s*degrees?/i);
+      const deg   = degM ? parseInt(degM[1]) : 90;
+      const cw    = !/anti.clockwise|counter.clockwise/i.test(questionText);
+      return { type: "nvr_rotation", degrees: deg, clockwise: cw };
+    }
+
+    // ── Odd one out / classification ────────────────────────────────────────
+    if (/odd one out|which.*different|does not belong/i.test(questionText)) {
+      return { type: "nvr_oddoneout" };
+    }
   }
 
   // ── PHYSICS ──────────────────────────────────────────────────────────────
@@ -886,9 +1045,24 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       const result = parseInt(eqNum[1]);
       const known  = parseInt((missingMul || missingAdd)[1]);
       if (result > 0 && known > 0 && result <= 100) {
-        return { type: "number_line", start: 0, end: result, highlight: known, label: "Find the missing value" };
+        return { type: "number_line", min: 0, max: result, marked: known, label: "Find the missing value" };
       }
     }
+  }
+
+  // ── NUMBER LINE: "X more/less than N" (works with negatives) ──────────────────
+  // e.g. "What number is 3 more than -6?" → number line from -8 to 0, answer = -3
+  const moreMatch = (questionText || "").match(/(\d+)\s*more\s+than\s+(-?\d+)/i);
+  const lessMatch = (questionText || "").match(/(\d+)\s*(?:less|fewer)\s+than\s+(-?\d+)/i);
+  if (moreMatch || lessMatch) {
+    const m    = moreMatch || lessMatch;
+    const diff = parseInt(m[1]);
+    const base = parseInt(m[2]);
+    const ans  = moreMatch ? base + diff : base - diff;
+    const lo   = Math.min(base, ans) - 2;
+    const hi   = Math.max(base, ans) + 2;
+    return { type: "number_line", min: lo, max: hi, marked: ans,
+      label: moreMatch ? `${base} + ${diff} = ?` : `${base} − ${diff} = ?` };
   }
 
   // Skip multiplication dot grid if either operand is a decimal (2.5 × 4 etc.)
@@ -2554,6 +2728,10 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "food_chain":       return `Food chain: ${(visual.chain||[]).join(" → ")}`;
       case "formula_triangle": return `Formula triangle: ${visual.title || ""}`;
       case "nvr":              return `Non-verbal reasoning pattern sequence`;
+      case "nvr_reflection":   return `Mirror reflection visual`;
+      case "nvr_net":          return `3D net of a ${visual.shape3d}`;
+      case "nvr_rotation":     return `Rotation ${visual.degrees} degrees ${visual.clockwise?"clockwise":"anti-clockwise"}`;
+      case "nvr_oddoneout":    return `Odd one out visual`;
       case "nvr_matrix":       return `Non-verbal reasoning matrix`;
       case "alphabet_strip":   return `Alphabet strip`;
       case "analogy":          return `Word analogy: ${visual.wordA} is to ${visual.wordB}`;
@@ -2575,6 +2753,10 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "number_bond":     return <NumberBondVis     {...visual} />;
       case "counting":        return <CountingVis       {...visual} />;
       case "nvr":             return <NVRVis            {...visual} />;
+      case "nvr_reflection":  return <NVRReflectionVis  {...visual} />;
+      case "nvr_net":         return <NVRNetVis          {...visual} />;
+      case "nvr_rotation":    return <NVRRotationVis     {...visual} />;
+      case "nvr_oddoneout":   return <NVROddOneOutVis />;
       case "shape_property":  return <NVRShapePropertyVis {...visual} />;
       case "forces":          return <ForcesVis         {...visual} />;
       case "velocity":        return <VelocityVis       {...visual} />;

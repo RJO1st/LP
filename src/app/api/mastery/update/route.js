@@ -97,6 +97,14 @@ export async function POST(request) {
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + newInterval);
 
+    // ── Detect stage threshold crossings for certificate surfacing ──────────────
+    const prevTier = prevMastery?.current_tier ?? null;
+    const TIER_RANK = { developing: 1, expected: 2, exceeding: 3 };
+    const tierRankPrev = TIER_RANK[prevTier] ?? 0;
+    const tierRankNew  = TIER_RANK[tier]     ?? 0;
+    // tier_crossed = new tier if we just moved UP a stage for the first time
+    const tier_crossed = tierRankNew > tierRankPrev ? tier : null;
+
     const masteryPayload = {
       scholar_id:     scholarId,
       curriculum,
@@ -201,9 +209,12 @@ export async function POST(request) {
     }
 
     return NextResponse.json({
-      mastery:         updatedMastery,
+      mastery:          updatedMastery,
       milestones,
       storyPointsEarned,
+      tier_crossed,          // non-null when scholar just crossed a new mastery stage
+      new_tier:  tier,
+      prev_tier: prevTier,
     });
 
   } catch (err) {
