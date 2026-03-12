@@ -50,7 +50,7 @@ const PaperEngine = dynamic(
 );
 
 const NebulaTrials = dynamic(
-  () => import("../../../components/game/TimesTablesArena"),
+  () => import("../../../components/game/NebulaTrials"),
   { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
 );
 
