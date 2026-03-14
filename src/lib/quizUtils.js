@@ -159,7 +159,7 @@ export function buildCompletionPayload({ answers, totalQuestions, xpPerQuestion,
  *   topic_summary     — JSONB per-topic breakdown, queried by TopicPerformanceBreakdown
  */
 export async function saveQuizResult(supabase, {
-  studentId, subject, questions, answers, topicSummary, xpPerQuestion,
+  studentId, subject, curriculum, questions, answers, topicSummary, xpPerQuestion,
   timeSpentSeconds,
 }) {
   if (!studentId) return;
@@ -172,20 +172,35 @@ export async function saveQuizResult(supabase, {
     }));
     const finalScore = details.filter(d => d.correct).length;
     const xp         = finalScore * (xpPerQuestion || 10);
+    const accuracy   = questions.length > 0
+      ? Math.round((finalScore / questions.length) * 100) : 0;
 
-    // quiz_results row — Tier 1 fields added
-    await supabase.from('quiz_results').insert({
+    // Collect unique topics from this session
+    const topics = [...new Set(questions.map(q => q.topic).filter(Boolean))];
+
+    // quiz_results row — only columns that exist on the table
+    const { error: insertErr } = await supabase.from('quiz_results').insert({
       scholar_id:         studentId,
       subject,
+      curriculum:         curriculum || 'uk_national',
       score:              finalScore,
-      total_questions:    questions.length,
-      questions_correct:  finalScore,
       questions_total:    questions.length,
-      topic_summary:      topicSummary || {},
+      accuracy,
       time_spent_seconds: timeSpentSeconds || 0,
-      completed_at:       new Date().toISOString(),
-      details,
+      topics:             JSON.stringify(topics),
     });
+
+    if (insertErr) {
+      console.error('[saveQuizResult] insert failed:', insertErr.message);
+      // Retry with absolute minimum columns
+      const { error: retryErr } = await supabase.from('quiz_results').insert({
+        scholar_id:      studentId,
+        subject,
+        score:           finalScore,
+        questions_total: questions.length,
+      });
+      if (retryErr) console.error('[saveQuizResult] minimal insert also failed:', retryErr.message);
+    }
 
     // question history (only rows with real DB ids)
     const dbIds = questions.map(q => q.id).filter(Boolean);
@@ -196,37 +211,43 @@ export async function saveQuizResult(supabase, {
           question_id: qid,
           answered_at: new Date().toISOString(),
         }))
-      );
+      ).catch(err => console.warn('[saveQuizResult] history insert failed:', err?.message));
     }
 
-    // XP + skill update via RPCs
-    await supabase.rpc('update_scholar_skills', { p_scholar_id: studentId, p_details: details });
-    await supabase.rpc('increment_scholar_xp',  { s_id: studentId, xp_to_add: xp });
+    // XP + skill update via RPCs (fire-and-forget, non-fatal)
+    await supabase.rpc('update_scholar_skills', { p_scholar_id: studentId, p_details: details })
+      .catch(err => console.warn('[saveQuizResult] update_scholar_skills RPC failed:', err?.message));
+    await supabase.rpc('increment_scholar_xp', { s_id: studentId, xp_to_add: xp })
+      .catch(err => console.warn('[saveQuizResult] increment_scholar_xp RPC failed:', err?.message));
 
     // First-quiz parent email
-    const { count } = await supabase
-      .from('quiz_results')
-      .select('*', { count: 'exact', head: true })
-      .eq('scholar_id', studentId);
+    try {
+      const { count } = await supabase
+        .from('quiz_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('scholar_id', studentId);
 
-    if (count === 1) {
-      try {
+      if (count === 1) {
         const { data: scholar } = await supabase
           .from('scholars').select('name, parent_id').eq('id', studentId).single();
-        const { data: parent } = await supabase
-          .from('parents').select('email, full_name').eq('id', scholar.parent_id).single();
-        await fetch('/api/emails/send-first-quiz', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            parentEmail: parent.email, parentName: parent.full_name,
-            scholarName: scholar.name, subject,
-            score: finalScore, totalQuestions: questions.length, xpEarned: xp,
-          }),
-        });
-      } catch (emailErr) {
-        console.warn('[saveQuizResult] First-quiz email failed silently:', emailErr?.message);
+        if (scholar?.parent_id) {
+          const { data: parent } = await supabase
+            .from('parents').select('email, full_name').eq('id', scholar.parent_id).single();
+          if (parent?.email) {
+            await fetch('/api/emails/send-first-quiz', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({
+                parentEmail: parent.email, parentName: parent.full_name,
+                scholarName: scholar.name, subject,
+                score: finalScore, totalQuestions: questions.length, xpEarned: xp,
+              }),
+            });
+          }
+        }
       }
+    } catch (emailErr) {
+      console.warn('[saveQuizResult] First-quiz email failed silently:', emailErr?.message);
     }
   } catch (err) {
     console.error('[saveQuizResult] Failed:', err?.message);

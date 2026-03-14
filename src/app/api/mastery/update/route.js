@@ -27,8 +27,63 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse }  from "next/server";
-import { checkMilestones } from "@/lib/learningPathEngine";
-import { calcStoryPoints }  from "@/lib/narrativeEngine";
+
+// Fallbacks if optional modules don't exist
+const _fallbackCalcStoryPoints = (correct, total, streak) => correct * 5 + (correct === total ? 10 : 0);
+const _fallbackCheckMilestones = () => [];
+
+async function safeImports() {
+  let calcStoryPoints = _fallbackCalcStoryPoints;
+  let checkMilestones = _fallbackCheckMilestones;
+  try { const m = await import("@/lib/narrativeEngine"); if (m.calcStoryPoints) calcStoryPoints = m.calcStoryPoints; } catch {}
+  try { const m = await import("@/lib/learningPathEngine"); if (m.checkMilestones) checkMilestones = m.checkMilestones; } catch {}
+  return { calcStoryPoints, checkMilestones };
+}
+
+// ── BKT constants (must match masteryEngine.js) ───────────────────────────────
+// The route previously used a shortcut formula (score + 0.3*(target - score))
+// that reached 0.55 "expected" tier after only 2 correct answers.
+// This proper BKT implementation matches masteryEngine.js exactly.
+const BKT = {
+  pLearn: 0.05,   // must match masteryEngine.js
+  pSlip:  0.15,   // must match masteryEngine.js
+  pGuess: 0.25,   // must match masteryEngine.js
+};
+const MASTERY_THRESHOLDS = { mastered: 0.80, developing: 0.55 };
+
+function bktUpdate(currentMastery, correct) {
+  const { pLearn, pSlip, pGuess } = BKT;
+  const pCorrectGiven = currentMastery * (1 - pSlip) + (1 - currentMastery) * pGuess;
+  let pMasteryGivenObs;
+  if (correct) {
+    pMasteryGivenObs = (currentMastery * (1 - pSlip)) / pCorrectGiven;
+  } else {
+    pMasteryGivenObs = (currentMastery * pSlip) / (1 - pCorrectGiven);
+  }
+  return pMasteryGivenObs + (1 - pMasteryGivenObs) * pLearn;
+}
+
+function applyTimeDecay(score, lastSeenAt) {
+  if (!lastSeenAt) return score;
+  const daysSince = (Date.now() - new Date(lastSeenAt).getTime()) / 86_400_000;
+  const decay = daysSince >= 60 ? 0.60 : daysSince >= 30 ? 0.75 : daysSince >= 21 ? 0.85 : daysSince >= 14 ? 0.93 : 1.0;
+  return score * decay;
+}
+
+function tierFromScore(score, intervalDays = 0, timesSeen = 0) {
+  // ── Stage-gated mastery tiers ──────────────────────────────────────────
+  // A scholar cannot reach higher tiers without sustained evidence:
+  //   exceeding: score >= 0.80 AND seen 40+ questions AND interval >= 7 days
+  //   expected:  score >= 0.55 AND seen 20+ questions
+  //   developing: everything else
+  //
+  // This prevents "Stellar in one quest" — even 20/20 correct only reaches
+  // "expected" at best on the first session, because times_seen starts at 20.
+  // The scholar must return for more sessions to prove retention.
+  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 40 && intervalDays >= 7) return "exceeding";
+  if (score >= MASTERY_THRESHOLDS.developing && timesSeen >= 20) return "expected";
+  return "developing";
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -37,6 +92,7 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
+    const { calcStoryPoints, checkMilestones } = await safeImports();
     const body = await request.json();
     const {
       scholarId,
@@ -68,14 +124,15 @@ export async function POST(request) {
       .eq("topic", topic)
       .single();
 
-    // ── 2. Upsert mastery directly (BKT-lite computed here) ─────────────
+    // ── 2. Upsert mastery via proper BKT (matches masteryEngine.js) ─────────
     const timesSeen    = (prevMastery?.times_seen    ?? 0) + 1;
     const timesCorrect = (prevMastery?.times_correct ?? 0) + (correct ? 1 : 0);
     const streak       = correct ? (prevMastery?.current_streak ?? 0) + 1 : 0;
 
-    // BKT-lite: weighted update toward 1 (correct) or 0 (wrong)
-    const prevScore   = prevMastery?.mastery_score ?? 0.1;
-    const masteryScore = prevScore + 0.3 * ((correct ? 1 : 0) - prevScore);
+    // Apply time decay before BKT update so forgetting is modelled correctly
+    const rawPrev   = prevMastery?.mastery_score ?? 0.1;
+    const decayed   = applyTimeDecay(rawPrev, prevMastery?.last_seen_at);
+    const masteryScore = bktUpdate(decayed, correct);
 
     // SM-2 spaced repetition
     const prevEase     = prevMastery?.ease_factor  ?? 2.5;
@@ -91,9 +148,7 @@ export async function POST(request) {
       newEase = Math.max(1.3, prevEase - 0.2);
     }
 
-    const tier = masteryScore >= 0.85 ? "exceeding"
-               : masteryScore >= 0.65 ? "expected"
-               : "developing";
+    const tier = tierFromScore(masteryScore, newInterval, timesSeen);
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + newInterval);
 

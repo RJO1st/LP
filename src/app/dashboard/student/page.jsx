@@ -734,17 +734,17 @@ export default function StudentDashboard() {
   const loadRecentQuizzes = useCallback(async (id) => {
     const { data } = await supabase
       .from("quiz_results")
-      .select("subject, score, total_questions, completed_at")
+      .select("subject, score, questions_total, created_at, accuracy")
       .eq("scholar_id", id)
-      .order("completed_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(5);
     if (data) {
       setRecentQuizzes(data.map(q => ({
         subject: q.subject,
         score:   q.score,
-        total:   q.total_questions,
-        pct:     Math.round((q.score / q.total_questions) * 100),
-        date:    new Date(q.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+        total:   q.questions_total,
+        pct:     q.accuracy ?? (q.questions_total > 0 ? Math.round((q.score / q.questions_total) * 100) : 0),
+        date:    new Date(q.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
       })));
     }
   }, [supabase]);
@@ -763,16 +763,16 @@ export default function StudentDashboard() {
     const oneAgo = new Date(); oneAgo.setDate(oneAgo.getDate() - 7);
     const { data: lw } = await supabase
       .from("quiz_results")
-      .select("subject, questions_correct, questions_total")
+      .select("subject, score, questions_total")
       .eq("scholar_id", id)
-      .gte("completed_at", twoAgo.toISOString())
-      .lt("completed_at",  oneAgo.toISOString());
+      .gte("created_at", twoAgo.toISOString())
+      .lt("created_at",  oneAgo.toISOString());
     if (lw) {
       const agg = {};
-      lw.forEach(({ subject, questions_correct, questions_total }) => {
+      lw.forEach(({ subject, score, questions_total }) => {
         if (!agg[subject]) agg[subject] = { subject, questions_correct: 0, questions_total: 0 };
-        agg[subject].questions_correct += questions_correct || 0;
-        agg[subject].questions_total   += questions_total   || 0;
+        agg[subject].questions_correct += score || 0;
+        agg[subject].questions_total   += questions_total || 0;
       });
       setLastWeekStats(Object.values(agg));
     }
@@ -1008,7 +1008,7 @@ export default function StudentDashboard() {
         curriculum={curriculum}
         onClose={() => setActiveSubject(null)}
         onComplete={handleQuestComplete}
-        questionCount={10}
+        questionCount={20}
         previousQuestionIds={prevQuestionIds}
       />
     );

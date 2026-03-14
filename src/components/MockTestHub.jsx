@@ -13,7 +13,7 @@
  *   <MockTestHub scholar={scholar} supabase={supabase} onBack={() => setView("dashboard")} />
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getTestsForScholar, getTestById, resolveTestCurriculum, CATEGORIES, PAPER_CONFIGS } from "../lib/mockTestCatalogue";
 import PaperEngine from "./game/PaperEngine";
 
@@ -207,22 +207,21 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
   const [category,       setCategory]       = useState(null);
   const [activePaper,    setActivePaper]     = useState(null); // { testConfig, questions }
   const [loadingTestId,  setLoadingTestId]   = useState(null);
+  const [fetchError,     setFetchError]      = useState(null); // user-friendly error string
   const [recentResults,  setRecentResults]   = useState([]);   // last 3 results this session
 
   const year       = parseInt(scholar?.year_level || scholar?.year || 1, 10);
   const curriculum = scholar?.curriculum ?? "uk_national";
 
-  // All tests eligible for this scholar
-  const allTests = getTestsForScholar(year, curriculum);
-
-  // Category counts
-  const counts = allTests.reduce((acc, t) => {
+  // Memoised — avoid recalculating on every render
+  const allTests     = useMemo(() => getTestsForScholar(year, curriculum), [year, curriculum]);
+  const counts       = useMemo(() => allTests.reduce((acc, t) => {
     acc[t.category] = (acc[t.category] ?? 0) + 1;
     return acc;
-  }, {});
-
-  // Filtered list
-  const visibleTests = category ? allTests.filter(t => t.category === category) : allTests;
+  }, {}), [allTests]);
+  const visibleTests = useMemo(() =>
+    category ? allTests.filter(t => t.category === category) : allTests,
+  [allTests, category]);
 
   // ── Question fetching ──────────────────────────────────────────────────────
 
@@ -309,17 +308,14 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
   }, [supabase, year, curriculum]);
 
   // ── Normalise question rows for PaperEngine ────────────────────────────────
-  // Handles two DB layouts:
-  //   Layout A: options / correct_index / explanation stored as top-level columns
-  //   Layout B: data stored in question_data JSONB, other columns null
-  const normaliseQuestions = (rows) => rows.map(r => {
+  // Stable reference — doesn't depend on scholar/year, so memoised once.
+  const normaliseQuestions = useCallback((rows) => rows.map(r => {
     const parse = (val, fallback) => {
       if (Array.isArray(val)) return val;
       if (val && typeof val === "object") return Object.keys(val).length ? val : fallback;
       try { return val ? JSON.parse(val) : fallback; } catch { return fallback; }
     };
 
-    // Unpack question_data if present (Layout B)
     let data = r;
     if (r.question_data) {
       const qd = parse(r.question_data, {});
@@ -346,11 +342,12 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
       a:    Math.max(0, Math.min(correctIndex, opts.length - 1)),
       exp:  data.explanation ?? "",
     };
-  });
+  }), []);
 
   // ── Start a test ───────────────────────────────────────────────────────────
 
   const handleStart = async (test) => {
+    setFetchError(null);
     setLoadingTestId(test.id);
     try {
       const rows      = await fetchQuestionsForTest(test);
@@ -358,7 +355,7 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
       setActivePaper({ testConfig: test, questions });
     } catch (err) {
       console.error("[MockTestHub] Failed to load test:", err);
-      alert("Couldn't load questions for this test. Please try again.");
+      setFetchError("Couldn't load questions for this test. Check your connection and try again.");
     } finally {
       setLoadingTestId(null);
     }
@@ -366,31 +363,36 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
 
   // ── Handle completion ──────────────────────────────────────────────────────
 
+  // Keep a ref to activePaper so handleComplete always reads the latest value.
+  // Using activePaper directly in the useCallback dep array would cause handleComplete
+  // to be recreated on every paper change, which re-mounts PaperEngine unnecessarily.
+  const activePaperRef = useRef(activePaper);
+  useEffect(() => { activePaperRef.current = activePaper; }, [activePaper]);
+
   const handleComplete = useCallback(async (result) => {
-    // Save to session history
+    const paper = activePaperRef.current;
     setRecentResults(prev => [
-      { ...result, testId: activePaper?.testConfig?.id, label: activePaper?.testConfig?.label, timestamp: Date.now() },
+      { ...result, testId: paper?.testConfig?.id, label: paper?.testConfig?.label, timestamp: Date.now() },
       ...prev.slice(0, 2),
     ]);
 
-    // Save to quiz_results in DB (best-effort — don't block)
     try {
       await supabase.from("quiz_results").insert({
-        scholar_id:     scholar.id,
-        subject:        activePaper?.testConfig?.subject ?? "mixed",
-        curriculum:     resolveTestCurriculum(activePaper?.testConfig, curriculum),
-        score:          result.score,
-        correct_count:  result.correct,
+        scholar_id:      scholar.id,
+        subject:         paper?.testConfig?.subject ?? "mixed",
+        curriculum:      resolveTestCurriculum(paper?.testConfig, curriculum),
+        score:           result.score,
+        correct_count:   result.correct,
         total_questions: result.total,
         time_taken_secs: result.timeTaken,
-        session_type:   "mock_test",
-        exam_tag:       activePaper?.testConfig?.examTag ?? null,
-        metadata:       { testId: activePaper?.testConfig?.id },
+        session_type:    "mock_test",
+        exam_tag:        paper?.testConfig?.examTag ?? null,
+        metadata:        { testId: paper?.testConfig?.id },
       });
     } catch (err) {
       console.warn("[MockTestHub] Failed to save result:", err.message);
     }
-  }, [activePaper, scholar, supabase, curriculum]);
+  }, [supabase, scholar, curriculum]);
 
   // ── If a paper is active, render PaperEngine ──────────────────────────────
 
@@ -501,6 +503,19 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px" }}>
 
         {/* Category filter */}
+        {fetchError && (
+          <div style={{
+            marginBottom: 16, padding: "12px 16px", borderRadius: 10,
+            background: "#fee2e2", border: "1px solid #fca5a5",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          }}>
+            <span style={{ fontSize: 13, color: "#7f1d1d", fontWeight: 600 }}>⚠️ {fetchError}</span>
+            <button
+              onClick={() => setFetchError(null)}
+              style={{ fontSize: 12, color: "#7f1d1d", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}
+            >✕</button>
+          </div>
+        )}
         <CategoryBar active={category} onChange={setCategory} counts={counts} allCategories={Object.keys(counts)} />
 
         {/* Test grid */}

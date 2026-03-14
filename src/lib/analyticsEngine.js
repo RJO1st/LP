@@ -51,9 +51,11 @@ export function computeWeeklySummary(sessionAnswers, masteryRecords, scholar) {
   const accuracy        = Math.round((correctAnswers / totalQuestions) * 100);
   const sessions        = new Set(thisWeek.map(a => a.session_id));
   const sessionsCount   = sessions.size;
-  const minutesLearned  = Math.round(
-    thisWeek.reduce((sum, a) => sum + (a.time_taken_ms ?? 30000), 0) / 60000
-  );
+  // Only sum rows with a real time measurement — exclude nulls to avoid skewing totals
+  const timedAnswers   = thisWeek.filter(a => a.time_taken_ms != null);
+  const minutesLearned = timedAnswers.length > 0
+    ? Math.round(timedAnswers.reduce((sum, a) => sum + a.time_taken_ms, 0) / 60000)
+    : 0;
 
   // Per-topic breakdown
   const topicMap = {};

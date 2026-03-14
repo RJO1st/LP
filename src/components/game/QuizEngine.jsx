@@ -6,24 +6,127 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ImageDisplay from "./ImageDisplay";
 
-// ─── INLINED DEPENDENCIES TO FIX COMPILATION ──────────────────────────────────
-const createSupabaseMock = () => {
-  const chain = {
-    select: () => chain,
-    eq: () => chain,
-    not: () => chain,
-    order: () => chain,
-    limit: () => Promise.resolve({ data: [], error: null }),
-    update: () => chain,
-    in: () => Promise.resolve({ data: [], error: null }),
-    insert: () => Promise.resolve({ data: [], error: null }),
-    single: () => Promise.resolve({ data: { name: 'Cadet', parent_id: '1', email: 'test@test.com', full_name: 'Parent' }, error: null })
-  };
-  return { from: () => chain, rpc: () => Promise.resolve({ data: null, error: null }) };
-};
-const supabase = createSupabaseMock();
+// ─── REAL SUPABASE CLIENT ──────────────────────────────────────────────────────
+import { supabase } from "../../lib/supabase";
 
-const getSmartQuestions = async () => [];
+// ─── DB QUESTION FETCH ────────────────────────────────────────────────────────
+// Fetches randomised questions from question_bank.
+// Excludes recently seen IDs. Accepts year±1 for variety.
+// Shuffles in JS (Supabase doesn't support ORDER BY random() reliably on free tier).
+// ─── CURRICULUM RESOLVER ──────────────────────────────────────────────────────
+// Maps scholar curriculum + year to the actual DB curriculum string.
+// Based on what's in question_bank — uk_national has NO core subjects for Y3-6,
+// so those scholars are served from uk_11plus which has 2000+ questions per year.
+const resolveDbCurriculum = (curriculum, subject, yearLevel) => {
+  const yr  = parseInt(yearLevel, 10) || 4;
+  const cur = (curriculum || "uk_national").toLowerCase();
+  const sub = (subject || "").toLowerCase();
+
+  // Verbal/NVR only exist under uk_11plus regardless of scholar curriculum
+  if (["verbal_reasoning", "verbal", "nvr", "non_verbal_reasoning"].includes(sub)) {
+    return "uk_11plus";
+  }
+
+  switch (cur) {
+    case "uk_national":
+      // Y1-2: uk_national has mathematics, english, science
+      // Y3-6: uk_national has NO core subjects — fall back to uk_11plus
+      // Y7+:  uk_national has secondary subjects
+      if (yr >= 3 && yr <= 6) return "uk_11plus";
+      return "uk_national";
+
+    case "uk_11plus":
+      return "uk_11plus";
+
+    case "aus_acara":
+      return "aus_acara";
+
+    case "australian":
+      return "australian";
+
+    case "ng_primary":
+    case "nigerian_primary":
+      return "nigerian_primary";
+
+    case "ng_jss":
+    case "nigerian_jss":
+      return cur === "ng_jss" ? "ng_jss" : "nigerian_jss";
+
+    case "ng_sss":
+    case "nigerian_sss":
+      return cur === "ng_sss" ? "ng_sss" : "nigerian_sss";
+
+    case "waec":
+      return "waec";
+
+    case "ib_myp":
+      return "ib_myp";
+
+    case "ib_pyp":
+      return "ib_pyp";
+
+    case "us_common_core":
+      return "us_common_core";
+
+    default:
+      return curriculum;
+  }
+};
+
+const getSmartQuestions = async (sbClient, scholarId, subject, curriculum, yearLevel, count, excludeIds = []) => {
+  try {
+    // Normalise subject to match DB column values
+    const subjectMap = {
+      maths: "mathematics", math: "mathematics", mathematics: "mathematics",
+      english: "english",
+      verbal: "verbal_reasoning", verbal_reasoning: "verbal_reasoning",
+      nvr: "nvr", non_verbal_reasoning: "nvr",
+      science: "science", basic_science: "basic_science_and_technology",
+      physics: "physics", chemistry: "chemistry", biology: "biology",
+      history: "history", geography: "geography",
+      further_mathematics: "further_mathematics",
+      computing: "computing",
+    };
+    const dbSubject    = subjectMap[subject?.toLowerCase()] || subject;
+    const dbCurriculum = resolveDbCurriculum(curriculum, dbSubject, yearLevel);
+    const yr           = parseInt(yearLevel, 10) || 4;
+
+    console.log(`[QuizEngine] Fetching: subject=${dbSubject} curriculum=${dbCurriculum} year=${yr}`);
+
+    let query = sbClient
+      .from("question_bank")
+      .select("id, question_text, options, correct_index, explanation, topic, subject, difficulty, difficulty_tier, question_type, hints, steps, answer, answer_aliases, question_data, image_url, year_level, curriculum")
+      .eq("subject", dbSubject)
+      .eq("curriculum", dbCurriculum)
+      .gte("year_level", yr - 1)
+      .lte("year_level", yr + 1);
+
+    // Exclude recently seen — PostgREST needs double-quoted UUIDs: ("id1","id2")
+    if (excludeIds.length > 0) {
+      const safe = excludeIds.slice(-50);
+      query = query.not("id", "in", `(${safe.map(id => `"${id}"`).join(",")})`);
+    }
+
+    const { data, error } = await query.limit(Math.min(count * 4, 80));
+
+    if (error) {
+      console.warn("[QuizEngine] DB error:", error.message, "| subject:", dbSubject, "curriculum:", dbCurriculum);
+      return [];
+    }
+
+    if (!data?.length) {
+      console.warn(`[QuizEngine] 0 rows: subject=${dbSubject} curriculum=${dbCurriculum} year=${yr}±1`);
+      return [];
+    }
+
+    console.log(`[QuizEngine] Got ${data.length} rows from DB, returning ${count}`);
+    return [...data].sort(() => Math.random() - 0.5).slice(0, count);
+
+  } catch (err) {
+    console.warn("[getSmartQuestions] exception:", err.message);
+    return [];
+  }
+};
 
 const AdvancedQuizWithQR = ({ onSkip }) => (
   <div className="p-4 text-center">
@@ -1062,7 +1165,7 @@ export default function QuizEngine({
   const finishQuest = async () => {
     setSavingResult(true);
     try {
-      const details    = sessionQuestions.map(q => {
+      const details = sessionQuestions.map(q => {
         const answered = results.answers.find(a => a.q === q.q);
         return {
           question_id: q.id || null,
@@ -1075,10 +1178,69 @@ export default function QuizEngine({
       const accuracy   = sessionQuestions.length > 0
         ? Math.round((finalScore / sessionQuestions.length) * 100) : 0;
 
+      // ── Persist to DB ────────────────────────────────────────────────────────
+      if (student?.id) {
+        const curriculum = curriculumProp || student?.curriculum || "uk_national";
+
+        // 1. Insert quiz_results row — canonical column names only
+        const topics = [...new Set(details.map(d => d.topic).filter(Boolean))];
+        await supabase.from("quiz_results").insert({
+          scholar_id:         student.id,
+          subject,
+          curriculum,
+          score:              finalScore,
+          questions_total:    sessionQuestions.length,
+          time_spent_seconds: (sessionQuestions.length * 45) - timeLeft,
+          accuracy,
+          topics:             JSON.stringify(topics),
+        }).catch(e => console.error("[finishQuest] quiz_results insert:", e.message));
+
+        // 2. Award XP
+        await supabase.rpc("increment_scholar_xp", {
+          s_id: student.id, xp_to_add: totalScore,
+        }).catch(e => console.error("[finishQuest] XP rpc:", e.message));
+
+        // 3. Update mastery — use BKT processSession from masteryEngine
+        try {
+          const { processSession } = await import("../../lib/masteryEngine");
+          const year = parseInt(student?.year_level || student?.year || 4, 10);
+          const curriculum = curriculumProp || student?.curriculum || "uk_national";
+
+          // Fetch prior mastery so BKT updates from existing state, not cold start
+          const { data: existingMastery } = await supabase
+            .from("scholar_topic_mastery")
+            .select("*")
+            .eq("scholar_id", student.id)
+            .eq("curriculum", curriculum);
+
+          const masteryMap = {};
+          (existingMastery || []).forEach(r => {
+            masteryMap[`${r.curriculum}|${r.subject}|${r.topic}`] = r;
+          });
+
+          const masteryUpdates = processSession(
+            student.id,
+            details.map(d => ({ ...d, curriculum, yearLevel: year, questionId: d.question_id })),
+            masteryMap
+          );
+          if (masteryUpdates.length > 0) {
+            await supabase
+              .from("scholar_topic_mastery")
+              .upsert(masteryUpdates, { onConflict: "scholar_id,curriculum,subject,topic" })
+              .catch(e => console.error("[finishQuest] mastery upsert:", e.message));
+          }
+        } catch {
+          // masteryEngine not bundled — fall back to server RPC
+          await supabase.rpc("update_scholar_skills", {
+            p_scholar_id: student.id, p_details: details,
+          }).catch(e => console.error("[finishQuest] update_scholar_skills rpc:", e.message));
+        }
+      }
+
       setFinished(true);
       if (onComplete) onComplete({ score: finalScore, totalScore, accuracy, answers: results.answers, topicSummary });
     } catch (e) {
-      console.error("Save error:", e);
+      console.error("[finishQuest] unexpected error:", e);
       setFinished(true);
       if (onComplete) onComplete({ score: results.score, totalScore, accuracy: 0, answers: results.answers, topicSummary });
     } finally { setSavingResult(false); }

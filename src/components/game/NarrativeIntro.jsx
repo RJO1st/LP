@@ -78,17 +78,52 @@ export default function NarrativeIntro({
   }, [phase, chapterIntro]);
 
   if (!realm) {
-    // No narrative for this subject yet — go straight to quiz
+    // No narrative realm for this subject yet — show a clean launch screen
+    const subjectLabel = {
+      verbal: "Verbal Reasoning", verbal_reasoning: "Verbal Reasoning",
+      nvr: "Non-Verbal Reasoning", non_verbal_reasoning: "Non-Verbal Reasoning",
+      computing: "Computing",
+    }[subject] || subject?.replace(/_/g, " ") || "Mission";
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0e27] p-6">
         <div className="text-center max-w-md">
           <div className="text-5xl mb-4">🚀</div>
           <h2 className="text-2xl font-black text-white mb-2">Mission Starting</h2>
-          <p className="text-slate-400 mb-8 capitalize">
-            {topicDisplay} · {subject}
-          </p>
-          <button onClick={onStart} className="btn-primary w-full">
-            Begin Mission
+          <p className="text-slate-400 mb-4 capitalize">{subjectLabel}</p>
+          {topic && (
+            <p className="text-indigo-400 text-sm font-bold mb-6 capitalize">
+              Topic: {topicDisplay}
+            </p>
+          )}
+          {masteryScore > 0 && (
+            <div className="bg-slate-800/60 rounded-2xl p-4 mb-6 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide">Current Mastery</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-slate-700 rounded-full h-3">
+                  <div
+                    className="h-3 rounded-full transition-all"
+                    style={{ width: `${masteryPct}%`, backgroundColor: masteryColour(masteryScore) }}
+                  />
+                </div>
+                <span className="font-black text-sm" style={{ color: masteryColour(masteryScore) }}>
+                  {masteryPct}%
+                </span>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={onStart}
+            className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 bg-indigo-600 hover:bg-indigo-700"
+            style={{ boxShadow: "0 0 20px rgba(99,102,241,0.4)" }}
+          >
+            🚀 Begin Mission
+          </button>
+          <button
+            onClick={onStart}
+            className="w-full mt-3 py-2 text-slate-500 text-sm hover:text-slate-300 transition-colors"
+          >
+            Skip intro
           </button>
         </div>
       </div>

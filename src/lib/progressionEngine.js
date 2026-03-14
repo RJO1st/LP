@@ -18,15 +18,6 @@
 // 'NEEDS_KS4_SUBJECTS' = KS3→KS4, subject checklist required.
 
 export const STAGE_TRANSITIONS = {
-  uk_11plus: {
-    maxYear: 6,
-    nextCurriculum: 'uk_national',
-    nextYear: 7,
-    flag: null,
-    label: 'Move to UK National (KS3)',
-    celebrationTitle: '11+ Journey Complete!',
-    celebrationDesc: 'Your scholar has mastered the 11+ curriculum. Time to begin KS3 at UK National.',
-  },
   uk_national: {
     // KS3 → KS4 is an internal transition (same curriculum, different year)
     // KS4 → terminal
@@ -241,10 +232,12 @@ export function checkYearLevelUp(scholarId, currentYear) {
   try {
     const key = `launchpard_last_year_${scholarId}`;
     const lastSeen = parseInt(localStorage.getItem(key) || '0', 10);
-    if (currentYear > lastSeen && lastSeen > 0) {
-      return true; // year advanced since last visit
+    // Only fire when year strictly increased AND a prior value was recorded
+    // Guards against false positives from admin corrections that decrease year_level
+    if (lastSeen > 0 && currentYear > lastSeen) {
+      return true;
     }
-    // Update stored year
+    // Update stored year — always write so future increases are detected correctly
     localStorage.setItem(key, String(currentYear));
     return false;
   } catch {

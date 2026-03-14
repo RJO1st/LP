@@ -96,19 +96,38 @@ function getColors(subject) {
  */
 export function normalizeQuestion(raw) {
   if (!raw) return null;
-  if (Array.isArray(raw.opts) && raw.opts.length > 0 && raw.a !== undefined) return raw;
 
-  const opts = Array.isArray(raw.opts)    && raw.opts.length    > 0 ? raw.opts
-             : Array.isArray(raw.options) && raw.options.length > 0 ? raw.options
-             : null;
-  const a    = raw.a             !== undefined ? Number(raw.a)
-             : raw.correct_index !== undefined ? Number(raw.correct_index)
-             : raw.correctIndex  !== undefined ? Number(raw.correctIndex)
-             : 0;
+  let opts = [];
+  if (Array.isArray(raw.opts) && raw.opts.length > 0) opts = raw.opts;
+  else if (Array.isArray(raw.options) && raw.options.length > 0) opts = raw.options;
+  else if (typeof raw.options === 'string') {
+    try { opts = JSON.parse(raw.options); } catch { opts = []; }
+  }
+
+  if (opts.length === 0) return raw;
+
+  let a = raw.a !== undefined ? Number(raw.a)
+        : raw.correct_index !== undefined ? Number(raw.correct_index)
+        : raw.correctIndex !== undefined ? Number(raw.correctIndex)
+        : 0;
+
+  if (a < 0 || a >= opts.length) a = 0;
+
+  const correctText = opts[a];
+  
+  // Shuffle options safely
+  const shuffledOpts = [...opts];
+  for (let i = shuffledOpts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledOpts[i], shuffledOpts[j]] = [shuffledOpts[j], shuffledOpts[i]];
+  }
+
+  const newA = shuffledOpts.indexOf(correctText);
+
   const q   = raw.q ?? raw.question_text ?? raw.questionText ?? "";
   const exp = raw.exp ?? raw.explanation ?? "";
 
-  return { ...raw, opts, a, q, exp };
+  return { ...raw, opts: shuffledOpts, a: newA !== -1 ? newA : 0, q, exp, correctAnswer: correctText };
 }
 
 /** dbRowToQuestion — alias for normalizeQuestion, accepts optional subject override */

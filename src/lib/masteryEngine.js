@@ -8,18 +8,24 @@
  *   2. SM-2 Spaced Repetition — schedules when to review each topic
  *   3. Adaptive tier selection — maps mastery → difficulty tier
  *
- * All heavy computation is also handled server-side by the Supabase RPC
- * `upsert_mastery_after_answer`. This client-side version is used for
- * optimistic UI updates and offline-capable session logic.
+ * CONSERVATIVE PARAMETERS — mastery builds over multiple sessions:
+ *   - pLearn: 0.05 (one question = small boost, not a leap)
+ *   - pInit:  0.10 (assume the scholar starts knowing very little)
+ *   - pGuess: 0.25 (4-option MCQ baseline)
+ *   - pSlip:  0.15 (even mastered scholars make mistakes)
+ *   - Expected tier requires 20+ questions seen
+ *   - Exceeding tier requires 40+ questions seen AND 7+ day retention
+ *
+ * Must match route.js (/api/mastery/update) parameters exactly.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-// ─── BKT PARAMETERS ──────────────────────────────────────────────────────────
+// ─── BKT PARAMETERS (conservative — must match route.js) ─────────────────────
 const BKT = {
-  pLearn:  0.15,   // P(learn): probability of learning from one question
-  pSlip:   0.10,   // P(slip):  knows topic but answers wrong
+  pLearn:  0.05,   // P(learn): probability of learning from one question
+  pSlip:   0.15,   // P(slip):  knows topic but answers wrong
   pGuess:  0.25,   // P(guess): doesn't know but guesses right (4 options)
-  pInit:   0.30,   // P(init):  prior probability of already knowing topic
+  pInit:   0.10,   // P(init):  prior probability of already knowing topic
 };
 
 // ─── SM-2 DEFAULTS ───────────────────────────────────────────────────────────
@@ -31,14 +37,34 @@ const SM2_DEFAULTS = {
 
 // ─── MASTERY THRESHOLDS → DIFFICULTY TIER ────────────────────────────────────
 export const MASTERY_THRESHOLDS = {
-  mastered:    0.80,   // ≥ 0.80 → exceeding
-  developing:  0.55,   // ≥ 0.55 → expected
-  // < 0.55 → developing
+  mastered:    0.80,   // BKT score threshold for exceeding (gated)
+  developing:  0.55,   // BKT score threshold for expected (gated)
 };
 
-export function masteryToTier(masteryScore) {
-  if (masteryScore >= MASTERY_THRESHOLDS.mastered)   return 'exceeding';
-  if (masteryScore >= MASTERY_THRESHOLDS.developing) return 'expected';
+// Session gates — prevent tier inflation from a single good quest
+const MIN_SEEN_FOR_EXPECTED  = 20;    // 20 questions = 1 full quest minimum
+const MIN_SEEN_FOR_EXCEEDING = 40;    // 40 questions = 2+ quests minimum
+const MIN_INTERVAL_FOR_EXCEEDING = 7; // must have 7+ day review interval (proves retention)
+
+/**
+ * Maps a mastery score + evidence to a difficulty tier.
+ * Stage-gated: higher tiers require sustained evidence, not just a high score.
+ *
+ * @param {number} masteryScore  - BKT P(mastery), 0–1
+ * @param {number} intervalDays  - current SM-2 interval (days between reviews)
+ * @param {number} timesSeen     - total questions answered on this topic
+ * @returns {string}             - 'developing' | 'expected' | 'exceeding'
+ */
+export function masteryToTier(masteryScore, intervalDays = 0, timesSeen = 0) {
+  if (masteryScore >= MASTERY_THRESHOLDS.mastered
+      && timesSeen >= MIN_SEEN_FOR_EXCEEDING
+      && intervalDays >= MIN_INTERVAL_FOR_EXCEEDING) {
+    return 'exceeding';
+  }
+  if (masteryScore >= MASTERY_THRESHOLDS.developing
+      && timesSeen >= MIN_SEEN_FOR_EXPECTED) {
+    return 'expected';
+  }
   return 'developing';
 }
 
@@ -78,7 +104,7 @@ export function updateMastery(currentMastery, correct) {
   const updated = pMasteryGivenObs + (1 - pMasteryGivenObs) * pLearn;
 
   // Clamp to prevent extreme values
-  return Math.max(0.05, Math.min(0.99, updated));
+  return Math.max(0.01, Math.min(0.99, updated));
 }
 
 // ─── SM-2: UPDATE SPACED REPETITION SCHEDULE ─────────────────────────────────
@@ -158,6 +184,8 @@ export function processAnswer(masteryRecord, correct) {
     correct
   );
 
+  const timesSeen = (current.times_seen ?? 0) + 1;
+
   return {
     ...current,
     mastery_score:  newMastery,
@@ -166,10 +194,10 @@ export function processAnswer(masteryRecord, correct) {
     repetitions:    newSR.repetitions,
     next_review_at: newSR.nextReviewAt.toISOString(),
     last_seen_at:   new Date().toISOString(),
-    times_seen:     (current.times_seen  ?? 0) + 1,
+    times_seen:     timesSeen,
     times_correct:  (current.times_correct ?? 0) + (correct ? 1 : 0),
     current_streak: correct ? (current.current_streak ?? 0) + 1 : 0,
-    current_tier:   masteryToTier(newMastery),
+    current_tier:   masteryToTier(newMastery, newSR.intervalDays, timesSeen),
     updated_at:     new Date().toISOString(),
   };
 }

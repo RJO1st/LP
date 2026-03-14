@@ -36,11 +36,18 @@ const VALID_EXAM_MODES = new Set(Object.keys(EXAM_MODES));
  */
 
 import { masteryToTier } from './masteryEngine';
-import {
-  getTopicSequence,
-  getTopicList,
-  getTopicStrand,
-} from './learningPathEngine';
+// learningPathEngine is not yet built — these stubs keep the file functional
+// until src/lib/learningPathEngine.js exists.
+// Replace with: import { getTopicSequence, getTopicList, getTopicStrand } from './learningPathEngine';
+let getTopicSequence = async () => ({});
+let getTopicList     = () => [];
+let getTopicStrand   = () => null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ({ getTopicSequence, getTopicList, getTopicStrand } = require('./learningPathEngine'));
+} catch {
+  // learningPathEngine.js not yet built — anchor topic resolution will fall back gracefully
+}
 
 // ─── COMBINED SCIENCE RESOLVER ───────────────────────────────────────────────
 // UK KS4 Combined Science covers biology, chemistry, and physics topics in one
@@ -71,7 +78,7 @@ function resolveCombinedScienceSubject(masteryRows) {
 
 // ─── SEEN-QUESTION STORE (localStorage) ──────────────────────────────────────
 const SEEN_KEY = 'lp_seen_questions';
-const MAX_SEEN = 300;
+const MAX_SEEN = 100; // reduced from 300 — 300 was blocking all questions in smaller topic pools
 
 const getLocalSeen = () => {
   try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch { return []; }
@@ -98,7 +105,16 @@ const MASTERY_CACHE_TTL = 60; // seconds — mastery changes rarely within a ses
 
 async function getMasteryFromCache(cache, scholarId, curriculum) {
   if (!cache || !scholarId) return null;
-  try { return await cache.get(`mastery:${scholarId}:${curriculum}`); } catch { return null; }
+  try {
+    // Race against a 500ms timeout — slow cache is worse than a DB hit
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('cache timeout')), 500)
+    );
+    return await Promise.race([
+      cache.get(`mastery:${scholarId}:${curriculum}`),
+      timeout,
+    ]);
+  } catch { return null; }
 }
 async function setMasteryInCache(cache, scholarId, curriculum, data) {
   if (!cache || !scholarId) return;
@@ -125,7 +141,7 @@ async function loadScholarContext(supabase, scholarId, curriculum, subject, cach
     fetches.push(
       supabase
         .from('scholar_topic_mastery')
-        .select('topic, subject, mastery_score, next_review_at, attempts_total, updated_at')
+        .select('topic, subject, mastery_score, next_review_at, times_seen, updated_at')
         .eq('scholar_id', scholarId)
         .eq('curriculum', curriculum)
     );
@@ -170,7 +186,7 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
 
   // 3. Weakest topic with at least one attempt
   const withAttempts = masteryRows
-    .filter(r => r.subject === subject && (r.attempts_total ?? 0) > 0)
+    .filter(r => r.subject === subject && (r.times_seen ?? 0) > 0)
     .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0));
   if (withAttempts[0]) return { topic: withAttempts[0].topic, reason: 'weakest_topic' };
 
@@ -206,8 +222,49 @@ function getAdjacentTopic(sequence, subject, anchorTopic, masteryRows) {
 function getTierForTopic(masteryRows, subject, topic) {
   if (!topic) return null;
   const row = masteryRows.find(r => r.subject === subject && r.topic === topic);
-  if (!row) return 'developing';
-  return masteryToTier(row.mastery_score ?? 0);
+  // No mastery data = new scholar/topic — skip tier filter entirely
+  // so ALL difficulty levels are available (foundation through exceeding)
+  if (!row) return null;
+  return masteryToTier(row.mastery_score ?? 0, row.interval_days ?? 0);
+}
+
+// ─── DB RESOLVERS ─────────────────────────────────────────────────────────────
+// Maps scholar curriculum + year → actual DB curriculum string.
+// uk_national has no core subjects for Y3-6 — those rows live under uk_11plus.
+function resolveDbCurriculum(curriculum, subject, year) {
+  const yr  = parseInt(year, 10) || 4;
+  const cur = (curriculum || 'uk_national').toLowerCase();
+  const sub = (subject || '').toLowerCase();
+  // Verbal/NVR only live under uk_11plus
+  if (['verbal_reasoning', 'verbal', 'nvr', 'non_verbal_reasoning'].includes(sub)) return 'uk_11plus';
+  switch (cur) {
+    case 'uk_national':      return (yr >= 3 && yr <= 6) ? 'uk_11plus' : 'uk_national';
+    case 'uk_11plus':        return 'uk_11plus';
+    case 'ng_primary':
+    case 'nigerian_primary': return 'nigerian_primary';
+    case 'ng_jss':
+    case 'nigerian_jss':     return 'nigerian_jss';
+    case 'ng_sss':
+    case 'nigerian_sss':     return 'nigerian_sss';
+    case 'australian':
+    case 'aus_acara':        return 'aus_acara';
+    case 'waec':             return 'waec';
+    case 'ib_myp':           return 'ib_myp';
+    case 'ib_pyp':           return 'ib_pyp';
+    case 'us_common_core':   return 'us_common_core';
+    default:                 return cur;
+  }
+}
+
+// Maps incoming subject name → DB column value
+function resolveDbSubject(subject) {
+  const map = {
+    maths: 'mathematics', math: 'mathematics',
+    verbal: 'verbal_reasoning',
+    nvr: 'nvr', non_verbal_reasoning: 'nvr',
+    basic_science: 'basic_science_and_technology',
+  };
+  return map[(subject || '').toLowerCase()] || subject;
 }
 
 // ─── QUESTION FETCHER ─────────────────────────────────────────────────────────
@@ -216,21 +273,29 @@ function getTierForTopic(masteryRows, subject, topic) {
  * When topic or tier is null, the constraint is omitted (broader fetch).
  */
 async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, excludeIds, limit, examTag = null) {
+  const dbCurriculum = resolveDbCurriculum(curriculum, subject, year);
+  const dbSubject    = resolveDbSubject(subject);
+
   let q = supabase
     .from('question_bank')
     .select('*')
-    .eq('curriculum', curriculum)
-    .eq('subject', subject)
-    .eq('year_level', year)
-    .order('last_used', { ascending: true, nullsFirst: true })
+    .eq('curriculum', dbCurriculum)
+    .eq('subject', dbSubject)
+    .gte('year_level', Math.max(1, year - 1))
+    .lte('year_level', year + 1)
     .limit(limit);
 
   if (topic)   q = q.eq('topic', topic);
   if (tier)    q = q.eq('difficulty_tier', tier);
   if (examTag) q = q.eq('exam_tag', examTag);
-  if (excludeIds.length > 0) q = q.not('id', 'in', `(${excludeIds.slice(-150).join(',')})`);
+  // PostgREST requires UUIDs quoted inside the parens: ("uuid1","uuid2")
+  if (excludeIds.length > 0) {
+    const idList = excludeIds.slice(-150).map(id => `"${id}"`).join(',');
+    q = q.not('id', 'in', `(${idList})`);
+  }
 
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) console.warn('[fetchQuestions] error:', error.message, `| ${dbSubject}/${dbCurriculum}/Y${year}`);
   return data ?? [];
 }
 
@@ -298,8 +363,12 @@ export async function getSmartQuestions(
     const activeSubject = resolvedSubject;
 
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
-    // Validate examMode against EXAM_MODES — rejects unknown/legacy strings silently
-    const examTag = VALID_EXAM_MODES.has(examMode) ? examMode : null;
+    // Validate examMode against EXAM_MODES — rejects unknown/legacy strings silently.
+    // For eleven_plus: DB rows live under curriculum=uk_11plus (not tagged with exam_tag).
+    // Using examTag filter returns 0 — the curriculum resolver IS the content filter.
+    const resolvedCurriculum = resolveDbCurriculum(curriculum, activeSubject, year);
+    const usesCurriculumAsFilter = resolvedCurriculum !== curriculum.toLowerCase();
+    const examTag = (VALID_EXAM_MODES.has(examMode) && !usesCurriculumAsFilter) ? examMode : null;
 
     const [sequence, { masteryRows, currentTopic }] = await Promise.all([
       getTopicSequence(activeSubject, curriculum, supabase),
@@ -308,24 +377,33 @@ export async function getSmartQuestions(
 
     // ── 2. Resolve anchor and adjacent topics ─────────────────────────────
     const { topic: anchorTopic, reason: selectionReason } =
-      resolveAnchorTopic(masteryRows, currentTopic, subject, sequence);
+      resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence);
 
-    const anchorTier   = getTierForTopic(masteryRows, subject, anchorTopic);
-    const adjacentTopic = getAdjacentTopic(sequence, subject, anchorTopic, masteryRows);
-    const adjacentTier  = getTierForTopic(masteryRows, subject, adjacentTopic);
+    if (!anchorTopic) {
+      console.warn(
+        `[getSmartQuestions] No anchor topic found for subject=${activeSubject}, ` +
+        `curriculum=${curriculum}, year=${year}. Fetching broadly.`
+      );
+    }
+
+    const anchorTier   = getTierForTopic(masteryRows, activeSubject, anchorTopic);
+    const adjacentTopic = getAdjacentTopic(sequence, activeSubject, anchorTopic, masteryRows);
+    const adjacentTier  = getTierForTopic(masteryRows, activeSubject, adjacentTopic);
 
     // Quest split: 70% anchor, 30% adjacent
     const anchorCount   = adjacentTopic ? Math.ceil(count * 0.7) : count;
     const adjacentCount = adjacentTopic ? count - anchorCount : 0;
 
     // ── 3. Build exclusion list ───────────────────────────────────────────
+    // Cap at 50 most recent to prevent blocking all questions in smaller pools
     const localSeen  = getLocalSeen();
-    const excludeIds = [...new Set([...previousIds, ...localSeen])].filter(Boolean);
+    const allExclude = [...new Set([...previousIds, ...localSeen])].filter(Boolean);
+    const excludeIds = allExclude.slice(-50);
     const overfetch  = Math.max(count * 5, 50);
 
     // ── 4. Fetch anchor + adjacent in parallel (1 round trip) ────────────
     let { anchorRows, adjacentRows } = await fetchQuestPool(
-      supabase, curriculum, subject, year,
+      supabase, curriculum, activeSubject, year,
       anchorTopic, anchorTier, adjacentTopic, adjacentTier,
       excludeIds, overfetch, examTag,
     );
@@ -333,7 +411,7 @@ export async function getSmartQuestions(
     // Relax tier on anchor if thin (stay on topic — never jump strand)
     if (anchorRows.length < anchorCount && anchorTier) {
       const relaxed = await fetchQuestions(
-        supabase, curriculum, subject, year, anchorTopic, null, excludeIds, overfetch, examTag
+        supabase, curriculum, activeSubject, year, anchorTopic, null, excludeIds, overfetch, examTag
       );
       anchorRows = [...anchorRows, ...relaxed.filter(r => !anchorRows.find(x => x.id === r.id))];
     }
@@ -362,8 +440,8 @@ export async function getSmartQuestions(
       for (const fallbackTopic of neighbours) {
         if (questRows.length >= count) break;
         const fbRows = await fetchQuestions(
-          supabase, curriculum, subject, year,
-          fallbackTopic, getTierForTopic(masteryRows, subject, fallbackTopic),
+          supabase, curriculum, activeSubject, year,
+          fallbackTopic, getTierForTopic(masteryRows, activeSubject, fallbackTopic),
           excludeIds, count, examTag,
         );
         const used = new Set(questRows.map(r => r.id));
@@ -371,21 +449,25 @@ export async function getSmartQuestions(
       }
     }
 
-    // ── 6. Cross-session dedup (piggybacks on previous queries, no extra call) ─
+    // ── 6. Cross-session dedup (non-fatal — if table doesn't exist, skip) ─
     if (scholarId && questRows.length > 0) {
-      const candidateIds = questRows.map(r => r.id).filter(Boolean);
-      const { data: history } = await supabase
-        .from('scholar_question_history')
-        .select('question_id')
-        .eq('scholar_id', scholarId)
-        .in('question_id', candidateIds);
+      try {
+        const candidateIds = questRows.map(r => r.id).filter(Boolean);
+        const { data: history } = await supabase
+          .from('scholar_question_history')
+          .select('question_id')
+          .eq('scholar_id', scholarId)
+          .in('question_id', candidateIds);
 
-      if (history?.length > 0) {
-        const seenSet = new Set(history.map(h => h.question_id));
-        const fresh   = questRows.filter(r => !seenSet.has(r.id));
-        questRows     = fresh.length >= Math.floor(count * 0.6)
-          ? fresh
-          : [...fresh, ...questRows.filter(r => seenSet.has(r.id))];
+        if (history?.length > 0) {
+          const seenSet = new Set(history.map(h => h.question_id));
+          const fresh   = questRows.filter(r => !seenSet.has(r.id));
+          questRows     = fresh.length >= Math.floor(count * 0.6)
+            ? fresh
+            : [...fresh, ...questRows.filter(r => seenSet.has(r.id))];
+        }
+      } catch (histErr) {
+        console.warn('[getSmartQuestions] history dedup skipped:', histErr?.message);
       }
     }
 
@@ -396,17 +478,48 @@ export async function getSmartQuestions(
     if (examTag && questRows.length < count * 0.5) {
       console.warn(
         `[examMode] Thin coverage: ${questRows.length}/${count} questions found ` +
-        `for exam_tag=${examTag}, subject=${subject}, curriculum=${curriculum}, year=${year}. ` +
+        `for exam_tag=${examTag}, subject=${resolveDbSubject(activeSubject)}, curriculum=${resolvedCurriculum}, year=${year}. ` +
         `Back-filling with untagged questions. Run populate scripts to fix.`
       );
       const { anchorRows: uAnchor, adjacentRows: uAdj } = await fetchQuestPool(
-        supabase, curriculum, subject, year,
+        supabase, curriculum, activeSubject, year,
         anchorTopic, anchorTier, adjacentTopic, adjacentTier,
         excludeIds, overfetch, null,   // null = no exam_tag filter
       );
       const used    = new Set(questRows.map(r => r.id));
       const backfill = [...uAnchor, ...uAdj].filter(r => !used.has(r.id));
       questRows = [...questRows, ...backfill].slice(0, count);
+    }
+
+    // ── 6.6 Nuclear fallback — broad fetch, no topic/tier constraints ─────
+    // If ALL topic-specific queries returned zero (stubs, empty mastery, new
+    // scholar, sparse DB), fetch ANY question for this subject+curriculum+year.
+    // This guarantees the scholar always gets a DB quiz, never falls through
+    // to the procedural engine unless the DB genuinely has zero rows.
+    if (questRows.length === 0) {
+      // Direct query — bypass fetchQuestions and excludeIds to eliminate
+      // any subtle filtering issues. This is the last resort.
+      const dbCurriculum = resolveDbCurriculum(curriculum, activeSubject, year);
+      const dbSubject    = resolveDbSubject(activeSubject);
+      console.warn(
+        `[getSmartQuestions] Nuclear fallback: 0 questions after all topic logic. ` +
+        `Direct query: subject=${dbSubject}, curriculum=${dbCurriculum}, year=${year}±1`
+      );
+      const { data: broadRows, error: broadErr } = await supabase
+        .from('question_bank')
+        .select('*')
+        .eq('curriculum', dbCurriculum)
+        .eq('subject', dbSubject)
+        .gte('year_level', Math.max(1, year - 1))
+        .lte('year_level', year + 1)
+        .limit(Math.min(count * 5, 100));
+
+      if (broadErr) {
+        console.error('[getSmartQuestions] Nuclear fallback error:', broadErr.message, broadErr.details);
+      } else {
+        console.log(`[getSmartQuestions] Nuclear fallback found ${broadRows?.length ?? 0} rows`);
+      }
+      questRows = shuffle(broadRows ?? []).slice(0, count);
     }
 
     // ── 7. Shuffle, slice, record ─────────────────────────────────────────

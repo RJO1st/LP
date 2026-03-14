@@ -360,9 +360,11 @@ function ReviewScreen({ questions, answers, onClose }) {
   const [expandedIdx, setExpandedIdx] = useState(null);
   const [taraReply,   setTaraReply]   = useState({});
   const [taraLoading, setTaraLoading] = useState({});
+  const [taraError,   setTaraError]   = useState({}); // idx → true if last attempt failed
 
   const askTara = async (idx, question) => {
     setTaraLoading(l => ({ ...l, [idx]: true }));
+    setTaraError(e => ({ ...e, [idx]: false }));
     const chosen  = answers[idx];
     const correct = question.a ?? question.correct_index ?? 0;
     const opts    = question.opts ?? question.options ?? [];
@@ -375,10 +377,13 @@ function ReviewScreen({ questions, answers, onClose }) {
           maxTokens: 130,
         }),
       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setTaraReply(r => ({ ...r, [idx]: data.text ?? data.content ?? question.exp ?? "Think carefully about the key concept this question is testing." }));
     } catch {
-      setTaraReply(r => ({ ...r, [idx]: question.exp ?? "Review this topic in your notes for a clearer explanation." }));
+      setTaraError(e => ({ ...e, [idx]: true }));
+      // If a static explanation exists, show it as a fallback
+      if (question.exp) setTaraReply(r => ({ ...r, [idx]: question.exp }));
     }
     setTaraLoading(l => ({ ...l, [idx]: false }));
   };
@@ -479,6 +484,18 @@ function ReviewScreen({ questions, answers, onClose }) {
                       </div>
                       <div style={{ fontSize: 13, color: "#4c1d95", lineHeight: 1.6 }}>{taraReply[idx]}</div>
                     </div>
+                  ) : taraError[idx] ? (
+                    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, color: "#ef4444" }}>Tara couldn't connect.</span>
+                      <button
+                        onClick={() => askTara(idx, q)}
+                        style={{
+                          padding: "6px 12px", borderRadius: 8, border: "1px solid #fca5a5",
+                          background: "#fee2e2", color: "#7f1d1d",
+                          fontSize: 12, fontWeight: 700, cursor: "pointer",
+                        }}
+                      >Retry ↺</button>
+                    </div>
                   ) : (
                     <button
                       onClick={() => askTara(idx, q)}
@@ -525,22 +542,6 @@ export default function PaperEngine({ testConfig, questions = [], onClose, onCom
   const [timeTaken, setTimeTaken] = useState(0);
   const startTime = useRef(Date.now());
 
-  // Countdown — skip if untimed
-  useEffect(() => {
-    if (phase !== "paper" || maxTime === null) return;
-    const interval = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(interval); handleSubmit(true); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase, maxTime]);
-
-  const handleSelect = useCallback((optionIndex) => {
-    setAnswers(prev => ({ ...prev, [currentQ]: optionIndex }));
-  }, [currentQ]);
-
   const handleSubmit = useCallback((timeout = false) => {
     const elapsed = Math.round((Date.now() - startTime.current) / 1000);
     setTimeTaken(elapsed);
@@ -548,6 +549,23 @@ export default function PaperEngine({ testConfig, questions = [], onClose, onCom
     const correct = paper.filter((q, i) => answers[i] === (q.a ?? q.correct_index ?? 0)).length;
     onComplete?.({ correct, total: paper.length, score: pct(correct, paper.length), timeTaken: elapsed, timeout, answers, testId: testConfig?.id });
   }, [paper, answers, testConfig, onComplete]);
+
+  // Keep a ref to the latest handleSubmit so the interval closure never goes stale.
+  // Without this, a timeout fires handleSubmit from mount which has empty answers.
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
+
+  // Countdown — skip if untimed
+  useEffect(() => {
+    if (phase !== "paper" || maxTime === null) return;
+    const interval = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(interval); handleSubmitRef.current(true); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase, maxTime]);
 
   if (paper.length === 0) {
     return (

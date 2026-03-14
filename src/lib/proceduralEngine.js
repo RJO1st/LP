@@ -25,7 +25,10 @@ const safeQuestionBuilder = (questionText, correctAnswer, shuffledOptions, metad
   const opts = shuffledOptions.map(opt => String(opt));
   const correctIndex = opts.findIndex(opt => opt === correct);
   if (correctIndex === -1) {
-    console.error('🚨 [CRITICAL] Answer not found in shuffled options!', { correct, opts, question: questionText, metadata });
+    // Only log in development — prevents log floods in production
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('🚨 [CRITICAL] Answer not found in shuffled options!', { correct, opts, question: questionText, metadata });
+    }
     const uniqueOpts = [correct, ...opts.filter(o => o !== correct)].slice(0, 4);
     return { q: questionText, opts: uniqueOpts, a: 0, correctAnswer: correct, _recovered: true, ...metadata };
   }
@@ -52,23 +55,63 @@ export function clearRecentQuestions() {
   try { localStorage.removeItem(SEEN_KEY); } catch {}
 }
 
+// ─── CURRICULUM RESOLVER ──────────────────────────────────────────────────────
+// Maps scholar curriculum + year to the actual DB curriculum string.
+// uk_national has no core subject data for Y3-6 — those scholars use uk_11plus.
+function resolveDbCurriculum(curriculum, subject, yearLevel) {
+  const yr  = parseInt(yearLevel, 10) || 4;
+  const cur = (curriculum || 'uk_national').toLowerCase();
+  const sub = (subject || '').toLowerCase();
+
+  if (['verbal_reasoning', 'verbal', 'nvr', 'non_verbal_reasoning'].includes(sub)) {
+    return 'uk_11plus';
+  }
+  switch (cur) {
+    case 'uk_national':
+      return (yr >= 3 && yr <= 6) ? 'uk_11plus' : 'uk_national';
+    case 'ng_primary':      return 'nigerian_primary';
+    case 'ng_jss':          return 'ng_jss';
+    case 'ng_sss':          return 'ng_sss';
+    default:                return cur;
+  }
+}
+
+// Normalise subject names to match DB values
+function resolveDbSubject(subject) {
+  const map = {
+    maths: 'mathematics', math: 'mathematics',
+    verbal: 'verbal_reasoning',
+    nvr: 'nvr', non_verbal_reasoning: 'nvr',
+    basic_science: 'basic_science_and_technology',
+  };
+  return map[(subject || '').toLowerCase()] || subject;
+}
+
 // ─── FETCH WITH DEDUP (difficulty-tier API, used by generateSessionQuestions) ─
 async function fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficultyTier, limit = 10 }) {
   try {
-    const recentIds  = getLocalSeen();
-    const fetchLimit = limit + Math.min(recentIds.length, 50) + 20;
+    const recentIds    = getLocalSeen();
+    const fetchLimit   = limit + Math.min(recentIds.length, 50) + 20;
+    const dbSubject    = resolveDbSubject(subject);
+    const dbCurriculum = resolveDbCurriculum(curriculum, dbSubject, yearLevel);
 
+    console.log(`[proceduralEngine] Fetching: subject=${dbSubject} curriculum=${dbCurriculum} year=${yearLevel}`);
+
+    // Do NOT filter by difficulty_tier — questions in the DB use 'developing'/'expected'
+    // for Y3+ but callers pass 'foundation'. Filtering by tier returns 0 results.
     let query = supabase
       .from('question_bank')
       .select('*')
-      .eq('curriculum',     curriculum)
-      .eq('subject',        subject)
+      .eq('curriculum',     dbCurriculum)
+      .eq('subject',        dbSubject)
       .eq('year_level',     yearLevel)
-      .eq('difficulty_tier', difficultyTier)
       .limit(fetchLimit);
 
     if (recentIds.length > 0) {
-      query = query.not('id', 'in', `(${recentIds.slice(-100).join(',')})`);
+      // PostgREST .not('id','in',...) requires a quoted-UUID string like '("uuid1","uuid2")'
+      // Passing a raw JS array produces a malformed filter and a 400 Bad Request.
+      const idList = recentIds.slice(-100).map(id => `"${id}"`).join(',');
+      query = query.not('id', 'in', `(${idList})`);
     }
 
     const { data, error } = await query;
@@ -254,16 +297,17 @@ export const generateSession = async ({
     // ── TIER 2: Procedural ────────────────────────────────────────────────────
     const afterTier1 = n - subjectQuestions.length;
     if (afterTier1 > 0) {
+      const sy = normaliseStemYear(year); // normalise for STEM generators (use SS1/2/3 keys)
       for (let i = 0; i < afterTier1; i++) {
         let q;
         if      (s === 'maths')   q = Math.random() > 0.7 ? generateRealWorldMaths(year) : generateLocalMaths(year);
         else if (s === 'english') q = generateLocalEnglish(year);
         else if (s === 'verbal')  q = generateLocalVerbal(year);
         else if (s === 'nvr')     q = generateLocalNVR(year);
-        else if (s === 'science')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(normaliseStemYear(year));
-        else if (s === 'physics')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalPhysics(normaliseStemYear(year));
-        else if (s === 'chemistry') q = year <= 6 ? generatePrimaryScience(year) : generateLocalChemistry(normaliseStemYear(year));
-        else if (s === 'biology')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(normaliseStemYear(year));
+        else if (s === 'science')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(sy);
+        else if (s === 'physics')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalPhysics(sy);
+        else if (s === 'chemistry') q = year <= 6 ? generatePrimaryScience(year) : generateLocalChemistry(sy);
+        else if (s === 'biology')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(sy);
         else q = generateLocalMaths(year);
         subjectQuestions.push({ ...q, year_level: year });
       }
@@ -397,10 +441,11 @@ const ADVERBS = ["loudly","gracefully","slowly","bravely","violently","firmly","
 
 // ─── MATHS GENERATOR ─────────────────────────────────────────────────────────
 export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
+  const y = parseInt(year, 10) || 4;
 
   // ── YEAR 1 & 2 ─────────────────────────────────────────────────────────────
-  if (year <= 2) {
-    const maxNum       = year === 1 ? 10 : 20;
+  if (y <= 2) {
+    const maxNum       = y === 1 ? 10 : 20;
     const questionType = Math.random();
     let q, ans, exp, visual, topic, a, b;
 
@@ -449,7 +494,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
   }
 
   // ── YEAR 3 ──────────────────────────────────────────────────────────────────
-  if (year === 3) {
+  if (y === 3) {
     const r = Math.random();
     let q, ans, exp, topic, a, b, visual;
 
@@ -488,7 +533,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
   }
 
   // ── YEAR 4 ──────────────────────────────────────────────────────────────────
-  if (year === 4) {
+  if (y === 4) {
     const r = Math.random();
     let q, ans, exp, topic, a, b;
 
@@ -513,7 +558,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
     } else if (r < 0.8) {
       const neg = rand(-9, -1); ans = neg + 3; topic = 'negative_numbers';
       q   = `What number is 3 more than ${neg}?`;
-      exp = `${neg} + 3 = ${ans}. Count 3 steps right on the number line.`;
+      exp = `Start at ${neg} on the number line and count 3 steps to the right.`;
       a = neg; b = 3;
     } else {
       const nums = [12, 16, 18, 20, 24, 30, 36]; const n = pick(nums);
@@ -532,7 +577,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
   }
 
   // ── YEAR 5 ──────────────────────────────────────────────────────────────────
-  if (year === 5) {
+  if (y === 5) {
     const r = Math.random();
     let q, ans, exp, topic, a, b;
 
@@ -727,9 +772,10 @@ const getPassageQuestion = (year) => {
 
 // ─── ENGLISH GENERATOR ───────────────────────────────────────────────────────
 export const generateLocalEnglish = (year) => {
+  const y = parseInt(year, 10) || 4;
   const r = Math.random();
 
-  if (year <= 2) {
+  if (y <= 2) {
     const templates = [
       { q: "Which word rhymes with CAT?",              opts: ["BAT","DOG","PIG","SUN"],                  a: 0, exp: "CAT and BAT share the -AT sound at the end." },
       { q: "Which word rhymes with BIG?",              opts: ["PIG","CAT","SUN","HAT"],                  a: 0, exp: "BIG and PIG share the -IG sound." },
@@ -741,7 +787,7 @@ export const generateLocalEnglish = (year) => {
     return shuffleTemplate({ ...pick(templates), subject: 'english', topic: 'phonics' });
   }
 
-  if (year === 3) {
+  if (y === 3) {
     if (r < 0.35) {
       const qs = [
         { q: "Identify the ADVERB: 'She ran quickly to the door.'",   opts: ["She","ran","quickly","door"],    a: 2, exp: "Adverbs describe verbs. 'quickly' tells us HOW she ran." },
@@ -768,7 +814,7 @@ export const generateLocalEnglish = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'english', topic: 'conjunctions' });
   }
 
-  if (year === 4) {
+  if (y === 4) {
     if (r < 0.35) {
       const qs = [
         { q: "Which sentence has a FRONTED ADVERBIAL?",            opts: ["Carefully, she opened the box.","She opened the box carefully.","She was careful.","The box was opened."], a: 0, exp: "A fronted adverbial comes before the subject and needs a comma after it." },
@@ -793,7 +839,7 @@ export const generateLocalEnglish = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'english', topic: 'punctuation' });
   }
 
-  if (year === 5) {
+  if (y === 5) {
     if (r < 0.4) return getPassageQuestion(5);
     const r2 = Math.random();
     if (r2 < 0.3) {
@@ -850,9 +896,10 @@ export const generateLocalEnglish = (year) => {
 
 // ─── VERBAL REASONING GENERATOR ──────────────────────────────────────────────
 export const generateLocalVerbal = (year) => {
+  const y = parseInt(year, 10) || 4;
   const r = Math.random();
 
-  if (year <= 2) {
+  if (y <= 2) {
     const templates = [
       { q: "Which word is the odd one out?",             opts: ["Car","Bus","Train","Apple"],   a: 3, exp: "Car, Bus, Train are transport. Apple is a fruit." },
       { q: "Happy is to Sad as Hot is to...",            opts: ["Cold","Warm","Sun","Fire"],    a: 0, exp: "Happy/Sad are opposites. The opposite of Hot is Cold." },
@@ -862,7 +909,7 @@ export const generateLocalVerbal = (year) => {
     return shuffleTemplate({ ...pick(templates), subject: 'verbal', topic: 'analogies' });
   }
 
-  if (year === 3) {
+  if (y === 3) {
     if (r < 0.4) {
       const start = rand(1, 20), step = pick([2, 3, 4, 5, 10]);
       const seq   = [start, start + step, start + step * 2, start + step * 3];
@@ -884,7 +931,7 @@ export const generateLocalVerbal = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'verbal', topic: 'analogies' });
   }
 
-  if (year === 4) {
+  if (y === 4) {
     if (r < 0.35) {
       const types = [
         () => { const s = rand(2, 15), st = pick([3, 4, 5, 6, 7]); const seq = [s, s + st, s + st * 2, s + st * 3]; const ans = String(s + st * 4); return { seq: `${seq.join(', ')}, ?`, ans, wrong: [String(s + st * 4 + 1), String(s + st * 3), String(s + st * 5)], exp: `+${st} each time.` }; },
@@ -910,7 +957,7 @@ export const generateLocalVerbal = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'verbal', topic: 'letter_codes' });
   }
 
-  if (year === 5) {
+  if (y === 5) {
     if (r < 0.3) {
       const anagrams = [
         { word: "LEMON", ans: "MELON" }, { word: "NIGHT", ans: "THING" }, { word: "OCEAN", ans: "CANOE" },
@@ -976,9 +1023,10 @@ export const generateLocalVerbal = (year) => {
 
 // ─── NVR GENERATOR ───────────────────────────────────────────────────────────
 export const generateLocalNVR = (year) => {
+  const y = parseInt(year, 10) || 4;
   const r = Math.random();
 
-  if (year <= 2) {
+  if (y <= 2) {
     const templates = [
       { q: "What comes next? 🔵 🔴 🔵 🔴 ?",             opts: ["🔵","🔴","🟢","🟡"], a: 0, exp: "The pattern alternates blue and red. Next is blue." },
       { q: "What comes next? 🟦 🟦 🟧 🟦 🟦 ?",          opts: ["🟧","🟦","🟩","🟪"], a: 0, exp: "Two blues then one orange. Next is orange." },
@@ -989,7 +1037,7 @@ export const generateLocalNVR = (year) => {
     return shuffleTemplate({ ...pick(templates), subject: 'nvr', topic: 'patterns' });
   }
 
-  if (year === 3) {
+  if (y === 3) {
     const qs = [
       { q: "How many lines of symmetry does a rectangle have?",   opts: ["2","1","4","0"],                             a: 0, exp: "A rectangle has 2 lines of symmetry — one horizontal, one vertical." },
       { q: "Which shape has the most lines of symmetry?",          opts: ["Circle","Square","Rectangle","Triangle"],    a: 0, exp: "A circle has infinite lines of symmetry." },
@@ -999,7 +1047,7 @@ export const generateLocalNVR = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'nvr', topic: 'symmetry' });
   }
 
-  if (year === 4) {
+  if (y === 4) {
     const qs = [
       { q: "A cube has how many FACES?",                          opts: ["6","4","8","12"],  a: 0, exp: "A cube has 6 square faces." },
       { q: "A cube has how many VERTICES (corners)?",             opts: ["8","6","4","12"],  a: 0, exp: "A cube has 8 vertices — one at each corner." },
@@ -1010,7 +1058,7 @@ export const generateLocalNVR = (year) => {
     return shuffleTemplate({ ...pick(qs), subject: 'nvr', topic: '3d_shapes' });
   }
 
-  if (year === 5) {
+  if (y === 5) {
     const qs = [
       { q: "A shape is rotated 180°. Which property is preserved?",                         opts: ["Size and shape","Position","Colour only","None"], a: 0, exp: "Rotation preserves size and shape (congruence). Only orientation changes." },
       { q: "A figure is reflected across a horizontal axis. The top becomes the...",        opts: ["Bottom","Left","Right","Same"],                   a: 0, exp: "Horizontal reflection swaps top and bottom." },
@@ -1086,24 +1134,188 @@ export const generatePrimaryScience = (year) => {
     { q:"Where does a fish live?", opts:["In the desert","Up in trees","In water","Underground"], a:2, exp:"Fish live in water — they breathe through gills and need water to survive.", topic:"habitats" },
   ];
 
+  // ── Y3/Y4 — covers all DB topics for UK primary science ──────────────────────
   const Y3_Y4 = [
-    { q:"What gas do plants absorb to make food?", opts:["Oxygen","Nitrogen","Carbon dioxide","Hydrogen"], a:2, exp:"Plants absorb carbon dioxide from the air and use sunlight to turn it into food — a process called photosynthesis.", topic:"plants" },
-    { q:"What is the function of the heart?", opts:["To digest food","To pump blood around the body","To filter air","To store energy"], a:1, exp:"The heart is a muscle that pumps blood around the body, delivering oxygen and nutrients to all cells.", topic:"human_body" },
-    { q:"Which type of skeleton do insects have?", opts:["Endoskeleton","No skeleton","Exoskeleton","Fluid skeleton"], a:2, exp:"Insects have an exoskeleton — a hard outer shell that protects their soft body inside.", topic:"animals" },
-    { q:"What is the role of the stomach?", opts:["Circulate blood","Digest food","Filter waste","Absorb oxygen"], a:1, exp:"The stomach breaks down food using acids and enzymes so nutrients can be absorbed.", topic:"human_body" },
-    { q:"How does sound travel?", opts:["As light beams","Through vibrations in materials","As electrical signals only","It cannot travel through solids"], a:1, exp:"Sound travels as vibrations that pass through solids, liquids, and gases.", topic:"sound" },
+    // plants
+    { q:"What gas do plants absorb to make food?", opts:["Oxygen","Nitrogen","Carbon dioxide","Hydrogen"], a:2, exp:"Plants absorb carbon dioxide and use sunlight to make food — this is called photosynthesis.", topic:"plants" },
+    { q:"Which part of a flower produces pollen?", opts:["Petal","Stamen","Sepal","Pistil"], a:1, exp:"The stamen is the male part of the flower — it produces pollen for reproduction.", topic:"plants" },
+    { q:"What do roots do for a plant?", opts:["Make food","Produce flowers","Absorb water and anchor the plant","Store sunlight"], a:2, exp:"Roots absorb water and minerals from the soil and anchor the plant firmly in place.", topic:"plants" },
+    { q:"What is the green pigment in leaves called?", opts:["Melanin","Chlorophyll","Carotene","Keratin"], a:1, exp:"Chlorophyll is the green pigment that absorbs sunlight for photosynthesis.", topic:"plants" },
+    { q:"What is the process by which plants make their own food?", opts:["Respiration","Germination","Photosynthesis","Digestion"], a:2, exp:"Photosynthesis uses sunlight, water and CO₂ to produce glucose and oxygen.", topic:"plants" },
+    // plant_life_cycle
+    { q:"What grows from a seed first?", opts:["Leaf","Flower","Root","Fruit"], a:2, exp:"The root is the first part to emerge from a seed, anchoring the plant and absorbing water.", topic:"plant_life_cycle" },
+    { q:"What is germination?", opts:["A plant dying","A seed starting to grow","Leaves falling off","Flowers blooming"], a:1, exp:"Germination is when a seed starts to sprout and grow into a new plant.", topic:"plant_life_cycle" },
+    { q:"What do seeds need to germinate?", opts:["Only sunlight","Water, warmth and oxygen","Soil and sunlight only","Nothing — they grow on their own"], a:1, exp:"Seeds need water, warmth and oxygen to germinate. They don't actually need light at first.", topic:"plant_life_cycle" },
+    { q:"Which part of the plant develops into a fruit?", opts:["Stamen","Sepal","Ovary","Petal"], a:2, exp:"After fertilisation, the ovary develops into a fruit containing seeds.", topic:"plant_life_cycle" },
+    // animals
     { q:"What do all mammals have in common?", opts:["They lay eggs","They have scales","They feed young on milk","They live in water"], a:2, exp:"All mammals feed their young on milk. Most also have hair or fur and give birth to live young.", topic:"animals" },
+    { q:"Which type of skeleton do insects have?", opts:["Endoskeleton","No skeleton","Exoskeleton","Fluid skeleton"], a:2, exp:"Insects have an exoskeleton — a hard outer shell that protects their soft body inside.", topic:"animals" },
+    { q:"How many legs does an insect have?", opts:["4","6","8","10"], a:1, exp:"All insects have exactly 6 legs — this is one of the key features that defines them.", topic:"animals" },
+    { q:"What is the term for animals that eat only plants?", opts:["Carnivore","Omnivore","Herbivore","Predator"], a:2, exp:"Herbivores eat only plants. Carnivores eat only meat. Omnivores eat both.", topic:"animals" },
+    { q:"Which of these is an amphibian?", opts:["Lizard","Frog","Shark","Eagle"], a:1, exp:"Frogs are amphibians — they can live on land and in water, and lay eggs in water.", topic:"animals" },
+    // human_body
+    { q:"What is the function of the heart?", opts:["To digest food","To pump blood around the body","To filter air","To store energy"], a:1, exp:"The heart pumps blood around the body, delivering oxygen and nutrients to every cell.", topic:"human_body" },
+    { q:"What is the role of the stomach?", opts:["Circulate blood","Digest food","Filter waste","Absorb oxygen"], a:1, exp:"The stomach breaks down food using acids and enzymes so nutrients can be absorbed.", topic:"human_body" },
+    { q:"What do our lungs do?", opts:["Pump blood","Digest food","Exchange oxygen and carbon dioxide","Filter blood"], a:2, exp:"Lungs take in oxygen from the air and release carbon dioxide — this is called gas exchange.", topic:"human_body" },
+    { q:"Which organ filters waste from the blood?", opts:["Liver","Stomach","Kidney","Heart"], a:2, exp:"The kidneys filter waste products from the blood and remove them as urine.", topic:"human_body" },
+    { q:"What carries oxygen around the body?", opts:["White blood cells","Plasma","Red blood cells","Platelets"], a:2, exp:"Red blood cells contain haemoglobin, which binds oxygen and carries it to body tissues.", topic:"human_body" },
+    // habitats
+    { q:"Where does a fish live?", opts:["In the desert","Up in trees","In water","Underground"], a:2, exp:"Fish live in water — they breathe through gills and need water to survive.", topic:"habitats" },
+    { q:"What is a habitat?", opts:["A type of food","The place where an organism lives","A type of animal","The weather in a region"], a:1, exp:"A habitat is the natural environment where an organism lives and finds everything it needs.", topic:"habitats" },
+    { q:"Which habitat would you find a cactus in?", opts:["Rainforest","Arctic","Desert","Ocean"], a:2, exp:"Cacti are adapted to desert habitats — they store water in their thick stems.", topic:"habitats" },
+    { q:"What do we call animals that are active at night?", opts:["Diurnal","Migratory","Nocturnal","Hibernating"], a:2, exp:"Nocturnal animals are active at night. Owls and bats are examples.", topic:"habitats" },
+    // food_chains
+    { q:"What is a producer in a food chain?", opts:["An animal that eats other animals","A plant that makes its own food","An animal that eats plants","A decomposer"], a:1, exp:"Producers are plants — they make their own food using sunlight and sit at the start of every food chain.", topic:"food_chains" },
+    { q:"What is a predator?", opts:["An animal that is hunted","An animal that hunts other animals","A plant","A decomposer"], a:1, exp:"A predator is an animal that hunts and eats other animals (its prey).", topic:"food_chains" },
+    { q:"What do decomposers do in a food chain?", opts:["Eat plants","Hunt prey","Break down dead organisms","Produce energy from sunlight"], a:2, exp:"Decomposers (like bacteria and fungi) break down dead organisms and return nutrients to the soil.", topic:"food_chains" },
+    { q:"In the food chain: grass → rabbit → fox, what is the rabbit?", opts:["Producer","Primary consumer","Secondary consumer","Decomposer"], a:1, exp:"The rabbit eats the grass (producer), making it a primary consumer.", topic:"food_chains" },
+    { q:"What happens to a population of rabbits if foxes increase?", opts:["Rabbits increase","Rabbits stay the same","Rabbits decrease","Rabbits migrate"], a:2, exp:"More foxes eat more rabbits, so the rabbit population decreases.", topic:"food_chains" },
+    // materials
+    { q:"Which material is a good conductor of electricity?", opts:["Plastic","Wood","Rubber","Copper"], a:3, exp:"Copper is a metal — metals are good conductors of electricity because they have free electrons.", topic:"materials" },
+    { q:"What property describes how easily a material bends without breaking?", opts:["Hardness","Transparency","Flexibility","Conductivity"], a:2, exp:"Flexibility describes how much a material can bend without breaking.", topic:"materials" },
+    { q:"Which of these is a magnetic material?", opts:["Aluminium","Wood","Iron","Plastic"], a:2, exp:"Iron is magnetic. Aluminium is a metal but is not magnetic.", topic:"materials" },
+    { q:"What is the difference between a natural and a synthetic material?", opts:["Natural materials are stronger","Synthetic materials come from nature","Natural materials come from nature, synthetic are man-made","There is no difference"], a:2, exp:"Natural materials come from plants, animals or the Earth. Synthetic materials are made by humans.", topic:"materials" },
+    { q:"Which material would be best for making a waterproof coat?", opts:["Cotton","Silk","Gore-Tex/nylon","Wool"], a:2, exp:"Synthetic waterproof fabrics like nylon don't absorb water, making them ideal for rainwear.", topic:"materials" },
+    // states_of_matter
+    { q:"What are the three states of matter?", opts:["Hot, warm and cold","Solid, liquid and gas","Hard, soft and runny","Light, medium and heavy"], a:1, exp:"Matter exists in three main states: solid (fixed shape), liquid (flows) and gas (fills any container).", topic:"states_of_matter" },
+    { q:"What is melting?", opts:["A liquid turning to gas","A solid turning to liquid","A gas turning to liquid","A liquid turning to solid"], a:1, exp:"Melting is when a solid absorbs heat and turns into a liquid.", topic:"states_of_matter" },
+    { q:"What happens to particles in a solid?", opts:["They move freely and quickly","They are close together and vibrate in place","They are far apart and move randomly","They disappear"], a:1, exp:"In a solid, particles are tightly packed and only vibrate — they cannot move past each other.", topic:"states_of_matter" },
+    { q:"At what temperature does water freeze?", opts:["0°C","10°C","100°C","-10°C"], a:0, exp:"Water freezes at 0°C (32°F), turning from liquid to solid ice.", topic:"states_of_matter" },
+    { q:"What is condensation?", opts:["A liquid turning to gas","A gas turning to liquid","A solid turning to liquid","A liquid turning to solid"], a:1, exp:"Condensation is when a gas cools and turns back into a liquid — like water droplets on a cold window.", topic:"states_of_matter" },
+    // changing_states
+    { q:"What is evaporation?", opts:["Water turning to ice","Water turning to steam/vapour","Steam turning to water","Ice turning to water"], a:1, exp:"Evaporation is when liquid water is heated and turns into water vapour (gas).", topic:"changing_states" },
+    { q:"What is sublimation?", opts:["A liquid turning to gas","A solid turning directly to gas","A gas turning to solid","A liquid turning to solid"], a:1, exp:"Sublimation is when a solid turns directly into a gas without becoming a liquid first. Dry ice does this.", topic:"changing_states" },
+    { q:"When you breathe on a cold mirror, what forms?", opts:["Ice","Steam","Water droplets (condensation)","Frost"], a:2, exp:"Warm breath contains water vapour that cools and condenses into tiny water droplets on the cold mirror.", topic:"changing_states" },
+    // water_cycle
+    { q:"What is evaporation?", opts:["Rain falling","Water vapour rising from heated water","Ice melting","Clouds forming"], a:1, exp:"Evaporation happens when the Sun heats water, turning it into water vapour that rises into the air.", topic:"water_cycle" },
+    { q:"What is precipitation?", opts:["Water evaporating","Water filtering into the ground","Water falling from clouds as rain, snow or hail","Water flowing in rivers"], a:2, exp:"Precipitation is any form of water that falls from clouds — rain, snow, sleet or hail.", topic:"water_cycle" },
+    { q:"What forms when water vapour cools high in the atmosphere?", opts:["Rain","Clouds","Ice","Steam"], a:1, exp:"Water vapour cools and condenses around tiny dust particles to form clouds.", topic:"water_cycle" },
+    // rocks_and_soils
+    { q:"What are the three types of rock?", opts:["Hard, soft and medium","Igneous, sedimentary and metamorphic","Volcanic, river and sea","Old, new and ancient"], a:1, exp:"Rocks are classified as igneous (from magma), sedimentary (from compressed layers) or metamorphic (changed by heat and pressure).", topic:"rocks_and_soils" },
+    { q:"Which type of rock forms from cooled lava?", opts:["Sedimentary","Metamorphic","Igneous","Limestone"], a:2, exp:"Igneous rocks form when magma or lava cools and solidifies. Granite and basalt are examples.", topic:"rocks_and_soils" },
+    { q:"What is soil mainly made of?", opts:["Pure water","Broken-down rock, minerals and organic matter","Sand only","Clay only"], a:1, exp:"Soil is a mixture of weathered rock particles, minerals, water, air and organic matter from decomposed organisms.", topic:"rocks_and_soils" },
+    { q:"How are sedimentary rocks formed?", opts:["From cooled magma","From layers of sediment compressed over time","From rocks changed by heat and pressure","From minerals dissolved in water"], a:1, exp:"Sedimentary rocks form when layers of sediment (sand, mud, shells) are compressed over millions of years.", topic:"rocks_and_soils" },
+    // forces
     { q:"Which force pulls objects towards the Earth?", opts:["Magnetism","Friction","Gravity","Electricity"], a:2, exp:"Gravity is the force that pulls objects towards Earth — it's why things fall when you drop them.", topic:"forces" },
-    { q:"What is evaporation?", opts:["Water turning to ice","Water turning to steam/vapour","Steam turning to water","Ice turning to water"], a:1, exp:"Evaporation is when liquid water turns into water vapour (gas) due to heat.", topic:"water_cycle" },
+    { q:"What is friction?", opts:["A pushing force","A force that opposes motion between surfaces","A pulling force","A magnetic force"], a:1, exp:"Friction acts between two surfaces in contact and opposes their movement — it slows things down.", topic:"forces" },
+    { q:"What is the unit of force?", opts:["Kilogram","Metre","Newton","Joule"], a:2, exp:"Force is measured in Newtons (N), named after Isaac Newton.", topic:"forces" },
+    { q:"Which of these reduces friction?", opts:["Rough surfaces","Adding weight","Smooth surfaces or lubrication","Dry surfaces"], a:2, exp:"Smooth surfaces and lubricants (like oil) reduce friction by creating less resistance between surfaces.", topic:"forces" },
+    // forces_basics
+    { q:"What happens to an object when balanced forces act on it?", opts:["It speeds up","It slows down","It stays still or moves at constant speed","It changes direction"], a:2, exp:"Balanced forces cancel each other out — the object stays at rest or keeps moving at the same speed.", topic:"forces_basics" },
+    { q:"Which force acts on a parachute to slow it down?", opts:["Gravity","Friction","Air resistance","Magnetism"], a:2, exp:"Air resistance (drag) pushes upward against the parachute, slowing the fall.", topic:"forces_basics" },
+    { q:"What is a force?", opts:["A type of energy","A push or pull that changes an object's motion","The weight of an object","The speed of an object"], a:1, exp:"A force is a push or pull. Forces can make objects start moving, stop, speed up, slow down or change direction.", topic:"forces_basics" },
+    // forces_and_motion
+    { q:"What is speed?", opts:["The mass of an object","The direction of travel","Distance divided by time","Force times mass"], a:2, exp:"Speed = Distance ÷ Time. For example, travelling 100m in 10s gives a speed of 10 m/s.", topic:"forces_and_motion" },
+    { q:"What happens to an object when an unbalanced force acts on it?", opts:["Nothing changes","It changes speed or direction","It disappears","It gains mass"], a:1, exp:"An unbalanced (resultant) force causes a change in an object's speed or direction.", topic:"forces_and_motion" },
+    { q:"If a car brakes suddenly, which force slows it down?", opts:["Gravity","Air resistance","Friction from the brakes","Magnetism"], a:2, exp:"Friction between the brake pads and wheels converts kinetic energy to heat, slowing the car.", topic:"forces_and_motion" },
+    // light
+    { q:"What does light travel in?", opts:["Curved paths","Straight lines","Zigzag patterns","Waves that bend"], a:1, exp:"Light always travels in straight lines — this is why shadows form and why we can't see round corners.", topic:"light" },
+    { q:"What is a shadow?", opts:["A reflection of light","A type of light","A dark area where light is blocked","A refraction of light"], a:2, exp:"A shadow forms when an opaque object blocks light, creating a dark area on the other side.", topic:"light" },
+    { q:"What happens when light hits a mirror?", opts:["It is absorbed","It bends","It reflects","It disappears"], a:2, exp:"Smooth, shiny surfaces like mirrors reflect light — the angle of reflection equals the angle of incidence.", topic:"light" },
+    { q:"Which of these is a light source?", opts:["Moon","Mirror","Sun","Window"], a:2, exp:"The Sun makes its own light — it is a light source. The Moon reflects the Sun's light.", topic:"light" },
+    { q:"What is refraction?", opts:["Light bouncing off a surface","Light bending as it passes between materials","Light being absorbed","Light spreading out"], a:1, exp:"Refraction is the bending of light when it passes from one material (e.g., air) into another (e.g., water or glass).", topic:"light" },
+    // light_and_sound
+    { q:"Which travels faster — light or sound?", opts:["Sound","They travel at the same speed","Light","It depends on the material"], a:2, exp:"Light travels at about 300,000 km/s in air. Sound only travels at about 340 m/s — light is about a million times faster.", topic:"light_and_sound" },
+    { q:"What do both light and sound need to travel?", opts:["A vacuum","A medium (light doesn't need one, sound does)","Water","Air only"], a:1, exp:"Sound needs a medium (solid, liquid or gas) to travel — it cannot travel through a vacuum. Light can travel through a vacuum.", topic:"light_and_sound" },
+    { q:"Why do we see lightning before we hear thunder?", opts:["Thunder is quieter","Light travels much faster than sound","Sound travels backwards","They happen at different times"], a:1, exp:"Light reaches us almost instantly. Sound travels much slower, so thunder arrives seconds after the lightning flash.", topic:"light_and_sound" },
+    // sound
+    { q:"How does sound travel?", opts:["As light beams","Through vibrations in materials","As electrical signals only","It cannot travel through solids"], a:1, exp:"Sound travels as vibrations that pass through solids, liquids and gases.", topic:"sound" },
+    { q:"What is the unit of sound volume?", opts:["Hertz","Newton","Decibel","Metre"], a:2, exp:"Sound volume (loudness) is measured in decibels (dB).", topic:"sound" },
+    { q:"Can sound travel through a vacuum?", opts:["Yes, easily","Only if it's loud enough","No — sound needs a medium","Only light sounds"], a:2, exp:"Sound needs particles to vibrate — in a vacuum there are no particles, so sound cannot travel.", topic:"sound" },
+    { q:"What is pitch?", opts:["How loud a sound is","How high or low a sound is","How far sound travels","The speed of sound"], a:1, exp:"Pitch is how high or low a sound is. A high frequency gives a high pitch; low frequency gives a low pitch.", topic:"sound" },
+    // magnets
+    { q:"Which poles of two magnets attract each other?", opts:["North and North","South and South","North and South","Any two poles"], a:2, exp:"Opposite poles attract — North and South pull towards each other. Like poles repel.", topic:"magnets" },
+    { q:"What is a magnetic field?", opts:["A field full of iron","The area around a magnet where its force acts","A type of electric current","The force of gravity"], a:1, exp:"A magnetic field is the invisible region around a magnet where magnetic forces can be detected.", topic:"magnets" },
+    { q:"Which of these materials is attracted to a magnet?", opts:["Aluminium","Copper","Nickel","Plastic"], a:2, exp:"Nickel is a magnetic material. Aluminium and copper are metals but not magnetic.", topic:"magnets" },
+    { q:"What shape are magnetic field lines around a bar magnet?", opts:["Straight lines only","Curved lines from North to South pole","Circles","Random"], a:1, exp:"Magnetic field lines curve from the North pole to the South pole outside the magnet.", topic:"magnets" },
+    { q:"What is the Earth's core made of that makes it act like a giant magnet?", opts:["Aluminium","Copper","Iron and nickel","Gold"], a:2, exp:"Earth's core contains molten iron and nickel. Convection currents create electric currents that generate a magnetic field.", topic:"magnets" },
+    // electricity
+    { q:"What is needed to make a complete electrical circuit?", opts:["Just a battery","A battery, wires, and a component forming a complete loop","Only wires","A battery and a switch only"], a:1, exp:"A circuit must be a complete, unbroken loop — the current must have a path all the way around.", topic:"electricity" },
+    { q:"What does a switch do in a circuit?", opts:["Provides power","Stores energy","Breaks or completes the circuit","Changes the voltage"], a:2, exp:"A switch breaks the circuit (off) or completes it (on), controlling whether current flows.", topic:"electricity" },
+    { q:"Which of these is a conductor?", opts:["Rubber","Plastic","Copper wire","Wood"], a:2, exp:"Copper is an excellent conductor — it allows electric current to flow through it easily.", topic:"electricity" },
+    { q:"What does a voltmeter measure?", opts:["Current","Resistance","Voltage (potential difference)","Power"], a:2, exp:"A voltmeter measures voltage (potential difference) in volts (V) between two points in a circuit.", topic:"electricity" },
+    // earth_and_space
+    { q:"What causes day and night?", opts:["The Moon blocking the Sun","Earth orbiting the Sun","Earth spinning on its axis","The Sun moving across the sky"], a:2, exp:"Earth rotates on its axis once every 24 hours — the side facing the Sun has day, the other side has night.", topic:"earth_and_space" },
+    { q:"What causes the seasons?", opts:["Earth's distance from the Sun changing","Earth tilting on its axis as it orbits the Sun","The Moon's gravity","The Sun getting hotter and cooler"], a:1, exp:"Earth is tilted at 23.5°. As it orbits, different hemispheres tilt towards or away from the Sun, causing seasons.", topic:"earth_and_space" },
+    { q:"How long does it take the Earth to orbit the Sun?", opts:["24 hours","28 days","365 days (1 year)","100 years"], a:2, exp:"Earth takes approximately 365.25 days (one year) to complete one full orbit around the Sun.", topic:"earth_and_space" },
+    { q:"What is the Moon?", opts:["A planet","A star","Earth's natural satellite","A comet"], a:2, exp:"The Moon is Earth's only natural satellite — it orbits Earth roughly every 28 days.", topic:"earth_and_space" },
+    { q:"How many planets are in our Solar System?", opts:["7","8","9","10"], a:1, exp:"There are 8 planets: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus and Neptune. Pluto was reclassified as a dwarf planet.", topic:"earth_and_space" },
+    // health
+    { q:"What does a balanced diet include?", opts:["Only protein","Only carbohydrates","A variety of nutrients in the right proportions","Only fruits and vegetables"], a:2, exp:"A balanced diet includes carbohydrates, protein, fats, vitamins, minerals, fibre and water in the right amounts.", topic:"health" },
+    { q:"What is the main function of carbohydrates in the diet?", opts:["Building muscles","Providing energy","Fighting infection","Storing fat"], a:1, exp:"Carbohydrates (like bread, rice and pasta) are the body's main source of energy.", topic:"health" },
+    { q:"Why is exercise important?", opts:["It makes you taller","It strengthens muscles and bones and improves heart health","It only helps with weight loss","It has no proven benefits"], a:1, exp:"Regular exercise strengthens muscles and bones, improves cardiovascular health, boosts mood and maintains healthy weight.", topic:"health" },
+    // ecology
+    { q:"What is an ecosystem?", opts:["A type of weather","All the living organisms in an area plus their non-living environment","A food chain","A type of habitat"], a:1, exp:"An ecosystem includes all living organisms (biotic factors) and the non-living environment (abiotic factors) in an area.", topic:"ecology" },
+    { q:"What do we call organisms that break down dead matter?", opts:["Producers","Consumers","Decomposers","Predators"], a:2, exp:"Decomposers (bacteria, fungi, worms) break down dead organisms and recycle nutrients back into the soil.", topic:"ecology" },
+    { q:"What is biodiversity?", opts:["The number of trees in a forest","The variety of different species in an ecosystem","The amount of rainfall in an area","The depth of soil"], a:1, exp:"Biodiversity refers to the variety of living species in an ecosystem — high biodiversity usually means a healthier ecosystem.", topic:"ecology" },
+    // living_organisms
+    { q:"What are the seven life processes that all living things share?", opts:["Eating, sleeping, moving, growing, breathing, thinking, feeling","Movement, Respiration, Sensitivity, Growth, Reproduction, Excretion, Nutrition (MRS GREN)","Walking, swimming, flying, eating, growing, sleeping, reproducing","Breathing, eating, moving, thinking, growing, seeing, feeling"], a:1, exp:"All living things share MRS GREN: Movement, Respiration, Sensitivity, Growth, Reproduction, Excretion, Nutrition.", topic:"living_organisms" },
+    { q:"What is the basic unit of all living things?", opts:["An atom","A molecule","A cell","A tissue"], a:2, exp:"The cell is the smallest unit of life. All living organisms are made of one or more cells.", topic:"living_organisms" },
+    { q:"Which kingdom do mushrooms belong to?", opts:["Plant","Animal","Bacteria","Fungi"], a:3, exp:"Mushrooms are fungi — they cannot photosynthesise and get nutrients by breaking down organic matter.", topic:"living_organisms" },
   ];
 
+  // ── Y5/Y6 — deeper curriculum coverage ────────────────────────────────────
   const Y5_Y6 = [
-    { q:"What is the role of chlorophyll in plants?", opts:["To store water","To absorb sunlight for photosynthesis","To absorb nutrients from soil","To attract insects"], a:1, exp:"Chlorophyll is the green pigment in leaves that absorbs sunlight, powering photosynthesis.", topic:"plants" },
-    { q:"What is the Earth's atmosphere mainly made of?", opts:["Mostly oxygen","Mostly carbon dioxide","Mostly nitrogen","Mostly hydrogen"], a:2, exp:"About 78% of Earth's atmosphere is nitrogen. Oxygen makes up about 21%.", topic:"earth_science" },
-    { q:"What is the function of white blood cells?", opts:["Carry oxygen","Fight infection","Clot wounds","Digest food"], a:1, exp:"White blood cells are part of the immune system — they fight bacteria, viruses, and infection.", topic:"human_body" },
-    { q:"What is a producer in a food chain?", opts:["An animal that eats other animals","A plant that makes its own food","An animal that eats plants","A decomposer"], a:1, exp:"Producers (plants) make their own food using sunlight. They sit at the start of every food chain.", topic:"food_chains" },
-    { q:"Which of these is a renewable energy source?", opts:["Coal","Oil","Natural gas","Solar"], a:3, exp:"Solar power is renewable — it comes from the Sun which will not run out. Coal, oil and gas are non-renewable.", topic:"energy" },
-    { q:"What is the difference between a solid and a liquid?", opts:["Solids can be seen, liquids cannot","Solids have a fixed shape, liquids take the shape of their container","Solids are hot, liquids are cold","There is no difference"], a:1, exp:"Solids have a fixed shape and volume. Liquids have a fixed volume but take the shape of any container.", topic:"materials" },
+    // plants
+    { q:"What is the role of chlorophyll in plants?", opts:["To store water","To absorb sunlight for photosynthesis","To absorb nutrients from soil","To attract insects"], a:1, exp:"Chlorophyll is the green pigment that absorbs sunlight to power photosynthesis.", topic:"plants" },
+    { q:"What are the products of photosynthesis?", opts:["Carbon dioxide and water","Glucose and oxygen","Nitrogen and glucose","Oxygen and carbon dioxide"], a:1, exp:"Photosynthesis produces glucose (used for energy and growth) and oxygen (released into the air).", topic:"plants" },
+    { q:"What is transpiration?", opts:["Water absorption by roots","The evaporation of water from leaves","Carbon dioxide release","Nutrient uptake"], a:1, exp:"Transpiration is the evaporation of water from the surfaces of leaves through tiny pores called stomata.", topic:"plants" },
+    { q:"What do xylem vessels do?", opts:["Transport sugar from leaves","Transport water and minerals from roots to leaves","Store starch","Produce pollen"], a:1, exp:"Xylem vessels carry water and dissolved minerals upward from the roots to the rest of the plant.", topic:"plants" },
+    // cells_and_tissues
+    { q:"Which organelle controls the cell?", opts:["Cell membrane","Mitochondria","Nucleus","Vacuole"], a:2, exp:"The nucleus contains the cell's DNA and controls all cell activities — it's the control centre.", topic:"cells_and_tissues" },
+    { q:"What is the function of the mitochondria?", opts:["Protein synthesis","Cell division","Producing energy through respiration","Storing waste"], a:2, exp:"Mitochondria are where aerobic respiration occurs — they produce ATP energy for the cell.", topic:"cells_and_tissues" },
+    { q:"What structure do plant cells have that animal cells don't?", opts:["Nucleus","Cell membrane","Cell wall and chloroplasts","Mitochondria"], a:2, exp:"Plant cells have a rigid cell wall (made of cellulose) and chloroplasts for photosynthesis. Animal cells have neither.", topic:"cells_and_tissues" },
+    { q:"What is a tissue?", opts:["A single cell","A group of similar cells working together","An organ","A type of molecule"], a:1, exp:"A tissue is a group of similar cells that work together to perform a specific function.", topic:"cells_and_tissues" },
+    { q:"What is the function of the cell membrane?", opts:["To produce energy","To control what enters and leaves the cell","To store genetic information","To produce proteins"], a:1, exp:"The cell membrane controls what substances pass in and out of the cell — it is selectively permeable.", topic:"cells_and_tissues" },
+    // human_body (Y5/6 level)
+    { q:"What is the function of white blood cells?", opts:["Carry oxygen","Fight infection","Clot wounds","Digest food"], a:1, exp:"White blood cells are part of the immune system — they fight bacteria, viruses and infection.", topic:"human_body" },
+    { q:"What gas is produced during respiration?", opts:["Oxygen","Nitrogen","Carbon dioxide","Hydrogen"], a:2, exp:"During respiration, glucose and oxygen are used to produce energy, water and carbon dioxide.", topic:"human_body" },
+    { q:"What is the role of the liver?", opts:["Pump blood","Produce insulin","Detoxify blood and produce bile","Filter urine"], a:2, exp:"The liver detoxifies blood, produces bile for digestion, stores glycogen and regulates many metabolic processes.", topic:"human_body" },
+    // food_chains
+    { q:"What is a trophic level?", opts:["A type of food","The feeding position of an organism in a food chain","A type of habitat","A measure of biodiversity"], a:1, exp:"Trophic levels are the positions organisms occupy in a food chain — producers are level 1, primary consumers level 2, etc.", topic:"food_chains" },
+    { q:"Why is energy lost at each trophic level?", opts:["Organisms give energy to the Sun","Energy is used for movement, heat and waste","Energy disappears","Higher consumers don't eat everything"], a:1, exp:"Only about 10% of energy passes to the next trophic level — the rest is lost as heat, movement and waste.", topic:"food_chains" },
+    // materials / chemistry links
+    { q:"What is the difference between a solid and a liquid?", opts:["Solids can be seen, liquids cannot","Solids have a fixed shape, liquids take the shape of their container","Solids are hot, liquids are cold","There is no difference"], a:1, exp:"Solids have a fixed shape and volume. Liquids have a fixed volume but take the shape of their container.", topic:"materials" },
+    { q:"What is a mixture?", opts:["A pure substance","Two or more substances combined but not chemically joined","A compound","An element"], a:1, exp:"A mixture contains two or more substances that are combined physically but can be separated without a chemical reaction.", topic:"materials" },
+    // chemical_reactions
+    { q:"What is a chemical reaction?", opts:["A physical change in shape","A process that creates new substances","Melting or boiling","Mixing two substances"], a:1, exp:"A chemical reaction creates one or more new substances with different properties from the starting materials.", topic:"chemical_reactions" },
+    { q:"Which gas is produced when an acid reacts with a metal?", opts:["Oxygen","Carbon dioxide","Hydrogen","Nitrogen"], a:2, exp:"When an acid reacts with a reactive metal, hydrogen gas is produced along with a salt.", topic:"chemical_reactions" },
+    { q:"What is a sign that a chemical reaction has occurred?", opts:["The temperature stays the same","A new substance forms, colour change, gas produced or energy released/absorbed","The shape changes","The mass doubles"], a:1, exp:"Signs of a chemical reaction include: colour change, gas production, temperature change, precipitate forming or new smell.", topic:"chemical_reactions" },
+    { q:"What is combustion?", opts:["Dissolving in water","A reaction with oxygen that releases heat and light","A change in state","Dissolving in acid"], a:1, exp:"Combustion is a chemical reaction between a fuel and oxygen that releases heat and light energy.", topic:"chemical_reactions" },
+    { q:"What are the products of burning wood?", opts:["Only smoke","Carbon dioxide and water vapour (plus ash)","Oxygen and nitrogen","Pure carbon"], a:1, exp:"When wood burns completely, it produces carbon dioxide and water vapour. Incomplete burning also produces soot and smoke.", topic:"chemical_reactions" },
+    // forces_and_motion
+    { q:"What is Newton's First Law?", opts:["Force = mass × acceleration","An object stays at rest or constant velocity unless acted on by an unbalanced force","Every action has an equal and opposite reaction","Force is proportional to extension"], a:1, exp:"Newton's First Law: objects stay still or move at constant speed unless an unbalanced force acts on them — this is inertia.", topic:"forces_and_motion" },
+    { q:"What is the formula for calculating speed?", opts:["Speed = Force ÷ Time","Speed = Distance × Time","Speed = Distance ÷ Time","Speed = Mass ÷ Distance"], a:2, exp:"Speed = Distance ÷ Time. If you travel 300m in 60s, your speed is 5 m/s.", topic:"forces_and_motion" },
+    // electricity (Y5/6)
+    { q:"What is the Earth's atmosphere mainly made of?", opts:["Mostly oxygen","Mostly carbon dioxide","Mostly nitrogen","Mostly hydrogen"], a:2, exp:"About 78% of Earth's atmosphere is nitrogen. Oxygen makes up about 21%.", topic:"earth_and_space" },
+    { q:"What is an electrical insulator?", opts:["A material that allows current to flow","A material that stores charge","A material that blocks current flow","A material that generates electricity"], a:2, exp:"An insulator (like rubber or plastic) does not allow electric current to pass through — useful for safety coatings on wires.", topic:"electricity" },
+    { q:"What effect does adding more batteries have on a series circuit?", opts:["Reduces current","Has no effect","Increases the voltage and therefore brightness/speed","Breaks the circuit"], a:2, exp:"More batteries in series increase the total voltage, which drives more current through the circuit.", topic:"electricity" },
+    // thermodynamics
+    { q:"What is heat transfer by conduction?", opts:["Heat moving through a fluid by currents","Heat travelling as radiation through space","Heat passing through a solid material from particle to particle","Heat stored in a material"], a:2, exp:"Conduction is heat transfer through a solid — energetic particles vibrate and pass energy to neighbouring particles.", topic:"thermodynamics" },
+    { q:"What is convection?", opts:["Heat transfer through solids","Heat transfer by radiation","Heat transfer through fluids by currents rising and falling","Heat stored in objects"], a:2, exp:"Convection occurs in fluids — heated fluid rises (less dense), cool fluid sinks, creating circulation currents.", topic:"thermodynamics" },
+    { q:"What is radiation in heat transfer?", opts:["Heat passing through a solid","Heat moving through fluids","Heat energy transmitted as infrared waves through space","Heat stored in a material"], a:2, exp:"Radiation is heat transferred as infrared electromagnetic waves — it can travel through a vacuum. The Sun heats Earth this way.", topic:"thermodynamics" },
+    // atomic_structure
+    { q:"What are the three particles found in an atom?", opts:["Electrons, ions and molecules","Protons, neutrons and electrons","Photons, neutrons and protons","Atoms, molecules and compounds"], a:1, exp:"Atoms contain protons (positive) and neutrons (neutral) in the nucleus, with electrons (negative) orbiting outside.", topic:"atomic_structure" },
+    { q:"What charge does a proton carry?", opts:["Negative","Neutral","Positive","Variable"], a:2, exp:"Protons carry a positive charge. Neutrons are neutral. Electrons are negative.", topic:"atomic_structure" },
+    { q:"What is an element?", opts:["A mixture of substances","A compound of two atoms","A pure substance made of only one type of atom","A type of molecule"], a:2, exp:"An element is a pure substance made of only one type of atom — it cannot be broken down into simpler substances.", topic:"atomic_structure" },
+    // waves
+    { q:"What is the wavelength of a wave?", opts:["The height of a wave","The number of waves per second","The distance between two consecutive peaks","The speed of the wave"], a:2, exp:"Wavelength is the distance between two consecutive identical points on a wave, such as peak to peak.", topic:"waves" },
+    { q:"What is frequency?", opts:["The height of a wave","The number of complete waves passing a point per second","The speed of the wave","The distance a wave travels"], a:1, exp:"Frequency is measured in Hertz (Hz) — it tells us how many complete waves pass a point every second.", topic:"waves" },
+    { q:"What type of wave is sound?", opts:["Transverse","Electromagnetic","Longitudinal","Light"], a:2, exp:"Sound is a longitudinal wave — particles vibrate parallel to the direction of wave travel.", topic:"waves" },
+    // ecology (Y5/6)
+    { q:"What is a food web?", opts:["A single food chain","Multiple interconnected food chains in an ecosystem","A web made by spiders for catching food","A type of ecological survey"], a:1, exp:"A food web shows the complex feeding relationships in an ecosystem — multiple food chains all linked together.", topic:"ecology" },
+    { q:"What is the carbon cycle?", opts:["The path carbon takes as it moves through living organisms and the environment","The cycling of water through the environment","A type of food chain","The movement of rocks"], a:0, exp:"The carbon cycle describes how carbon moves between the atmosphere, oceans, land and living things through processes like photosynthesis, respiration and combustion.", topic:"ecology" },
+    // genetics
+    { q:"What is DNA?", opts:["A type of protein","The molecule that carries genetic information","A type of cell","An enzyme"], a:1, exp:"DNA (deoxyribonucleic acid) carries the genetic code that determines an organism's characteristics and is passed from parent to offspring.", topic:"genetics" },
+    { q:"What is a gene?", opts:["A type of cell","A section of DNA that codes for a specific trait","A protein","A chromosome"], a:1, exp:"A gene is a specific section of DNA that contains instructions for making a protein or controlling a characteristic.", topic:"genetics" },
+    { q:"What is inherited variation?", opts:["Differences caused by the environment","Differences passed from parents to offspring through genes","Differences that appear during an organism's lifetime","Differences due to diet"], a:1, exp:"Inherited variation refers to differences between organisms that are passed on through genes — like eye colour or blood type.", topic:"genetics" },
+    // evolution
+    { q:"What is natural selection?", opts:["Humans choosing which animals breed","A process where individuals with favourable traits survive and reproduce more","Random mutations only","The extinction of species"], a:1, exp:"Natural selection: individuals with traits better suited to their environment survive, reproduce and pass on those traits.", topic:"evolution" },
+    { q:"Who proposed the theory of evolution by natural selection?", opts:["Isaac Newton","Albert Einstein","Charles Darwin","Louis Pasteur"], a:2, exp:"Charles Darwin proposed the theory of evolution by natural selection in his 1859 book 'On the Origin of Species'.", topic:"evolution" },
+    { q:"What is adaptation?", opts:["A change in behaviour only","A feature that helps an organism survive in its environment","A type of mutation","Learning a new skill"], a:1, exp:"An adaptation is a feature (physical or behavioural) that makes an organism better suited to survive in its environment.", topic:"evolution" },
+    // earth_and_space (Y5/6)
+    { q:"What is a renewable energy source?", opts:["Coal","Oil","Natural gas","Solar power"], a:3, exp:"Solar power is renewable — it comes from the Sun which won't run out. Coal, oil and gas are finite fossil fuels.", topic:"earth_and_space" },
+    { q:"What causes a lunar eclipse?", opts:["The Moon passing between Earth and the Sun","Earth passing between the Sun and the Moon","The Sun going behind a cloud","The Moon moving away from Earth"], a:1, exp:"A lunar eclipse happens when Earth passes between the Sun and the Moon, casting a shadow on the Moon.", topic:"earth_and_space" },
   ];
 
   const pool = y <= 2 ? Y1_Y2 : y <= 4 ? [...Y1_Y2, ...Y3_Y4] : [...Y3_Y4, ...Y5_Y6];
@@ -1234,7 +1446,7 @@ export const generateLocalPhysics = (year) => {
     ...shuffleTemplate(template),
     subject: 'physics',
     topic: 'general_physics',
-    id: `phys_${Math.random().toString(36).substr(2, 9)}`,
+    id: null,
   };
 };
 
@@ -1428,7 +1640,7 @@ export const generateLocalBiology = (year) => {
     ...shuffleTemplate(template),
     subject: 'biology',
     topic: 'general_biology',
-    id: `bio_${Math.random().toString(36).substr(2, 9)}`,
+    id: null,
   };
 };
 // ─── FETCH CLAUDE RESPONSE ────────────────────────────────────────────────────
@@ -1438,7 +1650,7 @@ export const fetchClaudeResponse = async (prompt, system) => {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
-        model:     "claude-sonnet-4-20250514",
+        model:     "claude-sonnet-4-6",
         max_tokens: 300,
         system,
         messages:  [{ role: "user", content: prompt }],

@@ -350,18 +350,6 @@ function QuizScreen({ questions, mode, table, student, onDone, onBack }) {
     return () => clearInterval(timerRef.current);
   }, [qIdx]);
 
-  // Keyboard support
-  useEffect(() => {
-    const handler = (e) => {
-      if (feedback) return;
-      if (e.key >= "0" && e.key <= "9") setInput(p => p.length < 4 ? p + e.key : p);
-      if (e.key === "Backspace") setInput(p => p.slice(0, -1));
-      if (e.key === "Enter") handleSubmit();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  });
-
   const handleSubmit = useCallback(() => {
     if (!input || feedback) return;
     clearInterval(timerRef.current);
@@ -403,6 +391,20 @@ function QuizScreen({ questions, mode, table, student, onDone, onBack }) {
       }
     }, 600);
   }, [input, feedback, combo, q, qIdx, questions.length, times, results, totalXP, table, onDone]);
+
+  // Keyboard support — placed after handleSubmit so the dep array can reference it directly.
+  // Without a dep array this ran every render; with [handleSubmit] it re-attaches only when
+  // handleSubmit changes (i.e. when input/combo/qIdx change), preventing stale closure on Enter.
+  useEffect(() => {
+    const handler = (e) => {
+      if (feedback) return;
+      if (e.key >= "0" && e.key <= "9") setInput(p => p.length < 4 ? p + e.key : p);
+      if (e.key === "Backspace") setInput(p => p.slice(0, -1));
+      if (e.key === "Enter") handleSubmit();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [feedback, handleSubmit]);
 
   const progress = ((qIdx) / questions.length) * 100;
 
@@ -631,9 +633,35 @@ function GridFillScreen({ table, onDone, onBack }) {
   const inputRef = useRef(null);
 
   const blanks   = cells.map((c, i) => c.isBlank ? i : -1).filter(i => i >= 0);
-  const allFilled = blanks.every(i => answers[i] !== undefined && answers[i] !== "");
+  // Include the currently-typed (but not yet committed) input so "Check Answers"
+  // appears as soon as the scholar types in the last cell without an extra Confirm tap.
+  const allFilled = blanks.every(i =>
+    i === active
+      ? input !== ""
+      : (answers[i] !== undefined && answers[i] !== "")
+  );
 
-  // Keyboard
+  const advanceBlank = useCallback((dir) => {
+    setActive(prev => {
+      const idx  = blanks.indexOf(prev);
+      const next = blanks[(idx + dir + blanks.length) % blanks.length];
+      setInput(answers[next] ?? "");
+      return next;
+    });
+  }, [blanks, answers]);
+
+  const confirmCell = useCallback(() => {
+    if (input === "") return;
+    setAnswers(p => ({ ...p, [active]: input }));
+    const remaining = blanks.filter(i => i !== active && !answers[i]);
+    if (remaining.length > 0) {
+      setActive(remaining[0]);
+      setInput(answers[remaining[0]] ?? "");
+    }
+    // If this was the last blank, leave active/input as-is so allFilled triggers
+  }, [input, active, blanks, answers]);
+
+  // Keyboard — dep array prevents stale closures on confirmCell/advanceBlank
   useEffect(() => {
     const handler = (e) => {
       if (checked) return;
@@ -645,29 +673,7 @@ function GridFillScreen({ table, onDone, onBack }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  });
-
-  function advanceBlank(dir) {
-    const idx   = blanks.indexOf(active);
-    const next  = blanks[(idx + dir + blanks.length) % blanks.length];
-    setActive(next);
-    setInput(answers[next] ?? "");
-  }
-
-  function confirmCell() {
-    if (input === "") return;
-    setAnswers(p => ({ ...p, [active]: input }));
-    // Move to next unfilled blank
-    const remaining = blanks.filter(i => i !== active && !answers[i]);
-    if (remaining.length > 0) {
-      setActive(remaining[0]);
-      setInput("");
-    } else if (answers[active] === undefined) {
-      // Just filled the last one
-      setActive(active);
-      setInput(input);
-    }
-  }
+  }, [checked, confirmCell, advanceBlank]);
 
   function handleCheck() {
     // commit current input before checking

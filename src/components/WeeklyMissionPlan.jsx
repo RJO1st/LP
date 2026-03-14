@@ -97,8 +97,8 @@ export default function WeeklyMissionPlan({ scholar, weeklyStats = [], onStartSu
     () =>
       subjects.map((subject) => {
         const stats = statsMap[subject] || { questions_correct: 0, questions_total: 0, minutes: 0 };
-        // Each session = 10 questions; missions done = floor(total/10)
-        const missionsDone = Math.floor((stats.questions_total || 0) / 10);
+        // Each session = 15 questions; missions done = floor(total/15)
+        const missionsDone = Math.floor((stats.questions_total || 0) / 15);
         const missionsTarget = MISSIONS_PER_SUBJECT;
         const pct = Math.min(100, Math.round((missionsDone / missionsTarget) * 100));
         const done = missionsDone >= missionsTarget;
@@ -226,21 +226,24 @@ export async function fetchWeeklyStats(supabase, scholarId) {
   monday.setDate(now.getDate() - daysSinceMon);
   monday.setHours(0, 0, 0, 0);
 
+  // Use select("*") to avoid 400 from missing columns
   const { data, error } = await supabase
     .from("quiz_results")
-    .select("subject, questions_correct, questions_total, time_spent_seconds")
+    .select("*")
     .eq("scholar_id", scholarId)
     .gte("created_at", monday.toISOString());
 
   if (error) { console.error("[fetchWeeklyStats]", error); return []; }
 
-  // Aggregate by subject
+  // Aggregate by subject — use canonical column names
   const agg = {};
-  (data || []).forEach(({ subject, questions_correct, questions_total, time_spent_seconds }) => {
+  (data || []).forEach((row) => {
+    const subject = row.subject;
+    if (!subject) return;
     if (!agg[subject]) agg[subject] = { subject, questions_correct: 0, questions_total: 0, minutes: 0 };
-    agg[subject].questions_correct += questions_correct || 0;
-    agg[subject].questions_total   += questions_total   || 0;
-    agg[subject].minutes           += Math.round((time_spent_seconds || 0) / 60);
+    agg[subject].questions_correct += row.score ?? 0;
+    agg[subject].questions_total   += row.questions_total ?? 0;
+    agg[subject].minutes           += Math.round((row.time_spent_seconds || 0) / 60);
   });
 
   return Object.values(agg);

@@ -16,7 +16,7 @@ import { supabase }                from "../../lib/supabase";
 import { generateSessionQuestions } from "../../lib/proceduralEngine";
 import { getSmartQuestions }        from "../../lib/smartQuestionSelection";
 import {
-  normalizeQuestion, validateAndFixQuestion, dbRowToQuestion,
+  validateAndFixQuestion, dbRowToQuestion,
   buildCompletionPayload, saveQuizResult, getPerQuestionTimer,
 } from "../../lib/quizUtils";
 import { useTaraGate }          from "./TaraEIB";
@@ -151,6 +151,7 @@ function useMastery(student) {
       .then(data => {
         if (data.mastery)          masteryCache.current[topic] = data.mastery;
         if (data.milestones?.length) sessionMilestones.current.push(...data.milestones);
+        if (data.tier_crossed)     sessionMilestones.current.push({ type: 'tier_crossed', tier: data.tier_crossed, topic });
         if (data.storyPointsEarned)  sessionStoryPts.current += data.storyPointsEarned;
       })
       .catch(err => console.warn("mastery update failed (non-fatal):", err));
@@ -273,7 +274,8 @@ function hasMathsVisual(question, subject) {
       if (/[0-9]+\s*[-]\s*[0-9]+/.test(text)) return true;
       // Skip dots grid for decimal operands (2.5 × 4 — explanation panel is better)
       if (!(/\d+\.\d+\s*[×x*]|[×x*]\s*\d+\.\d+/.test(text)) &&
-          (/[0-9]+\s*[x*]\s*[0-9]+/i.test(text) || text.includes("\u00d7"))) return true;
+          (/[0-9]+\s*[x*]\s*[0-9]+/i.test(text) || text.includes("\u00d7") ||
+           /\d+\s+(?:multiplied\s+by|times)\s+\d+/i.test(text))) return true;
       if (/[0-9]+\s*\/\s*[0-9]+/.test(text)) return true;
       if (/half|quarter|third/i.test(text)) return true;
       if (topic.includes("place_value") || topic.includes("count") || topic.includes("number_bond")) return true;
@@ -282,10 +284,13 @@ function hasMathsVisual(question, subject) {
     // All-year maths visuals
     if (topic.includes("coord") || topic.includes("plot") || /\(-?\d+,\s*-?\d+\)/.test(text)) return true;
     if (topic.includes("number_line") || topic.includes("rounding") || /round.*nearest|number line/i.test(text)) return true;
+    // Negative numbers and "more/less than" phrasing → number line visual
+    if (topic.includes("negative") || /negative|more than\s+-?\d+|less than\s+-?\d+|\d+\s+more than\s+-?\d+|\d+\s+less than\s+-?\d+|-\d+\s*[+\-]/i.test(text)) return true;
     if (topic.includes("venn") || /factors? of|multiples? of/i.test(text)) return true;
     if (topic.includes("bar_chart") || topic.includes("statistics") || /bar chart|how many more/i.test(text)) return true;
-    // Word-form multiplication (all years): "6 groups of 7", "5 bags of 3", "4 rows of 8"
+    // Word-form multiplication (all years): "6 groups of 7", "7 multiplied by 4", "3 times 5"
     if (/\d+\s+(?:groups?|bags?|rows?|sets?|packs?|plates?|baskets?)\s+of\s+\d+/i.test(text)) return true;
+    if (/\d+\s+(?:multiplied\s+by|times)\s+\d+/i.test(text)) return true;
     if (topic.includes("angle") || /acute|obtuse|reflex|right angle|\d+\s*°/i.test(text)) return true;
     if (topic.includes("area") || topic.includes("perimeter") || /area|perimeter/i.test(text)) return true;
     if (topic.includes("quadratic") || /x\^2|quadratic/i.test(text)) return true;
@@ -354,23 +359,71 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
       if (dbRows?.length > 0) qs = dbRows.map((r) => {
         const q = dbRowToQuestion(r, subject);
         if (q.year_level == null) q.year_level = year;
-        q._studentYear = year; // fallback for hasMathsVisual
+        q._studentYear = year;
+
+        // ── correct_index recovery ──────────────────────────────────────────
+        const rawQD = r.question_data
+          ? (typeof r.question_data === 'string'
+            ? (() => { try { return JSON.parse(r.question_data); } catch { return {}; } })()
+            : r.question_data)
+          : {};
+        const rawAnswer = r.correct_answer || r.answer || rawQD.correctAnswer;
+        if (rawAnswer && q.opts?.length) {
+          const matchIdx = q.opts.findIndex(
+            o => String(o).trim().toLowerCase() === String(rawAnswer).trim().toLowerCase()
+          );
+          if (matchIdx !== -1 && matchIdx !== q.a) {
+            console.warn(`[MainQuiz] correct_index recovery: "${q.q}" — remapped ${q.a} → ${matchIdx}`);
+            q.a = matchIdx;
+          }
+        }
+
         return q;
       });
     } catch (e) { console.warn("[MainQuiz] DB:", e); }
     if (qs.length < questionCount) {
-      try {
-        const fb = await generateSessionQuestions(student, subject, "foundation", questionCount);
-        const stamped = (fb || []).map(q => {
-          if (q.year_level == null) q.year_level = year;
-          q._studentYear = year;
-          return q;
-        });
-        qs = [...qs, ...stamped].slice(0, questionCount);
-      } catch {}
+      // Procedural fallback — only for subjects with reliable generators.
+      // NVR and verbal procedural generators produce ambiguous/incorrect questions
+      // (wrong odd-one-out logic, matrix patterns with multiple valid answers,
+      // visualiser mismatches). Better to serve fewer DB questions than bad ones.
+      const PROCEDURAL_SAFE = ["maths", "mathematics", "english", "science", "physics", "chemistry", "biology"];
+      const canUseProcedural = PROCEDURAL_SAFE.includes(subj);
+
+      if (canUseProcedural) {
+        try {
+          const fb = await generateSessionQuestions(student, subject, "foundation", questionCount);
+          const stamped = (fb || []).map(q => {
+            if (q.year_level == null) q.year_level = year;
+            q._studentYear = year;
+            return q;
+          });
+          qs = [...qs, ...stamped].slice(0, questionCount);
+        } catch {}
+      }
+
+      // If we still don't have enough questions, log it — the quest will
+      // run with fewer questions rather than padding with bad ones.
+      if (qs.length === 0) {
+        console.warn(`[MainQuiz] No questions available for ${subj} — DB returned 0 and procedural ${canUseProcedural ? "also returned 0" : "disabled for this subject"}`);
+      } else if (qs.length < questionCount) {
+        console.warn(`[MainQuiz] Only ${qs.length}/${questionCount} questions for ${subj}`);
+      }
     }
+    // ── Safe normalize: validate question shape WITHOUT re-shuffling ────────
+    // normalizeQuestion from quizUtils shuffles options, but dbRowToQuestion
+    // and generateSessionQuestions already shuffle. Double-shuffling breaks
+    // the answer index when two options share a value (indexOf returns first).
+    const safeNormalize = (q) => {
+      if (!q || !q.opts || !q.opts.length) return q;
+      // Ensure q.a is a valid number pointing within opts
+      const a = typeof q.a === 'number' && q.a >= 0 && q.a < q.opts.length ? q.a : 0;
+      // Store correctAnswer text for downstream components (Tara, feedback)
+      const correctAnswer = q.opts[a];
+      return { ...q, a, correctAnswer };
+    };
+
     setSessionQuestions(
-      (qs || []).map(normalizeQuestion).map((q, i) => validateAndFixQuestion(q, i)).filter(Boolean)
+      (qs || []).map(safeNormalize).map((q, i) => validateAndFixQuestion(q, i)).filter(Boolean)
     );
     setGenerating(false);
     sessionStartRef.current = Date.now(); // ← TIER 1: start clock once questions ready
@@ -417,8 +470,10 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     recordTopicResult(q.topic || subject, isCorrect);
 
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
-      const milestones = getSessionMilestones();
-      if (milestones.length) setPendingMilestone(milestones[milestones.length - 1]);
+      if (isCorrect) {
+        const milestones = getSessionMilestones();
+        if (milestones.length) setPendingMilestone(milestones[milestones.length - 1]);
+      }
     });
 
     questionStartTime.current = Date.now();
@@ -450,9 +505,9 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     });
 
     await saveQuizResult(supabase, {
-      studentId: student?.id, subject, questions: sessionQuestions,
+      studentId: student?.id, subject, curriculum, questions: sessionQuestions,
       answers, topicSummary, xpPerQuestion: XP_PER_QUESTION,
-      timeSpentSeconds,                    // ← TIER 1: pass to DB
+      timeSpentSeconds,
     });
 
     onComplete?.(payload);
@@ -485,6 +540,17 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     sessionQuestions.forEach(q => { if (q.topic) topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1; });
     const topSlug  = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || subject;
     const topTopic = formatTopicLabel(topSlug, sessionQuestions);
+
+    // Certificate requires: 
+    // 1. At least 15 questions answered (not a broken/short quest)
+    // 2. At least 55% accuracy (developing threshold)
+    // 3. The mastery API must have returned a tier_crossed (server-side validation)
+    //    This ensures the certificate reflects sustained mastery across sessions,
+    //    not just one good quest.
+    const accuracy = sessionQuestions.length > 0 ? finalScore / sessionQuestions.length : 0;
+    const serverTierCrossed = sessionMilestones.current?.some(m => m.type === 'tier_crossed');
+    const showCertificate = sessionQuestions.length >= 15 && accuracy >= 0.55 && serverTierCrossed;
+
     return (
       <EngineFinished
         Icon={Rocket} accent={theme.accent} textColor={theme.text} btnClass={theme.btn}
@@ -495,6 +561,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
         scholarName={student?.name}
         answers={finalAnswers}
         xpEarned={finalScore * 10}
+        showCertificate={showCertificate}
       />
     );
   }
@@ -567,9 +634,12 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
         </div>
       </div>
       <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-500 leading-relaxed overflow-y-auto">
-        {q.exp
+        {selected !== null && q.exp
           ? <p className="text-sm text-slate-600 leading-relaxed">{q.exp}</p>
-          : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ") || subject}</span>.</p>
+          : (q.hints?.[0]
+            ? <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
+            : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ") || subject}</span>.</p>
+          )
         }
       </div>
     </div>
@@ -739,7 +809,7 @@ function QuestBriefing({ subject, topicLabel, scholarName, onContinue, onClose }
           {/* Quest format */}
           <div className="flex items-center gap-4 mb-5 text-center">
             {[
-              { v: "10", label: "Questions" },
+              { v: "20", label: "Questions" },
               { v: "MCQ",  label: "Format" },
               { v: "10",   label: "XP each" },
             ].map(s => (
@@ -814,7 +884,7 @@ function getTopicDescription(topicLabel, subject) {
 // ─── QUEST ORCHESTRATOR ───────────────────────────────────────────────────────
 export default function QuestOrchestrator({
   student, subject, curriculum,
-  questionCount = 10, previousQuestionIds = [],
+  questionCount = 20, previousQuestionIds = [],
   questData = {}, onClose, onComplete,
 }) {
   const subj = subject?.toLowerCase() || "maths";

@@ -17,36 +17,31 @@ export async function GET(req) {
   // ── Primary: session_answers table (most granular) ─────────────────────────
   const { data: answerData, error: answerError } = await supabase
     .from("session_answers")
-    .select("subject, topic, is_correct")
+    .select("subject, topic, answered_correctly")
     .eq("scholar_id", scholar_id);
 
   if (!answerError && answerData && answerData.length > 0) {
     return NextResponse.json(aggregateAnswers(answerData));
   }
 
-  // ── Fallback: parse quiz_results.details JSONB ─────────────────────────────
-  const { data: qrData, error: qrError } = await supabase
-    .from("quiz_results")
-    .select("subject, details")
+  // ── Fallback: scholar_topic_mastery (always available) ─────────────────────
+  const { data: masteryData, error: masteryError } = await supabase
+    .from("scholar_topic_mastery")
+    .select("subject, topic, mastery_score, times_seen, times_correct")
     .eq("scholar_id", scholar_id);
 
-  if (qrError) {
-    return NextResponse.json({ error: qrError.message }, { status: 500 });
+  if (masteryError) {
+    return NextResponse.json({ error: masteryError.message }, { status: 500 });
   }
 
-  const flatAnswers = [];
-  for (const row of qrData ?? []) {
-    if (!Array.isArray(row.details)) continue;
-    for (const d of row.details) {
-      flatAnswers.push({
-        subject:    d.subject   || row.subject || "maths",
-        topic:      d.topic     || "general",
-        is_correct: d.correct   ?? false,
-      });
-    }
-  }
-
-  return NextResponse.json(aggregateAnswers(flatAnswers));
+  return NextResponse.json(
+    (masteryData ?? []).map((r) => ({
+      subject:  r.subject,
+      topic:    r.topic || "general",
+      score:    Math.round((r.mastery_score ?? 0) * 100),
+      attempts: r.times_seen ?? 0,
+    }))
+  );
 }
 
 // ── Helper: group by subject+topic → score + attempts ───────────────────────
@@ -64,7 +59,8 @@ function aggregateAnswers(rows) {
       };
     }
     map[key].total += 1;
-    if (row.is_correct) map[key].correct += 1;
+    // session_answers uses answered_correctly (boolean)
+    if (row.answered_correctly || row.is_correct) map[key].correct += 1;
   }
 
   return Object.values(map).map((s) => ({

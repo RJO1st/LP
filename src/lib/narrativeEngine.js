@@ -49,15 +49,15 @@ export const REALMS = {
     icon:        '📖',
     colour:      '#ec4899',
     gradient:    'from-pink-500 to-rose-600',
-    subjects:    ['english', 'english_language', 'english_literature', 'literature', 'verbal_reasoning', 'literature_in_english', 'french_language'],
+    subjects:    ['english', 'english_language', 'english_literature', 'literature', 'literature_in_english', 'french_language', 'english_studies'],
     unlockAt:    0,
     chapters: [
       { id: 'phonics_planet',     name: 'Phonics Planet',      topics: ['phonics', 'spelling', 'word_families'] },
       { id: 'grammar_grove',      name: 'Grammar Grove',       topics: ['grammar', 'punctuation', 'sentence_structure', 'parts_of_speech'] },
-      { id: 'vocabulary_vault',   name: 'Vocabulary Vault',    topics: ['vocabulary', 'synonyms', 'antonyms', 'word_meaning', 'prefixes', 'suffixes'] },
-      { id: 'comprehension_cove', name: 'Comprehension Cove',  topics: ['comprehension', 'inference', 'authors_purpose', 'text_analysis'] },
+      { id: 'vocabulary_vault',   name: 'Vocabulary Vault',    topics: ['vocabulary', 'synonyms', 'antonyms', 'synonyms_antonyms', 'word_meaning', 'prefixes', 'suffixes', 'word_analogies', 'compound_words'] },
+      { id: 'comprehension_cove', name: 'Comprehension Cove',  topics: ['comprehension', 'inference', 'authors_purpose', 'text_analysis', 'sentence_completion', 'word_completion'] },
       { id: 'writing_world',      name: 'Writing World',       topics: ['creative_writing', 'persuasive_writing', 'essays', 'narrative'] },
-      { id: 'literature_lair',    name: 'Literature Lair',     topics: ['poetry', 'fiction', 'drama', 'literary_devices'] },
+      { id: 'literature_lair',    name: 'Literature Lair',     topics: ['poetry', 'fiction', 'drama', 'literary_devices', 'figurative_language'] },
     ],
     powers: {
       'vocabulary_vault':   { id: 'word_weaver',   name: 'Word Weaver',   desc: 'Reveals a vocabulary hint', icon: '✨' },
@@ -82,6 +82,49 @@ export const REALMS = {
     powers: {
       'matrix_moon':   { id: 'pattern_pulse', name: 'Pattern Pulse', desc: 'Eliminates one wrong shape',    icon: '🔷' },
       'spatial_sector':{ id: 'shape_sight',   name: 'Shape Sight',   desc: 'Highlights the key difference', icon: '👁️' },
+    },
+  },
+
+  code_breakers: {
+    id:          'code_breakers',
+    name:        'Code Breakers Station',
+    tagline:     'Crack the codes that hold the galaxy together',
+    icon:        '🔐',
+    colour:      '#f97316',
+    gradient:    'from-orange-500 to-amber-600',
+    subjects:    ['verbal_reasoning', 'verbal'],
+    unlockAt:    0,
+    chapters: [
+      {
+        id: 'cipher_chamber',
+        name: 'The Cipher Chamber',
+        topics: ['coded_words', 'code_breaking', 'coded_messages'],
+      },
+      {
+        id: 'hidden_vault',
+        name: 'The Hidden Vault',
+        topics: ['hidden_words', 'anagrams'],
+      },
+      {
+        id: 'sequence_spire',
+        name: 'The Sequence Spire',
+        topics: ['letter_sequences', 'number_series', 'sequences'],
+      },
+      {
+        id: 'logic_deck',
+        name: 'The Logic Deck',
+        topics: ['odd_one_out_words', 'classification', 'word_connections'],
+      },
+      {
+        id: 'inference_core',
+        name: 'The Inference Core',
+        topics: ['comprehension_inference', 'comprehension'],
+      },
+    ],
+    powers: {
+      'hidden_vault':   { id: 'letter_lens',  name: 'Letter Lens',  desc: 'Highlights where the hidden word starts', icon: '🔍' },
+      'sequence_spire': { id: 'cipher_key',   name: 'Cipher Key',   desc: 'Shows the first letter of the answer', icon: '🗝️' },
+      'inference_core': { id: 'mind_reader',  name: 'Mind Reader',  desc: 'Eliminates two wrong answers', icon: '🧠' },
     },
   },
 
@@ -117,7 +160,7 @@ export const REALMS = {
     icon:        '🏛️',
     colour:      '#f59e0b',
     gradient:    'from-amber-500 to-orange-600',
-    subjects:    ['history', 'nigerian_history', 'social_studies', 'individuals_and_societies', 'hass', 'canadian_history', 'agricultural_science', 'religious_studies', 'religious_education', 're', 'citizenship', 'citizenship_and_heritage', 'geography'],
+    subjects:    ['history', 'nigerian_history', 'social_studies', 'individuals_and_societies', 'hass', 'canadian_history', 'agricultural_science', 'religious_studies', 'religious_education', 're', 'citizenship', 'citizenship_and_heritage'],
     unlockAt:    150,
     chapters: [
       { id: 'ancient_archives', name: 'Ancient Archives',   topics: ['ancient_egypt', 'ancient_greece', 'roman_empire', 'ancient_civilisations'] },
@@ -255,6 +298,28 @@ export const CHAPTER_NARRATIVES = {
   spatial_sector: {
     intro:    "Deep in the Spatial Sector, 3D structures float in zero gravity. Cadets must mentally rotate, fold, and unfold them to navigate through. This is the ultimate test of your mind's eye.",
     complete: "Incredible spatial reasoning, Commander. The Spatial Sector is fully charted. The galaxy's most complex structures hold no secrets from you now.",
+  },
+
+  // Code Breakers Station (Verbal Reasoning)
+  cipher_chamber: {
+    intro:    "Commander, welcome to Code Breakers Station — the most secure outpost in the galaxy. Behind the reinforced doors of the Cipher Chamber lie encrypted transmissions from the galaxy's founders. Shift codes, letter swaps, and scrambled alphabets guard the truth. The crew has tried everything, but only a scholar who thinks like a codebreaker can crack these locks. Every letter matters. Every shift counts. Are you ready?",
+    complete: "The final cipher falls! Ancient messages scroll across the Chamber walls — secrets of the galaxy's founding, written in code centuries ago. You cracked them all. The Letter Lens power is now yours.",
+  },
+  hidden_vault: {
+    intro:    "Beyond the Cipher Chamber lies the Hidden Vault — a vast library where words hide inside other words. The station's sensors have detected something extraordinary: secret messages buried within ordinary sentences. A word hides inside 'the carPETer smiled' — can you see it? That's PET. The Vault is full of these treasures. Anagrams too — letters scrambled and waiting to be rearranged. Only the sharpest eyes will find what's hidden.",
+    complete: "Every hidden word found! Every anagram unscrambled! The Hidden Vault's treasures are mapped and catalogued. The Letter Lens is yours — it will guide your eyes in future missions.",
+  },
+  sequence_spire: {
+    intro:    "High above Code Breakers Station rises the Sequence Spire — a tower of ever-changing patterns. Letters shift. Numbers climb. A, C, E... what comes next? At the top of the Spire sits the master sequence that controls the station's shields. If you can spot the pattern and predict what comes next, the shields will hold. Each level of the Spire gets harder. Are you ready to climb?",
+    complete: "The Spire glows gold from base to tip! Every sequence decoded, every pattern mastered. The station's shields are stronger than ever. The Cipher Key is yours — use it wisely.",
+  },
+  logic_deck: {
+    intro:    "The Logic Deck sits at the centre of Code Breakers Station — a vast room where words are sorted, grouped, and classified. Four words sit on the screen. Three belong together. One does not. Which is the odd one out? This isn't about what words mean — it's about how you THINK. Cat, dog, hamster, chair — the chair doesn't belong because it's not an animal. That's logic. That's what the Deck demands.",
+    complete: "The Logic Deck runs clean! Every odd one found, every group classified. Your logical thinking is razor-sharp. The crew trusts your judgement completely.",
+  },
+  inference_core: {
+    intro:    "At the very heart of Code Breakers Station is the Inference Core — the most challenging room on the station. Here, nothing is stated directly. You must read a short passage and work out what the writer MEANS, not just what they SAY. 'Sarah slammed the door and threw her bag on the floor.' How does Sarah feel? It doesn't say angry — but you can tell. That's inference. That's the skill the Core demands.",
+    complete: "The Inference Core pulses with understanding. You've proven that you can read what others miss — the hidden meanings, the subtle clues, the words between the words. The Mind Reader power is yours. Code Breakers Station stands complete. You are a true Commander.",
   },
 
   // Default

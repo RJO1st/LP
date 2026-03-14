@@ -1,36 +1,11 @@
 "use client";
 // ─── MathsVisualiser.jsx ─────────────────────────────────────────────────────
 // LaunchPard-native concrete visuals. Bright panels, WCAG AA accessible.
-// Colour-blind safe: shape + pattern encoding, not colour alone.
-//
-// Deploy to: src/components/game/MathsVisualiser.jsx
-//
-// ─── FILE MAP ────────────────────────────────────────────────────────────────
-// Ln   1  Imports, design tokens, shared primitives (Panel, Dot, Chip, Op)
-// Ln 136  Visual components: Addition, Subtraction, PlaceValue, Multiplication,
-//         Fraction, NumberBond, Counting, NVR, Forces, Velocity, FoodChain
-// Ln 663  parseVisual()         — Tier 0: basic maths (Y1–Y4)
-// Ln 904  Visual components: Clock, Money, Division, Ruler, Ratio, Alphabet,
-//         Analogy, Sequence, NVRMatrix, Grammar, Synonym, WordBuilder, Comparison
-// Ln 1358 parseTier3()          — Tier 3: extended maths + English + VR + NVR
-//           Ln 1375 Maths: place value, addition, subtraction, multiplication,
-//                   missing-value, division, ruler, ratio
-//           Ln 1464 VR: alphabet, analogy, word builder, synonym
-//           Ln 1530 Maths all-year: coord, angle, area/perim, algebra,
-//                   probability, sequence, fraction, number line, Venn, bar chart
-// Ln 1601 Visual components: Atom, PeriodicTable, StateChanges, PHScale,
-//         Molecule, Cell, FormulaTriangle, EnergyStores, EMSpectrum,
-//         GeneticsCross, NumberLineVis, CoordVis, VennVis, AngleVis,
-//         BarChartVis, AreaVis, ProbabilityVis, SequenceVis, AccountingVis
-// Ln 2205 parseTier4()          — Tier 4: physics, chemistry, biology, accounting
-// Ln 2416 MathsVisualiser (default export) — useMemo, switch dispatch
-// Ln 3065 parseVisualExtended() — Tier 5: area/perim + percent + HCF + mean
+// Single file — split into MathsVisuals_Core + MathsVisuals_Tier2 caused
+// Turbopack barrel-export resolution issues; merged back for reliability.
 // ─────────────────────────────────────────────────────────────────────────────
-
 import React, { useMemo } from "react";
 
-// ─── SHARED REGEX CONSTANTS ───────────────────────────────────────────────────
-// Centralised so tweaks propagate everywhere
 const RX_NUM       = /\d+(?:\.\d+)?/g;                         // all numbers incl decimals
 const RX_TWO_NUMS  = /(\d+)[^\d]+(\d+)/;                       // first two integers in text
 const RX_UNITS     = /(?:cm|m{1,2}|km|in|ft)/i;               // length units
@@ -1022,9 +997,10 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     if (isSubWord && a > 0 && b > 0 && b > a && b <= 15) {
       return { type: "subtraction", from: b, remove: a };
     }
-    // Addition word problems
+    // Addition word problems — suppress for currency/narrative real-world problems
     const isAddWord = /more|gets?|got|add|join|arrive[sd]?|come[s]?|found|buy|bought|pick(?:s|ed)?|collect(?:s|ed)?|together|total|altogether|in all/i.test(q);
-    if (isAddWord && a + b <= 20) {
+    const isAddWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|costs?|saves?|earns?/i.test(q);
+    if (isAddWord && !isAddWordProblem && a + b <= 20) {
       return { type: "addition", a, b };
     }
     // Multiplication word problems: "3 bags of 4 apples", "5 groups of 2"
@@ -1051,7 +1027,8 @@ function parseVisual(topic, questionText, subject, yearLevel) {
   }
 
   // ── NUMBER LINE: "X more/less than N" (works with negatives) ──────────────────
-  // e.g. "What number is 3 more than -6?" → number line from -8 to 0, answer = -3
+  // e.g. "What number is 3 more than -6?" → number line showing -6 as start, 
+  // direction arrow of +3, destination marked as ? (answer hidden)
   const moreMatch = (questionText || "").match(/(\d+)\s*more\s+than\s+(-?\d+)/i);
   const lessMatch = (questionText || "").match(/(\d+)\s*(?:less|fewer)\s+than\s+(-?\d+)/i);
   if (moreMatch || lessMatch) {
@@ -1061,13 +1038,16 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     const ans  = moreMatch ? base + diff : base - diff;
     const lo   = Math.min(base, ans) - 2;
     const hi   = Math.max(base, ans) + 2;
-    return { type: "number_line", min: lo, max: hi, marked: ans,
-      label: moreMatch ? `${base} + ${diff} = ?` : `${base} − ${diff} = ?` };
+    // Pass 'start' (the known value) and 'steps'/'direction' — do NOT pass 'marked'=ans
+    // NumberLineVis will show the start dot + a dashed arc + "?" at destination
+    return { type: "number_line", min: lo, max: hi,
+      start: base, steps: diff, direction: moreMatch ? "right" : "left",
+      label: moreMatch ? `Start at ${base}, count ${diff} right` : `Start at ${base}, count ${diff} left` };
   }
 
   // Skip multiplication dot grid if either operand is a decimal (2.5 × 4 etc.)
   const hasDecimalOperand = /\d+\.\d+\s*[×x\*]|[×x\*]\s*\d+\.\d+/.test(questionText || "");
-  const mulMatch = !hasDecimalOperand && (questionText || "").match(/(\d+)\s*[×x\*]\s*(\d+)/);
+  const mulMatch = !hasDecimalOperand && (questionText || "").match(/(\d+)\s*(?:[×x\*]|times|multiplied\s*by)\s*(\d+)/i);
   const grpMatch = (questionText || "").match(/(\d+)\s*groups?\s*of\s*(\d+)/i);
   if (mulMatch || grpMatch) {
     const m = mulMatch || grpMatch;
@@ -1105,6 +1085,11 @@ function parseVisual(topic, questionText, subject, yearLevel) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── Clock / Telling Time ──────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TIER 2 COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function ClockVis({ hours, minutes, label }) {
   const cx = 60, cy = 60, r = 50;
   const minAngle = (minutes / 60) * 360 - 90;
@@ -1654,7 +1639,11 @@ function parseTier3(topic, questionText, subject, yearLevel) {
   // ── DIVISION GROUPING ──────────────────────────────────────────────────────
   if (subj.includes("math") && (t.includes("division") || t.includes("sharing") ||
       /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups/i.test(questionText))) {
-    if (nums.length >= 2) {
+    // Suppress for real-world word problems — the dot array is misleading when the
+    // numbers represent money/time/weight rather than countable physical objects.
+    // Indicators: currency symbols, "Real World", "Challenge", or narrative sentence openers.
+    const isWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|per month|per year|costs?|saves?|earns?|spends?|charges?|buys?|sells?/i.test(questionText);
+    if (!isWordProblem && nums.length >= 2) {
       const total  = Math.max(...nums.slice(0, 3));
       // divisor: smallest number that isn't the total, between 2 and 10
       const groups = nums.find(n => n !== total && n >= 2 && n <= 10);
@@ -2425,6 +2414,11 @@ function SupplyDemandVis({ eqPrice, eqQty, shift }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARSER — TIER 4
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TIER 4 + EXTENDED PARSER + MAIN EXPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function parseTier4(topic, questionText, subject, yearLevel) {
   const t    = (topic || "").toLowerCase();
   const q    = (questionText || "").toLowerCase();
@@ -2892,12 +2886,11 @@ function CoordinateVis({ points = [], xRange = [-3,3], yRange = [-3,3] }) {
 }
 
 // ── NUMBER LINE ────────────────────────────────────────────────────────────────
-function NumberLineVis({ min, max, marked, label }) {
-  const W = 210, H = 54, PAD = 16, ARR = 10;
-  const range = max - min;
+function NumberLineVis({ min, max, marked, label, start, steps, direction }) {
+  const W = 210, H = 72, PAD = 16, ARR = 10;
+  const range = (max - min) || 1;
   const toX = n => PAD + ((n - min) / range) * (W - PAD*2 - ARR);
   const ticks = [];
-  // Show at most 11 tick marks — pick a nice step
   const rawStep = range / 10;
   const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
   const first = Math.ceil(min / step) * step;
@@ -2905,23 +2898,56 @@ function NumberLineVis({ min, max, marked, label }) {
     const sx = toX(v);
     ticks.push(
       <g key={v}>
-        <line x1={sx} y1={26} x2={sx} y2={32} stroke="#94a3b8" strokeWidth={1.5}/>
-        <text x={sx} y={43} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
+        <line x1={sx} y1={34} x2={sx} y2={40} stroke="#94a3b8" strokeWidth={1.5}/>
+        <text x={sx} y={51} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
       </g>
     );
   }
+
+  // ── NEW mode: start dot + dashed arc + ? at destination (never reveals answer) ─────
+  if (start != null && steps != null && direction != null) {
+    const dest = direction === "right" ? start + steps : start - steps;
+    const sx = toX(start);
+    const dx = toX(dest);
+    const midX = (sx + dx) / 2;
+    const arcY = 14;
+    const arcPath = `M ${sx} 37 Q ${midX} ${arcY} ${dx} 37`;
+    const arrowDir = direction === "right" ? 1 : -1;
+    return (
+      <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2.5}/>
+          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
+          {ticks}
+          <path d={arcPath} fill="none" stroke={T.amber} strokeWidth={2} strokeDasharray="3 2"/>
+          <polygon points={`${dx},37 ${dx - arrowDir*5},31 ${dx - arrowDir*5},37`} fill={T.amber}/>
+          <circle cx={sx} cy={37} r={5.5} fill={T.indigo}/>
+          <text x={sx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{start}</text>
+          <line x1={sx} y1={25} x2={sx} y2={31} stroke={T.indigo} strokeWidth={1.5}/>
+          <circle cx={dx} cy={37} r={5.5} fill="white" stroke={T.amber} strokeWidth={2}/>
+          <text x={dx} y={40.5} textAnchor="middle" fontSize={9} fontWeight="900" fill={T.amber}>?</text>
+          <text x={midX} y={arcY - 3} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.amber}>
+            {direction === "right" ? `+${steps}` : `−${steps}`}
+          </text>
+        </svg>
+        {label && <Chip color={T.indigo} bg="white">{label}</Chip>}
+      </Panel>
+    );
+  }
+
+  // ── LEGACY mode: single marked point (rounding, missing value etc.) ──────────
   const mx = marked != null ? toX(marked) : null;
   return (
     <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={PAD} y1={29} x2={W-ARR} y2={29} stroke={T.amber} strokeWidth={2.5}/>
-        <polygon points={`${W-ARR+4},29 ${W-ARR-2},26 ${W-ARR-2},32`} fill={T.amber}/>
+        <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.amber} strokeWidth={2.5}/>
+        <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.amber}/>
         {ticks}
         {mx != null && (
           <g>
-            <circle cx={mx} cy={29} r={6} fill={T.amber}/>
-            <text x={mx} y={16} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.amber}>{marked}</text>
-            <line x1={mx} y1={17} x2={mx} y2={23} stroke={T.amber} strokeWidth={1.5}/>
+            <circle cx={mx} cy={37} r={6} fill={T.amber}/>
+            <text x={mx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.amber}>{marked}</text>
+            <line x1={mx} y1={25} x2={mx} y2={31} stroke={T.amber} strokeWidth={1.5}/>
           </g>
         )}
       </svg>
@@ -3054,33 +3080,49 @@ function AngleVis({ degrees, label }) {
 
 // ── AREA / PERIMETER ─────────────────────────────────────────────────────────
 function AreaVis({ width, height, mode = "area" }) {
-  const CELL = 20, PAD = 14;
-  const w = Math.min(width, 9), h = Math.min(height, 7);
-  const W = w * CELL + PAD*2, H = h * CELL + PAD*2 + 24;
+  const PAD = 12;
+  // Scale cell size to fit within the ~190px left panel
+  // Use the smaller dimension to keep cells square
+  const MAX_W_PX = 170, MAX_H_PX = 120;
+  const cellW = Math.max(8, Math.min(22, Math.floor(MAX_W_PX / width)));
+  const cellH = Math.max(8, Math.min(22, Math.floor(MAX_H_PX / height)));
+  const CELL  = Math.min(cellW, cellH);   // square cells
+  const gridW = width  * CELL;
+  const gridH = height * CELL;
+  const W = gridW + PAD * 2 + 20;   // +20 for left label
+  const H = gridH + PAD * 2 + 20;   // +20 for bottom label
   const cells = [];
-  for (let row = 0; row < h; row++) {
-    for (let col = 0; col < w; col++) {
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
       cells.push(
         <rect key={`${row}-${col}`}
-          x={PAD + col*CELL} y={PAD + row*CELL}
+          x={PAD + 20 + col * CELL} y={PAD + row * CELL}
           width={CELL} height={CELL}
           fill={T.indigoBg} stroke={T.indigoBd} strokeWidth={1}/>
       );
     }
   }
+  const gx = PAD + 20;  // grid origin x (offset for left label)
+  const gy = PAD;       // grid origin y
   return (
     <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", maxWidth: "100%" }}>
         {cells}
         {/* Outer border */}
-        <rect x={PAD} y={PAD} width={w*CELL} height={h*CELL}
+        <rect x={gx} y={gy} width={gridW} height={gridH}
           fill="none" stroke={T.indigo} strokeWidth={2.5} rx={2}/>
-        {/* Dimension labels */}
-        <text x={PAD + w*CELL/2} y={H-6} textAnchor="middle" fontSize={9} fontWeight="700" fill={T.indigo}>{w}</text>
-        <text x={PAD-4} y={PAD + h*CELL/2} textAnchor="end" fontSize={9} fontWeight="700" fill={T.indigo}
-          transform={`rotate(-90, ${PAD-4}, ${PAD + h*CELL/2})`}>{h}</text>
+        {/* Bottom label — actual width */}
+        <text x={gx + gridW / 2} y={H - 5}
+          textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}>
+          {width} cm
+        </text>
+        {/* Left label — actual height, rotated */}
+        <text x={PAD + 6} y={gy + gridH / 2}
+          textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}
+          transform={`rotate(-90, ${PAD + 6}, ${gy + gridH / 2})`}>
+          {height} cm
+        </text>
       </svg>
-
     </Panel>
   );
 }
