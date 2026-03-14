@@ -553,21 +553,23 @@ function BadgeGrid({ earnedIds }) {
 function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
   const colors = SUBJECT_COLORS[subjectId] || SUBJECT_COLORS.maths;
   const icon = SUBJECT_ICONS[subjectId] || "📚";
+  const pctLabel = proficiency >= 100 ? "✓" : `${proficiency}%`;
+  const ringColor = proficiency >= 80 ? "#22c55e" : proficiency >= 55 ? "#f59e0b" : "#6366f1";
   
   return (
     <button onClick={onClick}
       className={`group relative ${colors.bg} p-6 rounded-[28px] border-2 ${colors.border} text-left
-                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden`}>
+                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200`}>
       {proficiency > 0 && (
-        <div className="absolute top-3 right-3">
-          <div className="relative w-8 h-8">
-            <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-              <circle cx="16" cy="16" r="13" fill="none" stroke="#e2e8f0" strokeWidth="3"/>
-              <circle cx="16" cy="16" r="13" fill="none" stroke="#6366f1" strokeWidth="3"
-                strokeDasharray={`${proficiency * 0.817} 100`} strokeLinecap="round"/>
+        <div className="absolute -top-2 -right-2 z-10">
+          <div className="relative w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center">
+            <svg className="w-10 h-10 -rotate-90 absolute" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" strokeWidth="2.5"/>
+              <circle cx="18" cy="18" r="15" fill="none" stroke={ringColor} strokeWidth="2.5"
+                strokeDasharray={`${proficiency * 0.942} 100`} strokeLinecap="round"/>
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-indigo-600">
-              {proficiency}%
+            <span className="text-[9px] font-black" style={{ color: ringColor }}>
+              {pctLabel}
             </span>
           </div>
         </div>
@@ -709,12 +711,22 @@ export default function StudentDashboard() {
 
   const loadSkills = useCallback(async (id) => {
     const { data } = await supabase
-      .from("scholar_skills")
-      .select("subject, proficiency")
+      .from("scholar_topic_mastery")
+      .select("subject, mastery_score")
       .eq("scholar_id", id);
     if (data) {
+      // Aggregate mastery by subject (average across topics)
+      const subjectTotals = {};
+      const subjectCounts = {};
+      data.forEach(s => {
+        if (!subjectTotals[s.subject]) { subjectTotals[s.subject] = 0; subjectCounts[s.subject] = 0; }
+        subjectTotals[s.subject] += s.mastery_score ?? 0;
+        subjectCounts[s.subject] += 1;
+      });
       const map = {};
-      data.forEach(s => { map[s.subject] = Math.round(s.proficiency); });
+      Object.keys(subjectTotals).forEach(subj => {
+        map[subj] = Math.round((subjectTotals[subj] / subjectCounts[subj]) * 100);
+      });
       setSkillProficiency(map);
     }
   }, [supabase]);

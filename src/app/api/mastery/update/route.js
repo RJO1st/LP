@@ -223,8 +223,11 @@ export async function POST(request) {
       correct_index:      correctIndex ?? null,
     };
 
-    await supabase.from("session_answers").insert(answerRow);
-    // Non-fatal: don't fail the request if logging fails
+    try {
+      await supabase.from("session_answers").insert(answerRow);
+    } catch {
+      // Non-fatal: don't fail the request if logging fails
+    }
 
     // ── 4. Check milestones ───────────────────────────────────────────────
     const milestones = checkMilestones(prevMastery, updatedMastery);
@@ -235,32 +238,24 @@ export async function POST(request) {
     const storyPointsEarned = baseStoryPoints + bonusStoryPoints;
 
     if (storyPointsEarned > 0) {
-      await supabase.rpc("increment_story_points", {
-        p_scholar_id: scholarId,
-        p_points:     storyPointsEarned,
-      }).catch(() => {
-        // Increment via update if RPC doesn't exist yet
-        supabase
-          .from("narrative_state")
-          .upsert({ scholar_id: scholarId, story_points: storyPointsEarned }, { onConflict: "scholar_id" })
-          .then(({ data: existing }) => {
-            if (existing) {
-              supabase
-                .from("narrative_state")
-                .update({ story_points: (existing.story_points ?? 0) + storyPointsEarned })
-                .eq("scholar_id", scholarId);
-            }
-          });
-      });
+      try {
+        await supabase.rpc("increment_story_points", {
+          p_scholar_id: scholarId,
+          p_points:     storyPointsEarned,
+        });
+      } catch {
+        // RPC doesn't exist — silently skip story points
+      }
     }
 
     // ── 6. Mark question as used in question_bank ─────────────────────────
     if (questionId) {
-      await supabase
-        .from("question_bank")
-        .update({ last_used: new Date().toISOString() })
-        .eq("id", questionId)
-        .catch(() => {}); // non-fatal
+      try {
+        await supabase
+          .from("question_bank")
+          .update({ last_used: new Date().toISOString() })
+          .eq("id", questionId);
+      } catch {} // non-fatal
     }
 
     return NextResponse.json({

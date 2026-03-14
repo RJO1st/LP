@@ -338,6 +338,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   const timerRef        = useRef(null);
   const resultsRef      = useRef({ score: 0, answers: [] }); // stale-closure guard
   const sessionStartRef = useRef(Date.now());                // ← TIER 1: session timer
+  const shownMilestonesRef = useRef(new Set());              // track shown milestone popups
   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
 
   const { recordAnswer, getSessionMilestones, getSessionStoryPoints } = useMastery(student);
@@ -472,7 +473,16 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
       if (isCorrect) {
         const milestones = getSessionMilestones();
-        if (milestones.length) setPendingMilestone(milestones[milestones.length - 1]);
+        // Only show milestone popup for NEW milestones not already shown
+        // and only for significant achievements (tier crossings)
+        const newMilestones = milestones.filter(m => 
+          m.type === 'tier_crossed' && !shownMilestonesRef.current.has(m.tier + '_' + m.topic)
+        );
+        if (newMilestones.length > 0) {
+          const latest = newMilestones[newMilestones.length - 1];
+          shownMilestonesRef.current.add(latest.tier + '_' + latest.topic);
+          setPendingMilestone(latest);
+        }
       }
     });
 
@@ -548,7 +558,8 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     //    This ensures the certificate reflects sustained mastery across sessions,
     //    not just one good quest.
     const accuracy = sessionQuestions.length > 0 ? finalScore / sessionQuestions.length : 0;
-    const serverTierCrossed = sessionMilestones.current?.some(m => m.type === 'tier_crossed');
+    const milestones = getSessionMilestones() || [];
+    const serverTierCrossed = milestones.some(m => m.type === 'tier_crossed');
     const showCertificate = sessionQuestions.length >= 15 && accuracy >= 0.55 && serverTierCrossed;
 
     return (
@@ -698,6 +709,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
             <FeedbackArea
               selected={selected} isCorrectAnswer={isCorrectAnswer} canProceed={canProceed}
               currentQ={q} student={student} subject={subject}
+              scholarAnswer={selected !== null ? q.opts[selected] : null}
               themeBg={theme.bg} themeBorder={theme.border} themeAccent={theme.accent}
               taraFeedbackReceived={onFeedbackReceived} onNext={next}
               isLast={qIdx === sessionQuestions.length - 1}
@@ -945,10 +957,13 @@ export default function QuestOrchestrator({
     );
   }
 
+  // STEM subjects use MainQuizEngine (which has full DB loading, nuclear fallback, etc.)
+  // STEMEngine is reserved for scenario-based questions with investigation data panels.
+  // Only route to STEMEngine if questData has a scenario — otherwise use MainQuizEngine.
   if ([
     "physics", "chemistry", "biology", "science", "basic_science",
     "financial_accounting", "commerce", "basic_technology", "further_mathematics",
-  ].includes(subj)) {
+  ].includes(subj) && questData.scenario) {
     return (
       <STEMEngine
         student={student} subject={subject}
@@ -962,7 +977,7 @@ export default function QuestOrchestrator({
   if ([
     "history", "geography", "social_studies", "hass",
     "economics", "government", "business_studies", "civic_education",
-  ].includes(subj)) {
+  ].includes(subj) && questData.sourceMaterial) {
     return (
       <HumanitiesEngine
         student={student} subject={subject}

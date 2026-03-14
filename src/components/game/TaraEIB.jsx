@@ -104,7 +104,7 @@ const LOCAL_FOLLOWUP_FEEDBACK = (scholarName) => {
 };
 
 // ─── TARA EIB COMPONENT ───────────────────────────────────────────────────────
-export default function TaraEIB({ student, subject, currentQ, correctAnswer, onFeedbackReceived }) {
+export default function TaraEIB({ student, subject, currentQ, correctAnswer, scholarAnswer, onFeedbackReceived }) {
   const [text,          setText]          = useState("");
   const [feedback,      setFeedback]      = useState("");
   const [loading,       setLoading]       = useState(false);
@@ -140,7 +140,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
         headers: { "Content-Type": "application/json" },
         signal:  controller.signal,
         body:    JSON.stringify({
-          text, subject, correctAnswer,
+          text, subject, correctAnswer, scholarAnswer,
           scholarName: student?.name,
           scholarYear,
           question: currentQ,
@@ -184,11 +184,12 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
           text:        followUpText,
           subject,
           correctAnswer,
+          scholarAnswer,
           scholarName: student?.name,
           scholarYear,
           question:    currentQ,
-          mode:        "followup", // signals API this is a curiosity follow-up, not EIB
-          context:     feedback,   // Tara's previous reply for continuity
+          mode:        "followup",
+          context:     feedback,
         }),
       });
       clearTimeout(timeout);
@@ -218,8 +219,13 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, onF
 
       {/* ── Challenge prompt ── */}
       <p className="text-amber-800 font-bold text-xs sm:text-sm mb-2 sm:mb-3">
-        <span className="font-black">Tara's Challenge:</span> Why is{" "}
-        <span className="underline font-black">{correctAnswer}</span> the correct answer?
+        <span className="font-black">Tara's Challenge:</span>{" "}
+        {scholarAnswer && scholarAnswer !== correctAnswer ? (
+          <>You chose <span className="underline">{scholarAnswer}</span>, but the correct answer is{" "}
+          <span className="underline font-black">{correctAnswer}</span>. Can you explain why?</>
+        ) : (
+          <>Why is <span className="underline font-black">{correctAnswer}</span> the correct answer?</>
+        )}
       </p>
 
       {/* ── Profanity warning ── */}

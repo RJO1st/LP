@@ -71,23 +71,35 @@ export default function WeeklyMissionPlan({ scholar, weeklyStats = [], onStartSu
     if (!scholar) return [];
     const base = scholar.selected_subjects?.length
       ? scholar.selected_subjects
-      : ["mathematics", "english"];
+      : ["mathematics", "english", "science"];
 
     // Exam mode adds VR/NVR
     if (scholar.exam_mode === "eleven_plus") {
       const extras = ["verbal_reasoning", "non_verbal_reasoning"].filter(
         (s) => !base.includes(s)
       );
+      // Also ensure science is included for 11+
+      if (!base.includes("science")) extras.push("science");
       return [...base, ...extras];
     }
     return base;
   }, [scholar]);
 
-  // Map weeklyStats into a lookup by subject
+  // Map weeklyStats into a lookup by subject (normalise aliases)
   const statsMap = useMemo(() => {
+    const ALIASES = {
+      maths: "mathematics", math: "mathematics",
+      verbal: "verbal_reasoning",
+      nvr: "non_verbal_reasoning",
+      basic_science: "science",
+    };
     const m = {};
     weeklyStats.forEach((s) => {
-      m[s.subject] = s;
+      const key = ALIASES[s.subject] || s.subject;
+      if (!m[key]) m[key] = { questions_correct: 0, questions_total: 0, minutes: 0 };
+      m[key].questions_correct += s.questions_correct || 0;
+      m[key].questions_total   += s.questions_total || 0;
+      m[key].minutes           += s.minutes || 0;
     });
     return m;
   }, [weeklyStats]);
@@ -97,8 +109,8 @@ export default function WeeklyMissionPlan({ scholar, weeklyStats = [], onStartSu
     () =>
       subjects.map((subject) => {
         const stats = statsMap[subject] || { questions_correct: 0, questions_total: 0, minutes: 0 };
-        // Each session = 15 questions; missions done = floor(total/15)
-        const missionsDone = Math.floor((stats.questions_total || 0) / 15);
+        // Each quest = 20 questions; missions done = floor(total/20)
+        const missionsDone = Math.floor((stats.questions_total || 0) / 20);
         const missionsTarget = MISSIONS_PER_SUBJECT;
         const pct = Math.min(100, Math.round((missionsDone / missionsTarget) * 100));
         const done = missionsDone >= missionsTarget;

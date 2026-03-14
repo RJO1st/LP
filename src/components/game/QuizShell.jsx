@@ -307,9 +307,12 @@ export function MCQOptions({ opts, correctIdx, selected, onPick }) {
 // Preserves original logic: TaraEIB for wrong answers, canProceed gates Next button
 export function FeedbackArea({
   selected, isCorrectAnswer, canProceed, currentQ, student, subject,
-  themeBg, themeBorder, themeAccent, taraFeedbackReceived, onNext, isLast,
+  scholarAnswer, themeBg, themeBorder, themeAccent, taraFeedbackReceived, onNext, isLast,
 }) {
   if (selected === null) return null;
+
+  // Derive scholar's chosen answer text if not explicitly passed
+  const chosenText = scholarAnswer ?? (selected !== null ? currentQ?.opts?.[selected] : null);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mt-5 pt-5 border-t border-slate-100">
@@ -328,6 +331,7 @@ export function FeedbackArea({
           subject={subject}
           currentQ={currentQ}
           correctAnswer={currentQ?.opts?.[currentQ?.a]}
+          scholarAnswer={chosenText}
           onFeedbackReceived={taraFeedbackReceived}
         />
       )}

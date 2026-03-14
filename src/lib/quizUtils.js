@@ -163,6 +163,16 @@ export async function saveQuizResult(supabase, {
   timeSpentSeconds,
 }) {
   if (!studentId) return;
+
+  // Normalise subject to canonical DB value
+  const SUBJECT_ALIASES = {
+    maths: 'mathematics', math: 'mathematics',
+    verbal: 'verbal_reasoning',
+    nvr: 'non_verbal_reasoning',
+    basic_science: 'science',
+  };
+  const normSubject = SUBJECT_ALIASES[subject?.toLowerCase()] || subject;
+
   try {
     const details = questions.map((q, i) => ({
       question_id: q.id    || null,
@@ -181,7 +191,7 @@ export async function saveQuizResult(supabase, {
     // quiz_results row — only columns that exist on the table
     const { error: insertErr } = await supabase.from('quiz_results').insert({
       scholar_id:         studentId,
-      subject,
+      subject:            normSubject,
       curriculum:         curriculum || 'uk_national',
       score:              finalScore,
       questions_total:    questions.length,
@@ -195,7 +205,7 @@ export async function saveQuizResult(supabase, {
       // Retry with absolute minimum columns
       const { error: retryErr } = await supabase.from('quiz_results').insert({
         scholar_id:      studentId,
-        subject,
+        subject:         normSubject,
         score:           finalScore,
         questions_total: questions.length,
       });
@@ -205,20 +215,23 @@ export async function saveQuizResult(supabase, {
     // question history (only rows with real DB ids)
     const dbIds = questions.map(q => q.id).filter(Boolean);
     if (dbIds.length > 0) {
-      await supabase.from('scholar_question_history').insert(
-        dbIds.map(qid => ({
-          scholar_id:  studentId,
-          question_id: qid,
-          answered_at: new Date().toISOString(),
-        }))
-      ).catch(err => console.warn('[saveQuizResult] history insert failed:', err?.message));
+      try {
+        await supabase.from('scholar_question_history').insert(
+          dbIds.map(qid => ({
+            scholar_id:  studentId,
+            question_id: qid,
+            answered_at: new Date().toISOString(),
+          }))
+        );
+      } catch (err) { console.warn('[saveQuizResult] history insert failed:', err?.message); }
     }
 
     // XP + skill update via RPCs (fire-and-forget, non-fatal)
-    await supabase.rpc('update_scholar_skills', { p_scholar_id: studentId, p_details: details })
-      .catch(err => console.warn('[saveQuizResult] update_scholar_skills RPC failed:', err?.message));
-    await supabase.rpc('increment_scholar_xp', { s_id: studentId, xp_to_add: xp })
-      .catch(err => console.warn('[saveQuizResult] increment_scholar_xp RPC failed:', err?.message));
+    try { await supabase.rpc('update_scholar_skills', { p_scholar_id: studentId, p_details: details }); }
+    catch (err) { console.warn('[saveQuizResult] update_scholar_skills RPC failed:', err?.message); }
+
+    try { await supabase.rpc('increment_scholar_xp', { s_id: studentId, xp_to_add: xp }); }
+    catch (err) { console.warn('[saveQuizResult] increment_scholar_xp RPC failed:', err?.message); }
 
     // First-quiz parent email
     try {
