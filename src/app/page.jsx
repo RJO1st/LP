@@ -30,8 +30,8 @@ const PRICING = {
 };
 
 const FEATURES = [
-  { icon: '🤖', title: 'Tara — AI Tutor That Listens', desc: "When your scholar gets it wrong, Tara doesn't just show the answer. She asks them to explain why — then responds to their specific reasoning.", light: 'bg-violet-50 border-violet-200' },
-  { icon: '📚', title: 'Your Curriculum. Fully Covered.', desc: "Built from the ground up for your national curriculum — every topic, every year level. Not a US platform pretending to fit.", light: 'bg-cyan-50 border-cyan-200' },
+  { icon: '🤖', title: 'Tara — AI Tutor That Listens', desc: "When your scholar gets it wrong, Tara doesn't just show the answer. She asks them to explain why, then responds to their specific reasoning.", light: 'bg-violet-50 border-violet-200' },
+  { icon: '📚', title: 'Your Curriculum. Fully Covered.', desc: "Built from the ground up for your national curriculum. Every topic, every year level. Not a US platform pretending to fit.", light: 'bg-cyan-50 border-cyan-200' },
   { icon: '📝', title: 'Exam Mode When It Counts', desc: 'Timed mock tests under real exam conditions. 11+ grammar school preparation and WAEC/BECE practice papers with readiness tracking.', light: 'bg-orange-50 border-orange-200' },
   { icon: '📊', title: 'See What They Actually Know', desc: "Your parent dashboard shows strengths, weaknesses, time spent, and what to practise next. Weekly reports to your inbox.", light: 'bg-emerald-50 border-emerald-200' },
   { icon: '🧠', title: 'Adaptive AI Engine', desc: 'Questions adjust in real time. Too easy? It challenges them. Struggling? It builds confidence at the right level.', light: 'bg-pink-50 border-pink-200' },
@@ -192,7 +192,7 @@ export default function LandingPage() {
             <span className="block text-transparent bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 bg-clip-text animate-shimmer bg-[length:200%_auto]">Meets Adventure.</span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-            AI&#8209;powered practice built for <strong className="text-slate-800">your child&apos;s actual curriculum</strong>. See what they know, what they don&apos;t, and what to do next.
+            AI&#8209;powered learning engine built for <strong className="text-slate-800">your child&apos;s actual curriculum</strong>. See what they know, what they don&apos;t, and what to do next.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 animate-fade-in-up animation-delay-400">
             <Link href="/signup" className="group bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-lg px-8 py-4 rounded-2xl shadow-xl shadow-cyan-500/30 hover:scale-105 transition-all inline-flex items-center justify-center gap-2">
@@ -204,7 +204,7 @@ export default function LandingPage() {
             </button>
           </div>
           <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-500 animate-fade-in-up animation-delay-600">
-            {[["✓","50,000+ questions"],["🛡️","14-day free trial"],["⚡","Cancel anytime"],["🔒","GDPR compliant"]].map(([icon,text],i) => (
+            {[["✓","Over 100,000 questions"],["🛡️","14-day free trial"],["⚡","Cancel anytime"],["🔒","GDPR compliant"]].map(([icon,text],i) => (
               <span key={i} className="flex items-center gap-1.5"><span className="text-green-500">{icon}</span>{text}</span>
             ))}
           </div>
@@ -380,7 +380,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-black mb-10">Built for scholars everywhere</h2>
           <div className="grid sm:grid-cols-3 gap-5 mb-8">
-            {[{stat:"11",label:"Curricula supported",sub:"UK · Nigeria · Canada · Australia · IB · US"},{stat:"50K+",label:"Questions in the bank",sub:"Quality-validated and curriculum-aligned"},{stat:"5–17",label:"Ages covered",sub:"Primary through Senior Secondary"}].map((s,i) => (
+            {[{stat:"11",label:"Curricula supported",sub:"UK · Nigeria · Canada · Australia · IB · US"},{stat:"100K+",label:"Questions in the bank",sub:"Quality-validated and curriculum-aligned"},{stat:"5–17",label:"Ages covered",sub:"Primary through Senior Secondary"}].map((s,i) => (
               <div key={i} className="bg-white/70 border border-slate-200 rounded-2xl p-6">
                 <div className="text-3xl font-black text-indigo-600 mb-1">{s.stat}</div>
                 <div className="text-slate-900 font-bold text-sm mb-1">{s.label}</div>
@@ -388,7 +388,7 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="text-slate-400 text-sm">Launching beta — be among the first families to try it.</p>
+          <p className="text-slate-400 text-sm">Launching beta, be among the first families to try it.</p>
         </div>
       </section>
 
@@ -462,7 +462,7 @@ export default function LandingPage() {
       <section className="relative z-10 px-4 sm:px-6 py-24 bg-gradient-to-r from-indigo-100/80 to-purple-100/80">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-4xl sm:text-5xl font-black mb-6">Give your scholar the smartest start.</h2>
-          <p className="text-xl text-slate-600 mb-10">Join parents in Lagos, London, and Toronto who want to see their children&apos;s progress in real time.</p>
+          <p className="text-xl text-slate-600 mb-10">Join parents in Australia, Canada, England, and Nigeria who want to see their children&apos;s progress in real time.</p>
           <Link href="/signup" className="inline-block bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-xl px-12 py-5 rounded-2xl shadow-2xl shadow-cyan-500/30 hover:scale-105 transition-all">Create Free Account</Link>
           <p className="text-slate-500 text-sm mt-5">No credit card required · Set up in 60 seconds</p>
         </div>
@@ -474,7 +474,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto">
             <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-5 text-center">Legal &amp; Privacy</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
-              {[{icon:'📋',title:'Terms & Conditions',desc:'Your rights and obligations',href:'/terms'},{icon:'🔒',title:'Privacy Policy',desc:'How we protect your data',href:'/privacy-policy'},{icon:'🍪',title:'Cookie Policy',desc:'What cookies we use',href:'/cookie-policy'},{icon:'🇪🇺',title:'GDPR Rights',desc:'Your rights under UK GDPR',href:'/privacy-policy#gdpr'}].map((d,i) => (
+              {[{icon:'📋',title:'Terms & Conditions',desc:'Your rights and obligations',href:'/terms'},{icon:'🔒',title:'Privacy Policy',desc:'How we protect your data',href:'/privacy-policy'},{icon:'🍪',title:'Cookie Policy',desc:'What cookies we use',href:'/cookie-policy'}].map((d,i) => (
                 <Link key={i} href={d.href} className="group flex items-start gap-3 bg-white/70 hover:bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 transition-all hover:shadow-sm">
                   <span className="text-xl flex-shrink-0 mt-0.5">{d.icon}</span>
                   <div><div className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight mb-1">{d.title}</div><div className="text-xs text-slate-500 leading-snug">{d.desc}</div></div>
