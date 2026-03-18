@@ -2,21 +2,12 @@
 /**
  * LaunchPard Signup Page — Updated March 2026
  * Deploy to: src/app/signup/page.jsx
- *
- * Changes from previous:
- * - 30-day trial → 14-day Pro trial
- * - max_children: 10 → 3
- * - Added region selector (UK/Nigeria/Canada/Other)
- * - Region stored on parent record for future billing
- * - Beta perks updated to reflect Free → Pro trial flow
- * - "30 days free" → "14-day Pro trial, then Free forever"
  */
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { useSearchParams } from "next/navigation";
 import { applyReferralCode } from "../lib/referralSystem";
 
 const REGIONS = [
@@ -25,11 +16,7 @@ const REGIONS = [
   { code: "ca", flag: "🇨🇦", label: "Canada" },
   { code: "other", flag: "🌍", label: "Other" },
 ];
-const searchParams = useSearchParams();
-const refCode = searchParams.get("ref");
-const [referralCode, setReferralCode] = useState(refCode || "");
 
-// Auto-detect region from browser timezone
 function detectRegion() {
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -40,8 +27,20 @@ function detectRegion() {
   } catch { return "other"; }
 }
 
+// Wrapper needed because useSearchParams requires Suspense in Next.js 16
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refFromUrl = searchParams.get("ref");
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -50,6 +49,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [region, setRegion] = useState("other");
+  const [referralCode, setReferralCode] = useState(refFromUrl || "");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -57,12 +57,6 @@ export default function SignupPage() {
     confirmPassword: "",
   });
 
-  // Referral code from URL or manual entry
-  const searchParams = useSearchParams();
-  const refFromUrl = searchParams.get("ref");
-  const [referralCode, setReferralCode] = useState(refFromUrl || "");
-
-  // Auto-detect region on mount
   useEffect(() => { setRegion(detectRegion()); }, []);
 
   const handleSubmit = async (e) => {
@@ -109,7 +103,8 @@ export default function SignupPage() {
       if (parentError && parentError.code !== "23505") {
         throw new Error(`Failed to create profile: ${parentError.message}`);
       }
-// 3. Apply referral code (non-blocking)
+
+      // 3. Apply referral code (non-blocking)
       if (referralCode.trim()) {
         try {
           await applyReferralCode(supabase, authData.user.id, referralCode.trim());
@@ -117,6 +112,7 @@ export default function SignupPage() {
           console.warn("Referral failed (non-blocking):", refErr.message);
         }
       }
+
       // 4. Welcome email (non-blocking)
       try {
         await fetch("/api/emails/welcome", {
@@ -187,48 +183,47 @@ export default function SignupPage() {
 
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Full Name</label>
-            <input
-              type="text" required placeholder="Your full name"
-              value={formData.fullName}
+            <input type="text" required placeholder="Your full name" value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600"
-            />
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600" />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Email Address</label>
-            <input
-              type="email" required placeholder="you@example.com"
-              value={formData.email}
+            <input type="email" required placeholder="you@example.com" value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600"
-            />
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600" />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Password</label>
-            <input
-              type="password" required placeholder="Minimum 6 characters"
-              value={formData.password}
+            <input type="password" required placeholder="Minimum 6 characters" value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600"
-            />
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600" />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Confirm Password</label>
-            <input
-              type="password" required placeholder="Type password again"
-              value={formData.confirmPassword}
+            <input type="password" required placeholder="Type password again" value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600"
-            />
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600" />
           </div>
 
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
+          {/* Referral code */}
+          <div>
+            <label className="block text-sm font-bold text-slate-300 mb-2">
+              Referral Code <span className="text-slate-500 font-normal">(optional)</span>
+            </label>
+            <input type="text" placeholder="e.g. LP-SARAH-7X2K" value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600" />
+            {refFromUrl && (
+              <p className="text-xs text-emerald-400 mt-1.5 font-bold">Referral code applied — you were invited by a friend!</p>
+            )}
+          </div>
+
+          <button type="submit" disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
             {loading ? "Creating Account..." : "Start 14-Day Pro Trial →"}
           </button>
         </form>
