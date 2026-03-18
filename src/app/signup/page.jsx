@@ -16,6 +16,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { useSearchParams } from "next/navigation";
+import { applyReferralCode } from "../lib/referralSystem";
 
 const REGIONS = [
   { code: "uk", flag: "🇬🇧", label: "United Kingdom" },
@@ -23,6 +25,9 @@ const REGIONS = [
   { code: "ca", flag: "🇨🇦", label: "Canada" },
   { code: "other", flag: "🌍", label: "Other" },
 ];
+const searchParams = useSearchParams();
+const refCode = searchParams.get("ref");
+const [referralCode, setReferralCode] = useState(refCode || "");
 
 // Auto-detect region from browser timezone
 function detectRegion() {
@@ -51,6 +56,11 @@ export default function SignupPage() {
     password: "",
     confirmPassword: "",
   });
+
+  // Referral code from URL or manual entry
+  const searchParams = useSearchParams();
+  const refFromUrl = searchParams.get("ref");
+  const [referralCode, setReferralCode] = useState(refFromUrl || "");
 
   // Auto-detect region on mount
   useEffect(() => { setRegion(detectRegion()); }, []);
@@ -99,8 +109,15 @@ export default function SignupPage() {
       if (parentError && parentError.code !== "23505") {
         throw new Error(`Failed to create profile: ${parentError.message}`);
       }
-
-      // 3. Welcome email (non-blocking)
+// 3. Apply referral code (non-blocking)
+      if (referralCode.trim()) {
+        try {
+          await applyReferralCode(supabase, authData.user.id, referralCode.trim());
+        } catch (refErr) {
+          console.warn("Referral failed (non-blocking):", refErr.message);
+        }
+      }
+      // 4. Welcome email (non-blocking)
       try {
         await fetch("/api/emails/welcome", {
           method: "POST",
@@ -111,7 +128,7 @@ export default function SignupPage() {
         console.warn("Welcome email failed (non-blocking):", emailErr.message);
       }
 
-      // 4. Auto sign-in and redirect
+      // 5. Auto sign-in and redirect
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,

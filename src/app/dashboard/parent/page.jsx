@@ -8,6 +8,7 @@ import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
 import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
+import ReferralBanner from "../../../components/ReferralBanner";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -832,25 +833,29 @@ export default function ParentDashboard() {
           <h1 className="text-4xl md:text-5xl font-black mb-3">Your Scholars</h1>
           <p className="text-xl text-slate-500 font-semibold">Manage profiles, share access codes, and track progress.</p>
 
-          {parent?.subscription_status === "trial" && parent?.trial_end && (
-            <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-start gap-3">
-              <span className="text-2xl">🎉</span>
-              <div className="flex-1">
-                <p className="font-black text-blue-900 mb-1">Pro Trial Active</p>
-<p className="text-sm text-blue-700">
-  {(() => {
-    const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
-    return daysLeft > 0
-      ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — all Pro features unlocked`
-      : "Your trial has ended — you're on the Free plan";
-  })()}
-</p>
+<div className="mt-4 space-y-2">
+            {parent?.subscription_status === "trial" && parent?.trial_end && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+                <span className="text-2xl">🎉</span>
+                <div className="flex-1">
+                  <p className="font-black text-blue-900 mb-1">Pro Trial Active</p>
+                  <p className="text-sm text-blue-700">
+                    {(() => {
+                      const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
+                      return daysLeft > 0
+                        ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — all Pro features unlocked`
+                        : "Your trial has ended — you're on the Free plan";
+                    })()}
+                  </p>
+                </div>
+                <Link href="/subscribe" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                  Upgrade to Pro
+                </Link>
               </div>
-              <Link href="/subscribe" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-  Upgrade to Pro
-</Link>
-            </div>
-          )}
+            )}
+            <ReferralBanner parentId={user?.id} parentName={parent?.full_name} supabase={supabase} />
+          </div>
+          
         </div>
 
         {error && (
@@ -858,7 +863,6 @@ export default function ParentDashboard() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
           {/* Scholar cards */}
           {scholars.length === 0 ? (
             <div className="md:col-span-2 bg-white border-4 border-dashed border-slate-200 rounded-[32px] p-16 text-center">
