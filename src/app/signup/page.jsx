@@ -8,7 +8,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { applyReferralCode } from "../lib/referralSystem";
+import { applyReferralCode } from "../../lib/referralSystem";
 
 const REGIONS = [
   { code: "uk", flag: "🇬🇧", label: "United Kingdom" },
