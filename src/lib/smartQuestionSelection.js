@@ -256,15 +256,80 @@ function resolveDbCurriculum(curriculum, subject, year) {
   }
 }
 
+// ─── YEAR LEVEL RESOLVER ─────────────────────────────────────────────────────
+// Most curricula store year_level matching the local convention.
+// Nigerian JSS bulk data is at year_level=1,2,3 (not 7,8,9).
+// Only remap if the curriculum provably uses absolute years.
+function resolveDbYear(curriculum, rawYear) {
+  const yr  = parseInt(rawYear, 10) || 4;
+  const cur = (curriculum || '').toLowerCase();
+
+  switch (cur) {
+    case 'ng_jss':
+    case 'nigerian_jss':
+      // DB has bulk data at years 1-3 AND some at 7-9.
+      // If scholar stores JSS2=2, query as-is (matches bulk data).
+      // If somehow stored as 8, also fine (matches the smaller 7-9 batch).
+      return yr;
+
+    case 'ng_sss':
+    case 'nigerian_sss':
+      // SSS data stored at years 1-3 in DB
+      return yr;
+
+    case 'ng_primary':
+    case 'nigerian_primary':
+      return yr;
+
+    case 'ib_myp':
+      // MYP years 1-5 map to Y7-11 IF the DB uses absolute years
+      // Check your DB before enabling: return yr <= 5 ? yr + 6 : yr;
+      return yr;
+
+    default:
+      return yr;
+  }
+}
+
 // Maps incoming subject name → DB column value
-function resolveDbSubject(subject) {
-  const map = {
+function resolveDbSubject(subject, curriculum) {
+  const sub = (subject || '').toLowerCase();
+  const cur = (curriculum || '').toLowerCase();
+
+  // Universal aliases
+  const universal = {
     maths: 'mathematics', math: 'mathematics',
     verbal: 'verbal_reasoning',
-    nvr: 'nvr', non_verbal_reasoning: 'nvr',
-    basic_science: 'basic_science_and_technology',
+    nvr: 'nvr',
   };
-  return map[(subject || '').toLowerCase()] || subject;
+  if (universal[sub]) return universal[sub];
+
+  // Nigerian JSS / Primary — uses english_studies, basic_science (split from basic_science_and_technology)
+  const isNgJssOrPrimary = ['ng_jss', 'nigerian_jss', 'ng_primary', 'nigerian_primary'].includes(cur);
+  if (isNgJssOrPrimary) {
+    const ngMap = {
+      english:                      'english_studies',
+      science:                      'basic_science',
+      basic_science_and_technology: 'basic_science',
+      computing:                    'basic_digital_literacy',
+      ict:                          'basic_digital_literacy',
+    };
+    if (ngMap[sub]) return ngMap[sub];
+  }
+
+  // Nigerian SSS — uses english (NOT english_studies), civic_education (NOT citizenship_and_heritage)
+  const isNgSss = ['ng_sss', 'nigerian_sss'].includes(cur);
+  if (isNgSss) {
+    const sssMap = {
+      english_studies:          'english',
+      citizenship_and_heritage: 'civic_education',
+      computing:                'digital_technologies',
+      ict:                      'digital_technologies',
+    };
+    if (sssMap[sub]) return sssMap[sub];
+  }
+
+  return sub;
 }
 
 // ─── QUESTION FETCHER ─────────────────────────────────────────────────────────
@@ -274,15 +339,16 @@ function resolveDbSubject(subject) {
  */
 async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, excludeIds, limit, examTag = null) {
   const dbCurriculum = resolveDbCurriculum(curriculum, subject, year);
-  const dbSubject    = resolveDbSubject(subject);
+  const dbSubject    = resolveDbSubject(subject, curriculum);
+  const dbYear       = resolveDbYear(curriculum, year);
 
   let q = supabase
     .from('question_bank')
     .select('*')
     .eq('curriculum', dbCurriculum)
     .eq('subject', dbSubject)
-    .gte('year_level', Math.max(1, year - 1))
-    .lte('year_level', year + 1)
+    .gte('year_level', Math.max(1, dbYear - 1))
+    .lte('year_level', dbYear + 1)
     .limit(limit);
 
   if (topic)   q = q.eq('topic', topic);
@@ -478,7 +544,7 @@ export async function getSmartQuestions(
     if (examTag && questRows.length < count * 0.5) {
       console.warn(
         `[examMode] Thin coverage: ${questRows.length}/${count} questions found ` +
-        `for exam_tag=${examTag}, subject=${resolveDbSubject(activeSubject)}, curriculum=${resolvedCurriculum}, year=${year}. ` +
+        `for exam_tag=${examTag}, subject=${resolveDbSubject(activeSubject, curriculum)}, curriculum=${resolvedCurriculum}, year=${year}. ` +
         `Back-filling with untagged questions. Run populate scripts to fix.`
       );
       const { anchorRows: uAnchor, adjacentRows: uAdj } = await fetchQuestPool(
@@ -497,21 +563,20 @@ export async function getSmartQuestions(
     // This guarantees the scholar always gets a DB quiz, never falls through
     // to the procedural engine unless the DB genuinely has zero rows.
     if (questRows.length === 0) {
-      // Direct query — bypass fetchQuestions and excludeIds to eliminate
-      // any subtle filtering issues. This is the last resort.
       const dbCurriculum = resolveDbCurriculum(curriculum, activeSubject, year);
-      const dbSubject    = resolveDbSubject(activeSubject);
+      const dbSubject    = resolveDbSubject(activeSubject, curriculum);
+      const dbYear       = resolveDbYear(curriculum, year);
       console.warn(
         `[getSmartQuestions] Nuclear fallback: 0 questions after all topic logic. ` +
-        `Direct query: subject=${dbSubject}, curriculum=${dbCurriculum}, year=${year}±1`
+        `Direct query: subject=${dbSubject}, curriculum=${dbCurriculum}, year=${dbYear}±1`
       );
       const { data: broadRows, error: broadErr } = await supabase
         .from('question_bank')
         .select('*')
         .eq('curriculum', dbCurriculum)
         .eq('subject', dbSubject)
-        .gte('year_level', Math.max(1, year - 1))
-        .lte('year_level', year + 1)
+        .gte('year_level', Math.max(1, dbYear - 1))
+        .lte('year_level', dbYear + 1)
         .limit(Math.min(count * 5, 100));
 
       if (broadErr) {

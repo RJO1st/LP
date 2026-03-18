@@ -104,63 +104,86 @@ export const CURRICULA = {
   ng_primary: {
     name: 'Nigerian Primary', country: '🇳🇬', gradeLabel: 'Primary',
     grades: [1, 2, 3, 4, 5, 6], currency: '₦', spelling: 'british',
-    subjects: ['maths', 'english', 'science'],
-    alternateLabel: 'Basic' // Primary 1 = Basic 1
+    subjects: ['mathematics', 'english_studies', 'basic_science', 'social_studies',
+               'civic_education', 'cultural_and_creative_arts', 'religious_studies'],
+    alternateLabel: 'Basic'
   },
   ng_jss: {
     name: 'Nigerian JSS', country: '🇳🇬', gradeLabel: 'JSS',
     grades: [1, 2, 3], currency: '₦', spelling: 'british',
-    subjects: ['maths', 'english', 'science'],
-    alternateLabel: 'Basic', // JSS 1 = Basic 7
-    alternateOffset: 6 // JSS 1 = Basic 7 (6+1)
+    subjects: ['mathematics', 'english_studies', 'basic_science', 'basic_technology', 'social_studies',
+               'civic_education', 'business_education', 'cultural_and_creative_arts',
+               'pre_vocational_studies', 'basic_digital_literacy', 'religious_studies', 'agricultural_science'],
+    alternateLabel: 'Basic',
+    alternateOffset: 6
   },
   ng_sss: {
     name: 'Nigerian SSS', country: '🇳🇬', gradeLabel: 'SS',
     grades: [1, 2, 3], currency: '₦', spelling: 'british',
-    subjects: ['maths', 'english', 'physics', 'chemistry', 'biology'],
-    exams: ['WAEC', 'NECO'] // Senior Secondary - WAEC/NECO prep
+    subjects: ['mathematics', 'english', 'physics', 'chemistry', 'biology',
+               'civic_education', 'digital_technologies', 'economics', 'government', 'geography',
+               'further_mathematics', 'accounting', 'agricultural_science'],
+    exams: ['WAEC', 'NECO']
   },
 };
 
 // Kept for backward-compat; derived from CURRICULA so always in sync
-export const SUBJECTS_BY_CURRICULUM = {
-  uk_national:    ['maths', 'english', 'science'],
-  uk_11plus:      ['maths', 'english', 'verbal', 'nvr'],
-  us_common_core: ['maths', 'english', 'science'],
-  aus_acara:      ['maths', 'english', 'science'],
-  ib_pyp:         ['maths', 'english', 'science'],
-  ib_myp:         ['maths', 'english', 'science'],
-  ng_primary:     ['maths', 'english', 'science'],
-  ng_jss:         ['maths', 'english', 'science'],
-  ng_sss:         ['maths', 'english', 'physics', 'chemistry', 'biology'],
-  // Old keys for backward compatibility
-  australian:     ['maths', 'english', 'science'],
-  waec:           ['maths', 'english', 'science'],
-};
+export const SUBJECTS_BY_CURRICULUM = Object.fromEntries(
+  Object.entries(CURRICULA).map(([key, val]) => [key, val.subjects])
+);
 
 // ─── SUBJECT METADATA ─────────────────────────────────────────────────────────
 export const SUBJECT_ICONS = {
-  maths: '🔢', english: '📚', verbal: '🧩',
+  maths: '🔢', mathematics: '🔢', english: '📚', verbal: '🧩',
   nvr: '🎨', science: '🔬', geography: '🌍', history: '📜',
   physics: '⚛️', chemistry: '🧪', biology: '🧬',
-  social_studies: '🏛️', hass: '🌏', commerce: '💰',
-  basic_technology: '🔧',  financial_accounting: '📊',
-  further_mathematics: '📐',  economics: '📈',  government: '🏛️',
-  business_studies: '💼',  basic_science: '🧪',
+  social_studies: '🌍', hass: '🌏', commerce: '💰',
+  basic_technology: '🔧', financial_accounting: '📊',
+  further_mathematics: '📐', economics: '📈', government: '🏛️',
+  business_studies: '💼', basic_science: '🧪',
+  // Nigerian canonical names
+  english_studies: '📖', basic_science: '🔬', basic_technology: '🔧',
+  civic_education: '🏛️', business_education: '💼',
+  cultural_and_creative_arts: '🎨', pre_vocational_studies: '🛠️',
+  basic_digital_literacy: '💻', religious_studies: '📿',
+  agricultural_science: '🌱', digital_technologies: '💻',
+  accounting: '📒', literature_in_english: '📖',
+  verbal_reasoning: '🧩', non_verbal_reasoning: '🎨',
+  // UK additional
+  computing: '💻', design_and_technology: '⚙️', religious_education: '✝️', citizenship: '⚖️',
 };
 
 export const SUBJECT_COLORS = {
   maths:          { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200',  dot: 'bg-indigo-500'  },
+  mathematics:    { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200',  dot: 'bg-indigo-500'  },
   english:        { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    dot: 'bg-rose-500'    },
+  english_studies: { bg: 'bg-rose-50',   text: 'text-rose-700',    border: 'border-rose-200',    dot: 'bg-rose-500'    },
   verbal:         { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200',  dot: 'bg-purple-500'  },
+  verbal_reasoning: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200',  dot: 'bg-purple-500'  },
   nvr:            { bg: 'bg-teal-50',    text: 'text-teal-700',    border: 'border-teal-200',    dot: 'bg-teal-500'    },
+  non_verbal_reasoning: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200',   dot: 'bg-teal-500'    },
   science:        { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  basic_science:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  agricultural_science: { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200', dot: 'bg-lime-500' },
+  digital_technologies: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-500' },
+  accounting:     { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  literature_in_english: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
+  computing:      { bg: 'bg-slate-50',   text: 'text-slate-700',   border: 'border-slate-200',   dot: 'bg-slate-500'   },
+  design_and_technology: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
+  religious_education: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
+  citizenship:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200',    dot: 'bg-cyan-500'    },
   geography:      { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500'    },
   history:        { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500'   },
   physics:        { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     dot: 'bg-sky-500'     },
   chemistry:      { bg: 'bg-lime-50',    text: 'text-lime-700',    border: 'border-lime-200',    dot: 'bg-lime-500'    },
   biology:        { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200',   dot: 'bg-green-500'   },
   social_studies: { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200',    dot: 'bg-cyan-500'    },
+  civic_education: { bg: 'bg-blue-50',   text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500'    },
+  business_education: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
+  cultural_and_creative_arts: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', dot: 'bg-pink-500' },
+  pre_vocational_studies: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
+  basic_digital_literacy: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-500' },
+  religious_studies: { bg: 'bg-amber-50', text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500'   },
   hass:           { bg: 'bg-teal-50',    text: 'text-teal-700',    border: 'border-teal-200',    dot: 'bg-teal-500'    },
   commerce:          { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500'   },
   basic_technology:  { bg: 'bg-stone-50',   text: 'text-stone-700',   border: 'border-stone-200',   dot: 'bg-stone-500'   },

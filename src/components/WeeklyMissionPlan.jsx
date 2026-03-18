@@ -35,6 +35,16 @@ const SUBJECT_META = {
   physics:                 { label: "Physics",            emoji: "⚡", color: "bg-blue-500",    light: "bg-blue-50 border-blue-200",    text: "text-blue-700"   },
   biology:                 { label: "Biology",            emoji: "🌱", color: "bg-green-500",   light: "bg-green-50 border-green-200",   text: "text-green-700"  },
   further_mathematics:     { label: "Further Maths",      emoji: "∑",  color: "bg-indigo-500",  light: "bg-indigo-50 border-indigo-200",  text: "text-indigo-700" },
+  // Nigerian-specific subjects
+  basic_science_and_technology: { label: "Basic Science & Tech", emoji: "🔬", color: "bg-emerald-500", light: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+  civic_education:         { label: "Civic Education",    emoji: "🏛️", color: "bg-cyan-500",    light: "bg-cyan-50 border-cyan-200",    text: "text-cyan-700"   },
+  business_education:      { label: "Business Education", emoji: "💼", color: "bg-orange-500",  light: "bg-orange-50 border-orange-200",  text: "text-orange-700" },
+  cultural_and_creative_arts: { label: "Cultural & Creative Arts", emoji: "🎨", color: "bg-pink-500", light: "bg-pink-50 border-pink-200", text: "text-pink-700" },
+  pre_vocational_studies:  { label: "Pre-Vocational",     emoji: "🔧", color: "bg-amber-500",   light: "bg-amber-50 border-amber-200",   text: "text-amber-700"  },
+  basic_digital_literacy:  { label: "Computer Studies",   emoji: "💻", color: "bg-slate-500",   light: "bg-slate-50 border-slate-200",   text: "text-slate-700"  },
+  religious_studies:        { label: "Religious Studies",  emoji: "📿", color: "bg-purple-500",  light: "bg-purple-50 border-purple-200",  text: "text-purple-700" },
+  economics:               { label: "Economics",          emoji: "📊", color: "bg-yellow-500",  light: "bg-yellow-50 border-yellow-200",  text: "text-yellow-700" },
+  government:              { label: "Government",         emoji: "🏛️", color: "bg-stone-500",   light: "bg-stone-50 border-stone-200",   text: "text-stone-700"  },
 };
 
 const fallbackMeta = (subject) => ({
@@ -66,23 +76,36 @@ export default function WeeklyMissionPlan({ scholar, weeklyStats = [], onStartSu
   const week = getISOWeek(new Date());
   const daysLeft = daysLeftInWeek();
 
-  // Derive active subjects from scholar
+  // Derive active subjects from scholar — curriculum-aware
   const subjects = useMemo(() => {
     if (!scholar) return [];
-    const base = scholar.selected_subjects?.length
-      ? scholar.selected_subjects
-      : ["mathematics", "english", "science"];
 
-    // Exam mode adds VR/NVR
-    if (scholar.exam_mode === "eleven_plus") {
-      const extras = ["verbal_reasoning", "non_verbal_reasoning"].filter(
-        (s) => !base.includes(s)
-      );
-      // Also ensure science is included for 11+
-      if (!base.includes("science")) extras.push("science");
-      return [...base, ...extras];
+    // If scholar has explicitly selected subjects, use those
+    if (scholar.selected_subjects?.length) return scholar.selected_subjects;
+
+    const cur = (scholar.curriculum || '').toLowerCase();
+    switch (cur) {
+      case 'ng_jss':
+      case 'nigerian_jss':
+        return ['mathematics', 'english_studies', 'basic_science_and_technology', 'social_studies',
+                'civic_education', 'business_education'];
+      case 'ng_primary':
+      case 'nigerian_primary':
+        return ['mathematics', 'english_studies', 'basic_science_and_technology', 'social_studies'];
+      case 'ng_sss':
+      case 'nigerian_sss':
+        return ['mathematics', 'english_studies', 'civic_education'];
+      case 'aus_acara':
+        return ['mathematics', 'english', 'science', 'hass'];
+      default: {
+        // UK / generic
+        const base = ['mathematics', 'english', 'science'];
+        if (scholar.exam_mode === 'eleven_plus') {
+          return [...base, 'verbal_reasoning', 'non_verbal_reasoning'];
+        }
+        return base;
+      }
     }
-    return base;
   }, [scholar]);
 
   // Map weeklyStats into a lookup by subject (normalise aliases)
@@ -91,7 +114,13 @@ export default function WeeklyMissionPlan({ scholar, weeklyStats = [], onStartSu
       maths: "mathematics", math: "mathematics",
       verbal: "verbal_reasoning",
       nvr: "non_verbal_reasoning",
-      basic_science: "science",
+      basic_science: "basic_science_and_technology",
+      science: "science",
+      english: "english",
+      // Nigerian aliases — quiz_results may store either form
+      english_studies: "english_studies",
+      basic_digital_literacy: "basic_digital_literacy",
+      computer_studies: "basic_digital_literacy",
     };
     const m = {};
     weeklyStats.forEach((s) => {

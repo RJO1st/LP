@@ -42,8 +42,8 @@ export const MASTERY_THRESHOLDS = {
 };
 
 // Session gates — prevent tier inflation from a single good quest
-const MIN_SEEN_FOR_EXPECTED  = 20;    // 20 questions = 1 full quest minimum
-const MIN_SEEN_FOR_EXCEEDING = 40;    // 40 questions = 2+ quests minimum
+const MIN_SEEN_FOR_EXPECTED  = 50;    // 50 questions = ~2-3 quests minimum
+const MIN_SEEN_FOR_EXCEEDING = 100;   // 100 questions = 5+ quests minimum
 const MIN_INTERVAL_FOR_EXCEEDING = 7; // must have 7+ day review interval (proves retention)
 
 /**

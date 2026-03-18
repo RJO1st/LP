@@ -47,7 +47,7 @@ const CURRICULA = {
   ng_sss:         { country: "🇳🇬", name: "Nigerian SSS",        gradeLabel: "SS",      grades: [1,2,3] },
 };
 
-const NG_SSS_COMPULSORY = ["english","mathematics","citizenship_and_heritage","digital_technologies"];
+const NG_SSS_COMPULSORY = ["english","mathematics","civic_education","digital_technologies"];
 const NG_SSS_STREAMS = {
   science:    { label: "Science",    emoji: "🔬", subjects: ["biology","chemistry","physics","further_mathematics","agricultural_science","health_education","geography"] },
   humanities: { label: "Humanities", emoji: "📜", subjects: ["literature_in_english","government","nigerian_history","home_management"] },
@@ -58,9 +58,9 @@ const NG_SSS_TRADES = [
   { value: "marketing",       label: "Marketing" },
 ];
 const NG_JSS_SUBJECTS = [
-  "mathematics","english_studies","basic_science_and_technology","social_studies",
+  "mathematics","english_studies","basic_science","basic_technology","social_studies",
   "business_education","cultural_and_creative_arts","pre_vocational_studies",
-  "nigerian_languages","religious_studies","civic_education","basic_digital_literacy",
+  "religious_studies","civic_education","basic_digital_literacy","agricultural_science",
 ];
 const UK_KS4_COMPULSORY = ["mathematics","english_language","english_literature","combined_science","citizenship"];
 const UK_KS4_OPTIONS = [
@@ -119,20 +119,20 @@ const SUBJECTS_BY_CURRICULUM = {
   ng_primary:     ["mathematics","english","basic_science","social_studies"],
   ng_jss:         NG_JSS_SUBJECTS,
   ng_sss:         NG_SSS_COMPULSORY,
-  ca_primary:     ["maths","english","science","social_studies","french_language","physical_education"],
-  ca_secondary:   ["maths","english","science","canadian_history","geography","physics","chemistry","biology","computer_science","french_language"],
+  ca_primary: ["maths","english","science","social_studies"],
+  ca_secondary: ["maths","english","science","canadian_history","geography","physics","chemistry","biology","computer_science"],
 };
 const SUBJECT_META = {
   maths:"🔢",mathematics:"🔢",further_mathematics:"📐",statistics:"📊",
   english:"📖",english_language:"📖",english_literature:"📖",english_studies:"📖",
   literature_in_english:"📖",verbal:"🧩",verbal_reasoning:"🧩",nvr:"🔷",
   science:"🔬",biology:"🧬",chemistry:"🧪",physics:"⚛️",combined_science:"🔬",
-  basic_science:"🔬",basic_science_and_technology:"🔬",health_education:"🏥",
+  basic_science:"🔬",basic_technology:"🔧",health_education:"🏥",
   agricultural_science:"🌱",history:"🏛️",nigerian_history:"🏛️",geography:"🗺️",
   social_studies:"🌍",religious_education:"✝️",religious_studies:"✝️",
-  government:"🏛️",civic_education:"⚖️",citizenship_and_heritage:"🇳🇬",citizenship:"⚖️",
+  government:"🏛️",civic_education:"⚖️",citizenship:"⚖️",
   cultural_and_creative_arts:"🎨",home_management:"🏠",pre_vocational_studies:"🛠",
-  nigerian_languages:"🗣️",media_studies:"📺",economics:"📈",business_studies:"💼",
+  digital_technologies:"💻",media_studies:"📺",economics:"📈",business_studies:"💼",
   business_education:"💼",commerce:"💰",accounting:"📒",financial_accounting:"📒",
   marketing:"📣",computer_science:"💻",ict:"💻",digital_technologies:"💻",
   basic_digital_literacy:"💻",basic_technology:"🔧",design_technology:"⚙️",
@@ -687,7 +687,7 @@ export default function ParentDashboard() {
 
       if (fetchError && fetchError.code === "PGRST116") {
         const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 7);
+        trialEnd.setDate(trialEnd.getDate() + 14);
         const { data: newParent } = await supabase.from("parents").upsert({
           id: user.id,
           full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Parent",
@@ -836,14 +836,19 @@ export default function ParentDashboard() {
             <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-start gap-3">
               <span className="text-2xl">🎉</span>
               <div className="flex-1">
-                <p className="font-black text-blue-900 mb-1">Free Trial Active</p>
-                <p className="text-sm text-blue-700">
-                  Your trial ends on {new Date(parent.trial_end).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
-                </p>
+                <p className="font-black text-blue-900 mb-1">Pro Trial Active</p>
+<p className="text-sm text-blue-700">
+  {(() => {
+    const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
+    return daysLeft > 0
+      ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — all Pro features unlocked`
+      : "Your trial has ended — you're on the Free plan";
+  })()}
+</p>
               </div>
               <Link href="/subscribe" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-                Subscribe
-              </Link>
+  Upgrade to Pro
+</Link>
             </div>
           )}
         </div>
@@ -999,16 +1004,14 @@ export default function ParentDashboard() {
               <div className="flex flex-col items-center justify-center flex-grow gap-4 py-8 text-center">
                 <div className="text-5xl">🚀</div>
                 <p className="text-indigo-900 font-black text-xl">Full crew aboard!</p>
-                <p className="text-indigo-700/70 font-semibold text-sm leading-relaxed">
-                  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
-                  Upgrade to Mission Control Pro to add more cadets.
-                </p>
-                <a
-                  href="mailto:hello@launchpard.com?subject=Upgrade%20Request"
-                  className="mt-2 px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl border-b-4 border-indigo-800 hover:bg-indigo-700 transition-all text-sm"
-                >
-                  Contact us to upgrade ✦
-                </a>
+<p className="text-indigo-700/70 font-semibold text-sm leading-relaxed">
+  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
+  Need more? Get in touch.
+</p>
+<a href="mailto:hello@launchpard.com?subject=Scholar%20Limit"
+  className="mt-2 px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl border-b-4 border-indigo-800 hover:bg-indigo-700 transition-all text-sm">
+  Contact us ✦
+</a>
               </div>
             ) : (
               <form onSubmit={handleAddScholar} className="flex flex-col gap-4 flex-grow">

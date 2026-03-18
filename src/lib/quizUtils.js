@@ -52,7 +52,16 @@ export function validateAndFixQuestion(q, idx = 0) {
 
   // Discard passage-dependent questions with no passage
   const lower = q.q.toLowerCase();
-  if ((lower.includes('passage') || lower.includes('the text above')) && !q.passage) {
+  const PASSAGE_SIGNALS = [
+    'passage', 'the text above', 'the text below', 'the extract',
+    'the story', 'the poem', 'the paragraph', 'the article',
+    'in the passage', 'from the passage', 'according to the passage',
+    'read the', 'based on the reading', 'the author',
+    'in the story', 'from the story', 'the moral of',
+    'in the poem', 'the narrator', 'the character',
+  ];
+  const looksPassageDependent = PASSAGE_SIGNALS.some(s => lower.includes(s));
+  if (looksPassageDependent && !q.passage) {
     console.warn(`[quizUtils] Discarding Q${idx + 1} — references passage but none attached.`);
     return null;
   }

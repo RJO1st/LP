@@ -40,11 +40,19 @@ const SUBJECT_LABELS = {
   biology:              { header: "Biology Lab Station",          scenario: "Field Observation",      loading: "Setting up microscope...",      finish: "Lab Analysis Complete!"          },
   science:              { header: "Science Investigation",        scenario: "Investigation Data",     loading: "Gathering evidence...",         finish: "Investigation Complete!"         },
   basic_science:        { header: "Science Discovery",            scenario: "Discovery Data",         loading: "Exploring the world...",        finish: "Discovery Complete!"             },
+  basic_science_and_technology: { header: "Basic Science & Technology", scenario: "Investigation Data", loading: "Exploring science...",        finish: "Investigation Complete!"         },
   history:              { header: "History Source Analysis",      scenario: "Primary Source",         loading: "Unearthing archives...",        finish: "Source Analysis Complete!"       },
   geography:            { header: "Geography Field Study",        scenario: "Field Data",             loading: "Reading the terrain...",        finish: "Field Study Complete!"           },
   social_studies:       { header: "Social Studies Investigation", scenario: "Case Study",             loading: "Reviewing evidence...",         finish: "Investigation Complete!"         },
   hass:                 { header: "HASS Investigation",           scenario: "Source Material",        loading: "Gathering sources...",          finish: "Investigation Complete!"         },
-  english:              { header: "Reading Comprehension",        scenario: "Reading Passage",        scenarioNoPassage: "Study Material",       loading: "Loading passage...",            finish: "Passage Complete!"               },
+  english:              { header: "Reading Comprehension",        scenario: "Reading Passage",        scenarioNoPassage: "Study Material",     loading: "Loading passage...",            finish: "Passage Complete!"               },
+  english_studies:      { header: "English Studies",              scenario: "Reading Passage",        scenarioNoPassage: "Study Material",     loading: "Loading your lesson...",        finish: "Lesson Complete!"                },
+  civic_education:      { header: "Civic Education",              scenario: "Case Study",             loading: "Reviewing civic duties...",     finish: "Civic Study Complete!"           },
+  business_education:   { header: "Business Education",           scenario: "Case Study",             loading: "Analyzing business...",         finish: "Business Study Complete!"        },
+  cultural_and_creative_arts: { header: "Creative Arts",          scenario: "Art Study",              loading: "Preparing your canvas...",      finish: "Creative Study Complete!"        },
+  pre_vocational_studies: { header: "Pre-Vocational Studies",     scenario: "Practical Study",        loading: "Setting up workshop...",        finish: "Workshop Complete!"              },
+  basic_digital_literacy: { header: "Digital Literacy",           scenario: "Tech Challenge",         loading: "Booting up...",                finish: "Tech Challenge Complete!"        },
+  religious_studies:    { header: "Religious Studies",             scenario: "Source Text",            loading: "Opening the text...",           finish: "Study Complete!"                 },
   financial_accounting: { header: "Financial Accounting",         scenario: "Ledger Data",            loading: "Crunching numbers...",          finish: "Accounting Complete!"            },
   commerce:             { header: "Commerce Analysis",            scenario: "Market Data",            loading: "Analyzing trade...",            finish: "Commerce Complete!"              },
   basic_technology:     { header: "Technology Workshop",          scenario: "Technical Data",         loading: "Setting up equipment...",       finish: "Workshop Complete!"              },
@@ -53,8 +61,11 @@ const SUBJECT_LABELS = {
   government:           { header: "Government & Politics",        scenario: "Policy Document",        loading: "Reviewing legislation...",      finish: "Political Analysis Complete!"    },
   business_studies:     { header: "Business Studies",             scenario: "Case Study",             loading: "Evaluating business...",        finish: "Business Analysis Complete!"     },
   maths:                { header: "Maths Mission",                scenario: "Problem Set",            loading: "Preparing your maths mission…", finish: "Mission Debrief"                 },
+  mathematics:          { header: "Maths Mission",                scenario: "Problem Set",            loading: "Preparing your maths mission…", finish: "Mission Debrief"                 },
   verbal:               { header: "Verbal Reasoning",             scenario: "Word Problem",           loading: "Warming up verbal circuits…",  finish: "Mission Debrief"                 },
+  verbal_reasoning:     { header: "Verbal Reasoning",             scenario: "Word Problem",           loading: "Warming up verbal circuits…",  finish: "Mission Debrief"                 },
   nvr:                  { header: "Non-Verbal Reasoning",         scenario: "Pattern Problem",        loading: "Calibrating pattern sensors…", finish: "Mission Debrief"                 },
+  non_verbal_reasoning: { header: "Non-Verbal Reasoning",         scenario: "Pattern Problem",        loading: "Calibrating pattern sensors…", finish: "Mission Debrief"                 },
 };
 
 export function getSubjectLabels(subject) {
@@ -325,7 +336,7 @@ export function FeedbackArea({
       )}
 
       {/* Tara EIB — only for wrong answers */}
-      {!isCorrectAnswer && (
+      {!isCorrectAnswer && taraEnabled !== false && (
         <TaraEIB
           student={student}
           subject={subject}
@@ -362,8 +373,9 @@ export function EngineFinished({
   subject,
   topic,
   scholarName,
-  answers = [],   // [{ q, isCorrect, correct, myAnswer }]
+  answers = [],
   xpEarned,
+  showCertificate = false,
 }) {
   const [diffRating,  setDiffRating]  = useState(null);
   const [showWrong,   setShowWrong]   = useState(false);
@@ -375,14 +387,15 @@ export function EngineFinished({
   const accuracy    = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;
   const wrongList   = answers.filter(a => !a.isCorrect);
   const xp          = xpEarned ?? finalScore * 10;
-  // Stage-gated mastery: check what tier the session performance corresponds to
-  // In production this is driven by BKT from DB; here we derive from session accuracy
-  const masteryScore  = accuracy / 100;
-  const masteryTier   = masteryScore >= 0.80 ? "exceeding"
-                      : masteryScore >= 0.70 ? "expected"
-                      : masteryScore >= 0.55 ? "developing"
-                      : null;
-  const isMastery     = masteryTier !== null;   // any stage threshold crossed
+  // Mastery certificate is gated by the showCertificate prop from QuestOrchestrator
+  // which requires server-validated tier_crossed. Do NOT derive from session accuracy.
+  const isMastery   = false; // disabled — use showCertificate prop instead
+  // masteryTier/masteryScore are derived for display purposes only (certificate label + modal)
+  // They do NOT control whether the certificate button shows — that's showCertificate from QO.
+  const masteryScore = accuracy / 100;
+  const masteryTier  = masteryScore >= 0.80 ? "exceeding"
+                     : masteryScore >= 0.70 ? "expected"
+                     : "developing";
 
   const grade =
     accuracy >= 80 ? { label: "Stellar 🏆",    color: "#d97706", bg: "#fffbeb" } :
@@ -541,7 +554,7 @@ export function EngineFinished({
         </div>
 
         {/* ── MASTERY CERTIFICATE BANNER (Distinction only) ── */}
-        {isMastery && (
+        {showCertificate && (
           <div className="px-5 py-4 border-t border-slate-100">
             <button
               onClick={() => setShowCert(true)}

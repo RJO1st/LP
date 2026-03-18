@@ -6,47 +6,32 @@
 export const EXAM_MODES = {
   eleven_plus: {
     label:             "11+ Prep",
-    emoji:             "📝",
+    emoji:             "🎯",
+    shortDesc:         "Timed 11+ mock tests",
     desc:              "Adds Verbal Reasoning & Non-Verbal Reasoning alongside the national curriculum",
     examTag:           "eleven_plus",
-    eligibleCurricula: ["uk_national"],
+    eligibleCurricula: ["uk_national", "uk_11plus"],
     eligibleYears:     [3, 4, 5, 6],
-    extraSubjects:     ["verbal", "nvr"],
+    extraSubjects:     ["verbal_reasoning", "nvr"],
   },
-  sats: {
-    label:             "SATs Mode",
+  waec: {
+    label:             "WAEC / NECO Prep",
     emoji:             "📋",
-    desc:              "Focuses KS2 on SATs-style questions",
-    examTag:           "sats",
-    eligibleCurricula: ["uk_national"],
-    eligibleYears:     [6],
+    shortDesc:         "Timed WAEC & NECO papers",
+    desc:              "WAEC and NECO exam preparation for SS3 scholars",
+    examTag:           "waec",
+    eligibleCurricula: ["ng_sss"],
+    eligibleYears:     [3],
     extraSubjects:     [],
   },
-  iseb: {
-    label:             "ISEB / Pre-Test",
-    emoji:             "🏫",
-    desc:              "Common Pre-Test style prep for independent school entry",
-    examTag:           "iseb",
-    eligibleCurricula: ["uk_national"],
-    eligibleYears:     [4, 5, 6, 7],
-    extraSubjects:     ["verbal", "nvr"],
-  },
-  gcse: {
-    label:             "GCSE Prep",
-    emoji:             "🎓",
-    desc:              "GCSE-style questions for KS4 scholars",
-    examTag:           "gcse",
-    eligibleCurricula: ["uk_national"],
-    eligibleYears:     [9, 10, 11],
-    extraSubjects:     [],   // uses scholar.selected_subjects
-  },
-  us_sat: {
-    label:             "US SAT Prep",
-    emoji:             "📐",
-    desc:              "SAT-style questions for US high school scholars",
-    examTag:           "us_sat",
-    eligibleCurricula: ["us_common_core"],
-    eligibleYears:     [10, 11, 12],
+  bece: {
+    label:             "BECE Practice",
+    emoji:             "📝",
+    shortDesc:         "Junior WAEC mock papers",
+    desc:              "Basic Education Certificate Examination preparation for JSS3",
+    examTag:           "bece",
+    eligibleCurricula: ["ng_jss"],
+    eligibleYears:     [3],
     extraSubjects:     [],
   },
 };
@@ -96,4 +81,14 @@ export function isExamModeEligible(examMode, curriculum, year) {
 export function getExamModeNavLabel(examMode, curriculumName) {
   const mode = getExamMode(examMode);
   return mode ? `${mode.emoji} ${mode.label}` : curriculumName;
+}
+
+/**
+ * Returns all exam modes eligible for a given curriculum + year.
+ * Used by parent dashboard to populate exam mode selector.
+ */
+export function getEligibleExamModes(curriculum, year) {
+  return Object.entries(EXAM_MODES)
+    .filter(([, mode]) => isExamModeEligible(mode.examTag === mode.examTag, curriculum, year))
+    .map(([key, mode]) => ({ key, ...mode }));
 }

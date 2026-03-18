@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 export async function initializeTrial(parentId) {
   try {
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 30); // 30 days from now
+    trialEnd.setDate(trialEnd.getDate() + 14); // 14-day Pro trial
 
     const { error } = await supabase
       .from('parents')
@@ -79,10 +79,11 @@ export async function getTrialStatus(parentId) {
 
   if (!accessInfo.hasAccess) {
     return {
-      status: 'expired',
-      message: 'Your trial has ended. Subscribe to continue.',
-      ctaText: 'Subscribe Now',
-      ctaLink: '/subscribe'
+      status: 'free',
+      message: 'Your Pro trial has ended. You\'re on the Free plan (10 questions/day).',
+      ctaText: 'Upgrade to Pro',
+      ctaLink: '/subscribe',
+      isFree: true,
     };
   }
 
@@ -92,9 +93,9 @@ export async function getTrialStatus(parentId) {
       status: 'trial',
       daysLeft,
       message: daysLeft === 0
-        ? 'Your trial ends today!'
-        : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left in your trial`,
-      ctaText: 'Subscribe to Continue',
+        ? 'Your Pro trial ends today!'
+        : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left in your Pro trial`,
+      ctaText: 'Upgrade to Pro',
       ctaLink: '/subscribe'
     };
   }
@@ -205,13 +206,13 @@ export async function expireAccess(parentId) {
     const { error } = await supabase
       .from('parents')
       .update({
-        subscription_status: 'expired'
+        subscription_status: 'free'
       })
       .eq('id', parentId);
 
     if (error) throw error;
 
-    console.log(`✅ Access expired for parent ${parentId}`);
+    console.log(`✅ Access moved to Free tier for parent ${parentId}`);
     return { success: true };
   } catch (error) {
     console.error('Error expiring access:', error);

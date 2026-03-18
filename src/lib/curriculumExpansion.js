@@ -14,10 +14,17 @@ import { localise } from './gamificationEngine';
 // ── Grade/Year equivalence mapping ────────────────────────────────
 export const GRADE_MAP = {
   uk_11plus:      { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 },
+  uk_national:    { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9 },
   us_common_core: { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8 }, // Grade = Year
-  australian:     { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 },
+  aus_acara:      { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 },
   ib_pyp:         { 1:1, 2:2, 3:3, 4:4, 5:5 },
-  waec:           { 7:1, 8:2, 9:3, 10:4, 11:5, 12:6 }, // maps to UK equiv difficulty
+  ib_myp:         { 1:1, 2:2, 3:3, 4:4, 5:5 },
+  ng_primary:     { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 },
+  ng_jss:         { 1:1, 2:2, 3:3 },    // JSS 1-3, maps to UK Y7-9 difficulty
+  ng_sss:         { 1:4, 2:5, 3:6 },    // SS 1-3, maps to UK Y10-12 equiv difficulty
+  // Legacy aliases — resolve to canonical keys
+  australian:     { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 },
+  waec:           { 1:1, 2:2, 3:3 },  // maps to ng_sss year_level convention
 };
 
 // Normalise any grade to a 1-6 UK-equivalent difficulty level

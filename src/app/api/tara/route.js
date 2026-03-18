@@ -124,8 +124,9 @@ export async function POST(req) {
   }
 
   const {
-    text, subject = "maths", correctAnswer = "", scholarName = "Cadet",
-    scholarYear = 4, question = null, mode = "eib", context = "",
+    text, subject = "maths", correctAnswer = "", scholarAnswer = "",
+    scholarName = "Cadet", scholarYear = 4, question = null,
+    mode = "eib", context = "",
   } = body;
 
   if (!text || text.trim().length < 3) {
@@ -170,6 +171,7 @@ The student has already completed an Explain It Back challenge and is now asking
 Subject: ${subject}
 Original question: "${question?.q || 'unknown'}"
 Correct answer: "${correctAnswer}"
+Student originally chose: "${scholarAnswer || 'unknown'}"
 Your previous reply to them: "${context}"
 Their follow-up question: "${text}"
 
@@ -187,10 +189,13 @@ INSTRUCTIONS:
 Student: ${scholarName}, Year ${scholarYear}.
 Subject: ${subject}.
 Question: "${question?.q || 'unknown'}"
+Options: ${(question?.opts || []).map((o, i) => `${i + 1}. ${o}`).join(', ')}
 Correct answer: "${correctAnswer}"
+Student chose: "${scholarAnswer || 'unknown'}"${scholarAnswer && scholarAnswer !== correctAnswer ? ' (INCORRECT)' : ''}
 Student's reasoning: "${text}"
 
 INSTRUCTIONS:
+- Acknowledge what the student chose ("${scholarAnswer}") — explain briefly why it might have seemed right, then guide them to understand why "${correctAnswer}" is correct
 - Be specific to THIS question and THIS answer — no generic praise
 - If their reasoning is correct, praise the specific insight they showed
 - If their reasoning is wrong or incomplete, gently explain WHY the correct answer is right, referencing the specific concept
@@ -218,7 +223,13 @@ INSTRUCTIONS:
       },
       body: JSON.stringify({
         model: "anthropic/claude-3.5-haiku",
-        messages: [{ role: "system", content: systemPrompt }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: mode === "followup"
+            ? `My follow-up question: "${text}"`
+            : `Here is my explanation of why "${correctAnswer}" is the correct answer:\n\n"${text}"`
+          },
+        ],
         max_tokens: 150,
         temperature: 0.6,
       }),

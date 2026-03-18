@@ -550,6 +550,10 @@ export default function PaperEngine({ testConfig, questions = [], onClose, onCom
     onComplete?.({ correct, total: paper.length, score: pct(correct, paper.length), timeTaken: elapsed, timeout, answers, testId: testConfig?.id });
   }, [paper, answers, testConfig, onComplete]);
 
+  const handleSelect = useCallback((optionIndex) => {
+    setAnswers(prev => ({ ...prev, [currentQ]: optionIndex }));
+  }, [currentQ]);
+
   // Keep a ref to the latest handleSubmit so the interval closure never goes stale.
   // Without this, a timeout fires handleSubmit from mount which has empty answers.
   const handleSubmitRef = useRef(handleSubmit);

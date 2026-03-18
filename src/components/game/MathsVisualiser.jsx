@@ -230,15 +230,14 @@ function PlaceValueVis({ tens, ones }) {
 
 // MULTIPLICATION — clean array with row/col separators ────────────────────────
 function MultiplicationVis({ rows, cols }) {
-  // rows/cols = true operands from question (e.g. 7, 2 for 7×2)
-  // Visual cap: max 6 rows × 10 cols to fit panel; label always shows true values
-  const dispR = Math.min(rows, 6);
-  const dispC = Math.min(cols, 10);
-  const truncated = rows > 6 || cols > 10;
-  const dotSize = cols > 6 ? 14 : 18;
+  // Visual cap: max 5 rows × 8 cols (40 dots) to fit panel cleanly
+  const dispR = Math.min(rows, 5);
+  const dispC = Math.min(cols, 8);
+  const truncated = rows > 5 || cols > 8;
+  const dotSize = dispC > 6 ? 12 : dispC > 4 ? 14 : 18;
   return (
     <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}
-      ariaLabel={`${rows} groups of ${cols}`}>
+      ariaLabel={`Multiplication array`}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
         {Array.from({ length: dispR }).map((_, ri) => (
           <div key={ri} style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -249,7 +248,7 @@ function MultiplicationVis({ rows, cols }) {
         ))}
       </div>
       <Chip color={T.emerald} bg={T.emeraldBg}>
-        {rows} groups of {cols}{truncated ? " (partial view)" : ""}
+        {rows} × {cols} = ?
       </Chip>
     </Panel>
   );

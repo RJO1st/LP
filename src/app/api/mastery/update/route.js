@@ -80,8 +80,8 @@ function tierFromScore(score, intervalDays = 0, timesSeen = 0) {
   // This prevents "Stellar in one quest" — even 20/20 correct only reaches
   // "expected" at best on the first session, because times_seen starts at 20.
   // The scholar must return for more sessions to prove retention.
-  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 40 && intervalDays >= 7) return "exceeding";
-  if (score >= MASTERY_THRESHOLDS.developing && timesSeen >= 20) return "expected";
+  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 100 && intervalDays >= 7) return "exceeding";
+  if (score >= MASTERY_THRESHOLDS.developing && timesSeen >= 50) return "expected";
   return "developing";
 }
 

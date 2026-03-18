@@ -4,6 +4,17 @@
  *
  * Single source of truth for all mock test / paper configurations.
  * PaperEngine reads from here. Dashboard filters by year + curriculum.
+ *
+ * IMPORTANT — subject names MUST match question_bank exactly:
+ *   "mathematics" not "maths"
+ *   "english" for uk/ng_sss, "english_studies" for ng_jss/ng_primary
+ *   "basic_science" not "basic_science_and_technology"
+ *
+ * Year levels MUST match DB conventions:
+ *   ng_jss: 1,2,3  (not 7,8,9)
+ *   ng_sss: 1,2,3  (not 10,11,12)
+ *   uk_11plus: 3,4,5,6
+ *   uk_national: 1-9
  */
 
 // ─── PAPER SIZES ──────────────────────────────────────────────────────────────
@@ -20,88 +31,64 @@ export const CATEGORIES = {
   exam_prep:        { label: "Exam Prep",        emoji: "🎯", color: "#6366f1" },
   subject_practice: { label: "Subject Practice", emoji: "📚", color: "#0891b2" },
   diagnostic:       { label: "Diagnostic",       emoji: "🔬", color: "#10b981" },
-  gcse:             { label: "GCSE",             emoji: "🏆", color: "#dc2626" },
-  a_level:          { label: "A-Level",          emoji: "🎓", color: "#7c3aed" },
-  waec:             { label: "WAEC / NECO",      emoji: "🌍", color: "#059669" },
-  sat:              { label: "SAT / ACT",        emoji: "🇺🇸", color: "#d97706" },
+  waec:             { label: "WAEC / NECO",      emoji: "🇳🇬", color: "#059669" },
+  bece:             { label: "BECE",             emoji: "🇳🇬", color: "#0d9488" },
 };
+
+// ─── SUBJECT NAME RESOLVER ────────────────────────────────────────────────────
+// Maps display-friendly subject keys to actual DB subject names per curriculum
+const SUBJECT_FOR_DB = {
+  // Universal subjects (curriculum: null inherits scholar's curriculum)
+  mathematics:  { default: "mathematics" },
+  english:      {
+    default: "english",
+    ng_jss: "english_studies",
+    ng_primary: "english_studies",
+  },
+  science:      {
+    default: "science",
+    ng_jss: "basic_science",
+    ng_primary: "basic_science",
+  },
+};
+
+/**
+ * Resolve subject name for a given curriculum.
+ * E.g. resolveSubjectForCurriculum("english", "ng_jss") → "english_studies"
+ */
+export function resolveSubjectForCurriculum(subject, curriculum) {
+  const mapping = SUBJECT_FOR_DB[subject];
+  if (!mapping) return subject; // no mapping = use as-is
+  return mapping[curriculum] ?? mapping.default ?? subject;
+}
 
 // ─── TEST CATALOGUE ───────────────────────────────────────────────────────────
 /**
  * Each test entry:
  *   id             — unique string key
  *   label          — display name shown to scholar
- *   subject        — question_bank subject field to query
- *   subjects       — (optional) array, for multi-subject tests like diagnostic
- *   curriculum     — which question pool: "uk_national" | "uk_11plus" | "nigerian" etc.
+ *   subject        — DB subject field (MUST match question_bank.subject)
+ *   subjects       — (optional) array for multi-subject tests
+ *   curriculum     — which question pool: "uk_national" | "uk_11plus" | "ng_sss" etc.
+ *                    null = inherits scholar's curriculum
  *   paperSize      — key in PAPER_CONFIGS
  *   examTag        — optional exam_tag filter on question_bank (null = no filter)
  *   badge          — emoji shown on the card
  *   category       — key in CATEGORIES
- *   eligibleYears  — year levels this test is appropriate for
+ *   eligibleYears  — year levels this test is appropriate for (MUST match DB year_level)
  *   description    — one-line description shown on the card
  *   difficulty     — "foundation" | "standard" | "challenging" | "exam"
  */
 export const TEST_CATALOGUE = [
 
-  // ── EXAM PREP ─────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // 11+ EXAM PREP (uk_11plus scholars only, Y3-6)
+  // ══════════════════════════════════════════════════════════════════════════
 
-  {
-    id:            "iseb_maths",
-    label:         "ISEB Pre-Test · Maths",
-    subject:       "maths",
-    curriculum:    "uk_11plus",
-    paperSize:     "standard",
-    examTag:       "iseb",
-    badge:         "📐",
-    category:      "exam_prep",
-    eligibleYears: [6, 7, 8],
-    description:   "Independent school entry maths paper",
-    difficulty:    "exam",
-  },
-  {
-    id:            "iseb_english",
-    label:         "ISEB Pre-Test · English",
-    subject:       "english",
-    curriculum:    "uk_11plus",
-    paperSize:     "standard",
-    examTag:       "iseb",
-    badge:         "📝",
-    category:      "exam_prep",
-    eligibleYears: [6, 7, 8],
-    description:   "Independent school entry English paper",
-    difficulty:    "exam",
-  },
-  {
-    id:            "iseb_verbal",
-    label:         "ISEB Pre-Test · Verbal Reasoning",
-    subject:       "verbal_reasoning",
-    curriculum:    "uk_11plus",
-    paperSize:     "standard",
-    examTag:       "iseb",
-    badge:         "🔤",
-    category:      "exam_prep",
-    eligibleYears: [6, 7, 8],
-    description:   "Independent school verbal reasoning paper",
-    difficulty:    "exam",
-  },
-  {
-    id:            "iseb_nvr",
-    label:         "ISEB Pre-Test · Non-Verbal Reasoning",
-    subject:       "nvr",
-    curriculum:    "uk_11plus",
-    paperSize:     "standard",
-    examTag:       "iseb",
-    badge:         "🔷",
-    category:      "exam_prep",
-    eligibleYears: [6, 7, 8],
-    description:   "Independent school non-verbal reasoning paper",
-    difficulty:    "exam",
-  },
   {
     id:            "eleven_plus_maths",
     label:         "11+ Maths",
-    subject:       "maths",
+    subject:       "mathematics",
     curriculum:    "uk_11plus",
     paperSize:     "standard",
     examTag:       "eleven_plus",
@@ -138,314 +125,46 @@ export const TEST_CATALOGUE = [
     difficulty:    "exam",
   },
   {
-    id:            "sats_maths_y6",
-    label:         "SATs · Maths Y6",
-    subject:       "maths",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "sats",
-    badge:         "🏫",
-    category:      "exam_prep",
-    eligibleYears: [5, 6],
-    description:   "KS2 SATs maths reasoning paper",
-    difficulty:    "exam",
-  },
-  {
-    id:            "sats_english_y6",
-    label:         "SATs · English Y6",
-    subject:       "english",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "sats",
-    badge:         "✏️",
-    category:      "exam_prep",
-    eligibleYears: [5, 6],
-    description:   "KS2 SATs English reading paper",
-    difficulty:    "exam",
-  },
-
-  // ── SUBJECT PRACTICE ──────────────────────────────────────────────────────
-
-  {
-    id:            "mock_maths",
-    label:         "Maths Mock Test",
-    subject:       "maths",
-    curriculum:    null,        // inherits scholar's curriculum
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "🔢",
-    category:      "subject_practice",
-    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    description:   "Timed maths practice at your level",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_english",
-    label:         "English Mock Test",
-    subject:       "english",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "📚",
-    category:      "subject_practice",
-    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    description:   "Timed English practice at your level",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_science",
-    label:         "Science Mock Test",
-    subject:       "science",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "🔭",
-    category:      "subject_practice",
-    eligibleYears: [3, 4, 5, 6, 7, 8, 9],
-    description:   "Mixed science — plants, animals, materials, forces",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_physics",
-    label:         "Physics Mock Test",
-    subject:       "physics",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "⚡",
-    category:      "subject_practice",
-    eligibleYears: [7, 8, 9, 10, 11],
-    description:   "Forces, waves, electricity, energy",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_chemistry",
-    label:         "Chemistry Mock Test",
-    subject:       "chemistry",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "⚗️",
-    category:      "subject_practice",
-    eligibleYears: [7, 8, 9, 10, 11],
-    description:   "Atoms, reactions, periodic table, pH",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_biology",
-    label:         "Biology Mock Test",
-    subject:       "biology",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "🧬",
-    category:      "subject_practice",
-    eligibleYears: [7, 8, 9, 10, 11],
-    description:   "Cells, genetics, ecosystems, body systems",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_verbal",
-    label:         "Verbal Reasoning Mock",
-    subject:       "verbal_reasoning",
-    curriculum:    null,
-    paperSize:     "standard",
-    examTag:       null,
-    badge:         "🔤",
-    category:      "subject_practice",
-    eligibleYears: [3, 4, 5, 6, 7, 8],
-    description:   "Word patterns, codes, analogies",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_nvr",
-    label:         "Non-Verbal Reasoning Mock",
+    id:            "eleven_plus_nvr",
+    label:         "11+ Non-Verbal Reasoning",
     subject:       "nvr",
-    curriculum:    null,
+    curriculum:    "uk_11plus",
     paperSize:     "standard",
-    examTag:       null,
+    examTag:       "eleven_plus",
     badge:         "🔷",
-    category:      "subject_practice",
-    eligibleYears: [3, 4, 5, 6, 7, 8],
-    description:   "Shapes, patterns, matrices",
-    difficulty:    "standard",
-  },
-  {
-    id:            "mock_quick_maths",
-    label:         "Quick Maths Check",
-    subject:       "maths",
-    curriculum:    null,
-    paperSize:     "quick",
-    examTag:       null,
-    badge:         "⚡",
-    category:      "subject_practice",
-    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    description:   "10 questions · 12 minutes · no prep needed",
-    difficulty:    "standard",
-  },
-
-  // ── GCSE ──────────────────────────────────────────────────────────────────
-
-  {
-    id:            "gcse_maths_foundation",
-    label:         "GCSE Maths · Foundation",
-    subject:       "maths",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "gcse",
-    badge:         "📐",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Number, algebra, geometry and statistics",
+    category:      "exam_prep",
+    eligibleYears: [4, 5, 6],
+    description:   "Grammar school non-verbal reasoning paper",
     difficulty:    "exam",
   },
   {
-    id:            "gcse_maths_higher",
-    label:         "GCSE Maths · Higher",
-    subject:       "maths",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "gcse",
-    badge:         "📊",
-    category:      "gcse",
-    eligibleYears: [10, 11],
-    description:   "Higher tier — includes quadratics, vectors, proof",
-    difficulty:    "challenging",
-  },
-  {
-    id:            "gcse_english_language",
-    label:         "GCSE English Language",
-    subject:       "english",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "gcse",
-    badge:         "✍️",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Reading comprehension, inference and language analysis",
-    difficulty:    "exam",
-  },
-  {
-    id:            "gcse_biology",
-    label:         "GCSE Biology",
-    subject:       "biology",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "gcse",
-    badge:         "🧬",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Cells, genetics, ecology, body systems",
-    difficulty:    "exam",
-  },
-  {
-    id:            "gcse_chemistry",
-    label:         "GCSE Chemistry",
-    subject:       "chemistry",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "gcse",
-    badge:         "⚗️",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Atomic structure, reactions, quantitative chemistry",
-    difficulty:    "exam",
-  },
-  {
-    id:            "gcse_physics",
-    label:         "GCSE Physics",
-    subject:       "physics",
-    curriculum:    "uk_national",
-    paperSize:     "full",
-    examTag:       "gcse",
-    badge:         "⚡",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Forces, electricity, waves, space",
-    difficulty:    "exam",
-  },
-  {
-    id:            "gcse_combined_science",
-    label:         "GCSE Combined Science",
-    subjects:      ["biology", "chemistry", "physics"],
-    subject:       "biology",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "gcse",
-    badge:         "🔭",
-    category:      "gcse",
-    eligibleYears: [9, 10, 11],
-    description:   "Trilogy — Biology, Chemistry and Physics combined",
+    id:            "eleven_plus_science",
+    label:         "11+ Science",
+    subject:       "science",
+    curriculum:    "uk_11plus",
+    paperSize:     "standard",
+    examTag:       "eleven_plus",
+    badge:         "🔬",
+    category:      "exam_prep",
+    eligibleYears: [4, 5, 6],
+    description:   "Grammar school science paper",
     difficulty:    "exam",
   },
 
-  // ── A-LEVEL ───────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // WAEC / NECO (ng_sss scholars, SS3 only — year_level: 3)
+  // ══════════════════════════════════════════════════════════════════════════
 
   {
-    id:            "alevel_maths",
-    label:         "A-Level Maths",
-    subject:       "maths",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "a_level",
-    badge:         "∫",
-    category:      "a_level",
-    eligibleYears: [12, 13],
-    description:   "Pure maths — calculus, sequences, trigonometry",
-    difficulty:    "challenging",
-  },
-  {
-    id:            "alevel_biology",
-    label:         "A-Level Biology",
-    subject:       "biology",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "a_level",
-    badge:         "🦠",
-    category:      "a_level",
-    eligibleYears: [12, 13],
-    description:   "Cell biology, photosynthesis, respiration, genetics",
-    difficulty:    "challenging",
-  },
-  {
-    id:            "alevel_chemistry",
-    label:         "A-Level Chemistry",
-    subject:       "chemistry",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "a_level",
-    badge:         "🧪",
-    category:      "a_level",
-    eligibleYears: [12, 13],
-    description:   "Organic chemistry, equilibria, electrode potentials",
-    difficulty:    "challenging",
-  },
-  {
-    id:            "alevel_physics",
-    label:         "A-Level Physics",
-    subject:       "physics",
-    curriculum:    "uk_national",
-    paperSize:     "extended",
-    examTag:       "a_level",
-    badge:         "🌌",
-    category:      "a_level",
-    eligibleYears: [12, 13],
-    description:   "Mechanics, fields, quantum, nuclear physics",
-    difficulty:    "challenging",
-  },
-
-  // ── WAEC / NECO ───────────────────────────────────────────────────────────
-
-  {
-    id:            "waec_maths",
+    id:            "waec_mathematics",
     label:         "WAEC Mathematics",
-    subject:       "maths",
-    curriculum:    "nigerian",
+    subject:       "mathematics",
+    curriculum:    "ng_sss",
     paperSize:     "extended",
     examTag:       "waec",
     badge:         "📏",
     category:      "waec",
-    eligibleYears: [10, 11, 12],
+    eligibleYears: [3],
     description:   "WAEC/NECO style — number theory, algebra, statistics",
     difficulty:    "exam",
   },
@@ -453,12 +172,12 @@ export const TEST_CATALOGUE = [
     id:            "waec_english",
     label:         "WAEC English Language",
     subject:       "english",
-    curriculum:    "nigerian",
+    curriculum:    "ng_sss",
     paperSize:     "extended",
     examTag:       "waec",
     badge:         "📝",
     category:      "waec",
-    eligibleYears: [10, 11, 12],
+    eligibleYears: [3],
     description:   "Comprehension, lexis & structure, oral English",
     difficulty:    "exam",
   },
@@ -466,12 +185,12 @@ export const TEST_CATALOGUE = [
     id:            "waec_biology",
     label:         "WAEC Biology",
     subject:       "biology",
-    curriculum:    "nigerian",
+    curriculum:    "ng_sss",
     paperSize:     "extended",
     examTag:       "waec",
     badge:         "🌿",
     category:      "waec",
-    eligibleYears: [10, 11, 12],
+    eligibleYears: [3],
     description:   "Cell biology, genetics, ecology — WAEC syllabus",
     difficulty:    "exam",
   },
@@ -479,12 +198,12 @@ export const TEST_CATALOGUE = [
     id:            "waec_chemistry",
     label:         "WAEC Chemistry",
     subject:       "chemistry",
-    curriculum:    "nigerian",
+    curriculum:    "ng_sss",
     paperSize:     "extended",
     examTag:       "waec",
     badge:         "⚗️",
     category:      "waec",
-    eligibleYears: [10, 11, 12],
+    eligibleYears: [3],
     description:   "Organic, inorganic and physical chemistry — WAEC style",
     difficulty:    "exam",
   },
@@ -492,84 +211,133 @@ export const TEST_CATALOGUE = [
     id:            "waec_physics",
     label:         "WAEC Physics",
     subject:       "physics",
-    curriculum:    "nigerian",
+    curriculum:    "ng_sss",
     paperSize:     "extended",
     examTag:       "waec",
     badge:         "⚡",
     category:      "waec",
-    eligibleYears: [10, 11, 12],
+    eligibleYears: [3],
     description:   "Mechanics, waves, electricity — WAEC syllabus",
     difficulty:    "exam",
   },
 
-  // ── SAT / ACT ─────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // BECE (ng_jss scholars, JSS3 only — year_level: 3)
+  // ══════════════════════════════════════════════════════════════════════════
 
   {
-    id:            "sat_math",
-    label:         "SAT Math",
-    subject:       "maths",
-    curriculum:    "us_common_core",
-    paperSize:     "extended",
-    examTag:       "sat",
-    badge:         "🔢",
-    category:      "sat",
-    eligibleYears: [10, 11, 12],
-    description:   "Algebra, problem-solving, data analysis — College Board style",
+    id:            "bece_mathematics",
+    label:         "BECE Mathematics",
+    subject:       "mathematics",
+    curriculum:    "ng_jss",
+    paperSize:     "full",
+    examTag:       "bece",
+    badge:         "📐",
+    category:      "bece",
+    eligibleYears: [3],
+    description:   "Junior WAEC mathematics paper",
     difficulty:    "exam",
   },
   {
-    id:            "sat_reading_writing",
-    label:         "SAT Reading & Writing",
-    subject:       "english",
-    curriculum:    "us_common_core",
-    paperSize:     "extended",
-    examTag:       "sat",
+    id:            "bece_english",
+    label:         "BECE English Studies",
+    subject:       "english_studies",
+    curriculum:    "ng_jss",
+    paperSize:     "full",
+    examTag:       "bece",
     badge:         "📖",
-    category:      "sat",
-    eligibleYears: [10, 11, 12],
-    description:   "Evidence-based reading, grammar, vocabulary in context",
+    category:      "bece",
+    eligibleYears: [3],
+    description:   "Junior WAEC English studies paper",
     difficulty:    "exam",
   },
   {
-    id:            "act_english",
-    label:         "ACT English",
-    subject:       "english",
-    curriculum:    "us_common_core",
-    paperSize:     "extended",
-    examTag:       "act",
-    badge:         "✏️",
-    category:      "sat",
-    eligibleYears: [10, 11, 12],
-    description:   "Usage, mechanics, rhetorical skills — ACT format",
-    difficulty:    "exam",
-  },
-  {
-    id:            "act_science",
-    label:         "ACT Science",
-    subject:       "science",
-    curriculum:    "us_common_core",
-    paperSize:     "extended",
-    examTag:       "act",
+    id:            "bece_basic_science",
+    label:         "BECE Basic Science",
+    subject:       "basic_science",
+    curriculum:    "ng_jss",
+    paperSize:     "full",
+    examTag:       "bece",
     badge:         "🔬",
-    category:      "sat",
-    eligibleYears: [10, 11, 12],
-    description:   "Data interpretation, research summaries, conflicting viewpoints",
+    category:      "bece",
+    eligibleYears: [3],
+    description:   "Junior WAEC basic science paper",
+    difficulty:    "exam",
+  },
+  {
+    id:            "bece_social_studies",
+    label:         "BECE Social Studies",
+    subject:       "social_studies",
+    curriculum:    "ng_jss",
+    paperSize:     "full",
+    examTag:       "bece",
+    badge:         "🌍",
+    category:      "bece",
+    eligibleYears: [3],
+    description:   "Junior WAEC social studies paper",
     difficulty:    "exam",
   },
 
-  // ── DIAGNOSTIC ────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // SUBJECT PRACTICE (all curricula — subject resolved at query time)
+  // curriculum: null means it inherits the scholar's curriculum
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    id:            "mock_maths",
+    label:         "Maths Practice Test",
+    subject:       "mathematics",
+    curriculum:    null,
+    paperSize:     "standard",
+    examTag:       null,
+    badge:         "🔢",
+    category:      "subject_practice",
+    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    description:   "Timed maths practice at your level",
+    difficulty:    "standard",
+  },
+  {
+    id:            "mock_english",
+    label:         "English Practice Test",
+    subject:       "english",
+    curriculum:    null,
+    paperSize:     "standard",
+    examTag:       null,
+    badge:         "📚",
+    category:      "subject_practice",
+    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    description:   "Timed English practice at your level",
+    difficulty:    "standard",
+  },
+  {
+    id:            "mock_science",
+    label:         "Science Practice Test",
+    subject:       "science",
+    curriculum:    null,
+    paperSize:     "standard",
+    examTag:       null,
+    badge:         "🔭",
+    category:      "subject_practice",
+    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    description:   "Mixed science at your level",
+    difficulty:    "standard",
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DIAGNOSTIC (all curricula)
+  // ══════════════════════════════════════════════════════════════════════════
 
   {
     id:            "diagnostic_full",
     label:         "Full Diagnostic",
-    subjects:      ["maths", "english", "science"],  // multi-subject
-    subject:       "maths",                           // primary (for question fetching fallback)
+    subjects:      ["mathematics", "english", "science"],
+    subject:       "mathematics",
     curriculum:    null,
     paperSize:     "no_timer",
     examTag:       null,
     badge:         "🔬",
     category:      "diagnostic",
-    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    eligibleYears: [1, 2, 3, 4, 5, 6, 7, 8, 9],
     description:   "See where you stand across all subjects — no time pressure",
     difficulty:    "standard",
   },
@@ -577,29 +345,34 @@ export const TEST_CATALOGUE = [
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+// Curriculum families — maps scholar curriculum to compatible test curricula
+const CURRICULUM_FAMILIES = {
+  // UK
+  uk_national:    ["uk_national"],
+  uk_11plus:      ["uk_11plus", "uk_national"],
+  // Nigerian (year levels: 1-6 primary, 1-3 JSS, 1-3 SSS)
+  ng_primary:     ["ng_primary"],
+  ng_jss:         ["ng_jss"],
+  ng_sss:         ["ng_sss"],
+  // Australian
+  aus_acara:      ["aus_acara"],
+  // US
+  us_common_core: ["us_common_core"],
+  // Canadian
+  ca_primary:     ["ca_primary"],
+  ca_secondary:   ["ca_secondary"],
+  // IB
+  ib_pyp:         ["ib_pyp"],
+  ib_myp:         ["ib_myp"],
+};
+
+// Categories always shown regardless of curriculum match
+const OPEN_CATEGORIES = new Set(["subject_practice", "diagnostic"]);
+
 /**
  * Get tests appropriate for a scholar's year and curriculum.
  * Optionally filter by category.
  */
-// Curriculum families — used to cross-match scholar curriculum to test curricula
-const CURRICULUM_FAMILIES = {
-  // UK family
-  uk_national:  ["uk_national", "uk_11plus"],
-  uk_11plus:    ["uk_national", "uk_11plus"],
-  // Nigerian family
-  nigerian:     ["nigerian"],
-  ng_primary:   ["nigerian"],
-  ng_secondary: ["nigerian"],
-  // US family
-  us_common_core: ["us_common_core"],
-  // Canadian family
-  ca_primary:   ["ca_primary", "ca_secondary"],
-  ca_secondary: ["ca_primary", "ca_secondary"],
-};
-
-// Categories that are always shown regardless of curriculum
-const OPEN_CATEGORIES = new Set(["subject_practice", "diagnostic"]);
-
 export function getTestsForScholar(yearLevel, curriculum, categoryFilter = null) {
   const year   = parseInt(yearLevel, 10) || 1;
   const family = CURRICULUM_FAMILIES[curriculum] ?? [curriculum];
@@ -607,7 +380,7 @@ export function getTestsForScholar(yearLevel, curriculum, categoryFilter = null)
   return TEST_CATALOGUE.filter(t => {
     const yearOk = t.eligibleYears.includes(year);
     const catOk  = !categoryFilter || t.category === categoryFilter;
-    // Open categories: always show. Locked categories: match curriculum family.
+    // Open categories: always show. Locked categories: must match curriculum family.
     const currOk = OPEN_CATEGORIES.has(t.category)
       || !t.curriculum
       || family.includes(t.curriculum);
@@ -623,7 +396,7 @@ export function getTestById(id) {
 }
 
 /**
- * Resolve the curriculum to use for a given test + scholar.
+ * Resolve the curriculum to use for DB queries for a given test + scholar.
  * Falls back to scholar's own curriculum when test has curriculum: null.
  */
 export function resolveTestCurriculum(test, scholarCurriculum) {

@@ -15,6 +15,8 @@ import SkillHeatmap  from "../../../components/parent/SkillHeatmap";
 import ProgressChart from "../../../components/game/ProgressChart";
 import QuestPanel from "../../../components/QuestPanel";
 import { getTrialStatus } from "../../../lib/trialTracking";
+import { getEffectiveTier, checkQuestAccess, getFeatureAccess } from "../../../lib/freeTierGating";
+import UpgradeModal from "../../../components/UpgradeModal";
 
 // ── Tier 1 components ─────────────────────────────────────────────
 import SubjectInsightCard                   from "../../../components/SubjectInsightCard";
@@ -550,15 +552,47 @@ function BadgeGrid({ earnedIds }) {
 }
 
 // ─── SUBJECT CARD ─────────────────────────────────────────────────
+// ─── SUBJECT DISPLAY LABELS ──────────────────────────────────────
+const SUBJECT_LABELS = {
+  mathematics: "Maths", maths: "Maths",
+  english: "English", english_studies: "English",
+  science: "Science", basic_science: "Basic Science", basic_technology: "Basic Technology",
+  social_studies: "Social Studies",
+  civic_education: "Civic Education",
+  business_education: "Business Studies",
+  cultural_and_creative_arts: "Creative Arts",
+  pre_vocational_studies: "Pre-Vocational",
+  basic_digital_literacy: "Digital Literacy",
+  religious_studies: "Religious Studies",
+  agricultural_science: "Agric Science",
+  digital_technologies: "Digital Tech",
+  basic_technology: "Basic Technology",
+  verbal_reasoning: "Verbal", non_verbal_reasoning: "NVR",
+  history: "History", geography: "Geography",
+  computing: "Computing", hass: "HASS",
+  combined_science: "Science",
+  english_language: "English Lang", english_literature: "English Lit",
+};
+
+const NG_SUBJECT_ICONS = {
+  english_studies: "📖", basic_science: "🔬", basic_technology: "🔧",
+  social_studies: "🌍", civic_education: "🏛️",
+  business_education: "💼", cultural_and_creative_arts: "🎨",
+  pre_vocational_studies: "🛠️", basic_digital_literacy: "💻",
+  religious_studies: "📿", agricultural_science: "🌱",
+  digital_technologies: "💻",
+};
+
 function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
   const colors = SUBJECT_COLORS[subjectId] || SUBJECT_COLORS.maths;
-  const icon = SUBJECT_ICONS[subjectId] || "📚";
+  const icon = SUBJECT_ICONS[subjectId] || NG_SUBJECT_ICONS[subjectId] || "📚";
+  const label = SUBJECT_LABELS[subjectId] || subjectId.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const pctLabel = proficiency >= 100 ? "✓" : `${proficiency}%`;
   const ringColor = proficiency >= 80 ? "#22c55e" : proficiency >= 55 ? "#f59e0b" : "#6366f1";
   
   return (
     <button onClick={onClick}
-      className={`group relative ${colors.bg} p-6 rounded-[28px] border-2 ${colors.border} text-left
+      className={`group relative ${colors.bg || "bg-slate-50"} p-6 rounded-[28px] border-2 ${colors.border || "border-slate-200"} text-left
                   hover:shadow-xl hover:-translate-y-1 transition-all duration-200`}>
       {proficiency > 0 && (
         <div className="absolute -top-2 -right-2 z-10">
@@ -575,10 +609,55 @@ function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
         </div>
       )}
       <div className="text-4xl mb-3">{icon}</div>
-      <h3 className={`text-lg font-black ${colors.text} capitalize`}>{subjectId}</h3>
+      <h3 className={`text-base font-black ${colors.text || "text-slate-800"}`}>{label}</h3>
       <p className="text-xs text-slate-600 font-bold mt-1">Start Mission →</p>
     </button>
   );
+}
+
+// ─── TEST CENTRE CONFIG (curriculum + year aware) ────────────────
+// Returns null if no test centre for this scholar, otherwise { label, subtitle, icon }
+function getTestCentreConfig(scholar) {
+  const cur = scholar?.curriculum;
+  const yr  = Number(scholar?.year_level ?? scholar?.year ?? 1);
+  const examMode = scholar?.exam_mode;
+
+  // If parent explicitly set an exam_mode, always show it
+  if (examMode) {
+    const modeDef = EXAM_MODES[examMode];
+    if (modeDef) {
+      return {
+        label: modeDef.label || "Exam Prep",
+        subtitle: modeDef.shortDesc || "Timed mock tests",
+        icon: modeDef.emoji || "📋",
+      };
+    }
+  }
+
+  switch (cur) {
+    case 'uk_11plus':
+      return { label: "11+ Exam Prep", subtitle: "Timed 11+ mock tests", icon: "🎯" };
+
+    case 'ng_jss':
+      if (yr >= 3) return { label: "BECE Practice", subtitle: "Junior WAEC mock papers", icon: "📝" };
+      return null;
+
+    case 'ng_sss':
+      if (yr >= 3) return { label: "WAEC / NECO Prep", subtitle: "Timed WAEC & NECO papers", icon: "📋" };
+      return null;
+
+    // No exam modes built yet for these curricula
+    case 'uk_national':
+    case 'ng_primary':
+    case 'aus_acara':
+    case 'us_common_core':
+    case 'ib_pyp':
+    case 'ib_myp':
+    case 'ca_primary':
+    case 'ca_secondary':
+    default:
+      return null;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -617,11 +696,35 @@ export default function StudentDashboard() {
   const [lbMode,           setLbMode]           = useState("year");
   const [trialInfo,        setTrialInfo]        = useState(null);
   const [parentInfo,       setParentInfo]       = useState(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason,    setUpgradeReason]    = useState("daily_limit_reached");
+  const [todayQCount,      setTodayQCount]      = useState(0);
 
   // ── Tier 1 state ──────────────────────────────────────────────────
   const [weeklyStats,   setWeeklyStats]   = useState([]);
   const [lastWeekStats, setLastWeekStats] = useState([]);
   const [streakData,    setStreakData]    = useState({ streak: 0, lastActivityAt: null });
+
+  // ── Free tier: derived access info ──────────────────────────────
+  const effectiveTier = parentInfo ? getEffectiveTier(parentInfo) : "pro"; // default pro during load
+  const featureAccess = getFeatureAccess(effectiveTier);
+
+  // Gated quest launch — checks daily limit for Free tier before starting
+  const launchQuest = useCallback(async (subject) => {
+    if (effectiveTier === "pro") {
+      setActiveSubject(subject);
+      return;
+    }
+    // Free tier — check daily limit
+    const access = await checkQuestAccess(supabase, parentInfo, scholar?.id);
+    setTodayQCount(access.todayCount || 0);
+    if (access.canStart) {
+      setActiveSubject(subject);
+    } else {
+      setUpgradeReason("daily_limit_reached");
+      setShowUpgradeModal(true);
+    }
+  }, [effectiveTier, supabase, parentInfo, scholar?.id]);
 
   // ── Boot: load scholar from localStorage ─────────────────────────
   useEffect(() => {
@@ -651,9 +754,8 @@ export default function StudentDashboard() {
         setParentInfo(parentData);
         const status = await getTrialStatus(parentId);
         setTrialInfo(status);
-        if (status.status === 'expired') {
-          router.push('/subscribe?expired=true');
-        }
+        // Trial expired → scholar drops to Free tier (10 Qs/day, no Tara, no dashboard)
+        // Don't lock them out — let them keep using the product with limits
       }
     } catch (error) {
       console.error('Error loading trial status:', error);
@@ -868,7 +970,13 @@ export default function StudentDashboard() {
 
     // ← Tier 1: refresh insight + streak after each completed mission
     await refreshTier1(scholar.id);
-  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, refreshTier1]);
+
+    // ← Free tier: refresh daily question count for nav badge
+    if (effectiveTier === "free") {
+      const access = await checkQuestAccess(supabase, parentInfo, scholar.id);
+      setTodayQCount(access.todayCount || 0);
+    }
+  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, refreshTier1, effectiveTier, parentInfo]);
 
   // ── Launch weekly challenge ──────────────────────────────────────
   const handleWeeklyChallengeStart = useCallback(async () => {
@@ -944,7 +1052,59 @@ export default function StudentDashboard() {
   const examModeDef  = EXAM_MODES[scholar.exam_mode] ?? null;
   const examYear     = Number(scholar.year_level || scholar.year || 1);
   const examExtras   = examModeDef?.eligibleYears.includes(examYear) ? (examModeDef.extraSubjects ?? []) : [];
-  const subjects     = [...new Set([...getSubjectsForCurriculum(curriculum), ...examExtras])];
+
+function getUkNationalKeyStage(year) {
+  if (year <= 2) return 'ks1';
+  if (year <= 6) return 'ks2';
+  if (year <= 9) return 'ks3';
+  return 'ks4';
+}
+
+const UK_NATIONAL_SUBJECTS = {
+  ks1: ['mathematics', 'english', 'science', 'computing', 'history', 'geography', 'design_and_technology', 'religious_education'],
+  ks2: ['mathematics', 'english', 'science', 'computing', 'history', 'geography', 'design_and_technology', 'religious_education'],
+  ks3: ['mathematics', 'english', 'science', 'computing', 'history', 'geography', 'citizenship'],
+  ks4: ['mathematics', 'english', 'biology', 'chemistry', 'physics', 'history', 'geography'],
+};
+
+  // Curriculum-aware subject list
+  const getSubjectsForScholar = (cur, yr) => {
+    switch (cur) {
+      case 'ng_jss':
+      case 'nigerian_jss':
+        return ['mathematics', 'english_studies', 'basic_science', 'basic_technology', 'social_studies',
+                'civic_education', 'business_education', 'cultural_and_creative_arts',
+                'pre_vocational_studies', 'basic_digital_literacy', 'religious_studies', 'agricultural_science'];
+      case 'ng_primary':
+      case 'nigerian_primary':
+        return ['mathematics', 'english_studies', 'basic_science', 'social_studies',
+                'civic_education', 'cultural_and_creative_arts', 'religious_studies'];
+      case 'ng_sss':
+      case 'nigerian_sss': {
+        const stream = scholar.stream;
+        const base = ['mathematics', 'english', 'civic_education', 'digital_technologies'];
+        const streamSubjects = stream ? (NG_SSS_STREAMS[stream]?.subjects || []) : [];
+        return [...base, ...streamSubjects];
+      }
+      case 'uk_national':
+      case 'uk_11plus': {
+        const ks = getUkNationalKeyStage(yr);
+        return UK_NATIONAL_SUBJECTS[ks] || ['mathematics', 'english', 'science'];
+      }
+      case 'aus_acara':
+        return ['mathematics', 'english', 'science', 'hass'];
+      case 'us_common_core':
+        return ['mathematics', 'english', 'science', 'social_studies'];
+      case 'ib_pyp':
+        return ['mathematics', 'english', 'science', 'social_studies'];
+      case 'ib_myp':
+        return ['mathematics', 'english', 'science', 'history', 'geography'];
+      default:
+        return ['mathematics', 'english', 'science'];
+    }
+  };
+
+  const subjects     = [...new Set([...getSubjectsForScholar(curriculum, examYear), ...examExtras])];
   const levelInfo    = getLevelInfo(scholar.total_xp || 0);
 
   // ── Test Centre ──────────────────────────────────────────────────
@@ -1020,8 +1180,9 @@ export default function StudentDashboard() {
         curriculum={curriculum}
         onClose={() => setActiveSubject(null)}
         onComplete={handleQuestComplete}
-        questionCount={20}
+        questionCount={effectiveTier === "free" ? Math.min(10, 10 - todayQCount) : 20}
         previousQuestionIds={prevQuestionIds}
+        taraEnabled={featureAccess.taraAI}
       />
     );
   }
@@ -1045,6 +1206,16 @@ export default function StudentDashboard() {
           onPurchase={handleAvatarPurchase}
         />
       )}
+      {showUpgradeModal && (
+        <UpgradeModal
+          onClose={() => setShowUpgradeModal(false)}
+          reason={upgradeReason}
+          todayCount={todayQCount}
+          dailyLimit={10}
+          scholarName={scholar?.name || "Scholar"}
+          region={parentInfo?.region || "uk"}
+        />
+      )}
 
       {/* ── NAV ─────────────────────────────────────────────────── */}
       <nav className="bg-white border-b border-slate-100 px-3 sm:px-5 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
@@ -1065,6 +1236,14 @@ export default function StudentDashboard() {
             <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
           </button>
 
+          {effectiveTier === "free" && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200"
+              title="Free plan: 10 questions per day">
+              <span className="text-xs">📝</span>
+              <span className="font-black text-indigo-600 text-xs">{todayQCount}/10</span>
+              <span className="text-[9px] text-indigo-400 font-bold">today</span>
+            </div>
+          )}
           <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-200">
             <CoinIcon size={16} />
             <span className="font-black text-yellow-700 text-sm">{scholar.coins || 0}</span>
@@ -1101,7 +1280,7 @@ export default function StudentDashboard() {
               </div>
               <div className="text-white">
                 <p className="font-bold text-sm">
-                  {trialInfo.daysLeft <= 2 ? '⏰ Trial Ending Soon!' : '✨ Free Trial Active'}
+                  {trialInfo.daysLeft <= 2 ? '⏰ Trial Ending Soon!' : '✨ Pro Trial Active'}
                 </p>
                 <p className="text-xs opacity-90">
                   {trialInfo.message}
@@ -1212,21 +1391,41 @@ export default function StudentDashboard() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(129,140,248,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
 
-            {isTestEligible(examYear) && (
-              <button
-                onClick={() => setView("tests")}
-                className="flex items-center gap-3 w-full text-left rounded-xl p-3 transition-all hover:scale-[1.01] active:scale-[0.98] group"
-                style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1.5px solid rgba(99,102,241,0.3)" }}
-              >
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform"
-                  style={{ background: "rgba(99,102,241,0.2)" }}>📋</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-black text-sm leading-tight">Test Centre</p>
-                  <p className="text-slate-400 text-[10px] font-medium">11+ · SATs · WAEC · SAT</p>
-                </div>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            )}
+            {(() => {
+              const testConfig = getTestCentreConfig(scholar);
+              if (!testConfig) return null;
+              if (!featureAccess.mockTests) {
+                return (
+                  <button
+                    onClick={() => { setUpgradeReason("feature_locked"); setShowUpgradeModal(true); }}
+                    className="flex items-center gap-3 w-full text-left rounded-xl p-3 transition-all hover:scale-[1.01] active:scale-[0.98] group opacity-60"
+                    style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1.5px solid rgba(99,102,241,0.2)" }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+                      style={{ background: "rgba(99,102,241,0.2)" }}>🔒</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-black text-sm leading-tight">{testConfig.label}</p>
+                      <p className="text-slate-400 text-[10px] font-medium">Pro feature · Upgrade to unlock</p>
+                    </div>
+                  </button>
+                );
+              }
+              return (
+                <button
+                  onClick={() => setView("tests")}
+                  className="flex items-center gap-3 w-full text-left rounded-xl p-3 transition-all hover:scale-[1.01] active:scale-[0.98] group"
+                  style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1.5px solid rgba(99,102,241,0.3)" }}
+                >
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform"
+                    style={{ background: "rgba(99,102,241,0.2)" }}>{testConfig.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-black text-sm leading-tight">{testConfig.label}</p>
+                    <p className="text-slate-400 text-[10px] font-medium">{testConfig.subtitle}</p>
+                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              );
+            })()}
           </div>
 
           {/* ── MISSION CONTROL (SubjectInsightCard) ────────────── */}
@@ -1265,7 +1464,7 @@ export default function StudentDashboard() {
                   const p = skillProficiency[s] ?? 0;
                   return (p < (skillProficiency[best] ?? 0)) ? s : best;
                 }, subjects[0]);
-                setActiveSubject(weakest || subjects[0] || "maths");
+                launchQuest(weakest || subjects[0] || "mathematics");
               }}
               className="w-full py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95 shadow-sm"
             >
@@ -1287,7 +1486,7 @@ export default function StudentDashboard() {
                 key={s}
                 subjectId={s}
                 proficiency={skillProficiency[s]}
-                onClick={() => setActiveSubject(s)}
+                onClick={() => launchQuest(s)}
               />
             ))}
           </div>
@@ -1319,7 +1518,7 @@ export default function StudentDashboard() {
               <WeeklyMissionPlan
                 scholar={scholar}
                 weeklyStats={weeklyStats}
-                onStartSubject={(subject) => setActiveSubject(subject)}
+                onStartSubject={(subject) => launchQuest(subject)}
               />
             </div>
           </div>
@@ -1400,13 +1599,25 @@ export default function StudentDashboard() {
                 {masteryRecords.length} earned
               </span>
             </div>
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-              <CertificatesPanel
-                records={masteryRecords}
-                scholarName={scholar?.name || "Cadet"}
-                subjects={subjects}
-              />
-            </div>
+            {featureAccess.certificates ? (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <CertificatesPanel
+                  records={masteryRecords}
+                  scholarName={scholar?.name || "Scholar"}
+                  subjects={subjects}
+                />
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center">
+                <span className="text-3xl block mb-2">🔒</span>
+                <p className="text-sm font-bold text-slate-600 mb-1">Certificates are a Pro feature</p>
+                <p className="text-xs text-slate-400 mb-3">You've earned {masteryRecords.length} — upgrade to view and share them</p>
+                <button onClick={() => { setUpgradeReason("feature_locked"); setShowUpgradeModal(true); }}
+                  className="text-xs font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
+                  Upgrade to Pro
+                </button>
+              </div>
+            )}
           </section>
         )}
 

@@ -19,6 +19,22 @@ import PaperEngine from "./game/PaperEngine";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
+// Curriculum-aware header for the Test Centre
+function getTestHubHeader(curriculum, year, examMode) {
+  switch (curriculum) {
+    case 'uk_11plus':
+      return { title: "11+ Exam Prep", subtitle: "Timed mock tests for grammar school entry", icon: "🎯", gradeLabel: `Year ${year}` };
+    case 'ng_jss':
+      return { title: "BECE Practice", subtitle: "Junior WAEC mock papers", icon: "📝", gradeLabel: `JSS ${year}` };
+    case 'ng_sss':
+      return { title: "WAEC / NECO Prep", subtitle: "Timed practice under exam conditions", icon: "📋", gradeLabel: `SS ${year}` };
+    case 'uk_national':
+      return { title: "Test Centre", subtitle: "Practice papers for your key stage", icon: "📋", gradeLabel: `Year ${year}` };
+    default:
+      return { title: "Test Centre", subtitle: "Mock tests and practice papers", icon: "📋", gradeLabel: `Year ${year}` };
+  }
+}
+
 const DIFFICULTY_STYLES = {
   foundation:   { bg: "#dcfce7", color: "#166534", label: "Foundation" },
   standard:     { bg: "#dbeafe", color: "#1e40af", label: "Standard"   },
@@ -131,10 +147,8 @@ function CategoryBar({ active, onChange, counts, allCategories }) {
     null,
     "exam_prep",
     "subject_practice",
-    "gcse",
-    "a_level",
     "waec",
-    "sat",
+    "bece",
     "diagnostic",
   ];
 
@@ -212,6 +226,7 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
 
   const year       = parseInt(scholar?.year_level || scholar?.year || 1, 10);
   const curriculum = scholar?.curriculum ?? "uk_national";
+  const hubHeader  = getTestHubHeader(curriculum, year, scholar?.exam_mode);
 
   // Memoised — avoid recalculating on every render
   const allTests     = useMemo(() => getTestsForScholar(year, curriculum), [year, curriculum]);
@@ -454,16 +469,16 @@ export default function MockTestHub({ scholar, supabase, onBack }) {
               background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 26, boxShadow: "0 8px 20px rgba(99,102,241,0.4)",
-            }}>📋</div>
+            }}>{hubHeader.icon}</div>
             <div>
               <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>
-                Mock Tests
+                {hubHeader.subtitle}
               </div>
               <h1 style={{ fontSize: 22, fontWeight: 900, color: "white", margin: 0, lineHeight: 1.2 }}>
-                Test Centre
+                {hubHeader.title}
               </h1>
               <p style={{ fontSize: 13, color: "#94a3b8", margin: "4px 0 0", fontWeight: 500 }}>
-                {pluralise(allTests.length, "paper")} available · Year {year}
+                {pluralise(allTests.length, "paper")} available · {hubHeader.gradeLabel}
               </p>
             </div>
           </div>

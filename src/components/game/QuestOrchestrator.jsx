@@ -320,7 +320,7 @@ function hasMathsVisual(question, subject) {
   return false;
 }
 
-function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose }) {
+function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled }) {
   const perQTimer = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj      = subject?.toLowerCase() || "maths";
   const theme     = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
@@ -383,16 +383,18 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
       });
     } catch (e) { console.warn("[MainQuiz] DB:", e); }
     if (qs.length < questionCount) {
-      // Procedural fallback — only for subjects with reliable generators.
-      // NVR and verbal procedural generators produce ambiguous/incorrect questions
-      // (wrong odd-one-out logic, matrix patterns with multiple valid answers,
-      // visualiser mismatches). Better to serve fewer DB questions than bad ones.
-      const PROCEDURAL_SAFE = ["maths", "mathematics", "english", "science", "physics", "chemistry", "biology"];
+      // Procedural fallback — MATHS ONLY for beta.
+      // English procedural generates disjointed prefix/suffix questions with no passages.
+      // Science/physics/chemistry/biology procedural generates primary-level questions for all years.
+      // All other subjects fall through to generateLocalMaths which is wrong subject entirely.
+      // Better to serve fewer DB questions than pad with garbage.
+      const PROCEDURAL_SAFE = ["maths", "mathematics"];
       const canUseProcedural = PROCEDURAL_SAFE.includes(subj);
 
-      if (canUseProcedural) {
+      if (canUseProcedural && qs.length === 0) {
+        // Only use procedural if DB returned literally zero questions
         try {
-          const fb = await generateSessionQuestions(student, subject, "foundation", questionCount);
+          const fb = await generateSessionQuestions(student, subject, "foundation", questionCount - qs.length);
           const stamped = (fb || []).map(q => {
             if (q.year_level == null) q.year_level = year;
             q._studentYear = year;
@@ -471,19 +473,9 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
     recordTopicResult(q.topic || subject, isCorrect);
 
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
-      if (isCorrect) {
-        const milestones = getSessionMilestones();
-        // Only show milestone popup for NEW milestones not already shown
-        // and only for significant achievements (tier crossings)
-        const newMilestones = milestones.filter(m => 
-          m.type === 'tier_crossed' && !shownMilestonesRef.current.has(m.tier + '_' + m.topic)
-        );
-        if (newMilestones.length > 0) {
-          const latest = newMilestones[newMilestones.length - 1];
-          shownMilestonesRef.current.add(latest.tier + '_' + latest.topic);
-          setPendingMilestone(latest);
-        }
-      }
+      // Milestone celebrations disabled for beta — tier crossings are shown
+      // via the certificate on the completion screen instead. The popup was
+      // firing too frequently and disrupting quiz flow.
     });
 
     questionStartTime.current = Date.now();
@@ -713,6 +705,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
               themeBg={theme.bg} themeBorder={theme.border} themeAccent={theme.accent}
               taraFeedbackReceived={onFeedbackReceived} onNext={next}
               isLast={qIdx === sessionQuestions.length - 1}
+               taraEnabled={taraEnabled}
             />
           </div>
         </div>
@@ -993,6 +986,7 @@ export default function QuestOrchestrator({
       student={student} subject={subject} curriculum={curriculum}
       questionCount={questionCount} previousQuestionIds={previousQuestionIds}
       onClose={onClose} onComplete={onComplete}
+       taraEnabled={taraEnabled}
     />
   );
 }

@@ -192,7 +192,11 @@ export async function generateSessionQuestions(scholar, subject, difficultyTier 
         else if (s === 'financial_accounting') q = generateLocalMaths(y);
         else if (s === 'commerce')             q = generateLocalMaths(y);
         else if (s === 'basic_technology')     q = generateLocalMaths(y);
-        else                                   q = generateLocalMaths(y);
+        else {
+          // Unknown subject — skip rather than generating wrong-subject maths
+          console.warn(`[procedural] No generator for "${s}" — skipping`);
+          continue;
+        }
         // Tag with year_level so MathsVisualiser and hasMathsVisual can render correctly
         questions.push({ ...q, year_level: y });
       }
