@@ -138,25 +138,25 @@ const SUBJECT_META = {
   marketing:"📣",computer_science:"💻",ict:"💻",digital_technologies:"💻",
   basic_digital_literacy:"💻",basic_technology:"🔧",design_technology:"⚙️",
   food_technology:"🍳",data_processing:"🖥️",physical_education:"🏃",
-  sport_science:"⚽",french_language:"🗣️",canadian_history:"🍁",computing:"💻",
+  sport_science:"⚽",canadian_history:"🍁",computing:"💻",
 };
 const subjectLabel = (s) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 const subjectEmoji = (s) => SUBJECT_META[s] || "📚";
 
 const CANADIAN_PROVINCES = [
-  { code: "ON", name: "Ontario",                frenchMandatory: true,  note: "French as a Second Language from Grade 4" },
-  { code: "BC", name: "British Columbia",        frenchMandatory: false, note: "Inquiry-based curriculum; French Immersion available" },
-  { code: "AB", name: "Alberta",                 frenchMandatory: false, note: "Strong STEM focus; French Immersion available" },
-  { code: "QC", name: "Québec",                  frenchMandatory: true,  note: "French is the primary language of instruction" },
-  { code: "MB", name: "Manitoba",                frenchMandatory: true,  note: "French mandatory from Grade 4" },
-  { code: "SK", name: "Saskatchewan",            frenchMandatory: false, note: "French Immersion widely offered" },
-  { code: "NS", name: "Nova Scotia",             frenchMandatory: false, note: "Atlantic Canada emphasis" },
-  { code: "NB", name: "New Brunswick",           frenchMandatory: true,  note: "Only officially bilingual province" },
-  { code: "NL", name: "Newfoundland & Labrador", frenchMandatory: false, note: "Atlantic Canada; French Immersion available" },
-  { code: "PE", name: "Prince Edward Island",    frenchMandatory: false, note: "Atlantic Canada" },
-  { code: "NT", name: "Northwest Territories",   frenchMandatory: false, note: "Indigenous language programmes" },
-  { code: "YT", name: "Yukon",                   frenchMandatory: false, note: "Follows BC curriculum framework" },
-  { code: "NU", name: "Nunavut",                 frenchMandatory: false, note: "Inuktitut instruction available" },
+  { code: "ON", name: "Ontario",                note: "Largest province; Ontario curriculum" },
+  { code: "BC", name: "British Columbia",        note: "Inquiry-based curriculum" },
+  { code: "AB", name: "Alberta",                 note: "Strong STEM focus" },
+  { code: "QC", name: "Québec",                  note: "Québec Education Programme" },
+  { code: "MB", name: "Manitoba",                note: "Central Canada" },
+  { code: "SK", name: "Saskatchewan",            note: "Prairie province" },
+  { code: "NS", name: "Nova Scotia",             note: "Atlantic Canada" },
+  { code: "NB", name: "New Brunswick",           note: "Atlantic Canada" },
+  { code: "NL", name: "Newfoundland & Labrador", note: "Atlantic Canada" },
+  { code: "PE", name: "Prince Edward Island",    note: "Atlantic Canada" },
+  { code: "NT", name: "Northwest Territories",   note: "Northern Canada" },
+  { code: "YT", name: "Yukon",                   note: "Follows BC curriculum framework" },
+  { code: "NU", name: "Nunavut",                 note: "Northern Canada" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1041,7 +1041,7 @@ export default function ParentDashboard() {
                       className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors">
                       <option value="">Select province or territory…</option>
                       {CANADIAN_PROVINCES.map(p => (
-                        <option key={p.code} value={p.code}>{p.name}{p.frenchMandatory ? " · French required" : ""}</option>
+                        <option key={p.code} value={p.code}>{p.name}</option>
                       ))}
                     </select>
                     {provInfo && (
