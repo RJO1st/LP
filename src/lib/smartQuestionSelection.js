@@ -839,6 +839,43 @@ export async function getSmartQuestions(
       questRows = shuffle(broadRows ?? []).slice(0, count);
     }
 
+    // ── 6.7 Cross-curriculum fallback — borrow from closest curriculum ────
+    // If a curriculum has no content yet (e.g. ca_primary just launched),
+    // borrow questions from the closest matching curriculum so scholars
+    // never see a blank screen.
+    if (questRows.length === 0) {
+      const FALLBACK_MAP = {
+        ca_primary:    'aus_acara',     // Similar grade range, English-speaking
+        ca_secondary:  'uk_national',   // KS3-4 content covers similar topics
+        ib_pyp:        'uk_11plus',     // Primary-age, similar subjects
+        ib_myp:        'uk_national',   // Secondary, similar subjects
+        us_common_core:'uk_national',   // English + maths overlap
+      };
+      const dbCurriculum = resolveDbCurriculum(curriculum, activeSubject, year);
+      const fallbackCur = FALLBACK_MAP[dbCurriculum];
+      if (fallbackCur) {
+        const dbSubject = resolveDbSubject(activeSubject, curriculum);
+        const dbYear    = resolveDbYear(curriculum, year);
+        console.warn(
+          `[getSmartQuestions] Cross-curriculum fallback: ${dbCurriculum} → ${fallbackCur} ` +
+          `for subject=${dbSubject}, year=${dbYear}`
+        );
+        const { data: fallbackRows } = await supabase
+          .from('question_bank')
+          .select('*')
+          .eq('curriculum', fallbackCur)
+          .eq('subject', dbSubject)
+          .gte('year_level', Math.max(1, dbYear - 1))
+          .lte('year_level', dbYear + 1)
+          .limit(Math.min(count * 5, 100));
+
+        if (fallbackRows?.length) {
+          console.log(`[getSmartQuestions] Cross-curriculum fallback found ${fallbackRows.length} rows from ${fallbackCur}`);
+          questRows = shuffle(fallbackRows).slice(0, count);
+        }
+      }
+    }
+
     // ── 7. Shuffle, slice, record ─────────────────────────────────────────
     questRows = shuffle(questRows).slice(0, count);
     const selectedIds = questRows.map(r => r.id).filter(Boolean);
