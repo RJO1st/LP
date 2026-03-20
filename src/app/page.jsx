@@ -474,7 +474,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto">
             <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-5 text-center">Legal &amp; Privacy</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
-              {[{icon:'📋',title:'Terms & Conditions',desc:'Your rights and obligations',href:'/terms'},{icon:'🔒',title:'Privacy Policy',desc:'How we protect your data',href:'/privacy-policy'},{icon:'🍪',title:'Cookie Policy',desc:'What cookies we use',href:'/cookie-policy'}].map((d,i) => (
+              {[{icon:'📋',title:'Terms & Conditions',desc:'Your rights and obligations',href:'/terms'},{icon:'🔒',title:'Privacy Policy',desc:'How we protect your data',href:'/privacy-policy'},{icon:'🍪',title:'Cookie Policy',desc:'What cookies we use',href:'/cookie-policy'},{icon:'🛡️',title:'Safeguarding Policy',desc:'How we protect children',href:'/safeguarding'}].map((d,i) => (
                 <Link key={i} href={d.href} className="group flex items-start gap-3 bg-white/70 hover:bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 transition-all hover:shadow-sm">
                   <span className="text-xl flex-shrink-0 mt-0.5">{d.icon}</span>
                   <div><div className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight mb-1">{d.title}</div><div className="text-xs text-slate-500 leading-snug">{d.desc}</div></div>

@@ -3,25 +3,17 @@
  * QuizShell.jsx
  * Deploy to: src/components/game/QuizShell.jsx
  *
- * v2 — Upgraded UI based on design inspirations:
- *   + MCQOptions    — Bold A/B/C/D label chips (Image 9 style)
- *   + EngineFinished — Stat trio, readiness arc gauge, grade bar,
- *                      "Where you lost marks", AI coach insight cards,
- *                      difficulty rating (Image 5 + 7 style)
- *   + EngineHeader  — Subject chip, Q counter, timer pill, progress bar (Image 8 style)
- *   + FeedbackArea  — Preserves TaraEIB + canProceed gate (original logic)
- *   + EngineLoading — Preserved from original
- *
- * API is 100% backward-compatible with original QuizShell.jsx
+ * v3 — Added answer review integration + taraEnabled prop on FeedbackArea
  */
 
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import {
   XCircle, CheckCircle, ArrowRight, Zap,
-  Trophy, Target, TrendingUp, Star, Brain,
-  AlertTriangle, Lightbulb, Clock, ChevronDown, ChevronUp,
+  Trophy, Target, TrendingUp, Star, Brain, Flame,
+  AlertTriangle, Lightbulb, Clock, ChevronDown, ChevronUp, ChevronRight,
 } from "lucide-react";
 import TaraEIB from "./TaraEIB";
+import AnswerReview from "../AnswerReview";
 
 // Lazy-load certificate (only needed on Distinction)
 const MasteryCertificate = lazy(() => import("./MasteryCertificate"));
@@ -319,6 +311,7 @@ export function MCQOptions({ opts, correctIdx, selected, onPick }) {
 export function FeedbackArea({
   selected, isCorrectAnswer, canProceed, currentQ, student, subject,
   scholarAnswer, themeBg, themeBorder, themeAccent, taraFeedbackReceived, onNext, isLast,
+  taraEnabled,
 }) {
   if (selected === null) return null;
 
@@ -335,7 +328,7 @@ export function FeedbackArea({
         </div>
       )}
 
-      {/* Tara EIB — only for wrong answers */}
+      {/* Tara EIB — only for wrong answers when taraEnabled */}
       {!isCorrectAnswer && taraEnabled !== false && (
         <TaraEIB
           student={student}
@@ -381,6 +374,7 @@ export function EngineFinished({
   const [showWrong,   setShowWrong]   = useState(false);
   const [gaugeVal,    setGaugeVal]    = useState(0);
   const [showCert,    setShowCert]    = useState(false);
+  const [showReview,  setShowReview]  = useState(false);
 
   const colors      = getColors(subject);
   const accentColor = colors.accent;
@@ -425,6 +419,16 @@ export function EngineFinished({
         xpEarned={xp}
         date={new Date()}
         onClose={() => setShowCert(false)}
+      />
+    )}
+
+    {/* Answer review overlay */}
+    {showReview && (
+      <AnswerReview
+        answers={answers}
+        scholarName={scholarName}
+        subject={subject}
+        onClose={() => setShowReview(false)}
       />
     )}
 
@@ -576,8 +580,16 @@ export function EngineFinished({
           </div>
         )}
 
-        {/* ── CLOSE BUTTON ── */}
-        <div className="px-5 pb-7 pt-1">
+        {/* ── REVIEW + CLOSE BUTTONS ── */}
+        <div className="px-5 pb-7 pt-1 space-y-2">
+          {answers.length > 0 && answers[0]?.opts && (
+            <button
+              onClick={() => setShowReview(true)}
+              className="w-full py-3 rounded-2xl text-sm font-black text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span className="text-base">📝</span> Review Answers
+            </button>
+          )}
           <button
             onClick={() => onClose?.()}
             className="w-full py-4 rounded-2xl text-sm font-black text-white shadow-lg transition-all active:scale-95 border-b-4 border-black/20"

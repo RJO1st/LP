@@ -1,7 +1,7 @@
 "use client";
 /**
  * ContextPanel.jsx
- * Deploy to: src/app/components/quiz/ContextPanel.jsx
+ * Deploy to: src/app/components/game/ContextPanel.jsx
  *
  * The shared LEFT-PANEL anchor that persists across questions in a set.
  * Renders whichever content types are present:

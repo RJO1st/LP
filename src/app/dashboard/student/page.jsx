@@ -17,6 +17,7 @@ import QuestPanel from "../../../components/QuestPanel";
 import { getTrialStatus } from "../../../lib/trialTracking";
 import { getEffectiveTier, checkQuestAccess, getFeatureAccess } from "../../../lib/freeTierGating";
 import UpgradeModal from "../../../components/UpgradeModal";
+import JourneyMap from "../../../components/JourneyMap";
 
 // ── Tier 1 components ─────────────────────────────────────────────
 import SubjectInsightCard                   from "../../../components/SubjectInsightCard";
@@ -583,17 +584,33 @@ const NG_SUBJECT_ICONS = {
   digital_technologies: "💻",
 };
 
-function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
+function SubjectCard({ subjectId, onClick, proficiency = 0, isWeakest = false }) {
   const colors = SUBJECT_COLORS[subjectId] || SUBJECT_COLORS.maths;
   const icon = SUBJECT_ICONS[subjectId] || NG_SUBJECT_ICONS[subjectId] || "📚";
   const label = SUBJECT_LABELS[subjectId] || subjectId.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  const pctLabel = proficiency >= 100 ? "✓" : `${proficiency}%`;
-  const ringColor = proficiency >= 80 ? "#22c55e" : proficiency >= 55 ? "#f59e0b" : "#6366f1";
   
+  // proficiency now = avgMastery × coverageFactor (0-100)
+  // Low values mean either low mastery OR few topics covered — both mean "needs work"
+  const pctLabel = proficiency >= 100 ? "✓" : proficiency > 0 ? `${proficiency}%` : null;
+  const ringColor = proficiency >= 75 ? "#22c55e" : proficiency >= 55 ? "#3b82f6" : proficiency >= 30 ? "#f59e0b" : proficiency > 0 ? "#f97316" : "#6366f1";
+  const tierLabel = proficiency >= 75 ? "Stellar" : proficiency >= 55 ? "On Track" : proficiency >= 30 ? "Developing" : proficiency > 0 ? "Needs Work" : null;
+
   return (
     <button onClick={onClick}
       className={`group relative ${colors.bg || "bg-slate-50"} p-6 rounded-[28px] border-2 ${colors.border || "border-slate-200"} text-left
-                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200`}>
+                  hover:shadow-xl hover:-translate-y-1 transition-all duration-200 ${isWeakest ? "ring-2 ring-indigo-400 ring-offset-2" : ""}`}>
+      {/* Pulse ring for weakest subject */}
+      {isWeakest && (
+        <div className="absolute -top-1 -left-1 -right-1 -bottom-1 rounded-[32px] animate-pulse border-2 border-indigo-400 opacity-40 pointer-events-none" />
+      )}
+      {/* Next up badge */}
+      {isWeakest && (
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20">
+          <span className="bg-indigo-600 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md">
+            Next up
+          </span>
+        </div>
+      )}
       {proficiency > 0 && (
         <div className="absolute -top-2 -right-2 z-10">
           <div className="relative w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center">
@@ -610,7 +627,11 @@ function SubjectCard({ subjectId, onClick, proficiency = 0 }) {
       )}
       <div className="text-4xl mb-3">{icon}</div>
       <h3 className={`text-base font-black ${colors.text || "text-slate-800"}`}>{label}</h3>
-      <p className="text-xs text-slate-600 font-bold mt-1">Start Mission →</p>
+      {tierLabel ? (
+        <p className="text-[10px] font-bold mt-1" style={{ color: ringColor }}>{tierLabel}</p>
+      ) : (
+        <p className="text-xs text-slate-600 font-bold mt-1">Start Mission →</p>
+      )}
     </button>
   );
 }
@@ -689,6 +710,7 @@ export default function StudentDashboard() {
   const [newQuestComplete, setNewQuestComplete] = useState(null);
   const [leaderboard,      setLeaderboard]      = useState([]);
   const [masteryRecords,   setMasteryRecords]   = useState([]);   // for certificates
+  const [journeyTopics,    setJourneyTopics]    = useState([]);   // for JourneyMap (all topics)
   const [skillProficiency, setSkillProficiency] = useState({});
   const [recentQuizzes,    setRecentQuizzes]    = useState([]);
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
@@ -781,6 +803,16 @@ export default function StudentDashboard() {
     if (data) setMasteryRecords(data);
   }, [supabase]);
 
+  const loadJourneyTopics = useCallback(async (id) => {
+    const { data } = await supabase
+      .from("scholar_topic_mastery")
+      .select("subject, topic, mastery_score, current_tier, times_seen, times_correct, updated_at")
+      .eq("scholar_id", id)
+      .order("subject")
+      .order("mastery_score", { ascending: true });
+    if (data) setJourneyTopics(data);
+  }, [supabase]);
+
   const loadLeaderboard = useCallback(async (yearLevel, curriculum) => {
     const { data } = await supabase
       .from("scholars")
@@ -812,26 +844,54 @@ export default function StudentDashboard() {
   }, [supabase]);
 
   const loadSkills = useCallback(async (id) => {
+    // Fetch mastery records AND total distinct topics per subject from question_bank
     const { data } = await supabase
       .from("scholar_topic_mastery")
-      .select("subject, mastery_score")
+      .select("subject, topic, mastery_score")
       .eq("scholar_id", id);
-    if (data) {
-      // Aggregate mastery by subject (average across topics)
-      const subjectTotals = {};
-      const subjectCounts = {};
-      data.forEach(s => {
-        if (!subjectTotals[s.subject]) { subjectTotals[s.subject] = 0; subjectCounts[s.subject] = 0; }
-        subjectTotals[s.subject] += s.mastery_score ?? 0;
-        subjectCounts[s.subject] += 1;
+
+    if (!data) return;
+
+    // Also get total topic count per subject from question_bank
+    const { data: topicRows } = await supabase
+      .from("question_bank")
+      .select("subject, topic")
+      .eq("curriculum", scholar?.curriculum || "uk_national")
+      .not("question_text", "is", null);
+
+    // Count distinct topics per subject available in the DB
+    const totalTopicsPerSubject = {};
+    if (topicRows) {
+      topicRows.forEach(r => {
+        if (!totalTopicsPerSubject[r.subject]) totalTopicsPerSubject[r.subject] = new Set();
+        if (r.topic) totalTopicsPerSubject[r.subject].add(r.topic);
       });
-      const map = {};
-      Object.keys(subjectTotals).forEach(subj => {
-        map[subj] = Math.round((subjectTotals[subj] / subjectCounts[subj]) * 100);
-      });
-      setSkillProficiency(map);
     }
-  }, [supabase]);
+
+    // Aggregate scholar mastery by subject
+    const subjectData = {};
+    data.forEach(s => {
+      if (!subjectData[s.subject]) subjectData[s.subject] = { total: 0, count: 0 };
+      subjectData[s.subject].total += s.mastery_score ?? 0;
+      subjectData[s.subject].count += 1;
+    });
+
+    // Proficiency = avgMastery × (topicsCovered / totalTopicsInSubject)
+    // Scholar must BOTH know topics well AND cover enough topics to score high
+    // Example: 100% mastery on 3 of 40 topics → 100% × 3/40 = 7.5%
+    // Example: 80% mastery on 30 of 40 topics → 80% × 30/40 = 60%
+    const map = {};
+    Object.keys(subjectData).forEach(subj => {
+      const { total, count } = subjectData[subj];
+      const avgMastery = total / count; // 0.0 to 1.0
+      const topicsCovered = count;
+      const totalTopics = totalTopicsPerSubject[subj]?.size || Math.max(topicsCovered, 20);
+      const coverageRatio = Math.min(1, topicsCovered / totalTopics);
+
+      map[subj] = Math.round(avgMastery * coverageRatio * 100);
+    });
+    setSkillProficiency(map);
+  }, [supabase, scholar?.curriculum]);
 
   const loadFullSkills = useCallback(async (id, curriculum) => {
     const res = await fetch(`/api/parent/skills?scholar_id=${id}&curriculum=${curriculum}`);
@@ -904,6 +964,7 @@ export default function StudentDashboard() {
       refreshHistory(id),
       loadBadges(id),
       loadMasteryRecords(id),
+      loadJourneyTopics(id),
       loadQuests(id),
       loadLeaderboard(yearLevel, curriculum),
       loadSkills(id),
@@ -919,6 +980,7 @@ export default function StudentDashboard() {
     scholar?.year_level ?? scholar?.year,
     refreshHistory,
     loadBadges,
+    loadJourneyTopics,
     loadQuests,
     loadLeaderboard,
     loadSkills,
@@ -938,6 +1000,7 @@ export default function StudentDashboard() {
       refreshHistory(scholar.id),
       loadRecentQuizzes(scholar.id),
       loadQuests(scholar.id),
+      loadJourneyTopics(scholar.id),
     ]);
 
     // check_and_award_badges — non-fatal, skip gracefully if RPC doesn't exist
@@ -1481,14 +1544,23 @@ const UK_NATIONAL_SUBJECTS = {
             Choose Your Mission
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {subjects.map(s => (
-              <SubjectCard
-                key={s}
-                subjectId={s}
-                proficiency={skillProficiency[s]}
-                onClick={() => launchQuest(s)}
-              />
-            ))}
+            {(() => {
+              // Determine weakest subject for "next up" pulse
+              const weakestSubject = subjects.reduce((best, s) => {
+                const p = skillProficiency[s] ?? 0;
+                const bp = skillProficiency[best] ?? 0;
+                return p < bp ? s : best;
+              }, subjects[0]);
+              return subjects.map(s => (
+                <SubjectCard
+                  key={s}
+                  subjectId={s}
+                  proficiency={skillProficiency[s]}
+                  onClick={() => launchQuest(s)}
+                  isWeakest={s === weakestSubject && (skillProficiency[s] ?? 0) < 80}
+                />
+              ));
+            })()}
           </div>
         </section>
 

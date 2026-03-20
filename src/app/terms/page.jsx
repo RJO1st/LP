@@ -442,6 +442,7 @@ export default function TermsPage() {
               <div className="flex justify-center gap-6 mt-4 text-sm flex-wrap">
                 <a href="/privacy-policy" className="text-indigo-600 hover:underline">Privacy Policy</a>
                 <a href="/cookie-policy" className="text-indigo-600 hover:underline">Cookie Policy</a>
+                <a href="/safeguarding" className="text-indigo-600 hover:underline">Safeguarding</a>
                 <a href={`mailto:${EMAIL}`} className="text-indigo-600 hover:underline">Contact Us</a>
               </div>
             </div>

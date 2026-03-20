@@ -6,6 +6,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useMemo } from "react";
 
+// ─── EXTRACTED MODULE IMPORTS ────────────────────────────────────────────────
+// These were extracted from this file for maintainability.
+// Each module is self-contained with its own design tokens.
+import { ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis, StateChangesVis, PHScaleVis, MoleculeVis, CellVis, PunnettVis, EnergyStoresVis, WaveVis, EMSpectrumVis, FreeBodyVis } from "./ScienceVisuals";
+import { NVRShapeItem, NVRVis, NVRShapePropertyVis, NVRReflectionVis, NVRNetVis, NVRRotationVis, NVROddOneOutVis, NVRMatrixVis, NVRPaperFoldVis } from "./NVRVisuals";
+import { CoordinateVis, AngleVis, AngleOnLineDiagram, TriangleAngleDiagram, AnglesAtPointDiagram, VerticallyOppositeDiagram, AreaVis, RulerVis, FormulaTriangleVis } from "./GeometryVisuals";
+import { TAccountVis, BreakEvenVis, SupplyDemandVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
+import InteractiveGraph from "./InteractiveGraph";
+import DataTable from "./DataTable";
+import LongMultiplication from "./LongMultiplication";
+
 const RX_NUM       = /\d+(?:\.\d+)?/g;                         // all numbers incl decimals
 const RX_TWO_NUMS  = /(\d+)[^\d]+(\d+)/;                       // first two integers in text
 const RX_UNITS     = /(?:cm|m{1,2}|km|in|ft)/i;               // length units
@@ -230,22 +241,50 @@ function PlaceValueVis({ tens, ones }) {
 
 // MULTIPLICATION — clean array with row/col separators ────────────────────────
 function MultiplicationVis({ rows, cols }) {
-  // Visual cap: max 5 rows × 8 cols (40 dots) to fit panel cleanly
-  const dispR = Math.min(rows, 5);
-  const dispC = Math.min(cols, 8);
-  const truncated = rows > 5 || cols > 8;
-  const dotSize = dispC > 6 ? 12 : dispC > 4 ? 14 : 18;
+  // Coloured block groups — each row is a distinct colour group
+  const total = rows * cols;
+  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#e11d48", "#0891b2", "#7c3aed",
+                  "#ea580c", "#06b6d4", "#84cc16", "#ec4899", "#64748b", "#0d9488"];
+  const BG =     ["#eef2ff", "#ecfdf5", "#fefce8", "#fff1f2", "#ecfeff", "#f5f3ff",
+                  "#fff7ed", "#ecfeff", "#f7fee7", "#fdf2f8", "#f1f5f9", "#f0fdfa"];
+
+  // Scale: show up to 10 rows, 10 cols
+  const dispR = Math.min(rows, 10);
+  const dispC = Math.min(cols, 10);
+  const truncR = rows > dispR;
+  const truncC = cols > dispC;
+  // Block size scales with grid
+  const maxDim = Math.max(dispR, dispC);
+  const blockSize = maxDim > 8 ? 12 : maxDim > 6 ? 14 : maxDim > 4 ? 16 : 20;
+  const gap = blockSize > 14 ? 2 : 3;
+  const groupGap = blockSize > 14 ? 4 : 6;
+
   return (
     <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}
-      ariaLabel={`Multiplication array`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-        {Array.from({ length: dispR }).map((_, ri) => (
-          <div key={ri} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            {Array.from({ length: dispC }).map((_, ci) => (
-              <Dot key={ci} color={T.emerald} bg={T.emeraldBg} border={T.emerald} size={dotSize} />
-            ))}
-          </div>
-        ))}
+      ariaLabel={`${rows} groups of ${cols}`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: groupGap, alignItems: "center" }}>
+        {Array.from({ length: dispR }).map((_, ri) => {
+          const c = COLORS[ri % COLORS.length];
+          const bg = BG[ri % BG.length];
+          return (
+            <div key={ri} style={{
+              display: "flex", gap, alignItems: "center",
+              background: bg, borderRadius: 6, padding: "3px 5px",
+              border: `1.5px solid ${c}30`,
+            }}>
+              {Array.from({ length: dispC }).map((_, ci) => (
+                <div key={ci} style={{
+                  width: blockSize, height: blockSize, borderRadius: 3,
+                  background: c, opacity: 0.85,
+                }} />
+              ))}
+              {truncC && <span style={{ fontSize: 8, color: c, fontWeight: 700 }}>…</span>}
+            </div>
+          );
+        })}
+        {truncR && (
+          <span style={{ fontSize: 9, color: T.emerald, fontWeight: 700 }}>⋮ ({rows} rows total)</span>
+        )}
       </div>
       <Chip color={T.emerald} bg={T.emeraldBg}>
         {rows} × {cols} = ?
@@ -379,418 +418,10 @@ const NVR_SHAPES = {
   },
 };
 
-function NVRShapeItem({ shape, size, fill, stroke, rotate = 0, opacity = 1, isQuestion = false }) {
-  const cx = 24, cy = 24, r = size;
-  const shapeFn = NVR_SHAPES[shape] || NVR_SHAPES.circle;
-  const svgContent = shapeFn(cx, cy, r, fill, stroke);
-  return (
-    <div style={{
-      width: 48, height: 48,
-      borderRadius: 10,
-      background: isQuestion ? T.amberBg : T.slateBg,
-      border: `2px solid ${isQuestion ? T.amberBd : T.slateBd}`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0,
-      animation: isQuestion ? "lp-pulse 2s ease-in-out infinite" : "none",
-    }}>
-      {isQuestion ? (
-        <span style={{ fontSize: 20, fontWeight: 900, color: T.amber }}>?</span>
-      ) : (
-        <svg width={48} height={48} viewBox="0 0 48 48"
-          style={{ transform: `rotate(${rotate}deg)`, opacity }}>
-          <g dangerouslySetInnerHTML={{ __html: svgContent }} />
-        </svg>
-      )}
-    </div>
-  );
-}
-
-function NVRVis({ sequence }) {
-  // sequence: array of { shape, size, fill, stroke, rotate }
-  // Last item is always { isQuestion: true }
-  return (
-    <Panel accent={T.slate} bg={T.slateBg} bd={T.slateBd}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
-        {sequence.map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <NVRShapeItem {...item} />
-            {i < sequence.length - 1 && (
-              <span style={{ fontSize: 16, color: T.textMid, fontWeight: 700 }}>→</span>
-            )}
-          </div>
-        ))}
-      </div>
-      <Chip color={T.slate} bg={T.slateBg}>What comes next?</Chip>
-    </Panel>
-  );
-}
-
-// ─── NVR SHAPE PROPERTY VISUAL ────────────────────────────────────────────────
-// For geometry questions: "how many sides does a X have?" etc.
-// Shows the shape large, labelled with sides count and a corner dot at each vertex.
-const SHAPE_PROPS = {
-  triangle: { sides: 3, corners: 3, label: "Triangle",  svgPath: (cx,cy,r) => `${cx},${cy-r} ${cx+r*0.87},${cy+r*0.5} ${cx-r*0.87},${cy+r*0.5}`, type: "polygon",
-    vertices: (cx,cy,r) => [[cx,cy-r],[cx+r*0.87,cy+r*0.5],[cx-r*0.87,cy+r*0.5]] },
-  square:   { sides: 4, corners: 4, label: "Square",    svgPath: (cx,cy,r) => `${cx-r},${cy-r} ${cx+r},${cy-r} ${cx+r},${cy+r} ${cx-r},${cy+r}`, type: "polygon",
-    vertices: (cx,cy,r) => [[cx-r,cy-r],[cx+r,cy-r],[cx+r,cy+r],[cx-r,cy+r]] },
-  rectangle:{ sides: 4, corners: 4, label: "Rectangle", svgPath: (cx,cy,r) => `${cx-r*1.3},${cy-r*0.75} ${cx+r*1.3},${cy-r*0.75} ${cx+r*1.3},${cy+r*0.75} ${cx-r*1.3},${cy+r*0.75}`, type: "polygon",
-    vertices: (cx,cy,r) => [[cx-r*1.3,cy-r*0.75],[cx+r*1.3,cy-r*0.75],[cx+r*1.3,cy+r*0.75],[cx-r*1.3,cy+r*0.75]] },
-  pentagon: { sides: 5, corners: 5, label: "Pentagon",  type: "polygon",
-    svgPath: (cx,cy,r) => Array.from({length:5},(_,i)=>{const a=(i*72-90)*Math.PI/180;return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;}).join(" "),
-    vertices: (cx,cy,r) => Array.from({length:5},(_,i)=>{const a=(i*72-90)*Math.PI/180;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}) },
-  hexagon:  { sides: 6, corners: 6, label: "Hexagon",   type: "polygon",
-    svgPath: (cx,cy,r) => Array.from({length:6},(_,i)=>{const a=(i*60-90)*Math.PI/180;return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;}).join(" "),
-    vertices: (cx,cy,r) => Array.from({length:6},(_,i)=>{const a=(i*60-90)*Math.PI/180;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}) },
-  octagon:  { sides: 8, corners: 8, label: "Octagon",   type: "polygon",
-    svgPath: (cx,cy,r) => Array.from({length:8},(_,i)=>{const a=(i*45-90)*Math.PI/180;return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;}).join(" "),
-    vertices: (cx,cy,r) => Array.from({length:8},(_,i)=>{const a=(i*45-90)*Math.PI/180;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}) },
-  circle:   { sides: 0, corners: 0, label: "Circle",    type: "circle", svgPath: null, vertices: () => [] },
-  diamond:  { sides: 4, corners: 4, label: "Diamond",   type: "polygon",
-    svgPath: (cx,cy,r) => `${cx},${cy-r} ${cx+r},${cy} ${cx},${cy+r} ${cx-r},${cy}`,
-    vertices: (cx,cy,r) => [[cx,cy-r],[cx+r,cy],[cx,cy+r],[cx-r,cy]] },
-};
-
-function NVRShapePropertyVis({ shapeName }) {
-  const W = 170, H = 150, cx = 85, cy = 72, r = 44;
-  const props = SHAPE_PROPS[shapeName] || SHAPE_PROPS.triangle;
-  const verts = props.vertices(cx, cy, r);
-  const color = T.indigo;
-
-  return (
-    <Panel accent={color} bg={T.indigoBg} bd={T.indigoBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {props.type === "circle" ? (
-          <circle cx={cx} cy={cy} r={r} fill={T.indigoBg} stroke={color} strokeWidth={2.5}/>
-        ) : (
-          <polygon points={props.svgPath(cx, cy, r)}
-            fill={T.indigoBg} stroke={color} strokeWidth={2.5}/>
-        )}
-        {/* Corner dots */}
-        {verts.map(([vx, vy], i) => (
-          <circle key={i} cx={vx} cy={vy} r={4} fill={color}/>
-        ))}
-        {/* Shape name */}
-        <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fontWeight="800" fill={color}>
-          {props.label}
-        </text>
-      </svg>
-      <div style={{ display: "flex", gap: 8 }}>
-        {props.sides > 0 && <Chip color={color} bg="white">{props.sides} sides</Chip>}
-        {props.corners > 0 && <Chip color={T.nebula} bg={T.nebulaBg}>{props.corners} corners</Chip>}
-        {props.sides === 0 && <Chip color={color} bg="white">0 corners · curved</Chip>}
-      </div>
-    </Panel>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PHYSICS VISUALS
+// PARSER (core)
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// Arrow component — length encodes magnitude, head encodes direction
-// Colour-blind safe: uses pattern + label, colour is supplementary
-function Arrow({ length, color, label, direction = "right", y = 24 }) {
-  const MIN = 18, MAX = 100;
-  const px = Math.max(MIN, Math.min(MAX, length));
-  const headSize = 8;
-
-  if (direction === "right") {
-    return (
-      <g>
-        <line x1={0} y1={y} x2={px} y2={y} stroke={color} strokeWidth={3} strokeLinecap="round"/>
-        <polygon points={`${px},${y} ${px-headSize},${y-headSize*0.6} ${px-headSize},${y+headSize*0.6}`} fill={color}/>
-        {label && <text x={px/2} y={y-8} textAnchor="middle" fontSize={9} fontWeight="700" fill={color}>{label}</text>}
-      </g>
-    );
-  }
-  return (
-    <g>
-      <line x1={px} y1={y} x2={0} y2={y} stroke={color} strokeWidth={3} strokeLinecap="round"/>
-      <polygon points={`0,${y} ${headSize},${y-headSize*0.6} ${headSize},${y+headSize*0.6}`} fill={color}/>
-      {label && <text x={px/2} y={y-8} textAnchor="middle" fontSize={9} fontWeight="700" fill={color}>{label}</text>}
-    </g>
-  );
-}
-
-// FORCES ──────────────────────────────────────────────────────────────────────
-// Arrows are FIXED LENGTH — they show direction + identity only, not magnitude.
-// Magnitude is only communicated via labels. This ensures the visual doesn't
-// ─── NVR REFLECTION VISUAL ────────────────────────────────────────────────────
-function NVRReflectionVis({ letter = "d" }) {
-  const W = 180, H = 80;
-  return (
-    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
-      ariaLabel={`What is the reflection of ${letter} in a vertical mirror?`}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Original letter */}
-        <text x={52} y={52} textAnchor="middle" fontSize={36} fontWeight="900"
-          fill={T.indigo} fontFamily="monospace">{letter}</text>
-        {/* Mirror line */}
-        <line x1={90} y1={6} x2={90} y2={74} stroke={T.slate} strokeWidth={2}
-          strokeDasharray="4,3"/>
-        <text x={90} y={5} textAnchor="middle" fontSize={7} fill={T.textMid}
-          dominantBaseline="hanging">mirror</text>
-        {/* Question mark on reflected side */}
-        <text x={128} y={52} textAnchor="middle" fontSize={36} fontWeight="900"
-          fill={T.nebula} fontFamily="monospace" opacity={0.6}>?</text>
-        {/* Arrow hint */}
-        <path d="M 68 42 Q 90 30 112 42" fill="none" stroke={T.slate}
-          strokeWidth={1.5} strokeDasharray="3,2" markerEnd="url(#arrowhead)"/>
-        <defs>
-          <marker id="arrowhead" markerWidth="6" markerHeight="6"
-            refX="3" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" fill={T.slate}/>
-          </marker>
-        </defs>
-      </svg>
-      <Chip color={T.nebula} bg={T.nebulaBg}>What does {letter} look like in the mirror?</Chip>
-    </Panel>
-  );
-}
-
-// ─── NVR NET VISUAL ────────────────────────────────────────────────────────────
-function NVRNetVis({ shape3d = "cube" }) {
-  const W = 180, H = 90;
-  const SQ = 22;
-  // Cross net for cube: 6 squares in a cross pattern
-  const cubeSquares = [
-    [2,0], [0,1],[1,1],[2,1],[3,1],
-    [2,2],
-  ];
-  // Triangular pyramid net: 4 triangles
-  const pyramidTris = [
-    { x:60, y:10, pts: "80,10 60,46 100,46" },
-    { x:40, y:46, pts: "60,46 40,82 80,82" },
-    { x:80, y:46, pts: "100,46 80,82 120,82" },
-    { x:20, y:46, pts: "40,46 20,82 60,82" },
-  ];
-  return (
-    <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}
-      ariaLabel={`3D net of a ${shape3d}`}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {shape3d === "cube" && (
-          <g transform={`translate(${(W - SQ*4) / 2}, 4)`}>
-            {cubeSquares.map(([col, row], i) => (
-              <rect key={i} x={col*SQ} y={row*SQ} width={SQ-2} height={SQ-2}
-                fill={T.amberBg} stroke={T.amber} strokeWidth={2} rx={2}/>
-            ))}
-          </g>
-        )}
-        {shape3d !== "cube" && pyramidTris.map((t, i) => (
-          <polygon key={i} points={t.pts}
-            fill={T.amberBg} stroke={T.amber} strokeWidth={2}/>
-        ))}
-      </svg>
-      <Chip color={T.amber} bg="white">Net of a {shape3d} — fold the faces</Chip>
-    </Panel>
-  );
-}
-
-// ─── NVR ROTATION VISUAL ───────────────────────────────────────────────────────
-function NVRRotationVis({ degrees = 90, clockwise = true }) {
-  const W = 180, H = 90;
-  const cx = 50, cy = 45, r = 28;
-  const rot2 = clockwise ? degrees : -degrees;
-  const arrowAng = (rot2 * Math.PI) / 180;
-  const ax = cx + r * Math.sin(arrowAng);
-  const ay = cy - r * Math.cos(arrowAng);
-  return (
-    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
-      ariaLabel={`Rotation of ${degrees} degrees ${clockwise ? "clockwise" : "anti-clockwise"}`}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Original arrow shape */}
-        <text x={cx} y={cy+6} textAnchor="middle" fontSize={30} fill={T.indigo}>→</text>
-        {/* Rotated arrow */}
-        <text x={cx + 90} y={cy+6} textAnchor="middle" fontSize={30} fill={T.nebula}
-          transform={`rotate(${rot2}, ${cx+90}, ${cy})`}>→</text>
-        {/* Arc label */}
-        <path d={`M ${cx+62},${cy-8} A 15 15 0 0 ${clockwise?1:0} ${cx+68},${cy+8}`}
-          fill="none" stroke={T.slate} strokeWidth={1.5} strokeDasharray="3,2"/>
-        <text x={cx+62} y={cy-14} textAnchor="middle" fontSize={8} fill={T.textMid}>
-          {degrees}° {clockwise?"↻":"↺"}
-        </text>
-      </svg>
-      <Chip color={T.nebula} bg={T.nebulaBg}>
-        {degrees}° {clockwise ? "clockwise" : "anti-clockwise"} rotation
-      </Chip>
-    </Panel>
-  );
-}
-
-// ─── NVR ODD ONE OUT ────────────────────────────────────────────────────────────
-function NVROddOneOutVis() {
-  const shapes = [
-    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
-    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
-    { shape: "triangle", fill: T.nebulaBg, stroke: T.nebula },
-    { shape: "square",   fill: T.indigoBg, stroke: T.indigo },
-  ];
-  return (
-    <Panel accent={T.rose} bg={T.roseBg} bd={T.roseBd} ariaLabel="Odd one out pattern">
-      <div style={{ display:"flex", gap:10, justifyContent:"center", alignItems:"center" }}>
-        {shapes.map((s, i) => (
-          <NVRShapeItem key={i} {...s} size={16}/>
-        ))}
-      </div>
-      <Chip color={T.rose} bg={T.roseBg}>Which does not belong?</Chip>
-    </Panel>
-  );
-}
-
-// give away the answer to "what is the net force?" questions.
-function ForcesVis({ force1, force2, label1 = "Push", label2 = "Friction" }) {
-  const FIXED = 64; // all arrows same length — direction only
-  const W = 240, H = 90;
-  const cx = W / 2; // centre x = object midpoint
-
-  return (
-    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* ── force1 label above right arrow ── */}
-        <text x={cx + 8 + FIXED / 2} y={20} textAnchor="middle"
-          fontSize={9} fontWeight="700" fill={T.indigo}>
-          {label1}
-        </text>
-        <text x={cx + 8 + FIXED / 2} y={31} textAnchor="middle"
-          fontSize={9} fontWeight="600" fill={T.indigo}>
-          {force1}N →
-        </text>
-        {/* ── force2 label above left arrow ── */}
-        <text x={cx - 8 - FIXED / 2} y={20} textAnchor="middle"
-          fontSize={9} fontWeight="700" fill={T.rose}>
-          {label2}
-        </text>
-        <text x={cx - 8 - FIXED / 2} y={31} textAnchor="middle"
-          fontSize={9} fontWeight="600" fill={T.rose}>
-          ← {force2}N
-        </text>
-        {/* ── object block ── */}
-        <rect x={cx - 26} y={42} width={52} height={28} rx={6}
-          fill="white" stroke={T.slateBd} strokeWidth={2}/>
-        <text x={cx} y={60} textAnchor="middle"
-          fontSize={9} fontWeight="700" fill={T.slate}>OBJECT</text>
-        {/* ── right arrow (solid) ── */}
-        <line x1={cx + 26} y1={56} x2={cx + 26 + FIXED} y2={56}
-          stroke={T.indigo} strokeWidth={3} strokeLinecap="round"/>
-        <polygon
-          points={`${cx+26+FIXED},56 ${cx+26+FIXED-8},51 ${cx+26+FIXED-8},61`}
-          fill={T.indigo}/>
-        {/* ── left arrow (dashed — pattern diff for colour blindness) ── */}
-        <line x1={cx - 26} y1={56} x2={cx - 26 - FIXED} y2={56}
-          stroke={T.rose} strokeWidth={3} strokeDasharray="5,3" strokeLinecap="round"/>
-        <polygon
-          points={`${cx-26-FIXED},56 ${cx-26-FIXED+8},51 ${cx-26-FIXED+8},61`}
-          fill={T.rose}/>
-      </svg>
-    </Panel>
-  );
-}
-
-// VELOCITY ────────────────────────────────────────────────────────────────────
-// Confirmed working layout (browser-tested):
-//   Row structure (per 48px slot):
-//     y+0–13:  label ("initial (u)")
-//     y+16–30: badge rect with speed value — ABOVE the shaft, never overlapping
-//     y+36:    arrow shaft + arrowhead
-//   Divider line between rows.
-//   SVG uses viewBox + width:100% — scales to panel, no fixed-px overflow.
-//   ARROW_MAX = VB_W - X0 - 18 → arrowhead tip always inside viewBox.
-function VelocityVis({ v1, v2, label1 = "initial", label2 = "final", unit = "m/s" }) {
-  const VB_W      = 200;
-  const X0        = 4;
-  const ARROW_MAX = VB_W - X0 - 18; // 178px — head tip always inside
-  const BW        = 40;             // badge width
-  const maxV      = Math.max(v1, v2 ?? 0, 1);
-  const toPx      = (v) => Math.max(24, Math.round((v / maxV) * ARROW_MAX));
-  const px1       = toPx(v1);
-  const px2       = v2 != null ? toPx(v2) : null;
-  const VB_H      = px2 != null ? 92 : 44;
-
-  // Badge x: nudged right of label, clamped so it never leaves viewBox
-  const bx1 = Math.min(X0 + 12, VB_W - BW);
-  const bx2 = px2 != null ? Math.min(X0 + px2 / 2 - BW / 2, VB_W - BW) : 0;
-
-  return (
-    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}>
-      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ width: "100%", display: "block" }}>
-        {/* ── row 1 ── */}
-        <text x={X0} y={13} fontSize={9} fontWeight="700" fill={T.indigo}>{label1}</text>
-        <rect x={bx1} y={16} width={BW} height={14} rx={3}
-          fill={T.indigoBg} stroke={T.indigoBd} strokeWidth={1.5}/>
-        <text x={bx1 + BW / 2} y={27} textAnchor="middle"
-          fontSize={8} fontWeight="700" fill={T.indigo}>{v1} {unit}</text>
-        <line x1={X0} y1={36} x2={X0 + px1 - 10} y2={36}
-          stroke={T.indigo} strokeWidth={3} strokeLinecap="round"/>
-        <polygon
-          points={`${X0+px1},36 ${X0+px1-10},31 ${X0+px1-10},41`}
-          fill={T.indigo}/>
-
-        {/* ── divider + row 2 ── */}
-        {px2 != null && (
-          <>
-            <line x1={0} y1={48} x2={VB_W} y2={48} stroke={T.slateBd} strokeWidth={1}/>
-            <text x={X0} y={61} fontSize={9} fontWeight="700" fill={T.nebula}>{label2}</text>
-            <rect x={bx2} y={64} width={BW} height={14} rx={3}
-              fill={T.nebulaBg} stroke={T.nebulaBd} strokeWidth={1.5}/>
-            <text x={bx2 + BW / 2} y={75} textAnchor="middle"
-              fontSize={8} fontWeight="700" fill={T.nebula}>{v2} {unit}</text>
-            <line x1={X0} y1={84} x2={X0 + px2 - 10} y2={84}
-              stroke={T.nebula} strokeWidth={3} strokeLinecap="round"/>
-            <polygon
-              points={`${X0+px2},84 ${X0+px2-10},79 ${X0+px2-10},89`}
-              fill={T.nebula}/>
-          </>
-        )}
-      </svg>
-      {px2 != null && (
-        <Chip
-          color={v2 > v1 ? T.emerald : v2 < v1 ? T.rose : T.slate}
-          bg={v2 > v1 ? T.emeraldBg : v2 < v1 ? T.roseBg : T.slateBg}
-        >
-          {v2 > v1 ? "speeding up ↑" : v2 < v1 ? "slowing down ↓" : "constant speed"}
-        </Chip>
-      )}
-    </Panel>
-  );
-}
-
-// FOOD CHAIN ─────────────────────────────────────────────────────────────────
-function FoodChainVis({ chain }) {
-  return (
-    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
-        {chain.map((org, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              background: "white", borderRadius: 10, padding: "8px 10px",
-              border: `1.5px solid ${T.emeraldBd}`, minWidth: 60,
-            }}>
-              <span style={{ fontSize: 26 }}>{org.emoji}</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: T.emerald,
-                textTransform: "uppercase", letterSpacing: 0.5, textAlign: "center" }}>
-                {org.name}
-              </span>
-              {org.role && <span style={{ fontSize: 8, color: T.textMid }}>{org.role}</span>}
-            </div>
-            {i < chain.length - 1 && (
-              <svg width={22} height={14}>
-                <defs>
-                  <marker id={`fc${i}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <path d="M0,0 L6,3 L0,6 Z" fill={T.amber}/>
-                  </marker>
-                </defs>
-                <line x1={0} y1={7} x2={16} y2={7} stroke={T.amber} strokeWidth={2.5} markerEnd={`url(#fc${i})`}/>
-              </svg>
-            )}
-          </div>
-        ))}
-      </div>
-      <Chip color={T.amber} bg={T.amberBg}>energy flows →</Chip>
-    </Panel>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARSER
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1046,17 +677,65 @@ function parseVisual(topic, questionText, subject, yearLevel) {
 
   // Skip multiplication dot grid if either operand is a decimal (2.5 × 4 etc.)
   const hasDecimalOperand = /\d+\.\d+\s*[×x\*]|[×x\*]\s*\d+\.\d+/.test(questionText || "");
+
+  // ── DIVISION: X ÷ Y — number line with grouping jumps ─────────────────────
+  const divMatch = (questionText || "").match(/(\d+)\s*(?:÷|divided\s*by)\s*(\d+)/i);
+  if (divMatch) {
+    const total = parseInt(divMatch[1]), divisor = parseInt(divMatch[2]);
+    if (divisor >= 2 && total > 0 && total <= 200) {
+      const groups = Math.floor(total / divisor);
+      // Number line with jumps of divisor-size, landing at total
+      return {
+        type: "number_line", min: 0, max: total,
+        start: 0, jumps: Math.min(groups, 10), jumpSize: divisor,
+        label: `${total} ÷ ${divisor} = ?  (${Math.min(groups, 10)} jumps of ${divisor})`
+      };
+    }
+  }
+
   const mulMatch = !hasDecimalOperand && (questionText || "").match(/(\d+)\s*(?:[×x\*]|times|multiplied\s*by)\s*(\d+)/i);
   const grpMatch = (questionText || "").match(/(\d+)\s*groups?\s*of\s*(\d+)/i);
   if (mulMatch || grpMatch) {
     const m = mulMatch || grpMatch;
     const r = parseInt(m[1]), c = parseInt(m[2]);
-    // Allow up to 12×12
-    if (r <= 12 && c <= 12 && r > 0 && c > 0) return { type: "multiplication", rows: r, cols: c };
+    if (r > 0 && c > 0) {
+      // Small grids (≤6×6): coloured block visual
+      if (r <= 6 && c <= 6) return { type: "multiplication", rows: r, cols: c };
+      // Larger: number line with repeated jumps (r jumps of c)
+      if (r <= 12 && c <= 12) return {
+        type: "number_line", min: 0, max: r * c + 2,
+        start: 0, jumps: r, jumpSize: c,
+        label: `${r} × ${c} = ?  (${r} jumps of ${c})`
+      };
+    }
   }
 
   const fracMatch = (questionText || "").match(/(\d+)\s*\/\s*(\d+)/);
   if (t.includes("fraction") || fracMatch) {
+    // Fraction on a number line: "1/3 + 1/3", "place X/Y on a number line", fraction multiplication
+    if (fracMatch && /number line|line.*fraction|fraction.*line|add.*fraction|fraction.*add/i.test(questionText)) {
+      const num = parseInt(fracMatch[1]), den = parseInt(fracMatch[2]);
+      if (den >= 2 && den <= 12 && num <= den * 2) {
+        // Check for multiplication: "7 × 1/5"
+        const mulFrac = (questionText || "").match(/(\d+)\s*[×x\*]\s*(\d+)\s*\/\s*(\d+)/i);
+        if (mulFrac) {
+          const multiplier = parseInt(mulFrac[1]);
+          const fracNum = parseInt(mulFrac[2]);
+          const fracDen = parseInt(mulFrac[3]);
+          return {
+            type: "number_line", min: 0, max: Math.ceil(multiplier * fracNum / fracDen) + 1,
+            start: 0, jumps: multiplier, jumpSize: fracNum / fracDen,
+            fractionDenom: fracDen,
+            label: `${multiplier} × ${fracNum}/${fracDen} = ?`
+          };
+        }
+        // Addition: show fraction marks on 0→1 or 0→2
+        return {
+          type: "number_line", min: 0, max: Math.max(1, Math.ceil(num / den)),
+          fractionDenom: den, label: `${num}/${den} on a number line`
+        };
+      }
+    }
     if (fracMatch) return { type: "fraction", numerator: parseInt(fracMatch[1]), denominator: parseInt(fracMatch[2]) };
     if (/half/i.test(questionText))    return { type: "fraction", numerator: 1, denominator: 2 };
     if (/quarter/i.test(questionText)) return { type: "fraction", numerator: 1, denominator: 4 };
@@ -1177,72 +856,71 @@ function DivisionVis({ total, groups }) {
     return Math.max(0, count);
   });
   const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
+  // Dynamic dot size based on total
+  const dotSize = total > 40 ? 7 : total > 20 ? 9 : 10;
+  const dotGap = total > 40 ? 2 : 3;
+  const groupPad = total > 40 ? "4px 5px" : "6px 8px";
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
+      ariaLabel={`Division: ${total} shared into ${groups} groups`}>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
         {groupArr.map((count, g) => (
           <div key={g} style={{
             border:`2px dashed ${COLORS[g % COLORS.length]}`,
-            borderRadius:10, padding:"6px 8px",
-            display:"flex", flexWrap:"wrap", gap:3,
-            minWidth:40, maxWidth:100, justifyContent:"center",
+            borderRadius:8, padding:groupPad,
+            display:"flex", flexWrap:"wrap", gap:dotGap,
+            minWidth:32, maxWidth:90, justifyContent:"center",
           }}>
             {Array.from({ length: count }, (_, i) => (
               <div key={i} style={{
-                width:10, height:10, borderRadius:"50%",
+                width:dotSize, height:dotSize, borderRadius:"50%",
                 background:COLORS[g % COLORS.length],
               }} />
             ))}
           </div>
         ))}
       </div>
-      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
+      <Chip color={T.indigo} bg={T.indigoBg}>
         {total} ÷ {groups} = ?
-      </div>
-    </div>
+      </Chip>
+    </Panel>
   );
 }
 
-// ── Ruler / Measurement ───────────────────────────────────────────────────────
-function RulerVis({ cm, label }) {
-  const totalCm = Math.min(Math.max(cm + 2, 8), 20);
-  const pxPerCm = 180 / totalCm;
-  const markedPx = cm * pxPerCm;
+// ── Division Equation (large numbers — no answer revealed) ────────────────────
+function DivisionEquationVis({ total, groups }) {
+  const W = 190, H = 100;
+  // Show groups as blocks to visualise "sharing into groups"
+  const maxBlocks = Math.min(groups, 8);
+  const blockW = Math.min(18, Math.floor((W - 40) / maxBlocks) - 4);
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
-      <svg width={200} height={52} viewBox={`0 0 200 52`}>
-        {/* Ruler body */}
-        <rect x={2} y={16} width={196} height={28} rx={4} fill="#fffbe6" stroke="#c8a820" strokeWidth={2} />
-        {/* Tick marks and labels */}
-        {Array.from({ length: totalCm + 1 }, (_, i) => {
-          const x = 2 + i * pxPerCm;
-          const isMajor = Number.isInteger(i);
-          return (
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
+      ariaLabel={`Division: ${total} divided by ${groups}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {/* Large equation display */}
+        <text x={W/2} y={32} textAnchor="middle" fontSize={22} fontWeight="900" fill={T.indigo}>{total}</text>
+        <text x={W/2} y={50} textAnchor="middle" fontSize={12} fontWeight="700" fill={T.textMid}>÷ {groups} = ?</text>
+        {/* Group blocks */}
+        <g transform={`translate(${(W - maxBlocks * (blockW + 4)) / 2}, 60)`}>
+          {Array.from({ length: maxBlocks }, (_, i) => (
             <g key={i}>
-              <line x1={x} y1={16} x2={x} y2={isMajor ? 30 : 24} stroke="#c8a820" strokeWidth={isMajor ? 1.5 : 1} />
-              {isMajor && i <= totalCm && (
-                <text x={x} y={44} textAnchor="middle" fontSize={8} fill="#a08010" fontWeight="600">{i}</text>
-              )}
+              <rect x={i * (blockW + 4)} y={0} width={blockW} height={blockW}
+                rx={3} fill={T.indigoBg} stroke={T.indigo} strokeWidth={1.5} strokeDasharray="3,2"/>
+              <text x={i * (blockW + 4) + blockW/2} y={blockW/2 + 4}
+                textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>?</text>
             </g>
-          );
-        })}
-        {/* Arrow showing measurement */}
-        <line x1={2} y1={10} x2={2 + markedPx} y2={10} stroke={T.indigo} strokeWidth={2} markerEnd="url(#arr)" />
-        <defs>
-          <marker id="arr" markerWidth={6} markerHeight={6} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L0,6 L6,3 z" fill={T.indigo} />
-          </marker>
-        </defs>
-        <text x={2 + markedPx / 2} y={8} textAnchor="middle" fontSize={9} fill={T.indigo} fontWeight="700">
-          {cm} cm
-        </text>
+          ))}
+          {groups > maxBlocks && (
+            <text x={maxBlocks * (blockW + 4) + 4} y={blockW/2 + 4} fontSize={10} fontWeight="700" fill={T.textMid}>…</text>
+          )}
+        </g>
       </svg>
-      {label && <span style={{ fontSize:11, color:T.slate }}>{label}</span>}
-    </div>
+      <Chip color={T.indigo} bg={T.indigoBg}>Share {total} equally into {groups} groups</Chip>
+    </Panel>
   );
 }
 
-// ── Ratio / Proportion Bar ────────────────────────────────────────────────────
 function RatioVis({ partA, partB, labelA, labelB }) {
   const total = partA + partB;
   const pctA  = (partA / total) * 100;
@@ -1371,43 +1049,7 @@ function NumberSequenceVis({ sequence, gapIndex, rule }) {
 }
 
 // ── NVR Matrix (2×2 pattern) ──────────────────────────────────────────────────
-function NVRMatrixVis({ cells }) {
-  // cells = array of 4 objects: { shape, fill, rotate } — last one is ?
-  const SHAPE_SVG = {
-    circle:    (f,s) => <circle cx={20} cy={20} r={14} fill={f} stroke={s} strokeWidth={2}/>,
-    square:    (f,s) => <rect x={6} y={6} width={28} height={28} fill={f} stroke={s} strokeWidth={2}/>,
-    triangle:  (f,s) => <polygon points="20,4 36,36 4,36" fill={f} stroke={s} strokeWidth={2}/>,
-    diamond:   (f,s) => <polygon points="20,4 36,20 20,36 4,20" fill={f} stroke={s} strokeWidth={2}/>,
-    cross:     (f,s) => <g><rect x={14} y={4} width={12} height={32} fill={f} stroke={s} strokeWidth={1}/><rect x={4} y={14} width={32} height={12} fill={f} stroke={s} strokeWidth={1}/></g>,
-  };
-  return (
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, width:100 }}>
-      {cells.slice(0, 4).map((cell, i) => {
-        const isLast = i === 3;
-        const shapeFn = SHAPE_SVG[cell?.shape || "circle"];
-        return (
-          <div key={i} style={{
-            width:44, height:44, borderRadius:6,
-            background: isLast ? T.nebulaBg : T.indigoBg,
-            border: `2px ${isLast ? "dashed" : "solid"} ${isLast ? T.nebula : T.indigo}`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>
-            {isLast ? (
-              <span style={{ fontSize:20, fontWeight:800, color:T.nebula }}>?</span>
-            ) : (
-              <svg width={40} height={40} viewBox="0 0 40 40"
-                style={{ transform:`rotate(${cell?.rotate || 0}deg)` }}>
-                {shapeFn && shapeFn(cell.fill || T.indigoBg, cell.stroke || T.indigo)}
-              </svg>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
-// ── Grammar Parts-of-Speech Labeller ─────────────────────────────────────────
 function GrammarVis({ sentence, labels }) {
   // labels = [{ word, pos, color }]  pos = noun|verb|adjective|adverb|preposition
   const POS_COLORS = {
@@ -1637,17 +1279,15 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 
   // ── DIVISION GROUPING ──────────────────────────────────────────────────────
   if (subj.includes("math") && (t.includes("division") || t.includes("sharing") ||
-      /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups/i.test(questionText))) {
-    // Suppress for real-world word problems — the dot array is misleading when the
-    // numbers represent money/time/weight rather than countable physical objects.
-    // Indicators: currency symbols, "Real World", "Challenge", or narrative sentence openers.
+      /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups|÷|divided by/i.test(questionText))) {
     const isWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|per month|per year|costs?|saves?|earns?|spends?|charges?|buys?|sells?/i.test(questionText);
     if (!isWordProblem && nums.length >= 2) {
       const total  = Math.max(...nums.slice(0, 3));
-      // divisor: smallest number that isn't the total, between 2 and 10
-      const groups = nums.find(n => n !== total && n >= 2 && n <= 10);
-      if (total && groups && total <= 60) {
-        return { type:"division", total, groups };
+      const groups = nums.find(n => n !== total && n >= 2 && n <= 20);
+      if (total && groups) {
+        if (total <= 60) return { type:"division", total, groups };
+        // Too large for dots — equation visual (no answer revealed)
+        return { type: "division_equation", total, groups };
       }
     }
   }
@@ -1790,634 +1430,10 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── Bohr Atom Diagram ─────────────────────────────────────────────────────────
-function AtomVis({ protons, neutrons, electrons, element }) {
-  const shells = [2, 8, 8, 18];
-  let rem = electrons;
-  const shellCounts = shells.map(cap => { const n = Math.min(rem, cap); rem -= n; return n; });
-  const usedShells = shellCounts.filter(n => n > 0);
-  const maxR = 56 + usedShells.length * 20;
-  const cx = maxR + 4, cy = maxR + 4, W = (maxR + 4) * 2;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <svg width={W} height={W} viewBox={`0 0 ${W} ${W}`}>
-        {/* Nucleus */}
-        <circle cx={cx} cy={cy} r={18} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
-        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>{protons}p</text>
-        <text x={cx} y={cy + 6} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.nebula}>{neutrons}n</text>
-        {/* Electron shells */}
-        {usedShells.map((count, si) => {
-          const r = 30 + (si + 1) * 22;
-          return (
-            <g key={si}>
-              <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
-              {Array.from({ length: count }, (_, ei) => {
-                const angle = (ei / count) * 2 * Math.PI - Math.PI / 2;
-                const ex = cx + r * Math.cos(angle);
-                const ey = cy + r * Math.sin(angle);
-                return <circle key={ei} cx={ex} cy={ey} r={4} fill={T.emerald} stroke="white" strokeWidth={1} />;
-              })}
-            </g>
-          );
-        })}
-      </svg>
-      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
-        {element && <span style={{ color:T.indigo, fontWeight:800 }}>{element} · </span>}
-        {protons}p · {neutrons}n · {electrons}e⁻
-      </div>
-    </div>
-  );
-}
-
-// ── Periodic Table Section ────────────────────────────────────────────────────
-function PeriodicTableVis({ symbol, name, atomicNumber, atomicMass, group, period, category }) {
-  const CAT_COLORS = {
-    "alkali metal":       { bg:"#fef3c7", border:"#f59e0b", text:"#92400e" },
-    "alkaline earth":     { bg:"#fce7f3", border:"#ec4899", text:"#9d174d" },
-    "transition metal":   { bg:"#dbeafe", border:"#3b82f6", text:"#1e40af" },
-    "non-metal":          { bg:"#dcfce7", border:"#22c55e", text:"#14532d" },
-    "noble gas":          { bg:"#f3e8ff", border:"#a855f7", text:"#581c87" },
-    "halogen":            { bg:"#ffedd5", border:"#f97316", text:"#7c2d12" },
-    "metalloid":          { bg:"#ecfccb", border:"#84cc16", text:"#365314" },
-    "metal":              { bg:"#f1f5f9", border:"#64748b", text:"#1e293b" },
-  };
-  const c = CAT_COLORS[category?.toLowerCase()] || CAT_COLORS["metal"];
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      <div style={{
-        width:100, border:`3px solid ${c.border}`, borderRadius:8,
-        background:c.bg, padding:"10px 12px", textAlign:"center",
-        boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-      }}>
-        <div style={{ fontSize:10, color:c.text, fontWeight:600 }}>{atomicNumber}</div>
-        <div style={{ fontSize:32, fontWeight:900, color:c.text, lineHeight:1.1 }}>{symbol}</div>
-        <div style={{ fontSize:9, color:c.text, fontWeight:600, marginTop:2 }}>{name}</div>
-        <div style={{ fontSize:9, color:c.text, opacity:0.8 }}>{atomicMass}</div>
-      </div>
-      <div style={{ display:"flex", gap:12, fontSize:11, color:T.slate }}>
-        {group && <span>Group {group}</span>}
-        {period && <span>Period {period}</span>}
-        {category && <span style={{ color:c.border, fontWeight:700 }}>{category}</span>}
-      </div>
-    </div>
-  );
-}
-
-// ── State Changes (Solid/Liquid/Gas) ─────────────────────────────────────────
-function StateChangesVis({ highlighted }) {
-  const states = ["Solid","Liquid","Gas"];
-  const transitions = [
-    { from:0, to:1, label:"Melting",     dir:"→", energy:"+ heat" },
-    { from:1, to:0, label:"Freezing",    dir:"←", energy:"- heat" },
-    { from:1, to:2, label:"Evaporation", dir:"→", energy:"+ heat" },
-    { from:2, to:1, label:"Condensation",dir:"←", energy:"- heat" },
-    { from:0, to:2, label:"Sublimation", dir:"↑", energy:"+ heat", skip:true },
-  ];
-  const hiSet = new Set((highlighted||[]).map(s=>s.toLowerCase()));
-  const STATE_ICONS = ["🧊","💧","💨"];
-  const STATE_COLORS = [
-    { bg:"#dbeafe", border:"#3b82f6" },
-    { bg:"#bfdbfe", border:"#60a5fa" },
-    { bg:"#e0f2fe", border:"#38bdf8" },
-  ];
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-        {states.map((s, i) => {
-          const isHi = hiSet.has(s.toLowerCase());
-          const c = STATE_COLORS[i];
-          return (
-            <React.Fragment key={s}>
-              <div style={{
-                padding:"8px 10px", background: isHi ? c.border : c.bg,
-                border:`2px solid ${c.border}`, borderRadius:8,
-                textAlign:"center", minWidth:52,
-              }}>
-                <div style={{ fontSize:18 }}>{STATE_ICONS[i]}</div>
-                <div style={{ fontSize:11, fontWeight:700, color: isHi ? "white" : c.border }}>{s}</div>
-              </div>
-              {i < 2 && <span style={{ fontSize:18, color:T.slate }}>⇌</span>}
-            </React.Fragment>
-          );
-        })}
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, width:"100%" }}>
-        {transitions.filter(t => !t.skip).map((tr, i) => (
-          <div key={i} style={{
-            padding:"3px 8px", background:T.indigoBg, borderRadius:6,
-            fontSize:10, color:T.slate, textAlign:"center",
-          }}>
-            <span style={{ fontWeight:700, color:T.indigo }}>{tr.label}</span>
-            {" "}({tr.energy})
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── pH Scale ──────────────────────────────────────────────────────────────────
-function PHScaleVis({ value, substance }) {
-  const gradient = "linear-gradient(to right, #dc2626,#ea580c,#d97706,#ca8a04,#65a30d,#16a34a,#0d9488,#0891b2,#2563eb,#7c3aed,#6d28d9,#4c1d95,#1e1b4b,#0f172a)";
-  const pct = (value / 14) * 100;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
-      <div style={{ position:"relative", height:24, borderRadius:12, background:gradient, border:"2px solid #e2e8f0" }}>
-        {value !== undefined && (
-          <div style={{
-            position:"absolute", left:`${pct}%`, top:-6,
-            transform:"translateX(-50%)",
-            width:12, height:36, display:"flex", flexDirection:"column", alignItems:"center",
-          }}>
-            <div style={{ width:2, height:10, background:"#1e293b" }} />
-            <div style={{
-              background:"#1e293b", color:"white", borderRadius:4,
-              padding:"2px 6px", fontSize:10, fontWeight:800, whiteSpace:"nowrap",
-            }}>{value}</div>
-          </div>
-        )}
-      </div>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:T.slate, fontWeight:600 }}>
-        <span style={{ color:"#dc2626" }}>0 — Strong Acid</span>
-        <span style={{ color:"#16a34a" }}>7 — Neutral</span>
-        <span style={{ color:"#4c1d95" }}>14 — Strong Alkali</span>
-      </div>
-      {substance && (
-        <div style={{ textAlign:"center", fontSize:11, color:T.slate }}>
-          <span style={{ fontWeight:700, color:T.indigo }}>{substance}</span> — pH {value}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Molecule Structure (ball-and-stick) ───────────────────────────────────────
-function MoleculeVis({ formula, bonds }) {
-  // bonds = [{ from:{x,y,label,color}, to:{x,y,label,color}, type:"single"|"double" }]
-  const PRESET_MOLECULES = {
-    H2O: {
-      atoms:[{x:50,y:30,label:"O",color:"#ef4444",r:14},{x:18,y:62,label:"H",color:"#94a3b8",r:10},{x:82,y:62,label:"H",color:"#94a3b8",r:10}],
-      bonds:[{from:0,to:1,type:"single"},{from:0,to:2,type:"single"}],
-    },
-    CO2: {
-      atoms:[{x:50,y:45,label:"C",color:"#374151",r:12},{x:14,y:45,label:"O",color:"#ef4444",r:14},{x:86,y:45,label:"O",color:"#ef4444",r:14}],
-      bonds:[{from:0,to:1,type:"double"},{from:0,to:2,type:"double"}],
-    },
-    CH4: {
-      atoms:[{x:50,y:50,label:"C",color:"#374151",r:12},{x:50,y:14,label:"H",color:"#94a3b8",r:9},{x:80,y:68,label:"H",color:"#94a3b8",r:9},{x:20,y:68,label:"H",color:"#94a3b8",r:9},{x:50,y:86,label:"H",color:"#94a3b8",r:9}],
-      bonds:[{from:0,to:1,type:"single"},{from:0,to:2,type:"single"},{from:0,to:3,type:"single"},{from:0,to:4,type:"single"}],
-    },
-    O2: {
-      atoms:[{x:30,y:45,label:"O",color:"#ef4444",r:14},{x:70,y:45,label:"O",color:"#ef4444",r:14}],
-      bonds:[{from:0,to:1,type:"double"}],
-    },
-    N2: {
-      atoms:[{x:30,y:45,label:"N",color:"#3b82f6",r:13},{x:70,y:45,label:"N",color:"#3b82f6",r:13}],
-      bonds:[{from:0,to:1,type:"triple"}],
-    },
-    HCl: {
-      atoms:[{x:28,y:45,label:"H",color:"#94a3b8",r:9},{x:72,y:45,label:"Cl",color:"#84cc16",r:14}],
-      bonds:[{from:0,to:1,type:"single"}],
-    },
-    NaCl: {
-      atoms:[{x:28,y:45,label:"Na⁺",color:"#f59e0b",r:14},{x:72,y:45,label:"Cl⁻",color:"#84cc16",r:14}],
-      bonds:[{from:0,to:1,type:"ionic"}],
-    },
-  };
-  const mol = PRESET_MOLECULES[formula] || null;
-  if (!mol) return <div style={{ fontSize:12, color:T.slate, padding:8 }}>{formula}</div>;
-  const BOND_COLORS = { single:"#475569", double:"#2563eb", triple:"#7c3aed", ionic:"#f59e0b" };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={100} height={100} viewBox="0 0 100 100">
-        {mol.bonds.map((b, i) => {
-          const a1 = mol.atoms[b.from], a2 = mol.atoms[b.to];
-          const dx = a2.x - a1.x, dy = a2.y - a1.y;
-          const len = Math.sqrt(dx*dx + dy*dy);
-          const nx = -dy/len * 3, ny = dx/len * 3;
-          const count = b.type === "triple" ? 3 : b.type === "double" ? 2 : 1;
-          const offsets = count === 1 ? [0] : count === 2 ? [-1,1] : [-2,0,2];
-          return offsets.map((o, oi) => (
-            <line key={`${i}-${oi}`}
-              x1={a1.x + nx*o} y1={a1.y + ny*o} x2={a2.x + nx*o} y2={a2.y + ny*o}
-              stroke={BOND_COLORS[b.type] || "#475569"}
-              strokeWidth={b.type === "ionic" ? 1.5 : 2}
-              strokeDasharray={b.type === "ionic" ? "4,2" : undefined}
-            />
-          ));
-        })}
-        {mol.atoms.map((a, i) => (
-          <g key={i}>
-            <circle cx={a.x} cy={a.y} r={a.r} fill={a.color} stroke="white" strokeWidth={1.5} />
-            <text x={a.x} y={a.y} textAnchor="middle" dominantBaseline="central"
-              fontSize={a.r > 12 ? 9 : 8} fontWeight="800" fill="white">{a.label}</text>
-          </g>
-        ))}
-      </svg>
-      <div style={{ fontSize:12, fontWeight:800, color:T.indigo, fontFamily:"monospace" }}>{formula}</div>
-    </div>
-  );
-}
-
-// ── Cell Diagram ──────────────────────────────────────────────────────────────
-function CellVis({ cellType }) {
-  const isPlant = cellType === "plant";
-  const parts = isPlant
-    ? [
-        { label:"Cell wall", desc:"Rigid outer layer" },
-        { label:"Cell membrane", desc:"Controls what enters/leaves" },
-        { label:"Nucleus", desc:"Controls cell activities" },
-        { label:"Cytoplasm", desc:"Jelly-like fluid" },
-        { label:"Chloroplast", desc:"Site of photosynthesis" },
-        { label:"Vacuole", desc:"Stores water/sap" },
-        { label:"Mitochondria", desc:"Releases energy" },
-      ]
-    : [
-        { label:"Cell membrane", desc:"Controls what enters/leaves" },
-        { label:"Nucleus", desc:"Controls cell activities" },
-        { label:"Cytoplasm", desc:"Jelly-like fluid" },
-        { label:"Mitochondria", desc:"Releases energy" },
-        { label:"Ribosome", desc:"Makes proteins" },
-      ];
-  const colors = [T.emerald, T.indigo, T.nebula, "#f59e0b", "#22c55e", "#0891b2", "#ec4899"];
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-      <div style={{
-        padding:"6px 12px", background: isPlant ? "#dcfce7" : "#dbeafe",
-        border:`2px solid ${isPlant ? T.emerald : T.indigo}`, borderRadius:8,
-        fontSize:12, fontWeight:700, color: isPlant ? "#14532d" : "#1e40af",
-        textAlign:"center",
-      }}>{isPlant ? "🌿 Plant Cell" : "🔬 Animal Cell"}</div>
-      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-        {parts.map((p, i) => (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <div style={{ width:8, height:8, borderRadius:"50%", background:colors[i % colors.length], flexShrink:0 }} />
-            <div style={{ fontSize:11 }}>
-              <span style={{ fontWeight:700, color:colors[i % colors.length] }}>{p.label}</span>
-              <span style={{ color:T.slate }}> — {p.desc}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Punnett Square ────────────────────────────────────────────────────────────
-function PunnettVis({ parent1, parent2, trait }) {
-  // parent1 = "Aa", parent2 = "Aa"
-  const a1 = parent1.split(""), a2 = parent2.split("");
-  const combos = [
-    a1[0]+a2[0], a1[0]+a2[1],
-    a1[1]+a2[0], a1[1]+a2[1],
-  ];
-  const isDom = (g) => g[0] === g[0].toUpperCase() && g[0] !== g[1];
-  const isHom = (g) => g[0] === g[1];
-  const getLabel = (g) => isHom(g) ? (isDom(g) ? "Dom. Homozygous" : "Rec. Homozygous") : "Heterozygous";
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      {trait && <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>{trait}</div>}
-      <div style={{ display:"grid", gridTemplateColumns:"28px 1fr 1fr", gridTemplateRows:"28px 1fr 1fr", gap:3 }}>
-        <div />
-        {a2.map((g,i) => (
-          <div key={i} style={{ textAlign:"center", fontSize:14, fontWeight:800, color:T.nebula }}>{g}</div>
-        ))}
-        {a1.map((g1, ri) => (
-          <React.Fragment key={ri}>
-            <div style={{ fontSize:14, fontWeight:800, color:T.indigo, alignSelf:"center", textAlign:"center" }}>{g1}</div>
-            {a2.map((g2, ci) => {
-              const combo = ri === 0 ? combos[ci] : combos[ci + 2];
-              const dom = combo.includes(combo[0].toUpperCase()) && combo[0] !== combo[1];
-              return (
-                <div key={ci} style={{
-                  width:52, height:40, borderRadius:6,
-                  background: dom ? T.indigoBg : T.nebulaBg,
-                  border:`2px solid ${dom ? T.indigo : T.nebula}`,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:14, fontWeight:800, color: dom ? T.indigo : T.nebula,
-                }}>{combo}</div>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      </div>
-      <div style={{ fontSize:10, color:T.slate }}>
-        {combos.filter(g => g.includes(g[0].toUpperCase()) && g[0] !== g[1]).length}/4 heterozygous
-      </div>
-    </div>
-  );
-}
-
-// ── Energy Stores Transfer ─────────────────────────────────────────────────────
-function EnergyStoresVis({ stores, transfers }) {
-  const STORE_ICONS = {
-    kinetic:"⚡", thermal:"🔥", chemical:"⚗️", gravitational:"⬆️",
-    elastic:"🌀", nuclear:"☢️", electromagnetic:"💡", sound:"🔊",
-  };
-  const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:8, alignItems:"center" }}>
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
-        {stores.map((s, i) => (
-          <div key={i} style={{
-            padding:"6px 10px", background:COLORS[i % COLORS.length] + "22",
-            border:`2px solid ${COLORS[i % COLORS.length]}`, borderRadius:8,
-            textAlign:"center", minWidth:70,
-          }}>
-            <div style={{ fontSize:20 }}>{STORE_ICONS[s.type] || "⚡"}</div>
-            <div style={{ fontSize:10, fontWeight:700, color:COLORS[i % COLORS.length] }}>{s.label || s.type}</div>
-            {s.value && <div style={{ fontSize:10, color:T.slate }}>{s.value} J</div>}
-          </div>
-        ))}
-      </div>
-      {transfers && transfers.map((tr, i) => (
-        <div key={i} style={{
-          display:"flex", alignItems:"center", gap:4, fontSize:11, color:T.slate,
-        }}>
-          <span style={{ fontWeight:700, color:T.indigo }}>{tr.from}</span>
-          <span>→</span>
-          <span style={{ fontStyle:"italic" }}>{tr.method}</span>
-          <span>→</span>
-          <span style={{ fontWeight:700, color:T.nebula }}>{tr.to}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Wave Diagram ──────────────────────────────────────────────────────────────
-function WaveVis({ type, wavelength, amplitude, label }) {
-  const W = 200, H = 80, mid = H / 2;
-  const isLongitudinal = type === "longitudinal";
-  const wavePath = () => {
-    const cycles = 2;
-    const pts = [];
-    for (let i = 0; i <= W; i += 2) {
-      const y = mid - (amplitude || 24) * Math.sin((i / W) * cycles * 2 * Math.PI);
-      pts.push(`${i},${y}`);
-    }
-    return "M " + pts.join(" L ");
-  };
-  if (isLongitudinal) {
-    const bars = Array.from({ length: 20 }, (_, i) => {
-      const x = (i / 20) * W;
-      const compression = Math.sin((i / 20) * 4 * Math.PI);
-      const opacity = (compression + 1) / 2;
-      return { x, opacity };
-    });
-    return (
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-        <svg width={W} height={40} viewBox={`0 0 ${W} 40`}>
-          {bars.map((b, i) => (
-            <rect key={i} x={b.x} y={8} width={W/20 - 1} height={24}
-              fill={T.indigo} opacity={b.opacity * 0.8 + 0.1} rx={1} />
-          ))}
-          <text x={W/2} y={36} textAnchor="middle" fontSize={9} fill={T.slate}>Compressions and rarefactions</text>
-        </svg>
-        <div style={{ fontSize:11, fontWeight:700, color:T.indigo }}>{label || "Longitudinal wave (e.g. sound)"}</div>
-      </div>
-    );
-  }
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={0} y1={mid} x2={W} y2={mid} stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
-        <path d={wavePath()} fill="none" stroke={T.indigo} strokeWidth={2.5} />
-        {/* Wavelength arrow */}
-        <line x1={10} y1={16} x2={10 + W/2} y2={16} stroke={T.nebula} strokeWidth={1.5} markerEnd="url(#wEnd)" />
-        <text x={10 + W/4} y={13} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">λ (wavelength)</text>
-        {/* Amplitude arrow */}
-        <line x1={W-12} y1={mid} x2={W-12} y2={mid - (amplitude||24)} stroke={T.emerald} strokeWidth={1.5} />
-        <text x={W-22} y={mid - 10} fontSize={8} fill={T.emerald} fontWeight="700">A</text>
-      </svg>
-      <div style={{ fontSize:11, fontWeight:700, color:T.indigo }}>{label || "Transverse wave (e.g. light)"}</div>
-    </div>
-  );
-}
-
-// ── Electromagnetic Spectrum ──────────────────────────────────────────────────
-function EMSpectrumVis({ highlighted }) {
-  const bands = [
-    { name:"Radio",     color:"#7c3aed", freq:"<10⁹ Hz",   use:"Broadcasting" },
-    { name:"Microwave", color:"#2563eb", freq:"10⁹–10¹² Hz", use:"Cooking, comms" },
-    { name:"Infrared",  color:"#ea580c", freq:"10¹²–10¹⁴", use:"Thermal imaging" },
-    { name:"Visible",   color:"#16a34a", freq:"10¹⁴–10¹⁵", use:"Sight, cameras" },
-    { name:"UV",        color:"#ca8a04", freq:"10¹⁵–10¹⁶", use:"Sterilisation" },
-    { name:"X-ray",     color:"#dc2626", freq:"10¹⁶–10¹⁹", use:"Medical imaging" },
-    { name:"Gamma",     color:"#991b1b", freq:">10¹⁹ Hz",  use:"Cancer treatment" },
-  ];
-  const hiSet = new Set((highlighted || []).map(s => s.toLowerCase()));
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:4, width:"100%" }}>
-      <div style={{ display:"flex", height:20, borderRadius:6, overflow:"hidden" }}>
-        {bands.map((b, i) => (
-          <div key={i} style={{
-            flex:1, background:b.color,
-            opacity: hiSet.size === 0 || hiSet.has(b.name.toLowerCase()) ? 1 : 0.3,
-          }} />
-        ))}
-      </div>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:8, color:T.slate }}>
-        <span>← longer wavelength / lower frequency / less energy</span>
-        <span>shorter wavelength / higher frequency / more energy →</span>
-      </div>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginTop:2 }}>
-        {bands.map((b, i) => {
-          const isHi = hiSet.size === 0 || hiSet.has(b.name.toLowerCase());
-          return (
-            <div key={i} style={{
-              padding:"2px 6px", background: isHi ? b.color + "22" : "#f8fafc",
-              border:`1px solid ${isHi ? b.color : "#e2e8f0"}`, borderRadius:4,
-              fontSize:9, fontWeight: isHi ? 700 : 400, color: isHi ? b.color : T.slate,
-            }}>{b.name}</div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Free Body Diagram ─────────────────────────────────────────────────────────
-function FreeBodyVis({ forces }) {
-  // forces = [{ label, value, direction:"up"|"down"|"left"|"right", color }]
-  const cx = 60, cy = 60;
-  const DIR = {
-    up:    { dx:0, dy:-1, lx:0,   ly:-52 },
-    down:  { dx:0, dy:1,  lx:0,   ly:52  },
-    left:  { dx:-1, dy:0, lx:-52, ly:0   },
-    right: { dx:1, dy:0,  lx:52,  ly:0   },
-  };
-  const FORCE_COLORS = { up:T.emerald, down:T.nebula, left:T.indigo, right:"#f59e0b" };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <svg width={120} height={120} viewBox="0 0 120 120">
-        <defs>
-          {["up","down","left","right"].map(dir => (
-            <marker key={dir} id={`fbArrow-${dir}`} markerWidth={8} markerHeight={8} refX={4} refY={3} orient="auto">
-              <path d="M0,0 L0,6 L8,3 z" fill={FORCE_COLORS[dir]} />
-            </marker>
-          ))}
-        </defs>
-        {/* Object */}
-        <rect x={cx-14} y={cy-14} width={28} height={28} rx={4} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={8} fill={T.indigo} fontWeight="700">obj</text>
-        {/* Force arrows */}
-        {forces.map((f, i) => {
-          const d = DIR[f.direction];
-          if (!d) return null;
-          const mag = Math.min(Math.max((f.value || 1) / 20, 0.4), 1);
-          const len = 32 * mag + 14;
-          const ex = cx + d.dx * len, ey = cy + d.dy * len;
-          const color = FORCE_COLORS[f.direction];
-          return (
-            <g key={i}>
-              <line x1={cx + d.dx*14} y1={cy + d.dy*14} x2={ex} y2={ey}
-                stroke={color} strokeWidth={2.5} markerEnd={`url(#fbArrow-${f.direction})`} />
-              <text x={cx + d.lx * 0.8} y={cy + d.ly * 0.8}
-                textAnchor="middle" dominantBaseline="central" fontSize={8} fill={color} fontWeight="700">
-                {f.label}{f.value ? ` (${f.value}N)` : ""}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-// ── T-Account (Accounting) ────────────────────────────────────────────────────
-function TAccountVis({ account, debits, credits }) {
-  const debitTotal  = (debits  || []).reduce((s, r) => s + r.amount, 0);
-  const creditTotal = (credits || []).reduce((s, r) => s + r.amount, 0);
-  const balance     = debitTotal - creditTotal;
-  const Col = ({ entries, title, color }) => (
-    <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
-      <div style={{ padding:"4px 8px", background:color+"22", fontSize:11, fontWeight:700, color, textAlign:"center", borderBottom:`2px solid ${color}` }}>
-        {title}
-      </div>
-      {(entries||[]).map((e, i) => (
-        <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"3px 8px", fontSize:10, color:T.slate, borderBottom:"1px solid #f1f5f9" }}>
-          <span>{e.label}</span>
-          <span style={{ fontWeight:600 }}>£{e.amount.toLocaleString()}</span>
-        </div>
-      ))}
-      <div style={{ display:"flex", justifyContent:"space-between", padding:"4px 8px", fontSize:11, fontWeight:700, color, borderTop:`2px solid ${color}`, marginTop:"auto" }}>
-        <span>Total</span>
-        <span>£{(entries||[]).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span>
-      </div>
-    </div>
-  );
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:4, width:"100%" }}>
-      <div style={{ textAlign:"center", fontSize:12, fontWeight:700, color:T.slate, textDecoration:"underline" }}>
-        {account}
-      </div>
-      <div style={{ display:"flex", border:`2px solid ${T.slate}`, borderRadius:8, overflow:"hidden", minHeight:100 }}>
-        <Col entries={debits}  title="Dr (Debit)"  color={T.indigo} />
-        <div style={{ width:2, background:T.slate }} />
-        <Col entries={credits} title="Cr (Credit)" color={T.nebula} />
-      </div>
-      <div style={{ textAlign:"center", fontSize:11, color:T.slate }}>
-        Balance: <span style={{ fontWeight:700, color: balance >= 0 ? T.indigo : T.nebula }}>
-          £{Math.abs(balance).toLocaleString()} {balance >= 0 ? "Dr" : "Cr"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Break-Even Chart ──────────────────────────────────────────────────────────
-function BreakEvenVis({ fixedCost, variableCostPerUnit, pricePerUnit, breakEvenQty }) {
-  const W = 200, H = 140, PAD = 30;
-  const maxQ = (breakEvenQty || 100) * 1.6;
-  const maxC = pricePerUnit * maxQ;
-  const scaleX = (q) => PAD + (q / maxQ) * (W - PAD);
-  const scaleY = (c) => H - PAD - (c / maxC) * (H - PAD);
-  const fixedY = scaleY(fixedCost);
-  const beX = scaleX(breakEvenQty || 0);
-  const beY = scaleY((breakEvenQty || 0) * pricePerUnit);
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Axes */}
-        <line x1={PAD} y1={H-PAD} x2={W} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <line x1={PAD} y1={0}    x2={PAD} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <text x={W/2} y={H-4} textAnchor="middle" fontSize={8} fill={T.slate}>Quantity (units)</text>
-        <text x={8} y={H/2} textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Cost / Revenue (£)</text>
-        {/* Fixed cost line */}
-        <line x1={PAD} y1={fixedY} x2={W} y2={fixedY} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4,3" />
-        <text x={W-4} y={fixedY - 4} textAnchor="end" fontSize={8} fill="#94a3b8" fontWeight="600">FC</text>
-        {/* Total cost line */}
-        <line x1={PAD} y1={fixedY} x2={W} y2={scaleY(fixedCost + (maxQ * variableCostPerUnit))}
-          stroke={T.indigo} strokeWidth={2} />
-        <text x={W-4} y={scaleY(fixedCost + maxQ*variableCostPerUnit)-4} textAnchor="end" fontSize={8} fill={T.indigo} fontWeight="700">TC</text>
-        {/* Revenue line */}
-        <line x1={PAD} y1={H-PAD} x2={W} y2={scaleY(maxQ * pricePerUnit)}
-          stroke={T.emerald} strokeWidth={2} />
-        <text x={W-4} y={scaleY(maxQ*pricePerUnit)-4} textAnchor="end" fontSize={8} fill={T.emerald} fontWeight="700">TR</text>
-        {/* Break-even point */}
-        {breakEvenQty && (
-          <>
-            <line x1={beX} y1={H-PAD} x2={beX} y2={beY} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-            <circle cx={beX} cy={beY} r={5} fill={T.nebula} />
-            <text x={beX} y={beY - 8} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">BEP</text>
-          </>
-        )}
-      </svg>
-      {breakEvenQty && (
-        <div style={{ fontSize:11, color:T.slate }}>
-          Break-even: <span style={{ fontWeight:700, color:T.nebula }}>{breakEvenQty} units</span>
-          {" "} · Revenue = Cost = <span style={{ fontWeight:700 }}>£{(breakEvenQty * pricePerUnit).toLocaleString()}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Supply & Demand Curves ────────────────────────────────────────────────────
-function SupplyDemandVis({ eqPrice, eqQty, shift }) {
-  const W = 180, H = 150, PAD = 28;
-  const scaleX = (q) => PAD + q * ((W - PAD) / 100);
-  const scaleY = (p) => H - PAD - p * ((H - PAD) / 100);
-  // Demand: downward slope  D: P = 90 - 0.8Q
-  // Supply: upward slope    S: P = 10 + 0.8Q
-  const demandPath = `M ${scaleX(0)} ${scaleY(90)} L ${scaleX(100)} ${scaleY(10)}`;
-  const supplyPath = `M ${scaleX(0)} ${scaleY(10)} L ${scaleX(100)} ${scaleY(90)}`;
-  const eq = eqQty || 50, ep = eqPrice || 50;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={PAD} y1={H-PAD} x2={W}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <line x1={PAD} y1={0}    x2={PAD}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <text x={W/2}  y={H-6}  textAnchor="middle" fontSize={8} fill={T.slate}>Quantity</text>
-        <text x={8}    y={H/2}  textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Price</text>
-        {/* Demand curve */}
-        <path d={demandPath} fill="none" stroke={T.indigo} strokeWidth={2} />
-        <text x={W-8} y={scaleY(12)} textAnchor="end" fontSize={9} fill={T.indigo} fontWeight="800">D</text>
-        {/* Supply curve */}
-        <path d={supplyPath} fill="none" stroke={T.emerald} strokeWidth={2} />
-        <text x={W-8} y={scaleY(88)} textAnchor="end" fontSize={9} fill={T.emerald} fontWeight="800">S</text>
-        {/* Equilibrium */}
-        <line x1={scaleX(eq)} y1={H-PAD} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-        <line x1={PAD} y1={scaleY(ep)} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-        <circle cx={scaleX(eq)} cy={scaleY(ep)} r={5} fill={T.nebula} />
-        <text x={scaleX(eq)+4} y={scaleY(ep)-4} fontSize={8} fill={T.nebula} fontWeight="700">E</text>
-      </svg>
-      <div style={{ fontSize:11, color:T.slate, textAlign:"center" }}>
-        Equilibrium: P = <span style={{ fontWeight:700, color:T.nebula }}>{ep}</span>
-        {" "} · Q = <span style={{ fontWeight:700, color:T.nebula }}>{eq}</span>
-      </div>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PARSER — TIER 4
+// TIER 4 PARSER
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TIER 4 + EXTENDED PARSER + MAIN EXPORT
-// ═══════════════════════════════════════════════════════════════════════════════
-
 function parseTier4(topic, questionText, subject, yearLevel) {
   const t    = (topic || "").toLowerCase();
   const q    = (questionText || "").toLowerCase();
@@ -2693,6 +1709,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "subtraction":      return `Subtraction visual: ${visual.from} minus ${visual.remove}`;
       case "multiplication":   return `Multiplication grid: ${visual.rows} rows of ${visual.cols}`;
       case "division":         return `Division visual: ${visual.total} shared into groups of ${visual.groups}`;
+      case "division_equation": return `Division: ${visual.total} ÷ ${visual.groups} = ?`;
       case "fraction":         return `Fraction diagram: ${visual.numerator} out of ${visual.denominator}`;
       case "number_bond":      return `Number bond: ${visual.whole} splits into ${visual.partA} and ${visual.partB}`;
       case "place_value":      return `Place value: ${visual.tens} tens and ${visual.ones} ones`;
@@ -2716,6 +1733,10 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "ph_scale":         return `pH scale showing value ${visual.value}`;
       case "cell":             return `${visual.cellType || "Cell"} diagram`;
       case "state_changes":    return `States of matter diagram`;
+      case "coordinate_graph": return `Coordinate graph with ${(visual.equations||[]).length} equations`;
+      case "data_table":       return `Data table with ${(visual.rows||[]).length} rows`;
+      case "long_multiplication": return `Long multiplication: ${visual.num1} × ${visual.num2}`;
+      case "interactive_plot": return `Interactive coordinate grid for plotting points`;
       case "forces":           return `Forces diagram: ${visual.label1} and ${visual.label2}`;
       case "wave":             return `Wave diagram: ${visual.type} wave`;
       case "food_chain":       return `Food chain: ${(visual.chain||[]).join(" → ")}`;
@@ -2726,6 +1747,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "nvr_rotation":     return `Rotation ${visual.degrees} degrees ${visual.clockwise?"clockwise":"anti-clockwise"}`;
       case "nvr_oddoneout":    return `Odd one out visual`;
       case "nvr_matrix":       return `Non-verbal reasoning matrix`;
+      case "nvr_paper_fold":   return `Paper fold puzzle: ${visual.foldType} fold`;
       case "alphabet_strip":   return `Alphabet strip`;
       case "analogy":          return `Word analogy: ${visual.wordA} is to ${visual.wordB}`;
       case "grammar":          return `Grammar labelling diagram`;
@@ -2771,13 +1793,20 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "clock":           return <ClockVis          {...visual} />;
       case "money":           return <MoneyVis          {...visual} />;
       case "division":        return <DivisionVis       {...visual} />;
+      case "division_equation":return <DivisionEquationVis total={visual.total} groups={visual.groups} />;
       case "ruler":           return <RulerVis          {...visual} />;
       case "ratio":           return <RatioVis          {...visual} />;
       case "alphabet_strip":  return <AlphabetStripVis  {...visual} />;
       case "analogy":         return <AnalogyVis        {...visual} />;
       case "number_sequence": return <NumberSequenceVis {...visual} />;
       case "nvr_matrix":      return <NVRMatrixVis      {...visual} />;
+      case "nvr_paper_fold":  return <NVRPaperFoldVis  foldType={visual.foldType} punchPositions={visual.punchPositions} />;
       case "grammar":         return <GrammarVis        {...visual} />;
+      // ── Tier 4 (new interactive + data) ───────────────────────────────────
+      case "coordinate_graph": return <InteractiveGraph mode="equations" equations={visual.equations} points={visual.points} />;
+      case "data_table":       return <DataTable headers={visual.headers} rows={visual.rows} title={visual.title} highlightCol={visual.highlightCol} highlightRow={visual.highlightRow} />;
+      case "long_multiplication": return <LongMultiplication num1={visual.num1} num2={visual.num2} />;
+      case "interactive_plot": return <InteractiveGraph mode="plot" />;
       case "comparison":      return <ComparisonVis     a={visual.a} b={visual.b} />;
       case "synonym_ladder":  return <SynonymLadderVis  {...visual} />;
       case "word_builder":    return <WordBuilderVis    {...visual} />;
@@ -2816,79 +1845,131 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
 
 // ── COORDINATE GRID ───────────────────────────────────────────────────────────
 // Plots one or more points on a clean SVG axes grid with dashed projection lines
-function CoordinateVis({ points = [], xRange = [-3,3], yRange = [-3,3] }) {
-  const W = 200, H = 200, PAD = 28;
-  const cols = xRange[1] - xRange[0];
-  const rows = yRange[1] - yRange[0];
-  const cellW = (W - PAD*2) / cols;
-  const cellH = (H - PAD*2) / rows;
-  const toSvg = (x, y) => ({
-    sx: PAD + (x - xRange[0]) * cellW,
-    sy: H - PAD - (y - yRange[0]) * cellH,
-  });
-  const originX = PAD + (0 - xRange[0]) * cellW;
-  const originY = H - PAD - (0 - yRange[0]) * cellH;
 
-  // Grid lines
-  const gridLines = [];
-  for (let x = xRange[0]; x <= xRange[1]; x++) {
-    const sx = PAD + (x - xRange[0]) * cellW;
-    gridLines.push(<line key={`v${x}`} x1={sx} y1={PAD} x2={sx} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>);
-  }
-  for (let y = yRange[0]; y <= yRange[1]; y++) {
-    const sy = H - PAD - (y - yRange[0]) * cellH;
-    gridLines.push(<line key={`h${y}`} x1={PAD} y1={sy} x2={W-PAD} y2={sy} stroke={T.slateBd} strokeWidth={1}/>);
-  }
-  // Axis tick labels
-  const ticks = [];
-  for (let x = xRange[0]; x <= xRange[1]; x++) {
-    if (x === 0) continue;
-    const sx = PAD + (x - xRange[0]) * cellW;
-    ticks.push(<text key={`tx${x}`} x={sx} y={originY+11} textAnchor="middle" fontSize={7} fill={T.textMid}>{x}</text>);
-  }
-  for (let y = yRange[0]; y <= yRange[1]; y++) {
-    if (y === 0) continue;
-    const sy = H - PAD - (y - yRange[0]) * cellH;
-    ticks.push(<text key={`ty${y}`} x={originX-5} y={sy+3} textAnchor="end" fontSize={7} fill={T.textMid}>{y}</text>);
-  }
-
-  const dotColors = [T.indigo, T.nebula, T.emerald, T.amber];
-  return (
-    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {gridLines}
-        {/* Axes */}
-        <line x1={PAD} y1={originY} x2={W-PAD+6} y2={originY} stroke={T.text} strokeWidth={1.5}/>
-        <line x1={originX} y1={H-PAD} x2={originX} y2={PAD-6} stroke={T.text} strokeWidth={1.5}/>
-        <polygon points={`${W-PAD+6},${originY} ${W-PAD},${originY-3} ${W-PAD},${originY+3}`} fill={T.text}/>
-        <polygon points={`${originX},${PAD-6} ${originX-3},${PAD} ${originX+3},${PAD}`} fill={T.text}/>
-        <text x={W-PAD+8} y={originY+4} fontSize={8} fill={T.textMid}>x</text>
-        <text x={originX+3} y={PAD-8} fontSize={8} fill={T.textMid}>y</text>
-        <text x={originX-4} y={originY+10} fontSize={7} fill={T.textMid} textAnchor="end">0</text>
-        {ticks}
-        {/* Points + projections */}
-        {points.map((pt, i) => {
-          const { sx, sy } = toSvg(pt.x, pt.y);
-          const col = dotColors[i % dotColors.length];
-          return (
-            <g key={i}>
-              <line x1={sx} y1={sy} x2={sx} y2={originY} stroke={col} strokeWidth={1} strokeDasharray="3,2" opacity={0.6}/>
-              <line x1={sx} y1={sy} x2={originX} y2={sy} stroke={col} strokeWidth={1} strokeDasharray="3,2" opacity={0.6}/>
-              <circle cx={sx} cy={sy} r={5} fill={col}/>
-              <text x={sx+6} y={sy-5} fontSize={8} fontWeight="700" fill={col}>({pt.x},{pt.y})</text>
-            </g>
-          );
-        })}
-      </svg>
-    </Panel>
-  );
-}
-
-// ── NUMBER LINE ────────────────────────────────────────────────────────────────
-function NumberLineVis({ min, max, marked, label, start, steps, direction }) {
-  const W = 210, H = 72, PAD = 16, ARR = 10;
+// ─── CORE DATA VISUALS (kept — used across maths/science/english) ────────────
+function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps, jumpSize, fractionDenom }) {
+  const W = 210, H = fractionDenom ? 82 : 72, PAD = 16, ARR = 10;
   const range = (max - min) || 1;
   const toX = n => PAD + ((n - min) / range) * (W - PAD*2 - ARR);
+
+  // ── Fraction marks mode (e.g. 0, 1/3, 2/3, 1) ────────────────────────────
+  if (fractionDenom && fractionDenom > 0) {
+    const den = fractionDenom;
+    const fracTicks = [];
+    for (let i = 0; i <= max * den; i++) {
+      const val = i / den;
+      if (val > max) break;
+      const fx = toX(val);
+      const isMajor = i % den === 0;
+      fracTicks.push(
+        <g key={i}>
+          <line x1={fx} y1={34} x2={fx} y2={isMajor ? 42 : 38} stroke={isMajor ? T.indigo : "#cbd5e1"} strokeWidth={isMajor ? 2 : 1}/>
+          <text x={fx} y={54} textAnchor="middle" fontSize={isMajor ? 9 : 7} fontWeight={isMajor ? "800" : "600"} fill={isMajor ? T.indigo : T.textMid}>
+            {isMajor ? Math.round(val) : `${i % den}/${den}`}
+          </text>
+        </g>
+      );
+    }
+
+    // Jump arcs if provided
+    const jumpArcs = [];
+    if (jumps && jumpSize) {
+      let pos = start || 0;
+      for (let j = 0; j < jumps; j++) {
+        const from = pos;
+        const to = pos + jumpSize;
+        const fx = toX(from);
+        const tx = toX(to);
+        const mx = (fx + tx) / 2;
+        jumpArcs.push(
+          <g key={`arc-${j}`}>
+            <path d={`M ${fx} 34 Q ${mx} ${10} ${tx} 34`} fill="none" stroke={T.nebula} strokeWidth={1.5}/>
+            <polygon points={`${tx},34 ${tx-4},28 ${tx-4},34`} fill={T.nebula}/>
+          </g>
+        );
+        pos = to;
+      }
+      // Highlight destination
+      const destX = toX(pos);
+      jumpArcs.push(
+        <g key="dest">
+          <rect x={destX-8} y={55} width={16} height={14} rx={3} fill={T.nebulaBg} stroke={T.nebula} strokeWidth={1.5}/>
+          <text x={destX} y={65} textAnchor="middle" fontSize={8} fontWeight="900" fill={T.nebula}>{Math.round(pos * den)}/{den}</text>
+        </g>
+      );
+    }
+
+    return (
+      <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2}/>
+          <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.indigo}/>
+          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
+          {fracTicks}
+          {jumpArcs}
+        </svg>
+        {label && <Chip color={T.indigo} bg="white">{label}</Chip>}
+      </Panel>
+    );
+  }
+
+  // ── Repeated jumps mode (multiplication/division) ──────────────────────────
+  if (jumps && jumpSize) {
+    const jumpArcs = [];
+    let pos = start || min;
+    for (let j = 0; j < jumps; j++) {
+      const from = pos;
+      const to = pos + jumpSize;
+      if (to > max) break;
+      const fx = toX(from);
+      const tx = toX(to);
+      const mx = (fx + tx) / 2;
+      const arcH = Math.min(22, Math.max(12, (tx - fx) * 0.4));
+      jumpArcs.push(
+        <g key={`j${j}`}>
+          <path d={`M ${fx} 34 Q ${mx} ${34 - arcH} ${tx} 34`}
+            fill="none" stroke={T.nebula} strokeWidth={1.5} strokeLinecap="round"/>
+          <polygon points={`${tx},34 ${tx-3},29 ${tx-3},34`} fill={T.nebula}/>
+          <text x={mx} y={34 - arcH - 3} textAnchor="middle" fontSize={7} fontWeight="700" fill={T.nebula}>+{jumpSize}</text>
+        </g>
+      );
+      pos = to;
+    }
+
+    const ticks = [];
+    const rawStep = range / 10;
+    const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
+    const first = Math.ceil(min / step) * step;
+    for (let v = first; v <= max; v += step) {
+      const sx = toX(v);
+      ticks.push(
+        <g key={v}>
+          <line x1={sx} y1={37} x2={sx} y2={43} stroke="#94a3b8" strokeWidth={1.5}/>
+          <text x={sx} y={53} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
+        </g>
+      );
+    }
+    // Highlight landing point
+    const endX = toX(pos);
+
+    return (
+      <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
+        ariaLabel={`Number line: ${jumps} jumps of ${jumpSize}`}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.slate} strokeWidth={2}/>
+          <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.slate}/>
+          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.slate}/>
+          {ticks}
+          {jumpArcs}
+          <circle cx={toX(start || min)} cy={37} r={4} fill={T.indigo}/>
+          <circle cx={endX} cy={37} r={5} fill="white" stroke={T.nebula} strokeWidth={2}/>
+          <text x={endX} y={40} textAnchor="middle" fontSize={8} fontWeight="900" fill={T.nebula}>?</text>
+        </svg>
+        {label && <Chip color={T.nebula} bg={T.nebulaBg}>{label}</Chip>}
+      </Panel>
+    );
+  }
+
   const ticks = [];
   const rawStep = range / 10;
   const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
@@ -3034,358 +2115,64 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
 }
 
 // ── ANGLES ───────────────────────────────────────────────────────────────────
-function AngleVis({ degrees, label }) {
-  const W = 160, H = 130, ox = 40, oy = 100, r = 80;
-  const rad = (degrees * Math.PI) / 180;
-  const ex = ox + r;
-  const ey = oy;
-  const ax = ox + r * Math.cos(-rad);
-  const ay = oy + r * Math.sin(-rad);
-  // Arc radius for angle marker
-  const ar = 28;
-  const arcX = ox + ar * Math.cos(-rad);
-  const arcY = oy + ar * Math.sin(-rad);
-  const large = degrees > 180 ? 1 : 0;
-  const color = degrees < 90 ? T.indigo : degrees < 180 ? T.nebula : T.rose;
-  const typeLabel = degrees < 90 ? "acute" : degrees === 90 ? "right" : degrees < 180 ? "obtuse" : "reflex";
 
-  return (
-    <Panel accent={color} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Base ray */}
-        <line x1={ox} y1={oy} x2={ex} y2={ey} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
-        {/* Angle ray */}
-        <line x1={ox} y1={oy} x2={ax} y2={ay} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
-        {/* Arc */}
-        {degrees !== 90 ? (
-          <path d={`M ${ox+ar},${oy} A ${ar},${ar} 0 ${large},0 ${arcX},${arcY}`}
-            stroke={color} strokeWidth={1.5} fill="none"/>
-        ) : (
-          // Right angle square
-          <g>
-            <line x1={ox+12} y1={oy} x2={ox+12} y2={oy-12} stroke={color} strokeWidth={1.5}/>
-            <line x1={ox+12} y1={oy-12} x2={ox} y2={oy-12} stroke={color} strokeWidth={1.5}/>
-          </g>
-        )}
-        {/* Degree label */}
-        <text x={ox+ar+8} y={oy - ar*0.3} fontSize={11} fontWeight="800" fill={color}>{degrees}°</text>
-        {/* Vertex dot */}
-        <circle cx={ox} cy={oy} r={3} fill={color}/>
-      </svg>
-      {label && <Chip color={color} bg={T.slateBg}>{label}</Chip>}
-    </Panel>
-  );
-}
-
-// ── AREA / PERIMETER ─────────────────────────────────────────────────────────
-function AreaVis({ width, height, mode = "area" }) {
-  const PAD = 12;
-  // Scale cell size to fit within the ~190px left panel
-  // Use the smaller dimension to keep cells square
-  const MAX_W_PX = 170, MAX_H_PX = 120;
-  const cellW = Math.max(8, Math.min(22, Math.floor(MAX_W_PX / width)));
-  const cellH = Math.max(8, Math.min(22, Math.floor(MAX_H_PX / height)));
-  const CELL  = Math.min(cellW, cellH);   // square cells
-  const gridW = width  * CELL;
-  const gridH = height * CELL;
-  const W = gridW + PAD * 2 + 20;   // +20 for left label
-  const H = gridH + PAD * 2 + 20;   // +20 for bottom label
-  const cells = [];
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      cells.push(
-        <rect key={`${row}-${col}`}
-          x={PAD + 20 + col * CELL} y={PAD + row * CELL}
-          width={CELL} height={CELL}
-          fill={T.indigoBg} stroke={T.indigoBd} strokeWidth={1}/>
-      );
-    }
-  }
-  const gx = PAD + 20;  // grid origin x (offset for left label)
-  const gy = PAD;       // grid origin y
-  return (
-    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", maxWidth: "100%" }}>
-        {cells}
-        {/* Outer border */}
-        <rect x={gx} y={gy} width={gridW} height={gridH}
-          fill="none" stroke={T.indigo} strokeWidth={2.5} rx={2}/>
-        {/* Bottom label — actual width */}
-        <text x={gx + gridW / 2} y={H - 5}
-          textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}>
-          {width} cm
-        </text>
-        {/* Left label — actual height, rotated */}
-        <text x={PAD + 6} y={gy + gridH / 2}
-          textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}
-          transform={`rotate(-90, ${PAD + 6}, ${gy + gridH / 2})`}>
-          {height} cm
-        </text>
-      </svg>
-    </Panel>
-  );
-}
-
-// ── FORMULA TRIANGLE ─────────────────────────────────────────────────────────
-// Standard UK triangle. Top = product, bottom-left × bottom-right.
-// unknown = which variable is being found (highlighted in amber)
-function FormulaTriangleVis({ top, left, right, unknown, title }) {
-  const W = 180, H = 130;
-  const pts = "90,12 16,118 164,118";
-  const highlight = (v, name) => name === unknown
-    ? { fill: T.amberBg, stroke: T.amber, textFill: T.amber }
-    : { fill: "white", stroke: T.slateBd, textFill: T.text };
-
-  const Box = ({ x, y, w, h, label, name }) => {
-    const s = highlight(label, name);
-    return (
-      <g>
-        <rect x={x} y={y} width={w} height={h} rx={4} fill={s.fill} stroke={s.stroke} strokeWidth={name===unknown?2:1.5}/>
-        <text x={x+w/2} y={y+h/2+5} textAnchor="middle" fontSize={13} fontWeight="900" fill={s.textFill}>{label}</text>
-      </g>
-    );
-  };
-
-  return (
-    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      {title && <Chip color={T.indigo} bg={T.indigoBg}>{title}</Chip>}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <polygon points={pts} fill={T.slateBg} stroke={T.indigo} strokeWidth={2}/>
-        {/* Horizontal divider */}
-        <line x1={16} y1={65} x2={164} y2={65} stroke={T.indigo} strokeWidth={1.5}/>
-        {/* Vertical divider lower half */}
-        <line x1={90} y1={65} x2={90} y2={118} stroke={T.indigo} strokeWidth={1.5}/>
-        {/* Variable boxes */}
-        <Box x={67} y={22} w={46} h={30} label={top}   name="top"  />
-        <Box x={22} y={72} w={52} h={30} label={left}  name="left" />
-        <Box x={106} y={72} w={52} h={30} label={right} name="right"/>
-      </svg>
-    </Panel>
-  );
-}
-
-// ── MOTION GRAPH (d-t or v-t) ─────────────────────────────────────────────────
-// motionType: "distance_time" | "velocity_time"
-// curveType: "constant" | "accelerating" | "decelerating" | "stationary"
-function MotionGraphVis({ motionType = "distance_time", curveType = "constant" }) {
-  const W = 200, H = 130, PAD = 24;
-  const chartW = W - PAD*2, chartH = H - PAD*2;
-  const yLabel = motionType === "distance_time" ? "d" : "v";
-  const xLabel = "t";
-  const color = motionType === "distance_time" ? T.indigo : T.emerald;
-
-  const curves = {
-    constant:      `M ${PAD},${H-PAD} L ${W-PAD},${PAD+20}`,
-    accelerating:  `M ${PAD},${H-PAD} Q ${W-PAD},${H-PAD} ${W-PAD},${PAD+10}`,
-    decelerating:  `M ${PAD},${PAD+10} Q ${PAD},${H-PAD} ${W-PAD},${H-PAD}`,
-    stationary:    `M ${PAD},${H-PAD-40} L ${W-PAD},${H-PAD-40}`,
-  };
-
-  const labels = {
-    constant:      motionType === "distance_time" ? "constant speed" : "constant acceleration",
-    accelerating:  motionType === "distance_time" ? "speeding up" : "increasing acceleration",
-    decelerating:  motionType === "distance_time" ? "slowing down" : "decelerating",
-    stationary:    motionType === "distance_time" ? "not moving" : "constant velocity",
-  };
-
-  return (
-    <Panel accent={color} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Grid */}
-        <line x1={PAD} y1={PAD} x2={PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
-        <line x1={PAD} y1={H-PAD} x2={W-PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
-        {/* Axes arrows */}
-        <polygon points={`${PAD},${PAD-2} ${PAD-3},${PAD+6} ${PAD+3},${PAD+6}`} fill={color}/>
-        <polygon points={`${W-PAD+2},${H-PAD} ${W-PAD-6},${H-PAD-3} ${W-PAD-6},${H-PAD+3}`} fill={color}/>
-        {/* Axis labels — offset from axis tips for clarity */}
-        <text x={PAD-14} y={PAD+4} fontSize={11} fontWeight="800" fill={color}>{yLabel}</text>
-        <text x={W-PAD+4} y={H-PAD+16} fontSize={11} fontWeight="800" fill={color}>{xLabel}</text>
-        {/* Origin */}
-        <text x={PAD-8} y={H-PAD+10} fontSize={8} fill={T.textMid}>0</text>
-        {/* Curve */}
-        <path d={curves[curveType] || curves.constant}
-          stroke={color} strokeWidth={2.5} fill="none" strokeLinecap="round"/>
-        {/* Annotations sit below axis line with space — not overlapping curve */}
-        {motionType === "distance_time" && (
-          <text x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
-            gradient = speed
-          </text>
-        )}
-        {motionType === "velocity_time" && (
-          <text x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
-            area under = distance
-          </text>
-        )}
-      </svg>
-      <div style={{marginTop:6}}>
-        <Chip color={color} bg={color === T.indigo ? T.indigoBg : T.emeraldBg}>{labels[curveType]}</Chip>
-      </div>
-    </Panel>
-  );
-}
-
-// ── CIRCUIT DIAGRAM ──────────────────────────────────────────────────────────
-// type: "series" | "parallel"
-function CircuitVis({ type = "series" }) {
-  const W = 200, H = 110;
-  const color = T.indigo;
-  // Both circuits as clean SVG paths using standard UK symbols
-  return (
-    <Panel accent={color} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {type === "series" ? (
-          <g>
-            {/* Rectangular loop */}
-            <polyline points="20,30 20,90 180,90 180,30 20,30" fill="none" stroke={color} strokeWidth={2}/>
-            {/* Battery symbol on left side */}
-            <line x1={20} y1={50} x2={20} y2={56} stroke={color} strokeWidth={3}/>
-            <line x1={15} y1={58} x2={25} y2={58} stroke={color} strokeWidth={2.5}/>
-            <line x1={17} y1={61} x2={23} y2={61} stroke={color} strokeWidth={2}/>
-            <line x1={20} y1={63} x2={20} y2={69} stroke={color} strokeWidth={3}/>
-            <text x={28} y={62} fontSize={8} fill={color}>cell</text>
-            {/* Bulb 1 on top */}
-            <circle cx={75} cy={30} r={9} fill="white" stroke={color} strokeWidth={2}/>
-            <line x1={70} y1={34} x2={80} y2={26} stroke={color} strokeWidth={1.2}/>
-            <line x1={80} y1={34} x2={70} y2={26} stroke={color} strokeWidth={1.2}/>
-            {/* Bulb 2 on top */}
-            <circle cx={130} cy={30} r={9} fill="white" stroke={color} strokeWidth={2}/>
-            <line x1={125} y1={34} x2={135} y2={26} stroke={color} strokeWidth={1.2}/>
-            <line x1={135} y1={34} x2={125} y2={26} stroke={color} strokeWidth={1.2}/>
-            <text x={100} y={105} textAnchor="middle" fontSize={8} fontWeight="700" fill={color}>SERIES</text>
-          </g>
-        ) : (
-          <g>
-            {/* Outer loop */}
-            <polyline points="20,20 20,90 180,90 180,20" fill="none" stroke={color} strokeWidth={2}/>
-            <line x1={20} y1={20} x2={180} y2={20} stroke={color} strokeWidth={2}/>
-            {/* Junction dots */}
-            <circle cx={20} cy={20} r={3.5} fill={color}/>
-            <circle cx={20} cy={90} r={3.5} fill={color}/>
-            <circle cx={180} cy={20} r={3.5} fill={color}/>
-            <circle cx={180} cy={90} r={3.5} fill={color}/>
-            {/* Battery on left */}
-            <line x1={20} y1={44} x2={20} y2={50} stroke={color} strokeWidth={3}/>
-            <line x1={15} y1={52} x2={25} y2={52} stroke={color} strokeWidth={2.5}/>
-            <line x1={17} y1={55} x2={23} y2={55} stroke={color} strokeWidth={2}/>
-            <line x1={20} y1={57} x2={20} y2={63} stroke={color} strokeWidth={3}/>
-            {/* Branch connector */}
-            <line x1={100} y1={20} x2={100} y2={90} stroke={color} strokeWidth={2}/>
-            <circle cx={100} cy={20} r={3.5} fill={color}/>
-            <circle cx={100} cy={90} r={3.5} fill={color}/>
-            {/* Bulb left branch */}
-            <circle cx={60} cy={55} r={9} fill="white" stroke={color} strokeWidth={2}/>
-            <line x1={55} y1={59} x2={65} y2={51} stroke={color} strokeWidth={1.2}/>
-            <line x1={65} y1={59} x2={55} y2={51} stroke={color} strokeWidth={1.2}/>
-            {/* Bulb right branch */}
-            <circle cx={140} cy={55} r={9} fill="white" stroke={color} strokeWidth={2}/>
-            <line x1={135} y1={59} x2={145} y2={51} stroke={color} strokeWidth={1.2}/>
-            <line x1={145} y1={59} x2={135} y2={51} stroke={color} strokeWidth={1.2}/>
-            <text x={100} y={105} textAnchor="middle" fontSize={8} fontWeight="700" fill={color}>PARALLEL</text>
-          </g>
-        )}
-      </svg>
-    </Panel>
-  );
-}
-
-// ── QUADRATIC GRAPH SKETCH ────────────────────────────────────────────────────
-// Shows parabola shape, marks roots and vertex. Does NOT give the answer.
-function QuadraticVis({ a = 1, roots, vertex, label }) {
-  const W = 200, H = 130, PAD = 20;
-  const cW = W - PAD*2, cH = H - PAD*2;
-  // Normalise to viewport: roots in [-3,3] range
-  const xMin = -3.5, xMax = 3.5;
-  const toSx = x => PAD + ((x - xMin) / (xMax - xMin)) * cW;
-  // Generate curve points
-  const pts = [];
-  const r1 = roots?.[0] ?? -1.5, r2 = roots?.[1] ?? 1.5;
-  const vx = vertex?.x ?? (r1+r2)/2;
-  const vy = vertex?.y ?? (a > 0 ? -2 : 2);
-  const yMin = Math.min(vy - 0.5, -2.5), yMax = Math.max(2.5, -vy + 0.5);
-  const toSy = y => PAD + cH - ((y - yMin) / (yMax - yMin)) * cH;
-
-  for (let xi = 0; xi <= 60; xi++) {
-    const x = xMin + (xi / 60) * (xMax - xMin);
-    const y = a * (x - vx)**2 + vy;
-    pts.push(`${toSx(x)},${toSy(y)}`);
-  }
-  const originY = toSy(0), originX = toSx(0);
-  const color = T.indigo;
-
-  return (
-    <Panel accent={color} bg={T.slateBg} bd={T.slateBd}>
-      {label && <Chip color={color} bg={T.indigoBg}>{label}</Chip>}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Axes */}
-        <line x1={PAD} y1={originY} x2={W-PAD} y2={originY} stroke="#94a3b8" strokeWidth={1.5}/>
-        <line x1={originX} y1={PAD} x2={originX} y2={H-PAD} stroke="#94a3b8" strokeWidth={1.5}/>
-        {/* Axis arrows */}
-        <polygon points={`${W-PAD},${originY} ${W-PAD-6},${originY-3} ${W-PAD-6},${originY+3}`} fill="#94a3b8"/>
-        <polygon points={`${originX},${PAD} ${originX-3},${PAD+6} ${originX+3},${PAD+6}`} fill="#94a3b8"/>
-        <text x={W-PAD+2} y={originY+4} fontSize={8} fill={T.textMid}>x</text>
-        <text x={originX+3} y={PAD-2} fontSize={8} fill={T.textMid}>y</text>
-        {/* Curve */}
-        <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
-        {/* Roots */}
-        {roots?.map((rx, i) => (
-          <g key={i}>
-            <circle cx={toSx(rx)} cy={originY} r={4} fill={color}/>
-            <text x={toSx(rx)} y={originY+12} textAnchor="middle" fontSize={8} fontWeight="700" fill={color}>x={rx}</text>
-          </g>
-        ))}
-        {/* Vertex */}
-        {vertex && (
-          <g>
-            <circle cx={toSx(vx)} cy={toSy(vy)} r={4} fill={T.nebula}/>
-            <text x={toSx(vx)+6} y={toSy(vy)-4} fontSize={8} fontWeight="700" fill={T.nebula}>({vx},{vy})</text>
-          </g>
-        )}
-      </svg>
-    </Panel>
-  );
-}
-
-// ── PERIODIC TABLE ELEMENT CARD ───────────────────────────────────────────────
-const PT_GROUP_COLORS = {
-  "alkali":      { bg:"#fef3c7", bd:"#f59e0b", text:"#92400e" },
-  "alkaline":    { bg:"#fef9c3", bd:"#eab308", text:"#713f12" },
-  "transition":  { bg:"#fce7f3", bd:"#db2777", text:"#831843" },
-  "nonmetal":    { bg:"#ecfdf5", bd:"#10b981", text:"#064e3b" },
-  "noble":       { bg:"#f5f3ff", bd:"#8b5cf6", text:"#4c1d95" },
-  "metalloid":   { bg:"#eff6ff", bd:"#3b82f6", text:"#1e3a8a" },
-  "halogen":     { bg:"#fff1f2", bd:"#f43f5e", text:"#881337" },
-  "default":     { bg:"#f8fafc", bd:"#94a3b8", text:"#1e293b" },
-};
-function ElementVis({ symbol, name, atomicNumber, mass, group, period, groupType = "default" }) {
-  const c = PT_GROUP_COLORS[groupType] || PT_GROUP_COLORS.default;
-  const W = 180, H = 100;
-  return (
-    <Panel accent={c.bd} bg={c.bg} bd={c.bd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Element tile */}
-        <rect x={55} y={4} width={70} height={78} rx={8} fill="white" stroke={c.bd} strokeWidth={2}/>
-        <text x={90} y={22} textAnchor="middle" fontSize={10} fill={c.text}>{atomicNumber}</text>
-        <text x={90} y={55} textAnchor="middle" fontSize={28} fontWeight="900" fill={c.text}>{symbol}</text>
-        <text x={90} y={68} textAnchor="middle" fontSize={9} fontWeight="700" fill={c.text}>{name}</text>
-        <text x={90} y={78} textAnchor="middle" fontSize={8} fill={c.text}>{mass}</text>
-        {/* Group / Period badges */}
-        <rect x={2} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
-        <text x={26} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Group {group}</text>
-        <rect x={130} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
-        <text x={154} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Period {period}</text>
-      </svg>
-    </Panel>
-  );
-}
-
-// ─── EXTEND PARSER ────────────────────────────────────────────────────────────
-// Wraps the existing parseVisual. Called parseVisualExtended — the main export
-// calls this instead.
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXTENDED PARSER
+// ═══════════════════════════════════════════════════════════════════════════════
 function parseVisualExtended(topic, questionText, subject, yearLevel) {
   const t    = (topic || "").toLowerCase();
   const q    = (questionText || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
   const nums = ((questionText || "").match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+
+  // ── SIMULTANEOUS EQUATIONS / COORDINATE GRAPH ────────────────────────────
+  // Triggers: "simultaneous", "y = mx + c", "graph of", "plot the line"
+  if (t.includes("simultaneous") || t.includes("linear_graph") || t.includes("graphs_linear") ||
+      /simultaneous|solve.*graphically|plot.*(?:y\s*=)|graph.*(?:y\s*=)/i.test(questionText)) {
+    const eqMatches = [...(questionText || "").matchAll(/y\s*=\s*[+-]?\d*\.?\d*\s*x\s*[+-]?\s*\d+\.?\d*/gi)];
+    if (eqMatches.length >= 1) {
+      return { type: "coordinate_graph", equations: eqMatches.map(m => m[0].trim()) };
+    }
+  }
+
+  // ── DATA TABLE — "the table shows", "use the table", "from the table" ──
+  if (/table.*shows|use.*table|from.*table|read.*table|following table/i.test(questionText)) {
+    // Try to extract tabular data from question text (e.g., "Day | Mon | Tue | Wed")
+    const lines = (questionText || "").split(/\n/).filter(l => l.includes('|'));
+    if (lines.length >= 2) {
+      const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
+      const rows = lines.slice(1).map(l => l.split('|').map(c => c.trim()).filter(Boolean));
+      if (headers.length >= 2 && rows.length >= 1) {
+        return { type: "data_table", headers, rows };
+      }
+    }
+    // Fallback: detect common data patterns
+    const labelPattern = (questionText || "").match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|January|February|March|April|May|June|Week \d|Class \d|Group [A-Z])/gi);
+    if (labelPattern && labelPattern.length >= 2 && nums.length >= labelPattern.length) {
+      return {
+        type: "data_table",
+        headers: ["Category", "Value"],
+        rows: labelPattern.map((l, i) => [l, nums[i] !== undefined ? String(nums[i]) : "?"]),
+      };
+    }
+  }
+
+  // ── LONG MULTIPLICATION — "multiply 234 × 56", "long multiplication" ───
+  if (t.includes("long_multiplication") || t.includes("multiplication_2digit") || t.includes("multiplication_3digit") ||
+      /long multiplication|partial products|column multiplication/i.test(questionText)) {
+    const mulMatch = (questionText || "").match(/(\d{2,4})\s*[×x]\s*(\d{2,4})/i);
+    if (mulMatch) {
+      return { type: "long_multiplication", num1: mulMatch[1], num2: mulMatch[2] };
+    }
+    if (nums.length >= 2 && nums[0] >= 10 && nums[1] >= 10) {
+      return { type: "long_multiplication", num1: String(nums[0]), num2: String(nums[1]) };
+    }
+  }
+
+  // ── INTERACTIVE PLOT — "plot the coordinates", "plot these points" ──────
+  if (/plot.*(?:point|coordinate)|place.*(?:point|coordinate).*grid|mark.*point.*grid/i.test(questionText)) {
+    return { type: "interactive_plot", equation: null };
+  }
 
   // ── COORDINATES ────────────────────────────────────────────────────────────
   if (t.includes("coord") || t.includes("plot") || /\(\s*-?\d+\s*,\s*-?\d+\s*\)/.test(questionText)) {
@@ -3450,6 +2237,29 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   // ── ANGLES ────────────────────────────────────────────────────────────────
   if (t.includes("angle") || t.includes("geometry") ||
       /acute|obtuse|reflex|right angle|\d+\s*°|\d+\s*degrees/i.test(questionText)) {
+
+    // Multi-angle scenarios — "angles on a straight line"
+    if (/straight line|supplementary/i.test(questionText)) {
+      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+      if (allDegs.length >= 1) return { type: "angle", scenario: "straight_line", knownAngles: allDegs, unknownLabel: "?" };
+    }
+    // Angles in a triangle
+    if (/triangle|three angles/i.test(questionText)) {
+      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+      if (allDegs.length >= 1 && allDegs.length <= 2) return { type: "angle", scenario: "triangle", knownAngles: allDegs, unknownLabel: "?" };
+    }
+    // Angles at a point
+    if (/at a point|around a point|full turn/i.test(questionText)) {
+      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+      if (allDegs.length >= 1) return { type: "angle", scenario: "at_point", knownAngles: allDegs, unknownLabel: "?" };
+    }
+    // Vertically opposite
+    if (/vertically opposite|vert.*opp/i.test(questionText)) {
+      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+      if (allDegs.length >= 1) return { type: "angle", scenario: "vertically_opposite", knownAngles: allDegs, unknownLabel: "?" };
+    }
+
+    // Single angle (original behaviour)
     const degMatch = (questionText||"").match(/(\d+)\s*(?:°|degrees?)/i);
     if (degMatch) {
       const deg = parseInt(degMatch[1]);
@@ -3459,6 +2269,20 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
     if (/acute/i.test(questionText))       return { type:"angle", degrees: 55 };
     if (/obtuse/i.test(questionText))      return { type:"angle", degrees: 120 };
     if (/reflex/i.test(questionText))      return { type:"angle", degrees: 210 };
+  }
+
+  // ── PAPER FOLDS (NVR) ──────────────────────────────────────────────────────
+  if (/paper.*fold|fold.*paper|punch.*hole|hole.*punch|unfold/i.test(questionText)) {
+    const foldType = /diagonal/i.test(questionText) ? "diagonal"
+      : /quarter/i.test(questionText) ? "quarter"
+      : /horizontal/i.test(questionText) ? "half_horizontal"
+      : "half_vertical";
+    // Generate punch positions based on question content
+    const punches = /corner/i.test(questionText) ? [[0.8, 0.2]]
+      : /centre|center|middle/i.test(questionText) ? [[0.5, 0.5]]
+      : /edge|side/i.test(questionText) ? [[0.5, 0.2]]
+      : [[0.3, 0.4]];
+    return { type: "nvr_paper_fold", foldType, punchPositions: punches };
   }
 
   // ── AREA / PERIMETER ──────────────────────────────────────────────────────

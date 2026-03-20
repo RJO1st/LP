@@ -171,27 +171,87 @@ async function loadScholarContext(supabase, scholarId, curriculum, subject, cach
   };
 }
 
-// ─── ANCHOR TOPIC RESOLUTION ──────────────────────────────────────────────────
+// ─── ADAPTIVE LEARNING PATH ALGORITHM ─────────────────────────────────────────
+// Automatically selects the optimal topic for a scholar. No manual selection.
+// Priority: SR overdue → weakest (anti-repeat) → new introduction → reinforcement
+//
+// Anti-repetition: tracks last 3 topics played (from masteryRows updated_at).
+// After 2 consecutive sessions on the same topic, forces rotation to next priority.
+// This prevents scholars from getting stuck on one topic endlessly.
 function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
   const now = new Date();
+  const subjectRows = masteryRows.filter(r => r.subject === subject);
 
-  // 1. Spaced repetition — most overdue first
-  const overdue = masteryRows
-    .filter(r => r.subject === subject && r.next_review_at && new Date(r.next_review_at) <= now)
-    .sort((a, b) => new Date(a.next_review_at) - new Date(b.next_review_at))[0];
-  if (overdue) return { topic: overdue.topic, reason: 'spaced_repetition' };
+  // Recent topics: last 3 topics by updated_at (most recent first)
+  const recentTopics = [...subjectRows]
+    .filter(r => r.updated_at)
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    .slice(0, 3)
+    .map(r => r.topic);
 
-  // 2. Current learning path topic
-  if (currentTopic) return { topic: currentTopic, reason: 'learning_path' };
+  // Anti-repeat: if same topic was practised in last 2 sessions, exclude it from priority 2+3
+  const lastTwo = recentTopics.slice(0, 2);
+  const repeatedTopic = lastTwo.length === 2 && lastTwo[0] === lastTwo[1] ? lastTwo[0] : null;
 
-  // 3. Weakest topic with at least one attempt
-  const withAttempts = masteryRows
-    .filter(r => r.subject === subject && (r.times_seen ?? 0) > 0)
-    .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0));
-  if (withAttempts[0]) return { topic: withAttempts[0].topic, reason: 'weakest_topic' };
+  // ── Priority 1: Spaced repetition — overdue review (always wins, even if repeated)
+  const overdue = subjectRows
+    .filter(r => r.next_review_at && new Date(r.next_review_at) <= now)
+    .sort((a, b) => new Date(a.next_review_at) - new Date(b.next_review_at));
 
-  // 4. First topic in sequence (brand new scholar)
-  const firstTopic = getTopicList(sequence)[0];
+  if (overdue.length > 0) {
+    // If the most overdue is the repeated topic, pick the second most overdue
+    const pick = repeatedTopic && overdue[0].topic === repeatedTopic && overdue.length > 1
+      ? overdue[1] : overdue[0];
+    return { topic: pick.topic, reason: 'spaced_repetition' };
+  }
+
+  // ── Priority 2: Weakest topic (lowest mastery, at least 1 attempt)
+  const weakest = subjectRows
+    .filter(r => (r.times_seen ?? 0) > 0 && (r.mastery_score ?? 0) < 0.7)
+    .filter(r => r.topic !== repeatedTopic)  // anti-repeat
+    .sort((a, b) => {
+      // Primary: lowest mastery first
+      const scoreDiff = (a.mastery_score ?? 0) - (b.mastery_score ?? 0);
+      if (Math.abs(scoreDiff) > 0.05) return scoreDiff;
+      // Secondary: least recently practised (stalest first)
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dateA - dateB;
+    });
+
+  if (weakest.length > 0) {
+    return { topic: weakest[0].topic, reason: 'weakest_topic' };
+  }
+
+  // ── Priority 3: Introduce a new topic (unseen, from sequence)
+  const topicList = getTopicList(sequence);
+  const seenTopics = new Set(subjectRows.map(r => r.topic));
+  const unseen = topicList.filter(t => !seenTopics.has(t));
+  if (unseen.length > 0) {
+    return { topic: unseen[0], reason: 'new_introduction' };
+  }
+
+  // ── Priority 4: Reinforce — stalest on-track topic (mastery 0.7-0.85)
+  const reinforcement = subjectRows
+    .filter(r => (r.mastery_score ?? 0) >= 0.7 && (r.mastery_score ?? 0) < 0.85)
+    .filter(r => r.topic !== repeatedTopic)
+    .sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dateA - dateB;  // stalest first
+    });
+
+  if (reinforcement.length > 0) {
+    return { topic: reinforcement[0].topic, reason: 'reinforcement' };
+  }
+
+  // ── Priority 5: Current learning path topic (fallback)
+  if (currentTopic && currentTopic !== repeatedTopic) {
+    return { topic: currentTopic, reason: 'learning_path' };
+  }
+
+  // ── Priority 6: First in sequence (brand new scholar)
+  const firstTopic = topicList[0];
   if (firstTopic) return { topic: firstTopic, reason: 'sequence_start' };
 
   return { topic: null, reason: 'fallback' };
@@ -238,14 +298,21 @@ function resolveDbCurriculum(curriculum, subject, year) {
   // Verbal/NVR only live under uk_11plus
   if (['verbal_reasoning', 'verbal', 'nvr', 'non_verbal_reasoning'].includes(sub)) return 'uk_11plus';
   switch (cur) {
-    case 'uk_national':      return (yr >= 3 && yr <= 6) ? 'uk_11plus' : 'uk_national';
+    case 'uk_national':
+      // Only redirect Y3-6 to uk_11plus for subjects that exist there
+      // Computing, history, geography, RE, D&T etc. stay under uk_national
+      if (yr >= 3 && yr <= 6) {
+        const ELEVEN_PLUS_SUBJECTS = ['mathematics', 'maths', 'math', 'english', 'science', 'verbal_reasoning', 'nvr', 'non_verbal_reasoning'];
+        return ELEVEN_PLUS_SUBJECTS.includes(sub) ? 'uk_11plus' : 'uk_national';
+      }
+      return 'uk_national';
     case 'uk_11plus':        return 'uk_11plus';
     case 'ng_primary':
-    case 'nigerian_primary': return 'nigerian_primary';
+    case 'nigerian_primary': return 'ng_primary';
     case 'ng_jss':
-    case 'nigerian_jss':     return 'nigerian_jss';
+    case 'nigerian_jss':     return 'ng_jss';
     case 'ng_sss':
-    case 'nigerian_sss':     return 'nigerian_sss';
+    case 'nigerian_sss':     return 'ng_sss';
     case 'australian':
     case 'aus_acara':        return 'aus_acara';
     case 'waec':             return 'waec';
@@ -293,18 +360,38 @@ function resolveDbYear(curriculum, rawYear) {
 
 // Maps incoming subject name → DB column value
 function resolveDbSubject(subject, curriculum) {
-  const sub = (subject || '').toLowerCase();
+  const sub = (subject || '').toLowerCase().replace(/\s+/g, '_');
   const cur = (curriculum || '').toLowerCase();
 
-  // Universal aliases
+  // Universal aliases — handle spaces, abbreviations, common variants
   const universal = {
     maths: 'mathematics', math: 'mathematics',
     verbal: 'verbal_reasoning',
     nvr: 'nvr',
+    non_verbal_reasoning: 'nvr',
+    dt: 'design_and_technology',
+    'd&t': 'design_and_technology',
+    design_technology: 'design_and_technology',
+    re: 'religious_education',
+    rs: 'religious_studies',
+    ict: 'computing',
+    it: 'computing',
+    information_technology: 'computing',
+    pe: 'physical_education',
+    geo: 'geography',
+    hist: 'history',
+    bio: 'biology',
+    chem: 'chemistry',
+    phys: 'physics',
+    lit: 'literature',
+    econ: 'economics',
+    gov: 'government',
+    pshe: 'pshe',
+    citizenship: 'civic_education',
   };
   if (universal[sub]) return universal[sub];
 
-  // Nigerian JSS / Primary — uses english_studies, basic_science (split from basic_science_and_technology)
+  // Nigerian JSS / Primary — uses english_studies, basic_science
   const isNgJssOrPrimary = ['ng_jss', 'nigerian_jss', 'ng_primary', 'nigerian_primary'].includes(cur);
   if (isNgJssOrPrimary) {
     const ngMap = {
@@ -313,11 +400,12 @@ function resolveDbSubject(subject, curriculum) {
       basic_science_and_technology: 'basic_science',
       computing:                    'basic_digital_literacy',
       ict:                          'basic_digital_literacy',
+      religious_education:          'religious_studies',
     };
     if (ngMap[sub]) return ngMap[sub];
   }
 
-  // Nigerian SSS — uses english (NOT english_studies), civic_education (NOT citizenship_and_heritage)
+  // Nigerian SSS — uses english (NOT english_studies)
   const isNgSss = ['ng_sss', 'nigerian_sss'].includes(cur);
   if (isNgSss) {
     const sssMap = {
@@ -325,11 +413,110 @@ function resolveDbSubject(subject, curriculum) {
       citizenship_and_heritage: 'civic_education',
       computing:                'digital_technologies',
       ict:                      'digital_technologies',
+      religious_education:      'religious_studies',
     };
     if (sssMap[sub]) return sssMap[sub];
   }
 
   return sub;
+}
+
+// ─── PASSAGE GROUP FETCHER ────────────────────────────────────────────────────
+/**
+ * Finds a passage with linked questions for the given subject/curriculum/year.
+ * Returns { passage, questions } or null if no suitable passage found.
+ * Prioritises passages the scholar hasn't seen recently.
+ */
+async function fetchPassageGroup(supabase, curriculum, subject, year, topic, excludeIds, maxQuestions) {
+  const dbCurriculum = resolveDbCurriculum(curriculum, subject, year);
+  const dbSubject    = resolveDbSubject(subject, curriculum);
+
+  // Find passages with enough questions (≥2), matching curriculum+subject
+  let passageQuery = supabase
+    .from('passages')
+    .select('id, title, body, curriculum, subject, year_level, topic, word_count, question_count')
+    .eq('curriculum', dbCurriculum)
+    .eq('subject', dbSubject)
+    .gte('question_count', 2)
+    .order('question_count', { ascending: false })
+    .limit(10);
+
+  // Prefer passages near the scholar's year level
+  if (year) {
+    passageQuery = passageQuery
+      .gte('year_level', Math.max(1, year - 1))
+      .lte('year_level', year + 1);
+  }
+
+  const { data: passages, error: pErr } = await passageQuery;
+  if (pErr || !passages?.length) {
+    // Broaden: try without year constraint
+    const { data: broadPassages } = await supabase
+      .from('passages')
+      .select('id, title, body, curriculum, subject, year_level, topic, word_count, question_count')
+      .eq('curriculum', dbCurriculum)
+      .eq('subject', dbSubject)
+      .gte('question_count', 2)
+      .order('question_count', { ascending: false })
+      .limit(10);
+    if (!broadPassages?.length) return null;
+    passages?.push?.(...broadPassages);
+  }
+
+  // Pick a passage — prefer one whose questions haven't been seen
+  for (const passage of (passages || [])) {
+    // Fetch ALL questions linked to this passage
+    const { data: linkedQs, error: qErr } = await supabase
+      .from('question_bank')
+      .select('*')
+      .eq('passage_id', passage.id)
+      .limit(maxQuestions);
+
+    if (qErr || !linkedQs?.length || linkedQs.length < 2) continue;
+
+    // Check how many are in the exclude list (already seen)
+    const unseenQs = linkedQs.filter(q => !excludeIds.includes(q.id));
+    
+    // If at least 2 unseen questions, use this passage
+    if (unseenQs.length >= 2) {
+      return {
+        passage: {
+          id: passage.id,
+          title: passage.title,
+          body: passage.body,
+          wordCount: passage.word_count,
+          topic: passage.topic,
+        },
+        questions: unseenQs.slice(0, maxQuestions),
+      };
+    }
+  }
+
+  // No suitable passage found with unseen questions
+  // Fall back to any passage (allow re-reading)
+  if (passages?.length) {
+    const fallback = passages[0];
+    const { data: fbQs } = await supabase
+      .from('question_bank')
+      .select('*')
+      .eq('passage_id', fallback.id)
+      .limit(maxQuestions);
+
+    if (fbQs?.length >= 2) {
+      return {
+        passage: {
+          id: fallback.id,
+          title: fallback.title,
+          body: fallback.body,
+          wordCount: fallback.word_count,
+          topic: fallback.topic,
+        },
+        questions: fbQs,
+      };
+    }
+  }
+
+  return null;
 }
 
 // ─── QUESTION FETCHER ─────────────────────────────────────────────────────────
@@ -413,6 +600,7 @@ export async function getSmartQuestions(
   previousIds = [],
   cache = null,
   examMode = null,
+  focusedTopic = null,  // ← NEW: when set, overrides anchor topic resolution (from JourneyMap)
 ) {
   try {
     // ── 0. Resolve combined_science to a specific science subject ─────────────
@@ -442,8 +630,10 @@ export async function getSmartQuestions(
     ]);
 
     // ── 2. Resolve anchor and adjacent topics ─────────────────────────────
-    const { topic: anchorTopic, reason: selectionReason } =
-      resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence);
+    // If focusedTopic is provided (from JourneyMap), use it directly — skip auto-resolution
+    const { topic: anchorTopic, reason: selectionReason } = focusedTopic
+      ? { topic: focusedTopic, reason: "journey_map_selected" }
+      : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence);
 
     if (!anchorTopic) {
       console.warn(
@@ -459,6 +649,66 @@ export async function getSmartQuestions(
     // Quest split: 70% anchor, 30% adjacent
     const anchorCount   = adjacentTopic ? Math.ceil(count * 0.7) : count;
     const adjacentCount = adjacentTopic ? count - anchorCount : 0;
+
+    // ── 2.5. PASSAGE GROUPING ────────────────────────────────────────────
+    // If anchor topic is a comprehension/text_analysis skill, check if there
+    // are passages available. If so, fetch passage + ALL its linked questions
+    // as a grouped set — the scholar reads the passage once and answers all
+    // questions about it. Remaining quest slots filled with non-passage questions.
+    const isPassageTopic = /comprehension|text_analysis|source_analysis|inference|literary/i.test(anchorTopic ?? '');
+    const isPassageSubject = /english|literature|history|geography|hass|civic|social_studies|religious|commerce|economics/i.test(activeSubject);
+
+    if (isPassageTopic || (isPassageSubject && Math.random() < 0.3)) {
+      try {
+        const passageResult = await fetchPassageGroup(
+          supabase, curriculum, activeSubject, year, anchorTopic, excludeIds, count
+        );
+        if (passageResult && passageResult.questions.length >= 2) {
+          console.log(
+            `[getSmartQuestions] Passage found: "${passageResult.passage.title}" ` +
+            `(${passageResult.questions.length} linked questions)`
+          );
+
+          // Tag passage questions with the passage object
+          const passageQs = passageResult.questions.map(r => ({
+            ...r,
+            _passage: passageResult.passage,
+            _selectionReason: 'passage_grouped',
+            _anchorTopic: anchorTopic,
+          }));
+
+          // Fill remaining slots with non-passage MCQ questions
+          const passageQIds = new Set(passageQs.map(q => q.id));
+          const remainingCount = count - passageQs.length;
+
+          if (remainingCount > 0) {
+            const { anchorRows } = await fetchQuestPool(
+              supabase, curriculum, activeSubject, year,
+              anchorTopic, anchorTier, adjacentTopic, adjacentTier,
+              [...excludeIds, ...passageQs.map(q => q.id)], overfetch, examTag,
+            );
+            const fillers = shuffle(anchorRows)
+              .filter(r => !passageQIds.has(r.id))
+              .slice(0, remainingCount)
+              .map(r => ({ ...r, _selectionReason: selectionReason, _anchorTopic: anchorTopic }));
+
+            // Passage questions FIRST (scholar reads passage, then answers), fillers after
+            const allQs = [...passageQs, ...fillers];
+            const selectedIds = allQs.map(r => r.id).filter(Boolean);
+            if (selectedIds.length > 0) addLocalSeen(selectedIds);
+            return allQs;
+          }
+
+          // All slots filled by passage questions
+          const selectedIds = passageQs.map(r => r.id).filter(Boolean);
+          if (selectedIds.length > 0) addLocalSeen(selectedIds);
+          return passageQs;
+        }
+      } catch (passageErr) {
+        console.warn('[getSmartQuestions] Passage grouping failed (non-fatal):', passageErr?.message);
+        // Fall through to normal question selection
+      }
+    }
 
     // ── 3. Build exclusion list ───────────────────────────────────────────
     // Cap at 50 most recent to prevent blocking all questions in smaller pools
@@ -609,3 +859,5 @@ export async function getSmartQuestions(
     return [];
   }
 }
+// ── Additional exports for QuestOrchestrator's adaptive algorithm ────────────
+export { getTopicSequence, loadScholarContext, resolveAnchorTopic };
