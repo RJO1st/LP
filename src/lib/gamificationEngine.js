@@ -69,8 +69,9 @@ export const CURRICULA = {
   // UK - Two options
   uk_national: {
     name: 'UK National Curriculum', country: '🇬🇧', gradeLabel: 'Year',
-    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], currency: '£', spelling: 'british',
-    subjects: ['maths', 'english', 'science'],
+    grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], currency: '£', spelling: 'british',
+    subjects: ['mathematics', 'english', 'science', 'history', 'geography', 'computing',
+               'design_and_technology', 'religious_education'],
   },
   uk_11plus: {
     name: 'UK 11+', country: '🇬🇧', gradeLabel: 'Year',
@@ -124,6 +125,18 @@ export const CURRICULA = {
                'civic_education', 'digital_technologies', 'economics', 'government', 'geography',
                'further_mathematics', 'accounting', 'agricultural_science'],
     exams: ['WAEC', 'NECO']
+  },
+  // Canada
+  ca_primary: {
+    name: 'Canadian Curriculum', country: '🇨🇦', gradeLabel: 'Grade',
+    grades: [1, 2, 3, 4, 5, 6, 7, 8], currency: 'C$', spelling: 'british',
+    subjects: ['mathematics', 'english', 'science', 'social_studies'],
+  },
+  ca_secondary: {
+    name: 'Canadian Secondary', country: '🇨🇦', gradeLabel: 'Grade',
+    grades: [9, 10, 11, 12], currency: 'C$', spelling: 'british',
+    subjects: ['mathematics', 'english', 'science', 'canadian_history', 'geography',
+               'physics', 'chemistry', 'biology', 'computer_science'],
   },
 };
 

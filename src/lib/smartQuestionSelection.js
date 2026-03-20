@@ -319,6 +319,8 @@ function resolveDbCurriculum(curriculum, subject, year) {
     case 'ib_myp':           return 'ib_myp';
     case 'ib_pyp':           return 'ib_pyp';
     case 'us_common_core':   return 'us_common_core';
+    case 'ca_primary':       return 'ca_primary';
+    case 'ca_secondary':     return 'ca_secondary';
     default:                 return cur;
   }
 }

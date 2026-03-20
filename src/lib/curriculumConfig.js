@@ -76,6 +76,22 @@ export const CURRICULUM_CONFIG = {
     gradeLabel: 'SS',
     grades:     [1, 2, 3],
   },
+  ca_primary: {
+    name:       'Canadian Curriculum',
+    shortName:  'Canada',
+    emoji:      '🇨🇦',
+    subjects:   ['mathematics', 'english', 'science', 'social_studies'],
+    gradeLabel: 'Grade',
+    grades:     [1, 2, 3, 4, 5, 6, 7, 8],
+  },
+  ca_secondary: {
+    name:       'Canadian Secondary',
+    shortName:  'Canada',
+    emoji:      '🇨🇦',
+    subjects:   ['mathematics', 'english', 'science', 'canadian_history', 'geography', 'physics', 'chemistry', 'biology', 'computer_science'],
+    gradeLabel: 'Grade',
+    grades:     [9, 10, 11, 12],
+  },
 };
 
 // ── Legacy aliases — some scholars/DB rows use old keys ──────────────────────
@@ -121,6 +137,9 @@ export const SUBJECT_META = {
   computer_studies:              { label: 'Computer Studies',         icon: '💻', tw: { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-500'   } },
   // citizenship_and_heritage removed — merged into civic_education in DB
   digital_technologies:          { label: 'Digital Technologies',     icon: '💻', tw: { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-500'   } },
+  // Canadian-specific subjects
+  canadian_history:              { label: 'Canadian History',          icon: '🍁', tw: { bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     dot: 'bg-red-500'     } },
+  computer_science:              { label: 'Computer Science',          icon: '💻', tw: { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-500'   } },
 };
 
 /** Resolves a curriculum key to its canonical form */
