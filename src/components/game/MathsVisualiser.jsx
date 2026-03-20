@@ -1293,7 +1293,9 @@ function parseTier3(topic, questionText, subject, yearLevel) {
   }
 
   // ── RULER / MEASUREMENT ────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("measure") || t.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(questionText))) {
+  // Only trigger ruler for actual measurement questions, NOT perimeter/area/shape questions
+  const isShapeQuestion = /perimeter|area|hexagon|pentagon|triangle|rectangle|square|polygon|circle|circumference|octagon|shape/i.test(questionText);
+  if (subj.includes("math") && !isShapeQuestion && (t.includes("measure") || t.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(questionText))) {
     const cmMatch = (questionText || "").match(/(\d+(?:\.\d+)?)\s*cm/i);
     if (cmMatch) {
       const cm = parseFloat(cmMatch[1]);
