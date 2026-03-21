@@ -165,7 +165,7 @@ function AvatarDisplay({ avatar, size = "md", onClick }) {
                   hover:scale-105 transition-transform`}
     >
       <span className={sizeCfg.emoji} style={{ lineHeight: 1 }}>
-        {avatar?.base === "astronaut" ? "👨‍🚀" : "🚀"}
+        {{ astronaut: "👨‍🚀", explorer: "👩‍🚀", hero: "🦸", wizard: "🧙", fox: "🦊", cat: "🐱", robot: "🤖", unicorn: "🦄" }[avatar?.base] || "🚀"}
       </span>
       {avatar?.hat && (
         <span className={`absolute -top-1.5 -right-1.5 ${sizeCfg.hat}`}>{AVATAR_ITEMS[avatar.hat]?.icon}</span>

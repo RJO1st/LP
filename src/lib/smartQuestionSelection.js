@@ -592,6 +592,23 @@ async function fetchQuestPool(
  * @param {object}   [cache=null]        Upstash Redis client or compatible cache
  * @returns {Promise<object[]>}          question_bank rows, annotated
  */
+// ─── SUBJECT-SPECIFIC YEAR LEVEL ─────────────────────────────────────────────
+// Reads from scholar_subject_levels table. Falls back to scholars.year_level
+// if no row exists for this subject (backward compatible).
+async function resolveSubjectYear(supabase, scholarId, subject, fallbackYear) {
+  try {
+    const { data } = await supabase
+      .from('scholar_subject_levels')
+      .select('year_level')
+      .eq('scholar_id', scholarId)
+      .eq('subject', subject)
+      .maybeSingle();
+    return data?.year_level ?? fallbackYear;
+  } catch {
+    return fallbackYear;
+  }
+}
+
 export async function getSmartQuestions(
   supabase,
   scholarId,
@@ -602,13 +619,12 @@ export async function getSmartQuestions(
   previousIds = [],
   cache = null,
   examMode = null,
-  focusedTopic = null,  // ← NEW: when set, overrides anchor topic resolution (from JourneyMap)
+  focusedTopic = null,
 ) {
   try {
     // ── 0. Resolve combined_science to a specific science subject ─────────────
     let resolvedSubject = subject;
     if (subject === 'combined_science') {
-      // Load mastery across all three sciences to decide which to focus on
       const { data: scienceMastery } = await supabase
         .from('scholar_topic_mastery')
         .select('topic, subject, mastery_score')
@@ -617,6 +633,12 @@ export async function getSmartQuestions(
       resolvedSubject = resolveCombinedScienceSubject(scienceMastery || []);
     }
     const activeSubject = resolvedSubject;
+
+    // ── 0.5. Resolve subject-specific year level ──────────────────────────
+    // Override year with subject-specific level from scholar_subject_levels
+    // All downstream code (fetchQuestions, passages, fallbacks) uses this
+    const subjectYear = await resolveSubjectYear(supabase, scholarId, activeSubject, year);
+    year = subjectYear; // shadow the parameter — subject-specific from here on
 
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
     // Validate examMode against EXAM_MODES — rejects unknown/legacy strings silently.

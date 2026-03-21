@@ -227,9 +227,24 @@ export default function SubscribePage() {
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
                 </button>
-                <p className="text-center text-xs text-slate-400 mb-8">
+                 <p className="text-center text-xs text-slate-400 mb-4">
                   No credit card required • Cancel anytime
                 </p>
+                <div className="flex justify-center gap-4 mb-8">
+                  <button
+                    onClick={() => router.push("/dashboard/parent")}
+                    className="text-sm text-slate-400 hover:text-white font-semibold transition-colors underline"
+                  >
+                    ← Back to dashboard
+                  </button>
+                  <span className="text-slate-600">|</span>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="text-sm text-slate-400 hover:text-white font-semibold transition-colors underline"
+                  >
+                    Homepage
+                  </button>
+                </div>
                 <div className="space-y-4">
                   {[
                     { icon: "✨", text: "Unlimited questions & mock tests", color: "from-yellow-400 to-orange-500" },

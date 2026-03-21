@@ -87,7 +87,7 @@ export async function proxy(req: NextRequest) {
   if (session) {
     const { data: parent } = await supabase
       .from('parents')
-      .select('subscription_status, subscription_end, trial_end')
+      .select('subscription_status, subscription_end, trial_end, pro_override')
       .eq('id', session.user.id)
       .single();
 
@@ -105,14 +105,15 @@ export async function proxy(req: NextRequest) {
         (subscriptionEnd && now > subscriptionEnd);
 
       // If both trial and subscription are expired/inactive, redirect to subscribe
-      if (trialExpired && subscriptionInactive) {
+      if (trialExpired && subscriptionInactive && !parent.pro_override) {
         // Allow access to subscribe page and account settings
         const allowedPaths = [
           '/subscribe',
-          '/dashboard/parent/account',
-          '/dashboard/parent/billing',
+          '/dashboard/parent',
           '/login',
-          '/signup'
+          '/signup',
+          '/api/',
+          '/',
         ];
         
         const isAllowed = allowedPaths.some(path => pathname.startsWith(path));

@@ -32,6 +32,7 @@ import NarrativeIntro              from "./NarrativeIntro";
 import { processAnswer }           from "../../lib/masteryEngine";
 import { generateMissionLogEntry } from "../../lib/narrativeEngine";
 import JourneyMap                  from "../JourneyMap";
+import { useReadAloud }            from "@/hooks/useReadAloud";
 
 const XP_PER_QUESTION = 10;
 
@@ -346,6 +347,18 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   const { recordAnswer, getSessionMilestones, getSessionStoryPoints } = useMastery(student);
   const questionStartTime  = useRef(Date.now());
   const [pendingMilestone, setPendingMilestone] = useState(null);
+
+  // ── Read-aloud for KS1 scholars ───────────────────────────────────────────
+  const { speak, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1 } = useReadAloud(student);
+
+  // Auto-speak question text when question changes (if enabled)
+  const currentQuestionText = sessionQuestions[qIdx]?.q || "";
+  useEffect(() => {
+    if (!readAloudEnabled || !currentQuestionText || generating) return;
+    // Small delay to ensure DOM has rendered the correct question
+    const timer = setTimeout(() => speak(currentQuestionText), 300);
+    return () => { clearTimeout(timer); stopSpeaking(); };
+  }, [currentQuestionText, readAloudEnabled, generating]);
 
   // ── Fetch questions ───────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async () => {
@@ -735,9 +748,38 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
           {/* RIGHT PANEL — question text + options + feedback */}
           <div className="flex-1 flex flex-col overflow-y-auto p-5 gap-4">
-            <h3 className="text-base sm:text-lg font-black text-slate-800 leading-snug">
-              {q.q}
-            </h3>
+            <div className="flex items-start gap-2">
+              <h3 className="text-base sm:text-lg font-black text-slate-800 leading-snug flex-1">
+                {q.q}
+              </h3>
+              {/* Read-aloud controls — visible for KS1, optional toggle for others */}
+              {(isKS1 || readAloudEnabled) && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => speak(q.q)}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                      speaking ? "bg-indigo-100 text-indigo-600 animate-pulse" : "bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-500"
+                    }`}
+                    title="Read aloud"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setReadAloud(!readAloudEnabled)}
+                    className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${
+                      readAloudEnabled ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-400"
+                    }`}
+                    title={readAloudEnabled ? "Disable read-aloud" : "Enable read-aloud"}
+                  >
+                    {readAloudEnabled ? "ON" : "OFF"}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* On mobile only: show passage/visual inline before options */}
             {hasPassage && (
@@ -908,7 +950,7 @@ function QuestBriefing({ subject, topicLabel, scholarName, onContinue, onClose }
           {/* Quest format */}
           <div className="flex items-center gap-4 mb-5 text-center">
             {[
-              { v: "20", label: "Questions" },
+              { v: String(questionCount), label: "Questions" },
               { v: "MCQ",  label: "Format" },
               { v: "10",   label: "XP each" },
             ].map(s => (
@@ -983,10 +1025,17 @@ function getTopicDescription(topicLabel, subject) {
 // ─── QUEST ORCHESTRATOR ───────────────────────────────────────────────────────
 export default function QuestOrchestrator({
   student, subject, curriculum,
-  questionCount = 20, previousQuestionIds = [],
+  questionCount: questionCountProp, previousQuestionIds = [],
   questData = {}, onClose, onComplete, taraEnabled = true,
 }) {
   const subj = subject?.toLowerCase() || "maths";
+
+  // Age-appropriate question count:
+  // Year/Grade/Primary 1: 10 questions (short attention span, age 5-6)
+  // Year/Grade/Primary 2: 15 questions (age 6-7)
+  // Year/Grade/Primary 3+: 20 questions (age 7+)
+  const yearLevel = Number(student?.year_level || student?.year || 4);
+  const questionCount = questionCountProp || (yearLevel <= 1 ? 10 : yearLevel <= 2 ? 15 : 20);
 
   // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
   // Journey shows the scholar their personalised path and auto-advances after 3 seconds
@@ -1114,7 +1163,7 @@ export default function QuestOrchestrator({
           {/* Quest format stats */}
           <div className="flex items-center gap-3 mx-5 mb-3 shrink-0">
             {[
-              { v: "20", label: "Questions" },
+              { v: String(questionCount), label: "Questions" },
               { v: "MCQ", label: "Format" },
               { v: "10", label: "XP each" },
             ].map(s => (

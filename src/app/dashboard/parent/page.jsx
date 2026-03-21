@@ -9,6 +9,7 @@ import { getProgressionState } from "@/lib/progressionEngine";
 import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 import ReferralBanner from "../../../components/ReferralBanner";
+import ReadinessScore from "@/components/ReadinessScore";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -786,7 +787,7 @@ export default function ParentDashboard() {
   };
 
   const getCurr       = (s) => CURRICULA[s.curriculum] || CURRICULA.uk_national;
-  const getSubjects   = (s) => SUBJECTS_BY_CURRICULUM[s.curriculum] || [];
+  const getSubjects = (s) => getScholarSubjects(s.curriculum, s.stream, s.trade_subject, s.selected_subjects, s.year_level || s.year || 1, s.exam_mode);
   const toggleInsights = (id) => setExpandedInsights(prev => ({ ...prev, [id]: !prev[id] }));
 
   // ═══════════════════════════════════════════════════════════════
@@ -881,7 +882,7 @@ export default function ParentDashboard() {
               return (
                 <div
                   key={scholar.id}
-                  className="bg-white border-4 border-slate-100 border-b-8 rounded-[32px] p-8 hover:border-indigo-200 transition-all flex flex-col gap-5"
+                  className="bg-white border-4 border-slate-100 border-b-4 rounded-[24px] p-5 hover:border-indigo-200 transition-all flex flex-col gap-5"
                 >
                   {/* Name + XP */}
                   <div className="flex justify-between items-start">
@@ -942,6 +943,11 @@ export default function ParentDashboard() {
                       </span>
                     ))}
                   </div>
+                  {scholar.curriculum === 'uk_national' && 
+                  Number(scholar.year_level || scholar.year || 0) >= 3 && 
+                  Number(scholar.year_level || scholar.year || 0) <= 6 && (
+                 <ReadinessScore scholarId={scholar.id} supabase={supabase} />
+                )}
 
                   {/* Access code */}
                   <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 flex justify-between items-center">

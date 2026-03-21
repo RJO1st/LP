@@ -589,10 +589,17 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     const a = parseInt(addMatch[1]), b = parseInt(addMatch[2]);
     if (a + b <= 20 && yearLevel <= 2) return { type: "addition", a, b };
   }
-  if (t.includes("number_bond") && nums.length >= 2) {
+  if (t.includes("number_bond") && nums.length >= 1) {
+    // "What two numbers make 8?" → whole=8, show as bond with ?+?=8
+    // "3 + __ = 10" → whole=10, partA=3
+    // "7 and 3 make __" → whole=10, partA=7, partB=3
     const whole = Math.max(...nums.slice(0,3));
-    const part  = nums.find(n => n < whole) ?? 0;
-    return { type: "number_bond", whole, partA: part, partB: whole - part };
+    const parts = nums.filter(n => n < whole);
+    if (parts.length >= 1) {
+      return { type: "number_bond", whole, partA: parts[0], partB: whole - parts[0] };
+    }
+    // Single number: show whole with two unknown parts
+    return { type: "number_bond", whole, partA: null, partB: null };
   }
 
   const subMatch = (questionText || "").match(/(\d+)\s*[−\-–]\s*(\d+)/)
