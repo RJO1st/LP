@@ -565,3 +565,126 @@ export function getSubjectAccessibility(subject, curriculum, stream, tradeSubjec
   // ── All other curricula/years — always active ─────────────────────────────
   return 'active';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADVENTURE NARRATIVE — GalaxyMap + StoryUnlockModal helpers
+// Added to support the scholar-facing galaxy map and tier unlock celebrations.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Tone resolver ────────────────────────────────────────────────────────────
+// Returns 'young' (Y1-4) | 'mid' (Y5-8) | 'senior' (Y9+)
+export function getScholarTone(yearLevel) {
+  const y = Number(yearLevel);
+  if (y <= 4) return 'young';
+  if (y <= 8) return 'mid';
+  return 'senior';
+}
+
+// ─── Galaxy map status copy ───────────────────────────────────────────────────
+// Displayed at the top of GalaxyMap. Adapts tone by year and progress.
+//
+// @param {string} scholarName
+// @param {number} yearLevel
+// @param {number} totalSubjects   — how many planets on the map
+// @param {number} stellarCount    — how many at "exceeding" tier
+// @returns {string}
+export function getGalaxyStatusText(scholarName, yearLevel, totalSubjects, stellarCount) {
+  const tone = getScholarTone(yearLevel);
+  const n    = (scholarName || 'Explorer').split(' ')[0];
+  const pct  = totalSubjects > 0 ? stellarCount / totalSubjects : 0;
+
+  const copy = {
+    young: [
+      `Welcome to your galaxy, ${n}! Pick a planet and start your adventure! 🚀`,
+      `Amazing exploring, ${n}! You've mastered ${stellarCount} planet${stellarCount !== 1 ? 's' : ''}. Keep going! 🌟`,
+      `Wow, ${n}! You've conquered more than half the galaxy! You're incredible! 🏆`,
+      `INCREDIBLE, ${n}! You've mastered the WHOLE galaxy! You're a true Guardian! 🏆🌟`,
+    ],
+    mid: [
+      `${n}, your galaxy awaits. Select a subject and begin your mission.`,
+      `${n}: ${stellarCount} of ${totalSubjects} subjects mastered. Continue your campaign.`,
+      `More than half the galaxy is yours, ${n}. Complete the mission.`,
+      `${n}: Full galaxy mastery achieved. Guardian of all realms.`,
+    ],
+    senior: [
+      `Cadet ${n}. Your sector assignments are listed below. Select one and proceed.`,
+      `${n}: ${stellarCount}/${totalSubjects} sectors secured. Resume your campaign.`,
+      `${n}: Majority of sectors secured. Complete the galaxy.`,
+      `Agent ${n}: All sectors secured. Mission complete.`,
+    ],
+  };
+
+  const idx = pct === 0 ? 0 : pct < 0.5 ? 1 : pct < 1 ? 2 : 3;
+  return copy[tone][idx];
+}
+
+// ─── Tier unlock narrative ────────────────────────────────────────────────────
+// Shown in StoryUnlockModal after tier_crossed fires from the mastery API.
+// Uses the realm mapped to the subject for name, tagline, and icon.
+//
+// @param {string} tier      — 'developing' | 'expected' | 'exceeding'
+// @param {string} subject   — e.g. 'mathematics'
+// @param {string} scholarName
+// @param {number} yearLevel
+// @returns {{ headline: string, body: string }}
+export function getUnlockNarrative(tier, subject, scholarName, yearLevel) {
+  const realm = getRealmForSubject(subject);
+  const tone  = getScholarTone(yearLevel);
+  const n     = (scholarName || 'Explorer').split(' ')[0];
+  const rn    = realm?.name    || subject.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const tag   = realm?.tagline || '';
+
+  const copy = {
+    developing: {
+      young: {
+        headline: `${realm?.icon || '🌍'} ${rn} Discovered!`,
+        body: `Brilliant work, ${n}! You've just landed on ${rn} for the very first time!${tag ? ` "${tag}."` : ''} Keep practising to explore even deeper into this world! 🚀`,
+      },
+      mid: {
+        headline: `${rn} — First Contact`,
+        body: `${n}, your signal has reached ${rn}. Building-level clearance confirmed. Continue your exploration to unlock the deeper chapters.`,
+      },
+      senior: {
+        headline: `${rn} — Sector Entry Confirmed`,
+        body: `Cadet ${n}: Initial scans of ${rn} complete. Building clearance confirmed. Intermediate sectors are now accessible.`,
+      },
+    },
+    expected: {
+      young: {
+        headline: `⭐ You're really getting it in ${rn}!`,
+        body: `Amazing, ${n}! You're On Track in ${rn} — keep going and you'll master the whole thing! You're doing so well! 🌟`,
+      },
+      mid: {
+        headline: `${rn} — On Track!`,
+        body: `${n}: On Track clearance confirmed for ${rn}. Deeper sectors are now open to you. Continue your mission.`,
+      },
+      senior: {
+        headline: `${rn} — Advanced Access Granted`,
+        body: `${n}: On Track tier confirmed. Advanced sectors of ${rn} are now accessible. Your progress is noted at headquarters.`,
+      },
+    },
+    exceeding: {
+      young: {
+        headline: `🏆 You've mastered ${rn}!`,
+        body: `YOU DID IT, ${n}! You are now the Guardian of ${rn}!${tag ? ` "${tag}."` : ''} The whole galaxy is cheering for you! 🚀🌟`,
+      },
+      mid: {
+        headline: `${rn} — Guardian Status Achieved!`,
+        body: `${n}, you've reached Stellar level in ${rn}. Guardian rank confirmed. The galaxy records your achievement.`,
+      },
+      senior: {
+        headline: `${rn} — Fully Secured`,
+        body: `Agent ${n}: ${rn} fully secured. Stellar clearance confirmed. You are now the designated Guardian. Outstanding performance.`,
+      },
+    },
+  };
+
+  const result = copy[tier]?.[tone];
+  if (!result) {
+    return {
+      headline: 'Mission Complete!',
+      body: `${n}, great progress on ${rn}.`,
+    };
+  }
+  return result;
+}

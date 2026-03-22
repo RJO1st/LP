@@ -18,6 +18,10 @@ import { getTrialStatus } from "../../../lib/trialTracking";
 import { getEffectiveTier, checkQuestAccess, getFeatureAccess } from "../../../lib/freeTierGating";
 import UpgradeModal from "../../../components/UpgradeModal";
 import JourneyMap from "../../../components/JourneyMap";
+import { ThemeProvider } from '@/components/theme/ThemeProvider';
+import AdaptiveDashboardLayout from '@/components/dashboard/AdaptiveDashboardLayout';
+import useDashboardData from '@/hooks/useDashboardData';
+import { getAgeBand } from '@/lib/ageBandConfig';
 
 // ── Tier 1 components ─────────────────────────────────────────────
 import SubjectInsightCard                   from "../../../components/SubjectInsightCard";
@@ -27,7 +31,17 @@ import WeeklyMissionPlan, { fetchWeeklyStats } from "../../../components/WeeklyM
 // Route seamlessly to the correct engine via the Orchestrator
 const QuestOrchestrator = dynamic(
   () => import("../../../components/game/QuestOrchestrator"),
-  { loading: () => <LoadingScreen message="Loading LaunchPad Environment…" /> }
+  { loading: () => <LoadingScreen message="Loading LaunchPard Environment…" /> }
+);
+
+const GalaxyMap = dynamic(
+  () => import("../../../components/adventure/GalaxyMap"),
+  { ssr: false }
+);
+
+const StoryUnlockModal = dynamic(
+  () => import("../../../components/adventure/StoryUnlockModal"),
+  { ssr: false }
 );
 
 const MockTestHub = dynamic(
@@ -79,6 +93,7 @@ const CoinIcon     = ({ size = 20 }) => (
     <text x="12" y="16" textAnchor="middle" fontSize="11" fill="white" fontWeight="bold">$</text>
   </svg>
 );
+
 
 // ─── LOADING SCREEN ───────────────────────────────────────────────
 function LoadingScreen({ message = "Loading…" }) {
@@ -693,6 +708,7 @@ export default function StudentDashboard() {
 
   const [scholar,          setScholar]          = useState(null);
   const [activeSubject,    setActiveSubject]    = useState(null);
+  const [unlockModal,      setUnlockModal]      = useState(null); // { tier, subject, topic } | null
   const [showNebulaTrials,   setShowNebulaTrials]   = useState(false);
   const [view,             setView]             = useState("dashboard"); // "dashboard" | "tests" | "weekly_test" | "debrief"
   const [prevQuestionIds,  setPrevQuestionIds]  = useState([]);
@@ -726,6 +742,10 @@ export default function StudentDashboard() {
   const [weeklyStats,   setWeeklyStats]   = useState([]);
   const [lastWeekStats, setLastWeekStats] = useState([]);
   const [streakData,    setStreakData]    = useState({ streak: 0, lastActivityAt: null });
+
+  // ── Age-adaptive dashboard ─────────────────────────────────────────
+  const adaptiveData = useDashboardData(scholar, supabase);
+  const [dashboardMode, setDashboardMode] = useState("adaptive"); 
 
   // ── Free tier: derived access info ──────────────────────────────
   const effectiveTier = parentInfo ? getEffectiveTier(parentInfo) : "pro"; // default pro during load
@@ -1001,7 +1021,18 @@ export default function StudentDashboard() {
       loadRecentQuizzes(scholar.id),
       loadQuests(scholar.id),
       loadJourneyTopics(scholar.id),
+      loadMasteryRecords(scholar.id),
     ]);
+
+    // ── Story unlock: fire modal when tier_crossed is in milestones ──
+    const tierCrossed = (payload?.milestones || []).find(m => m.type === "tier_crossed");
+    if (tierCrossed) {
+      setUnlockModal({
+        tier:    tierCrossed.tier,
+        topic:   tierCrossed.topic   || null,
+        subject: activeSubject       || "mathematics",
+      });
+    }
 
     // check_and_award_badges — non-fatal, skip gracefully if RPC doesn't exist
     try {
@@ -1039,7 +1070,7 @@ export default function StudentDashboard() {
       const access = await checkQuestAccess(supabase, parentInfo, scholar.id);
       setTodayQCount(access.todayCount || 0);
     }
-  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, refreshTier1, effectiveTier, parentInfo]);
+  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, loadMasteryRecords, loadJourneyTopics, refreshTier1, effectiveTier, parentInfo, activeSubject]);
 
   // ── Launch weekly challenge ──────────────────────────────────────
   const handleWeeklyChallengeStart = useCallback(async () => {
@@ -1101,6 +1132,14 @@ export default function StudentDashboard() {
     setSoundOn(next);
     sounds.toggle(next);
   };
+  {/* Dashboard mode toggle */}
+            <button
+              onClick={() => setDashboardMode(m => m === "classic" ? "adaptive" : "classic")}
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+              title={dashboardMode === "classic" ? "Switch to Adaptive Dashboard" : "Switch to Classic Dashboard"}
+            >
+              <span className="text-sm">{dashboardMode === "classic" ? "🎨" : "📊"}</span>
+            </button>
 
   const handleSignOut = () => {
     localStorage.removeItem("active_scholar");
@@ -1279,6 +1318,16 @@ const UK_NATIONAL_SUBJECTS = {
           region={parentInfo?.region || "uk"}
         />
       )}
+      {unlockModal && (
+        <StoryUnlockModal
+          tier={unlockModal.tier}
+          subject={unlockModal.subject}
+          topic={unlockModal.topic}
+          scholarName={scholar?.name}
+          yearLevel={scholar?.year_level || scholar?.year || 1}
+          onClose={() => setUnlockModal(null)}
+        />
+      )}
 
       {/* ── NAV ─────────────────────────────────────────────────── */}
       <nav className="bg-white border-b border-slate-100 px-3 sm:px-5 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
@@ -1291,13 +1340,16 @@ const UK_NATIONAL_SUBJECTS = {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowProgress(v => !v)}
-            className="hidden md:flex items-center gap-2 bg-indigo-50 text-indigo-700
-                       font-bold px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-colors"
-          >
-            <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
-          </button>
+       {(getAgeBand(scholar?.year_level || scholar?.year || 4) === "ks3" || 
+            getAgeBand(scholar?.year_level || scholar?.year || 4) === "ks4") && (
+            <button
+              onClick={() => setShowProgress(v => !v)}
+              className="hidden md:flex items-center gap-2 bg-indigo-50 text-indigo-700
+                         font-bold px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-colors"
+            >
+              <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
+            </button>
+          )}
 
           {effectiveTier === "free" && (
             <div className="hidden sm:flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200"
@@ -1365,7 +1417,44 @@ const UK_NATIONAL_SUBJECTS = {
           </div>
         </div>
       )}
-
+      {dashboardMode === "adaptive" ? (
+        <ThemeProvider yearLevel={scholar.year_level || scholar.year || 4}>
+          <AdaptiveDashboardLayout
+            scholar={{
+              ...scholar,
+              name: scholar.name || scholar.codename || "Scholar",
+              year_level: scholar.year_level || scholar.year || 4,
+              curriculum: curriculum,
+              exam_mode: scholar.exam_mode,
+            }}
+            stats={adaptiveData.stats}
+            topics={adaptiveData.topics}
+            subjects={subjects}
+            subject={subjects[0] || "mathematics"}
+            journalEntries={adaptiveData.journal}
+            dailyAdventure={adaptiveData.dailyAdventure}
+            encouragement={adaptiveData.encouragement}
+            careerTopic={adaptiveData.careerTopic}
+            examData={adaptiveData.examData}
+            masteryData={adaptiveData.masteryData}
+            peerComparisons={adaptiveData.peerComparisons}
+            pastMocks={adaptiveData.pastMocks}
+            onStartQuest={() => launchQuest(subjects[0] || "mathematics")}
+            onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics")}
+            onDismissEncourage={() => {}}
+            onDismissCareer={() => {}}
+            onStartAdventure={() => launchQuest(subjects[0] || "mathematics")}
+            onStartMock={(config) => setView("tests")}
+            onExamModeSwitch={(mode) => {
+              supabase.from("scholars").update({ exam_mode: mode }).eq("id", scholar.id);
+              const updated = { ...scholar, exam_mode: mode };
+              setScholar(updated);
+              localStorage.setItem("active_scholar", JSON.stringify(updated));
+            }}
+            onStartRevisionTopic={(topic) => launchQuest(subjects[0] || "mathematics")}
+          />
+        </ThemeProvider>
+      ) : (
       <main className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-6 space-y-5">
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}
@@ -1537,31 +1626,15 @@ const UK_NATIONAL_SUBJECTS = {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            ROW 2: Choose Your Mission — full-width subject grid
+            ROW 2: Galaxy Map — story-driven subject grid
         ══════════════════════════════════════════════════════════════════ */}
         <section>
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 px-0.5">
-            Choose Your Mission
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {(() => {
-              // Determine weakest subject for "next up" pulse
-              const weakestSubject = subjects.reduce((best, s) => {
-                const p = skillProficiency[s] ?? 0;
-                const bp = skillProficiency[best] ?? 0;
-                return p < bp ? s : best;
-              }, subjects[0]);
-              return subjects.map(s => (
-                <SubjectCard
-                  key={s}
-                  subjectId={s}
-                  proficiency={skillProficiency[s]}
-                  onClick={() => launchQuest(s)}
-                  isWeakest={s === weakestSubject && (skillProficiency[s] ?? 0) < 80}
-                />
-              ));
-            })()}
-          </div>
+          <GalaxyMap
+            scholar={scholar}
+            subjects={subjects}
+            masteryRecords={journeyTopics}
+            onLaunchQuest={launchQuest}
+          />
         </section>
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -1693,7 +1766,9 @@ const UK_NATIONAL_SUBJECTS = {
           </section>
         )}
 
-        {/* Progress section (toggle) */}
+      </main>
+      )}
+      {/* Progress section (toggle) */}
         {showProgress && (
           <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
             <h2 className="text-xl font-black text-slate-800 mb-5">Your Progress</h2>
@@ -1714,8 +1789,6 @@ const UK_NATIONAL_SUBJECTS = {
             </div>
           </div>
         )}
-
-      </main>
     </div>
   );
 }

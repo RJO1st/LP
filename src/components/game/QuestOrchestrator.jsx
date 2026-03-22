@@ -33,6 +33,9 @@ import { processAnswer }           from "../../lib/masteryEngine";
 import { generateMissionLogEntry } from "../../lib/narrativeEngine";
 import JourneyMap                  from "../JourneyMap";
 import { useReadAloud }            from "@/hooks/useReadAloud";
+import { getQuestFrame, getTimerConfig, getSubmitLabel,
+         getNextLabel, getRewardLabel, getTaraFeedback } from '@/lib/questOrchestratorAdapter';
+import KeyboardShortcuts from '@/components/game/KeyboardShortcuts';
 
 const XP_PER_QUESTION = 10;
 
@@ -323,10 +326,13 @@ function hasMathsVisual(question, subject) {
 }
 
 function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic }) {
-  const perQTimer = useMemo(() => getPerQuestionTimer(student), [student]);
-  const subj      = subject?.toLowerCase() || "maths";
-  const theme     = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
-  const labels    = useMemo(() => getSubjectLabels(subject), [subject]);
+  const perQTimer   = useMemo(() => getPerQuestionTimer(student), [student]);
+  const subj        = subject?.toLowerCase() || "maths";
+  const theme       = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
+  const labels      = useMemo(() => getSubjectLabels(subject), [subject]);
+  const questFrame  = useMemo(() => getQuestFrame(student?.year_level, subject, null), [student?.year_level, subject]);
+  const timerConfig = useMemo(() => getTimerConfig(student?.year_level), [student?.year_level]);
+  const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUESTION), [student?.year_level]);
 
   const [sessionQuestions, setSessionQuestions] = useState([]);
   const [qIdx,             setQIdx]             = useState(0);
@@ -597,7 +603,8 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
         topic={topTopic}
         scholarName={student?.name}
         answers={finalAnswers}
-        xpEarned={finalScore * 10}
+        xpEarned={finalScore * XP_PER_QUESTION}
+        xpLabel={getRewardLabel(student?.year_level, finalScore * XP_PER_QUESTION)}
         showCertificate={showCertificate}
       />
     );
@@ -712,6 +719,15 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
   );
 
   return (
+    <KeyboardShortcuts
+      yearLevel={student?.year_level}
+      onSelectOption={(idx) => { if (selected === null && sessionQuestions[qIdx]) handlePick(idx); }}
+      onCheck={() => {}}
+      onNext={() => { if (canProceed) next(); }}
+      onClose={onClose}
+      canCheck={false}
+      canNext={canProceed}
+    >
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-3 sm:p-4">
       {pendingMilestone && (
         <MilestoneCelebration milestones={[pendingMilestone]} onDismiss={() => setPendingMilestone(null)} />
@@ -803,6 +819,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
         </div>
       </div>
     </div>
+    </KeyboardShortcuts>
   );
 }
 
@@ -922,10 +939,10 @@ function QuestBriefing({ subject, topicLabel, scholarName, onContinue, onClose }
 
           {/* Mission title */}
           <p className="text-slate-400 text-sm mb-1">
-            Ready, <span className="text-white font-bold">{scholarName || "Cadet"}</span>?
+            Ready, <span className="text-white font-bold">{scholarName || "Scholar"}</span>?
           </p>
           <h2 className="text-white font-black text-xl leading-tight mb-4">
-            Your next quest begins now.
+            {getQuestFrame(student?.year_level, subject, null).prefix || "Your next quest begins now."}
           </h2>
 
           {/* Learning theme card */}

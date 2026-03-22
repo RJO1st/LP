@@ -882,36 +882,36 @@ export default function ParentDashboard() {
               return (
                 <div
                   key={scholar.id}
-                  className="bg-white border-4 border-slate-100 border-b-4 rounded-[24px] p-5 hover:border-indigo-200 transition-all flex flex-col gap-5"
+                  className="bg-white border-2 border-slate-100 rounded-[20px] p-4 hover:border-indigo-200 transition-all flex flex-col gap-3"
                 >
                   {/* Name + XP */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-3xl font-black text-slate-800 mb-2">{scholar.name}</h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-sm">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-black text-slate-800 mb-1 truncate">{scholar.name}</h3>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-lg text-xs">
                           {curr.country} {curr.name}
                         </span>
-                        <span className="bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-sm">
+                        <span className="bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-lg text-xs">
                           {curr.gradeLabel} {yearLevel}
                         </span>
                         {scholar.province && (
-                          <span className="bg-red-50 text-red-700 border border-red-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                          <span className="bg-red-50 text-red-700 border border-red-100 font-bold px-2 py-0.5 rounded-lg text-xs">
                             🍁 {CANADIAN_PROVINCES.find(p => p.code === scholar.province)?.name || scholar.province}
                           </span>
                         )}
                         {scholar.stream && (
-                          <span className="bg-green-50 text-green-700 border border-green-100 font-bold px-3 py-1.5 rounded-xl text-sm">
-                            {NG_SSS_STREAMS[scholar.stream]?.emoji} {NG_SSS_STREAMS[scholar.stream]?.label} Stream
+                          <span className="bg-green-50 text-green-700 border border-green-100 font-bold px-2 py-0.5 rounded-lg text-xs">
+                            {NG_SSS_STREAMS[scholar.stream]?.emoji} {NG_SSS_STREAMS[scholar.stream]?.label}
                           </span>
                         )}
                         {scholar.selected_subjects?.length > 0 && (
-                          <span className="bg-blue-50 text-blue-700 border border-blue-100 font-bold px-3 py-1.5 rounded-xl text-sm">
+                          <span className="bg-blue-50 text-blue-700 border border-blue-100 font-bold px-2 py-0.5 rounded-lg text-xs">
                             📚 {scholar.selected_subjects.length} GCSE options
                           </span>
                         )}
                         {scholar.exam_mode && (
-                          <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 font-bold px-3 py-1.5 rounded-xl text-sm">
+                          <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 font-bold px-2 py-0.5 rounded-lg text-xs">
                             {EXAM_MODES[scholar.exam_mode]?.emoji} {EXAM_MODES[scholar.exam_mode]?.label}
                           </span>
                         )}
@@ -921,7 +921,7 @@ export default function ParentDashboard() {
                           return (
                             <button
                               onClick={() => setGraduatingScholar(scholar)}
-                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border-2 border-amber-300 font-black px-3 py-1.5 rounded-xl text-sm animate-pulse hover:bg-amber-100 transition-colors"
+                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 font-black px-2 py-0.5 rounded-lg text-xs animate-pulse hover:bg-amber-100 transition-colors"
                             >
                               🎓 Ready to Graduate!
                             </button>
@@ -929,9 +929,9 @@ export default function ParentDashboard() {
                         })()}
                       </div>
                     </div>
-                    <div className="bg-amber-100 text-amber-700 font-black px-3 py-2 rounded-2xl flex items-center gap-1.5 flex-shrink-0">
-                      <StarIcon size={14} />
-                      <span className="text-sm">{(scholar.total_xp || 0).toLocaleString()}</span>
+                    <div className="bg-amber-100 text-amber-700 font-black px-2.5 py-1 rounded-xl flex items-center gap-1 flex-shrink-0">
+                      <StarIcon size={12} />
+                      <span className="text-xs">{(scholar.total_xp || 0).toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -943,45 +943,50 @@ export default function ParentDashboard() {
                       </span>
                     ))}
                   </div>
-                  {scholar.curriculum === 'uk_national' && 
-                  Number(scholar.year_level || scholar.year || 0) >= 3 && 
-                  Number(scholar.year_level || scholar.year || 0) <= 6 && (
-                 <ReadinessScore scholarId={scholar.id} supabase={supabase} />
-                )}
 
                   {/* Access code */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 flex justify-between items-center">
+                  <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 flex justify-between items-center">
                     <div>
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Access Code</div>
-                      <div className="text-xl font-black text-indigo-600 tracking-widest">{scholar.access_code}</div>
+                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Access Code</div>
+                      <div className="text-sm font-black text-indigo-600 tracking-widest">{scholar.access_code}</div>
                     </div>
                     <button
                       onClick={() => copyCode(scholar)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-2 rounded-lg border transition-all ${
                         isCopied
                           ? "bg-emerald-50 border-emerald-200 text-emerald-600"
                           : "bg-white border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300"
                       }`}
                       title={isCopied ? "Copied!" : "Copy code"}
                     >
-                      {isCopied ? <CheckIcon size={18} /> : <CopyIcon size={18} />}
+                      {isCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
                     </button>
                   </div>
 
                   {/* Progress insights — expandable */}
-                  <div className="rounded-2xl border-2 border-indigo-100 overflow-hidden">
+                  <div className="rounded-xl border border-indigo-100 overflow-hidden">
                     <button
                       onClick={() => toggleInsights(scholar.id)}
-                      className="w-full flex items-center justify-between px-4 py-3 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50 hover:bg-indigo-100 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-base">📊</span>
-                        <span className="text-xs font-black uppercase tracking-widest text-indigo-600">Progress Insights</span>
+                        <span className="text-sm">📊</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Progress Insights</span>
                       </div>
-                      {isInsightsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      {isInsightsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </button>
                     {isInsightsOpen && (
-                      <div className="px-4 pb-4">
+                      <div className="px-4 pt-4 pb-4 flex flex-col gap-4">
+                        {(scholar.exam_mode === 'eleven_plus' ||
+                          (scholar.curriculum === 'uk_national' &&
+                          Number(scholar.year_level || scholar.year || 0) >= 3 &&
+                          Number(scholar.year_level || scholar.year || 0) <= 6)) && (
+                          <div className="w-full flex justify-center">
+                            <div className="w-full max-w-sm">
+                              <ReadinessScore scholarId={scholar.id} supabase={supabase} />
+                            </div>
+                          </div>
+                        )}
                         <ScholarInsightPanel
                           scholarId={scholar.id}
                           scholarName={scholar.name}
@@ -994,7 +999,7 @@ export default function ParentDashboard() {
                   {/* View Analytics Button */}
                   <Link
                     href={`/dashboard/parent/analytics?scholar=${scholar.id}`}
-                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-4 rounded-2xl text-center transition-colors border-2 border-indigo-100 hover:border-indigo-200"
+                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-3 rounded-xl text-center text-sm transition-colors border border-indigo-100 hover:border-indigo-200"
                   >
                     📈 View Full Analytics
                   </Link>
@@ -1004,36 +1009,36 @@ export default function ParentDashboard() {
           )}
 
           {/* Add Scholar Form */}
-          <div className="bg-indigo-50 border-4 border-indigo-100 border-b-8 rounded-[32px] p-8 flex flex-col">
-            <h3 className="text-2xl font-black text-indigo-900 mb-1 flex items-center gap-2">
-              <PlusIcon size={24} /> Add New Scholar
+          <div className="bg-indigo-50 border-2 border-indigo-100 rounded-[20px] p-4 flex flex-col">
+            <h3 className="text-sm font-black text-indigo-900 mb-0.5 flex items-center gap-1.5">
+              <PlusIcon size={18} /> Add New Scholar
             </h3>
-            <p className="text-indigo-700/70 font-semibold mb-6 text-sm">Generate a profile and unique access code.</p>
+            <p className="text-indigo-700/70 font-semibold mb-3 text-xs">Generate a profile and unique access code.</p>
 
             {scholars.length >= MAX_SCHOLARS ? (
-              <div className="flex flex-col items-center justify-center flex-grow gap-4 py-8 text-center">
-                <div className="text-5xl">🚀</div>
-                <p className="text-indigo-900 font-black text-xl">Full crew aboard!</p>
-<p className="text-indigo-700/70 font-semibold text-sm leading-relaxed">
-  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
-  Need more? Get in touch.
-</p>
-<a href="mailto:hello@launchpard.com?subject=Scholar%20Limit"
-  className="mt-2 px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl border-b-4 border-indigo-800 hover:bg-indigo-700 transition-all text-sm">
-  Contact us ✦
-</a>
+              <div className="flex flex-col items-center justify-center flex-grow gap-3 py-4 text-center">
+                <div className="text-4xl">🚀</div>
+                <p className="text-indigo-900 font-black text-base">Full crew aboard!</p>
+                <p className="text-indigo-700/70 font-semibold text-xs leading-relaxed">
+                  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
+                  Need more? Get in touch.
+                </p>
+                <a href="mailto:hello@launchpard.com?subject=Scholar%20Limit"
+                  className="mt-1 px-5 py-2 bg-indigo-600 text-white font-black rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 transition-all text-xs">
+                  Contact us ✦
+                </a>
               </div>
             ) : (
-              <form onSubmit={handleAddScholar} className="flex flex-col gap-4 flex-grow">
+              <form onSubmit={handleAddScholar} className="flex flex-col gap-3 flex-grow">
                 <input
                   type="text" required placeholder="Scholar's First Name" value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-lg outline-none focus:border-indigo-400 placeholder:text-slate-300 transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 placeholder:text-slate-300 transition-colors"
                 />
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2 ml-1">Curriculum</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">Curriculum</label>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {Object.entries(CURRICULA).map(([key, c]) => (
                       <CurriculumCard key={key} currKey={key} curr={c} selected={newCurriculum === key} onSelect={handleCurriculumChange} />
                     ))}
@@ -1042,16 +1047,16 @@ export default function ParentDashboard() {
 
                 {isCanadian && (
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">🍁 Province / Territory</label>
+                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">🍁 Province / Territory</label>
                     <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
-                      className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors">
+                      className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
                       <option value="">Select province or territory…</option>
                       {CANADIAN_PROVINCES.map(p => (
                         <option key={p.code} value={p.code}>{p.name}</option>
                       ))}
                     </select>
                     {provInfo && (
-                      <div className="mt-2 bg-white/80 border border-indigo-100 rounded-xl px-3 py-2 text-xs font-semibold text-indigo-700 flex items-start gap-1.5">
+                      <div className="mt-1.5 bg-white/80 border border-indigo-100 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 flex items-start gap-1.5">
                         <span>📌</span><span>{provInfo.note}</span>
                       </div>
                     )}
@@ -1097,25 +1102,25 @@ export default function ParentDashboard() {
                 )}
 
                 {isUkKs2 && (
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">🎓 Exam Prep Mode</label>
-                    <p className="text-xs text-indigo-700/60 font-semibold ml-1">Optional — adds exam-specific subjects alongside the National Curriculum</p>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">🎓 Exam Prep Mode</label>
+                    <p className="text-[10px] text-indigo-700/60 font-semibold ml-1">Optional — adds exam-specific subjects alongside the National Curriculum</p>
                     <button type="button" onClick={() => setNewExamMode(null)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 font-bold text-sm transition-all text-left ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-bold text-xs transition-all text-left ${
                         !newExamMode ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-indigo-200"
                       }`}>
-                      <span className="text-xl">📚</span>
-                      <div><p className="font-black">National Curriculum only</p><p className="text-xs font-semibold opacity-70">No exam prep added</p></div>
+                      <span className="text-base">📚</span>
+                      <div><p className="font-black">National Curriculum only</p><p className="text-[10px] font-semibold opacity-70">No exam prep added</p></div>
                     </button>
                     {Object.entries(EXAM_MODES).map(([key, mode]) => {
                       if (!mode.eligibleYears.includes(Number(newGrade))) return null;
                       return (
                         <button key={key} type="button" onClick={() => setNewExamMode(key)}
-                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 font-bold text-sm transition-all text-left ${
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-bold text-xs transition-all text-left ${
                             newExamMode === key ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-600 hover:border-indigo-200"
                           }`}>
-                          <span className="text-xl">{mode.emoji}</span>
-                          <div><p className="font-black">{mode.label}</p><p className="text-xs font-semibold opacity-70">{mode.desc}</p></div>
+                          <span className="text-base">{mode.emoji}</span>
+                          <div><p className="font-black">{mode.label}</p><p className="text-[10px] font-semibold opacity-70">{mode.desc}</p></div>
                         </button>
                       );
                     })}
@@ -1124,24 +1129,24 @@ export default function ParentDashboard() {
 
                 {isNgSss && (
                   <>
-                    <div className="flex flex-col gap-3">
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">🇳🇬 Select Stream</label>
-                      <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-2">
+                      <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">🇳🇬 Select Stream</label>
+                      <div className="grid grid-cols-3 gap-1.5">
                         {Object.entries(NG_SSS_STREAMS).map(([key, s]) => (
                           <button key={key} type="button" onClick={() => setNewStream(key)}
-                            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl border font-bold text-xs transition-all ${
                               newStream === key ? "border-indigo-500 bg-indigo-50 text-indigo-900" : "border-indigo-100 bg-white text-slate-500 hover:border-indigo-300"
                             }`}>
-                            <span className="text-xl">{s.emoji}</span><span>{s.label}</span>
+                            <span className="text-base">{s.emoji}</span><span>{s.label}</span>
                           </button>
                         ))}
                       </div>
-                      {!newStream && <p className="text-xs text-amber-600 font-semibold ml-1">⚠ Please select a stream</p>}
+                      {!newStream && <p className="text-[10px] text-amber-600 font-semibold ml-1">⚠ Please select a stream</p>}
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">🛠 Trade Subject</label>
+                      <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">🛠 Trade Subject</label>
                       <select value={newTrade} onChange={e => setNewTrade(e.target.value)}
-                        className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors">
+                        className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
                         <option value="">Select a trade subject…</option>
                         {NG_SSS_TRADES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
@@ -1149,25 +1154,25 @@ export default function ParentDashboard() {
                   </>
                 )}
 
-                <div className="flex gap-3 items-end">
+                <div className="flex gap-2 items-end">
                   <div className="flex-1">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">{currDef.gradeLabel}</label>
+                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">{currDef.gradeLabel}</label>
                     <select value={newGrade} onChange={e => handleGradeChange(e.target.value)}
-                      className="w-full p-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold text-base outline-none focus:border-indigo-400 cursor-pointer transition-colors">
+                      className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
                       {currDef.grades.map(g => <option key={g} value={g}>{currDef.gradeLabel} {g}</option>)}
                     </select>
                   </div>
                   <button type="submit" disabled={isAdding || !newName.trim()}
-                    className="px-7 py-4 bg-indigo-600 text-white font-black text-lg rounded-2xl border-b-4 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-1 active:border-b-0 transition-all whitespace-nowrap">
+                    className="px-5 py-2 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all whitespace-nowrap">
                     {isAdding ? "Creating…" : "Create ✓"}
                   </button>
                 </div>
 
-                <div className="bg-white/70 rounded-2xl p-3 border border-indigo-100 mt-auto">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Subjects included</p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="bg-white/70 rounded-xl p-2.5 border border-indigo-100 mt-auto">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1.5">Subjects included</p>
+                  <div className="flex flex-wrap gap-1">
                     {getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode).map(s => (
-                      <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
+                      <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
                         {subjectEmoji(s)} {subjectLabel(s)}
                       </span>
                     ))}

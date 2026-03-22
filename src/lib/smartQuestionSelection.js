@@ -36,18 +36,7 @@ const VALID_EXAM_MODES = new Set(Object.keys(EXAM_MODES));
  */
 
 import { masteryToTier } from './masteryEngine';
-// learningPathEngine is not yet built — these stubs keep the file functional
-// until src/lib/learningPathEngine.js exists.
-// Replace with: import { getTopicSequence, getTopicList, getTopicStrand } from './learningPathEngine';
-let getTopicSequence = async () => ({});
-let getTopicList     = () => [];
-let getTopicStrand   = () => null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  ({ getTopicSequence, getTopicList, getTopicStrand } = require('./learningPathEngine'));
-} catch {
-  // learningPathEngine.js not yet built — anchor topic resolution will fall back gracefully
-}
+import { getTopicSequence, getTopicList, getTopicStrand } from './learningPathEngine';
 
 // ─── COMBINED SCIENCE RESOLVER ───────────────────────────────────────────────
 // UK KS4 Combined Science covers biology, chemistry, and physics topics in one
@@ -253,6 +242,21 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
   // ── Priority 6: First in sequence (brand new scholar)
   const firstTopic = topicList[0];
   if (firstTopic) return { topic: firstTopic, reason: 'sequence_start' };
+
+  // ── Priority 7: First topic from hardcoded foundation as absolute last resort
+  // Prevents null anchor which causes an unconstrained broad DB fetch.
+  // An unconstrained fetch for Y1 maths returns questions from ALL topics at
+  // year_level 0-2, including division-with-remainders, multi-correct number
+  // bonds etc. Better to pin to 'place_value' / 'addition' than fetch broadly.
+  const FOUNDATION_DEFAULTS = {
+    mathematics: 'place_value', maths: 'place_value',
+    english: 'phonics', english_studies: 'phonics',
+    science: 'living_organisms', basic_science: 'living_organisms',
+    verbal_reasoning: 'word_relationships', verbal: 'word_relationships',
+    non_verbal_reasoning: 'pattern_recognition', nvr: 'pattern_recognition',
+  };
+  const defaultTopic = FOUNDATION_DEFAULTS[subject] ?? null;
+  if (defaultTopic) return { topic: defaultTopic, reason: 'foundation_default' };
 
   return { topic: null, reason: 'fallback' };
 }
@@ -531,19 +535,23 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
   const dbSubject    = resolveDbSubject(subject, curriculum);
   const dbYear       = resolveDbYear(curriculum, year);
 
+  // Y1-2: use exact year match — ±1 allows Y2/Y3 content which is too advanced.
+  // Y3+:  allow ±1 for topic continuity and to widen the available pool.
+  const yearLow  = dbYear <= 2 ? dbYear : Math.max(1, dbYear - 1);
+  const yearHigh = dbYear <= 2 ? dbYear : dbYear + 1;
+
   let q = supabase
     .from('question_bank')
     .select('*')
     .eq('curriculum', dbCurriculum)
     .eq('subject', dbSubject)
-    .gte('year_level', Math.max(1, dbYear - 1))
-    .lte('year_level', dbYear + 1)
+    .gte('year_level', yearLow)
+    .lte('year_level', yearHigh)
     .limit(limit);
 
   if (topic)   q = q.eq('topic', topic);
   if (tier)    q = q.eq('difficulty_tier', tier);
   if (examTag) q = q.eq('exam_tag', examTag);
-  // PostgREST requires UUIDs quoted inside the parens: ("uuid1","uuid2")
   if (excludeIds.length > 0) {
     const idList = excludeIds.slice(-150).map(id => `"${id}"`).join(',');
     q = q.not('id', 'in', `(${idList})`);
@@ -607,6 +615,459 @@ async function resolveSubjectYear(supabase, scholarId, subject, fallbackYear) {
   } catch {
     return fallbackYear;
   }
+}
+
+// ─── QUESTION SANITISER ───────────────────────────────────────────────────────
+/**
+ * postProcessQuestions — client-side quality guard applied to every quest.
+ *
+ * Comprehensive age-appropriateness filter that catches AI-generated questions
+ * which are too hard, too easy, logically broken, or contain content outside
+ * the curriculum for a given year level.
+ *
+ * GUARD CATEGORIES:
+ *
+ *   MATHS (all years):
+ *     1.  Number bond multi-correct (any year)
+ *     2.  Numbers too large for year level
+ *     3.  Division — inappropriate difficulty per year
+ *     4.  Negative numbers before Y6
+ *     5.  Fractions/decimals/percentages — gated by year
+ *     6.  Algebra/equations — gated by year
+ *     7.  Advanced topics — vectors, trig, calculus etc.
+ *     8.  Multiplication beyond year-level tables
+ *
+ *   ENGLISH:
+ *     9.  Vocabulary-definition spelling (Y1-2)
+ *     10. Complex grammar terminology too early
+ *     11. Reading passage complexity vs year
+ *
+ *   SCIENCE:
+ *     12. Advanced science topics appearing too early
+ *
+ *   UNIVERSAL:
+ *     13. Broken questions — no correct answer or contradictory explanation
+ *     14. Options contain content far beyond year level
+ *     15. Question text too long/complex for young scholars
+ *
+ * @param {object[]} rows     — raw question_bank rows (post-DB, pre-normalise)
+ * @param {number}   year     — scholar's effective year level for this subject
+ * @param {string}   subject  — subject key
+ * @returns {object[]}        — filtered rows (bad questions removed)
+ */
+function postProcessQuestions(rows, year, subject) {
+  if (!rows?.length) return rows;
+
+  const yr  = Number(year) || 1;
+  const sub = (subject || '').toLowerCase();
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  const extractText = (row) => (
+    row.question_text ||
+    row.question_data?.q ||
+    (typeof row.question_data === 'string' ? (() => {
+      try { return JSON.parse(row.question_data)?.q; } catch { return ''; }
+    })() : '') ||
+    ''
+  );
+
+  const extractOpts = (row) => {
+    if (Array.isArray(row.options)) return row.options;
+    if (typeof row.options === 'string') {
+      try { return JSON.parse(row.options); } catch {}
+    }
+    return [];
+  };
+
+  const extractNums = (text) => (text.match(/\d+/g) || []).map(Number);
+
+  const reject = (guard, row, reason) => {
+    console.warn(`[sanitiser][${guard}] Rejected Y${yr} ${sub}: "${(row.question_text || '').slice(0, 70)}" — ${reason}`);
+    return false;
+  };
+
+  const isMaths   = /math|maths|mathematics/.test(sub);
+  const isEnglish = /english|spelling|phonics|literacy|english_studies/.test(sub);
+  const isScience = /science|biology|chemistry|physics|basic_science|combined_science/.test(sub);
+
+  // ── Number caps by year (maximum number that should appear in any context)
+  const NUMBER_CAPS = {
+    1: 20,   2: 100,  3: 1000,  4: 10000,
+    5: 1000000, 6: 10000000,
+  };
+  const numCap = NUMBER_CAPS[Math.min(yr, 6)] ?? Infinity;
+
+  return rows.filter(row => {
+    const qTextRaw = extractText(row);
+    const qText    = qTextRaw.toLowerCase();
+    const opts     = extractOpts(row);
+    const optsLower = opts.map(o => String(o).toLowerCase());
+    const allText  = [qText, ...optsLower].join(' ');
+    const nums     = extractNums(qTextRaw);
+    const maxNum   = nums.length > 0 ? Math.max(...nums) : 0;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // MATHS GUARDS
+    // ═══════════════════════════════════════════════════════════════════
+
+    if (isMaths) {
+
+      // ── G1: Number bond multi-correct ────────────────────────────────
+      const isSumQuestion = /\b(adds?\s+up\s+to|add\s+to|sum\s+(is|to|of|equals?)|make[s]?\s+\d|totals?\s+\d|total\s+(of|is)\s+\d|equal[s]?\s+\d|pairs?\s+that\s+make|number\s*bonds?)/i.test(qText);
+
+      if (isSumQuestion && opts.length >= 2) {
+        const targetMatch = qText.match(/\b(adds?\s+up\s+to|make[s]?|sum\s+(?:is|to|of|equals?)|totals?|total\s+(?:of|is)|equal[s]?)\s+(-?\d+\.?\d*)/i);
+        const fallbackTarget = !targetMatch
+          ? qText.match(/\bnumber\s*bonds?\b.*?(\d+)/i) || qText.match(/which\s+(?:numbers?|pair)\b.*?(\d+)/i)
+          : null;
+        const target = targetMatch
+          ? parseFloat(targetMatch[2])
+          : fallbackTarget ? parseFloat(fallbackTarget[1]) : null;
+
+        // Negative options in number bonds for Y1-4
+        if (yr <= 4 && opts.some(o => /-\d/.test(String(o)))) {
+          return reject('G1', row, 'number bond with negative option');
+        }
+
+        if (target !== null) {
+          const parseOptPair = (opt) => {
+            const m = String(opt).match(/(-?\d+\.?\d*)\s*(?:and|&)\s*(-?\d+\.?\d*)/i);
+            if (!m) return null;
+            return parseFloat(m[1]) + parseFloat(m[2]);
+          };
+          const correctCount = opts.filter(o => {
+            const sum = parseOptPair(o);
+            return sum !== null && Math.abs(sum - target) < 0.001;
+          }).length;
+
+          if (correctCount > 1) {
+            return reject('G1', row, `multi-correct number bond (${correctCount} correct)`);
+          }
+          if (correctCount === 0) {
+            return reject('G1', row, 'number bond with zero correct options');
+          }
+        }
+      }
+
+      // ── G2: Numbers too large for year level ─────────────────────────
+      // Check all numbers in question AND options against year cap.
+      // Exception: question IDs, dates (years like 2024), or "Question 5 of 20"
+      const questionNums = extractNums(qTextRaw);
+      const optionNums   = opts.flatMap(o => extractNums(String(o)));
+      const contentNums  = [...questionNums, ...optionNums].filter(n => {
+        // Exclude likely dates (1900-2100) and question ordinals
+        if (n >= 1900 && n <= 2100) return false;
+        return true;
+      });
+      const maxContentNum = contentNums.length > 0 ? Math.max(...contentNums) : 0;
+
+      if (maxContentNum > numCap) {
+        return reject('G2', row, `number ${maxContentNum} exceeds Y${yr} cap of ${numCap}`);
+      }
+
+      // ── G3: Division — age-gated ─────────────────────────────────────
+      const isDivision = /÷|divide[sd]?|division|shared?\s|share\s+them|split\s+(equally|between|among|them)|how\s+many\s+(each|per\s+person|groups?)/i.test(qText);
+
+      if (isDivision) {
+        // Y1: NO division at all (only halving, which is handled separately)
+        if (yr <= 1 && !/\bhalf\b|\bhalves\b|\bhalving\b/i.test(qText)) {
+          return reject('G3', row, 'division for Y1 (only halving allowed)');
+        }
+
+        // Y2: Only simple sharing ÷2, ÷5, ÷10, numbers ≤ 20
+        if (yr <= 2) {
+          const divMatch = qText.match(/(\d+)\s*(?:÷|divided\s+by|shared|split)/i) ||
+                           qText.match(/share\s+(\d+)|split\s+(\d+)|divide\s+(\d+)/i) ||
+                           qText.match(/have\s+(\d+)\s+\w+.*?\b(?:share|split|divide|equally)/i);
+          const dividend = divMatch ? parseInt(divMatch[1] || divMatch[2] || divMatch[3], 10) : null;
+
+          if (dividend !== null && dividend > 20) {
+            return reject('G3', row, `Y2 division dividend ${dividend} > 20`);
+          }
+          if (dividend === null && maxNum > 20) {
+            return reject('G3', row, `Y2 division with large number (max=${maxNum})`);
+          }
+
+          // Reject remainders
+          const hasRemainder = opts.some(o => /remainder|r\s*\d/i.test(String(o)));
+          if (hasRemainder) return reject('G3', row, 'Y2 division with remainder');
+
+          // Odd ÷ 2 check
+          const divBy2 = qText.match(/(\d+)\s*(?:÷|divided\s+by)\s*2/i);
+          if (divBy2 && parseInt(divBy2[1], 10) % 2 !== 0) {
+            return reject('G3', row, 'Y2 odd÷2 (has remainder)');
+          }
+        }
+
+        // Y3-4: Division allowed but no remainders, numbers within year cap
+        if (yr <= 4) {
+          const hasRemainder = opts.some(o => /remainder|r\s*\d/i.test(String(o))) ||
+                               /remainder/i.test(qText);
+          if (hasRemainder) return reject('G3', row, `Y${yr} division with remainder (Y5+ topic)`);
+        }
+      }
+
+      // ── G4: Negative numbers — Y6+ only ──────────────────────────────
+      if (yr < 6) {
+        // Check question text and options for negative numbers
+        // Be careful: "minus" in subtraction context is fine, negative VALUES are not
+        const hasNegative = /\b-\d+\b/.test(qTextRaw) ||
+                           opts.some(o => /^-\d/.test(String(o).trim())) ||
+                           /\bnegative\s+number/i.test(qText) ||
+                           /\bbelow\s+zero\b/i.test(qText);
+        if (hasNegative) {
+          return reject('G4', row, `negative numbers before Y6`);
+        }
+      }
+
+      // ── G5: Fractions / decimals / percentages — year gating ─────────
+      const hasFraction   = /\b\d+\s*\/\s*\d+\b|½|¼|¾|⅓|⅔|⅕|⅛|fraction|\bquarter|\bthird|\bfifth|\beighth|\bsixth|\bseventh|\bninth|\btenth/i.test(allText);
+      const hasDecimal    = /\b\d+\.\d+\b/.test(allText) && !/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/.test(allText); // exclude dates
+      const hasPercentage = /%|\bpercent|\bpercentage/i.test(allText);
+      const hasRatio      = /\bratio\b|\b\d+\s*:\s*\d+\b/i.test(allText);
+
+      // Y1: No fractions at all (only "half" in sharing context)
+      if (yr <= 1 && hasFraction && !/\bhalf\b|\bhalves\b/i.test(qText)) {
+        return reject('G5', row, 'fractions for Y1 (only half allowed)');
+      }
+      // Y1-2: No decimals
+      if (yr <= 2 && hasDecimal) {
+        return reject('G5', row, 'decimals before Y3');
+      }
+      // Y1-4: No percentages
+      if (yr <= 4 && hasPercentage) {
+        return reject('G5', row, 'percentages before Y5');
+      }
+      // Y1-5: No ratios (formal ratio notation)
+      if (yr <= 5 && hasRatio) {
+        return reject('G5', row, 'ratios before Y6');
+      }
+
+      // ── G6: Algebra / equations — year gating ────────────────────────
+      // Simple unknowns (? or □) are fine from Y1
+      // Formal algebra (x, y, expressions) is Y6+
+      const hasAlgebra = /\balgebra\b|\bequation\b|\bsolve\s+for\b|\bfind\s+(?:the\s+value\s+of\s+)?[xyn]\b|\b\d+[xyn]\s*[+\-=]/i.test(allText);
+      const hasAdvancedAlgebra = /\bsimultaneous\b|\bquadratic\b|\bfactoris/i.test(allText);
+
+      if (yr < 6 && hasAlgebra) {
+        return reject('G6', row, 'algebra before Y6');
+      }
+      if (yr <= 8 && hasAdvancedAlgebra) {
+        return reject('G6', row, 'advanced algebra for Y' + yr);
+      }
+
+      // ── G7: Advanced maths topics — hard block ───────────────────────
+      const ADVANCED_MATHS_TERMS = {
+        7:  /\bpythagoras\b|\btrigonometry\b|\bsin\b|\bcos\b|\btan\b|\bcalculus\b|\bdifferentiat/i,
+        9:  /\bvector[s]?\b|\bmatrix\b|\bmatrices\b|\bintegrat(?:ion|e)\b|\bdeterminant/i,
+        11: /\bcomplex\s+number/i,
+      };
+      for (const [minYear, pattern] of Object.entries(ADVANCED_MATHS_TERMS)) {
+        if (yr < Number(minYear) && pattern.test(allText)) {
+          return reject('G7', row, `advanced topic for Y${yr} (requires Y${minYear}+)`);
+        }
+      }
+
+      // ── G8: Multiplication beyond year-level tables ──────────────────
+      // Y2: only ×2, ×5, ×10. Y3: add ×3, ×4, ×8. Y4+: all tables to 12×12
+      if (yr <= 2) {
+        const mulMatch = qText.match(/(\d+)\s*[×x*]\s*(\d+)/i) ||
+                         qText.match(/(\d+)\s*(?:times|multiplied\s+by|groups?\s+of)\s+(\d+)/i);
+        if (mulMatch) {
+          const a = parseInt(mulMatch[1], 10);
+          const b = parseInt(mulMatch[2], 10);
+          const allowedTables = [2, 5, 10];
+          if (!allowedTables.includes(a) && !allowedTables.includes(b)) {
+            return reject('G8', row, `Y2 multiplication beyond ×2/×5/×10 (${a}×${b})`);
+          }
+        }
+      }
+      if (yr === 3) {
+        const mulMatch = qText.match(/(\d+)\s*[×x*]\s*(\d+)/i) ||
+                         qText.match(/(\d+)\s*(?:times|multiplied\s+by|groups?\s+of)\s+(\d+)/i);
+        if (mulMatch) {
+          const a = parseInt(mulMatch[1], 10);
+          const b = parseInt(mulMatch[2], 10);
+          const allowedTables = [2, 3, 4, 5, 8, 10];
+          if (!allowedTables.includes(a) && !allowedTables.includes(b)) {
+            return reject('G8', row, `Y3 multiplication beyond allowed tables (${a}×${b})`);
+          }
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ENGLISH GUARDS
+    // ═══════════════════════════════════════════════════════════════════
+
+    if (isEnglish) {
+
+      // ── G9: Y1-2 vocabulary-definition spelling ──────────────────────
+      if (yr <= 2) {
+        const vocabSpellingPattern = /\bword\s+that\s+means?\b|\bmeans?\s+(not\s+)?\w+\b.*\bspell|\bcorrect\s+spelling\b.*\bmeans?\b|\bspelling\b.*\bword\s+for\b/i;
+        if (vocabSpellingPattern.test(qText)) {
+          return reject('G9', row, 'vocab-definition spelling for Y1-2');
+        }
+      }
+
+      // ── G10: Complex grammar terminology too early ───────────────────
+      const GRAMMAR_GATES = {
+        // Term → minimum year level required
+        'subordinate clause':  3, 'subordinating conjunction': 3,
+        'fronted adverbial':   4, 'possessive apostrophe': 4, 'determiner': 4,
+        'modal verb':          5, 'relative clause': 5, 'relative pronoun': 5,
+        'cohesion':            5, 'parenthesis': 5, 'bracket': 5, 'dash': 5,
+        'subjunctive':         6, 'passive voice': 6, 'active voice': 6,
+        'semi-colon':          6, 'colon':  6, 'hyphen': 6,
+        'ellipsis':            6,
+        'pathetic fallacy':    7, 'oxymoron': 7, 'sibilance': 7,
+      };
+      for (const [term, minYr] of Object.entries(GRAMMAR_GATES)) {
+        if (yr < minYr && allText.includes(term)) {
+          return reject('G10', row, `grammar term "${term}" requires Y${minYr}+`);
+        }
+      }
+
+      // ── G11: Y1-2 question/option word length ───────────────────────
+      // Y1 scholars can't read words with 8+ letters reliably
+      // Y2 scholars struggle with 10+ letter words
+      if (yr <= 2) {
+        const maxWordLen = yr === 1 ? 8 : 10;
+        const allWords = allText.split(/\s+/);
+        const tooLong = allWords.filter(w => w.replace(/[^a-z]/gi, '').length > maxWordLen);
+        // Allow up to 1 long word (might be the answer they're learning)
+        // Reject if 3+ long words — question is clearly above level
+        if (tooLong.length >= 3) {
+          return reject('G11', row, `${tooLong.length} words exceed ${maxWordLen} chars for Y${yr}`);
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // SCIENCE GUARDS
+    // ═══════════════════════════════════════════════════════════════════
+
+    if (isScience) {
+
+      // ── G12: Advanced science topics too early ───────────────────────
+      const SCIENCE_GATES = {
+        'photosynthesis':     3, // introduced Y3 (plants)
+        'evaporation':        4, 'condensation': 4, 'water cycle': 4,
+        'puberty':            5, 'reproduction': 5,
+        'evolution':          6, 'inheritance': 6, 'fossils': 6,
+        'classification key': 6,
+        'dna':                7, 'chromosome': 7, 'allele': 7,
+        'atomic':             7, 'electron': 7, 'proton': 7, 'neutron': 7,
+        'periodic table':     7,
+        'cellular respiration': 7, 'mitosis': 7,
+        'isotope':            9, 'radioactive': 9,
+        'quantum':            11,
+      };
+      for (const [term, minYr] of Object.entries(SCIENCE_GATES)) {
+        if (yr < minYr && allText.includes(term)) {
+          return reject('G12', row, `science term "${term}" requires Y${minYr}+`);
+        }
+      }
+
+      // ── G12b: Science formula/equation notation for primary ──────────
+      if (yr <= 6) {
+        // Chemical formulas in question OR options — block for primary scholars
+        // Explicit named formulas + pattern: CapitalLetter + lowercase? + digit(s)
+        const chemPattern = /\b[A-Z][a-z]?\d+|\bNaCl\b|\bCaCO3\b|\bNaOH\b|\bHCl\b|\bKCl\b|\bH2SO4\b|\bFe2O3\b|\bMgO\b|\bKOH\b/;
+        const hasChemFormula = chemPattern.test(qTextRaw) || opts.some(o => chemPattern.test(String(o)));
+        // Allow "CO2" and "H2O" and "O2" as these are common knowledge
+        const commonPattern = /\bCO2\b|\bH2O\b|\bO2\b|\bN2\b/;
+        const isOnlyCommon = !opts.some(o => chemPattern.test(String(o)) && !commonPattern.test(String(o)));
+        if (hasChemFormula && !isOnlyCommon) {
+          return reject('G12b', row, 'chemical formula notation for primary');
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // UNIVERSAL GUARDS (all subjects)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // ── G13: Broken questions — zero correct or self-contradictory ────
+    {
+      const correctIdx = row.correct_index ?? row.correct_answer_index ?? null;
+      if (correctIdx !== null && opts.length > 0) {
+        // correct_index out of bounds
+        if (correctIdx < 0 || correctIdx >= opts.length) {
+          return reject('G13', row, `correct_index ${correctIdx} out of bounds (${opts.length} options)`);
+        }
+      }
+      // Fewer than 2 options
+      if (opts.length > 0 && opts.length < 2) {
+        return reject('G13', row, `only ${opts.length} option(s)`);
+      }
+      // Duplicate options (exact match)
+      const uniqueOpts = new Set(optsLower.map(o => o.trim()));
+      if (uniqueOpts.size < opts.length && opts.length > 0) {
+        return reject('G13', row, 'duplicate options');
+      }
+    }
+
+    // ── G14: Question text complexity — word count gate ─────────────
+    // Y1-2 questions shouldn't be 40+ word essays
+    if (yr <= 2 && qText.split(/\s+/).length > 35) {
+      return reject('G14', row, `question too long for Y${yr} (${qText.split(/\s+/).length} words)`);
+    }
+    if (yr <= 4 && qText.split(/\s+/).length > 60) {
+      return reject('G14', row, `question too long for Y${yr} (${qText.split(/\s+/).length} words)`);
+    }
+
+    // ── G15: Options contain clearly wrong-level content ────────────
+    // E.g. a Y1 question with options like "photosynthesis", "trigonometry"
+    if (yr <= 3) {
+      const BANNED_OPTION_TERMS = /\balgebra\b|\btrigonometry\b|\bpythagoras\b|\bcalculus\b|\bvector\b|\bsimultaneous\b|\bquadratic\b|\bpolynomial\b|\blogarithm\b|\bderivative\b/i;
+      if (opts.some(o => BANNED_OPTION_TERMS.test(String(o)))) {
+        return reject('G15', row, 'options contain advanced terminology for Y' + yr);
+      }
+    }
+
+    // ── G16: Maths — all numbers in Y1 must be ≤ 20 everywhere ─────
+    // Catches edge cases where number cap check missed something
+    // (e.g. numbers inside option text like "23 apples")
+    if (isMaths && yr <= 1) {
+      const allNumsEverywhere = extractNums(allText);
+      const tooBig = allNumsEverywhere.filter(n => n > 20 && !(n >= 1900 && n <= 2100));
+      if (tooBig.length > 0) {
+        return reject('G16', row, `Y1 maths with number(s) > 20: ${tooBig.join(', ')}`);
+      }
+    }
+
+    // ── G17: Explanation/answer text reveals a logical error ─────────
+    // If the explanation contradicts the marked correct answer, the question is broken.
+    // This is a lightweight heuristic — checks if explanation says "the answer is X"
+    // but marked answer is Y.
+    {
+      const exp = (row.explanation || row.question_data?.exp || '').toLowerCase();
+      const correctIdx = row.correct_index ?? row.correct_answer_index;
+      if (exp && correctIdx != null && opts[correctIdx]) {
+        const markedAnswer = String(opts[correctIdx]).toLowerCase().trim();
+        // Extract what the explanation claims the answer is.
+        // Capture: number + optional unit (apples, cm, kg etc), stop before "because/since/as/,"
+        const expAnswerMatch = exp.match(
+          /\b(?:the\s+)?(?:correct\s+)?answer\s+is\s+["']?(-?\d+[\d,.]*(?:\s+[a-z]{1,10})?)(?:\s*[.,;]|\s+(?:because|since|as|so|and|but|which|that|$))/i
+        ) || exp.match(
+          /\b(?:=|equals?)\s+["']?(-?\d+[\d,.]*(?:\s+[a-z]{1,10})?)(?:\s*[.,;]|\s+(?:because|since|as|so|and|but|which|that|$))/i
+        );
+        if (expAnswerMatch) {
+          const expAnswer = (expAnswerMatch[1] || '').trim().toLowerCase();
+          // If explanation names an answer that doesn't match the marked answer
+          // and the explanation answer IS one of the other options → broken question
+          if (expAnswer !== markedAnswer &&
+              expAnswer.length > 0 &&
+              optsLower.some(o => o.trim() === expAnswer || o.trim().startsWith(expAnswer))) {
+            return reject('G17', row, `explanation says "${expAnswer}" but marked answer is "${markedAnswer}"`);
+          }
+        }
+      }
+    }
+
+    return true;
+  });
 }
 
 export async function getSmartQuestions(
@@ -849,8 +1310,8 @@ export async function getSmartQuestions(
         .select('*')
         .eq('curriculum', dbCurriculum)
         .eq('subject', dbSubject)
-        .gte('year_level', Math.max(1, dbYear - 1))
-        .lte('year_level', dbYear + 1)
+        .gte('year_level', dbYear <= 2 ? dbYear : Math.max(1, dbYear - 1))
+        .lte('year_level', dbYear <= 2 ? dbYear : dbYear + 1)
         .limit(Math.min(count * 5, 100));
 
       if (broadErr) {
@@ -898,8 +1359,36 @@ export async function getSmartQuestions(
       }
     }
 
-    // ── 7. Shuffle, slice, record ─────────────────────────────────────────
+    // ── 7. Post-process THEN slice ────────────────────────────────────────
+    // Sanitise from the full unsliced pool so bad questions don't exhaust the count.
+    // If bad questions are stripped first, the remaining good questions fill the quest.
+    questRows = postProcessQuestions(questRows, year, activeSubject);
     questRows = shuffle(questRows).slice(0, count);
+
+    // ── 7.5. Top-up if sanitiser left us short ────────────────────────────
+    // If sanitisation removed enough questions to leave us below 70% of target,
+    // do one broad re-fetch (no topic constraint, larger limit) to top up.
+    // This handles topics where most DB rows are bad (e.g. legacy number bonds).
+    if (questRows.length < Math.ceil(count * 0.7)) {
+      const shortfall = count - questRows.length;
+      console.warn(
+        `[getSmartQuestions] Post-sanitise shortfall: ${questRows.length}/${count}. ` +
+        `Fetching ${shortfall} top-up questions (no topic constraint).`
+      );
+      const usedIds   = new Set(questRows.map(r => r.id).filter(Boolean));
+      const topUpRows = await fetchQuestions(
+        supabase, curriculum, activeSubject, year,
+        null,       // no topic — broad
+        null,       // no tier
+        [...excludeIds, ...Array.from(usedIds)],
+        shortfall * 8,  // generous overfetch to survive sanitiser
+        examTag,
+      );
+      const sanitisedTopUp = postProcessQuestions(topUpRows, year, activeSubject);
+      const fresh = sanitisedTopUp.filter(r => !usedIds.has(r.id));
+      questRows = [...questRows, ...shuffle(fresh).slice(0, shortfall)];
+    }
+
     const selectedIds = questRows.map(r => r.id).filter(Boolean);
     if (selectedIds.length > 0) addLocalSeen(selectedIds);
 

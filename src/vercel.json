@@ -27,6 +27,13 @@
     {
       "path": "/api/batch-generate",
       "schedule": "0 2 * * 0"
-    }
+    },
+    {
+  "crons": [{
+    "path": "/api/cron/reminders",
+    "schedule": "*/15 * * * *"
+  }]
+}
+    
   ]
 }

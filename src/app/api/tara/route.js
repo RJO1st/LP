@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { getAgeBand, getBandConfig, getTaraSystemPrompt } from '@/lib/ageBandConfig';
 
-// ─── Deploy to: src/app/api/tara/route.ts ────────────────────────────────────
+// ─── Deploy to: src/app/api/tara/route.js ────────────────────────────────────
+// Updated to use ageBandConfig for age-adaptive Tara personality.
 // Handles two modes:
 //   "eib"      (default) — Scholar explains why the correct answer is right
 //   "followup"           — Scholar asks a curiosity question after Tara's first reply
@@ -21,70 +23,89 @@ function containsProfanity(text) {
   return BLOCKED_WORDS.some(w => lower.split(/\s+/).includes(w));
 }
 
-// ─── LOCAL FALLBACK — EIB MODE ────────────────────────────────────────────────
+// ─── LOCAL FALLBACK — EIB MODE (age-adaptive) ───────────────────────────────
 const localFallbackEIB = (text, subject, scholarName, scholarYear, correctAnswer, question) => {
-  const name   = scholarName || "Cadet";
+  const name   = scholarName || "Scholar";
+  const band   = getAgeBand(scholarYear);
+  const config = getBandConfig(band);
+  const t      = config.tara;
   const lower  = (text || "").trim().toLowerCase();
   const year   = scholarYear || 4;
   const minLen = year <= 2 ? 4 : year <= 4 ? 8 : 12;
 
   if ((text || "").trim().length < minLen) {
-    return year <= 3
-      ? `Tara: Good start, ${name}! Can you say a bit more about your thinking? 🤔`
-      : `Tara: Roger that, ${name}! Tell me the *steps* you used — I want to understand your reasoning. 📡`;
+    const short = {
+      ks1: `${t.name}: Good start, ${name}! Can you say a bit more? Even one word helps! 🌟`,
+      ks2: `${t.name}: Copy that, ${name}! We need a bit more detail — what steps did you use? 📡`,
+      ks3: `${t.name}: Can you expand on that? What was your method?`,
+      ks4: `${t.name}: Expand your reasoning. What's the key step?`,
+    };
+    return short[band] || short.ks2;
   }
 
   const ans = (correctAnswer || "").toLowerCase();
   const mentionsAnswer = ans && lower.includes(ans.substring(0, Math.min(ans.length, 8)));
 
   if (mentionsAnswer) {
-    const praise = [
-      `Tara: Excellent work, ${name}! You've identified "${correctAnswer}" correctly and explained it well. That's Commander-level thinking! 🚀`,
-      `Tara: Spot on, ${name}! Mentioning "${correctAnswer}" shows you understood the core idea. Keep it up! ⭐`,
-      `Tara: Great explanation, ${name}! You've got the right answer AND the right reasoning — that's what we need! 🏆`,
-    ];
-    return praise[Math.floor(Math.random() * praise.length)];
+    return t.correctPhrases[Math.floor(Math.random() * t.correctPhrases.length)]
+      .replace(/Commander/g, name)
+      .replace(/superstar/g, name);
   }
 
   const nudges = {
-    maths: [
-      `Tara: Good effort, ${name}! Try working through it step by step — what operation did you use first? 💡`,
-      `Tara: Nearly there, ${name}! What did you calculate first to get to "${correctAnswer}"? 📊`,
+    ks1: [
+      `${t.name}: Good try, ${name}! The answer is "${correctAnswer}". Can you count it out? 🌟`,
+      `${t.name}: Almost! Let me show you — "${correctAnswer}" is right because... 👀`,
     ],
-    english: [
-      `Tara: Good thinking, ${name}! Try naming the language feature — is it a noun, verb, adjective, or something else? ✏️`,
-      `Tara: Almost, ${name}! Can you explain what rule makes "${correctAnswer}" correct? 📚`,
+    ks2: [
+      `${t.name}: Not quite, Commander ${name}! Let's check the mission data. The answer is "${correctAnswer}". 📡`,
+      `${t.name}: Close! Work through it step by step — what operation did you use first? 💡`,
     ],
-    verbal: [
-      `Tara: Good reasoning, ${name}! Describe the rule or pattern — are letters shifting? Are words related by meaning? 🔍`,
-      `Tara: Keep digging, ${name}! What's the relationship or rule connecting them? 💡`,
+    ks3: [
+      `${t.name}: Not this time. The key step is to find "${correctAnswer}". What approach would get you there?`,
+      `${t.name}: Close. Think about the method — what's the first calculation you'd do?`,
     ],
-    nvr: [
-      `Tara: Good observation, ${name}! Describe what *changes* — size, rotation, colour, or number of sides? 👁️`,
-      `Tara: Almost, ${name}! In NVR look for: rotation, reflection, pattern, or missing shape. 🎯`,
-    ],
-    science: [
-      `Tara: Almost, ${name}! Try using scientific terms like 'energy', 'force', or 'cell'. 🔬`,
-      `Tara: Nearly there! What scientific principle explains "${correctAnswer}"? ⚗️`,
+    ks4: [
+      `${t.name}: Incorrect. The working: you need "${correctAnswer}". Identify the key formula.`,
+      `${t.name}: Wrong. Common error here. The correct method gives "${correctAnswer}".`,
     ],
   };
 
-  const subNudges = nudges[subject] || nudges.maths;
-  return subNudges[Math.floor(Math.random() * subNudges.length)];
+  const pool = nudges[band] || nudges.ks2;
+  return pool[Math.floor(Math.random() * pool.length)];
 };
 
-// ─── LOCAL FALLBACK — FOLLOW-UP MODE ─────────────────────────────────────────
-const localFallbackFollowup = (scholarName) => {
-  const name = scholarName || "Cadet";
-  const responses = [
-    `Tara: Great question, ${name}! That curiosity will take you far. Keep asking why — it's what the best thinkers do. 🚀`,
-    `Tara: Love the curiosity, ${name}! That's exactly the right instinct. Keep exploring! 🌟`,
-    `Tara: Brilliant follow-up, ${name}! Questions like that are what deepen real understanding. 🏆`,
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
+// ─── LOCAL FALLBACK — FOLLOW-UP MODE (age-adaptive) ─────────────────────────
+const localFallbackFollowup = (scholarName, scholarYear) => {
+  const name   = scholarName || "Scholar";
+  const band   = getAgeBand(scholarYear);
+  const config = getBandConfig(band);
+  const t      = config.tara;
+
+  const responses = {
+    ks1: [
+      `${t.name}: Great question, ${name}! You're so curious — that's what makes you special! 🌟`,
+      `${t.name}: Ooh, good thinking! That's a really smart question! 🦄`,
+    ],
+    ks2: [
+      `${t.name}: Great question, Commander ${name}! That curiosity will take you far. 🚀`,
+      `${t.name}: Excellent thinking! That's the kind of question top Commanders ask. ⭐`,
+    ],
+    ks3: [
+      `${t.name}: Good question. That shows you're thinking beyond the surface.`,
+      `${t.name}: Interesting angle. That's the kind of critical thinking that matters in real applications.`,
+    ],
+    ks4: [
+      `${t.name}: Good question. That connects to exam technique — examiners reward this kind of depth.`,
+      `${t.name}: Worth exploring. This comes up in extended response questions.`,
+    ],
+  };
+
+  const pool = responses[band] || responses.ks2;
+  return pool[Math.floor(Math.random() * pool.length)];
 };
 
-// ─── LLAMA GUARD SAFETY CHECK ─────────────────────────────────────────────────
+// ─── LLAMA GUARD SAFETY CHECK ────────────────────────────────────────────────
 async function isSafe(text) {
   if (!process.env.OPENROUTER_API_KEY) return true;
   try {
@@ -113,7 +134,7 @@ async function isSafe(text) {
   }
 }
 
-// ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
+// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 export async function POST(req) {
   let body;
 
@@ -125,20 +146,29 @@ export async function POST(req) {
 
   const {
     text, subject = "maths", correctAnswer = "", scholarAnswer = "",
-    scholarName = "Cadet", scholarYear = 4, question = null,
+    scholarName = "Scholar", scholarYear = 4, question = null,
     mode = "eib", context = "",
   } = body;
 
+  // ── Resolve age band ─────────────────────────────────────────────────────
+  const band   = getAgeBand(scholarYear);
+  const config = getBandConfig(band);
+  const tara   = config.tara;
+
   if (!text || text.trim().length < 3) {
-    return NextResponse.json({
-      feedback: `Tara: I'd love to hear your thoughts, ${scholarName}! Write at least a sentence. 🤔`
-    });
+    const minPrompt = {
+      ks1: `${tara.name}: I'd love to hear your thoughts, ${scholarName}! Write something for me! 🌟`,
+      ks2: `${tara.name}: Tell me your thinking, Commander ${scholarName}! Even a short answer helps. 📡`,
+      ks3: `${tara.name}: Write at least a sentence explaining your reasoning.`,
+      ks4: `${tara.name}: Provide your working. Minimum one sentence.`,
+    };
+    return NextResponse.json({ feedback: minPrompt[band] || minPrompt.ks2 });
   }
 
   // ── 1. Server-side profanity guard ──────────────────────────────────────────
   if (containsProfanity(text)) {
     return NextResponse.json({
-      feedback: "Tara: Let's keep things respectful! Rephrase that and try again. 🌟"
+      feedback: `${tara.name}: Let's keep things respectful! Rephrase that and try again. 🌟`
     });
   }
 
@@ -146,7 +176,7 @@ export async function POST(req) {
   const inputSafe = await isSafe(text);
   if (!inputSafe) {
     return NextResponse.json({
-      feedback: "Tara: That's an interesting thought. Let's keep our focus on learning! 🌟"
+      feedback: `${tara.name}: That's an interesting thought. Let's keep our focus on learning! 🌟`
     });
   }
 
@@ -154,57 +184,74 @@ export async function POST(req) {
   if (!process.env.OPENROUTER_API_KEY) {
     console.warn('[Tara] OPENROUTER_API_KEY not set — using local fallback');
     const fallback = mode === "followup"
-      ? localFallbackFollowup(scholarName)
+      ? localFallbackFollowup(scholarName, scholarYear)
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
     return NextResponse.json({ feedback: fallback });
   }
 
-  // ── 4. Build system prompt based on mode ────────────────────────────────────
+  // ── 4. Build system prompt with age-band personality ────────────────────────
   const ageMin = scholarYear + 4;
   const ageMax = scholarYear + 5;
+  const topic  = question?.topic?.replace(/_/g, ' ') || subject;
+
+  // Get the base personality from ageBandConfig
+  const bandPersonality = getTaraSystemPrompt(band);
+
+  // Age-appropriate language guidance (detailed, per-band)
+  const ageGuidance = {
+    ks1: `CRITICAL: This child is ${ageMin}–${ageMax} years old (Reception/KS1). Use very simple words (1-2 syllable). No jargon. No abstract concepts. Think "mummy-explaining-at-bedtime" level. Use concrete examples: "If you have 3 sweets and get 2 more..." Never mention place value, column methods, or formal terminology. Praise effort warmly. Add emojis to every sentence.`,
+    ks2: `This child is ${ageMin}–${ageMax} years old (KS2). Use clear, age-appropriate language. You can introduce proper terms (e.g., "numerator", "denominator") but always explain them. Keep it conversational. Use space/mission metaphors occasionally. Call them "Commander" if appropriate. Moderate emoji use.`,
+    ks3: `This student is ${ageMin}–${ageMax} years old (KS3). Use appropriate academic vocabulary. Be direct and respectful — they don't want to be talked down to. Connect answers to real-world applications where possible. Minimal emojis. Treat them as a young adult.`,
+    ks4: `This student is ${ageMin}–${ageMax} years old (KS4/GCSE+). Be precise and efficient. No emojis. Reference exam technique and mark schemes where relevant. Focus on method and common errors. They want accuracy, not encouragement.`,
+  }[band] || `This student is ${ageMin}–${ageMax} years old.`;
 
   const systemPrompt = mode === "followup"
-    ? `You are Tara, a warm expert UK tutor for children in Year ${scholarYear} (age ${ageMin}–${ageMax}).
+    ? `${bandPersonality}
 
-The student has already completed an Explain It Back challenge and is now asking a curiosity follow-up question.
+You are responding to a curiosity follow-up question from ${scholarName} (Year ${scholarYear}, age ${ageMin}–${ageMax}).
 
 Subject: ${subject}
+Topic: ${topic}
 Original question: "${question?.q || 'unknown'}"
 Correct answer: "${correctAnswer}"
 Student originally chose: "${scholarAnswer || 'unknown'}"
-Your previous reply to them: "${context}"
+Your previous reply: "${context}"
 Their follow-up question: "${text}"
 
+${ageGuidance}
+
 INSTRUCTIONS:
-- This is a curiosity/depth question, NOT an assessment — don't evaluate their reasoning
-- Engage genuinely with what they're curious about
-- Go slightly deeper than the original answer — add one interesting fact, connection, or "why"
-- Keep it to 2–3 sentences, age-appropriate for Year ${scholarYear}
-- Be warm and encouraging — reward their curiosity explicitly
-- Start with "Tara:" so it's clear who is speaking
-- Never mention exams, marks, or scores`
+- This is a curiosity/depth question, NOT an assessment
+- Go slightly deeper than the original answer — add one interesting fact or "why"
+- Keep it to 2–3 sentences, age-appropriate
+- Start with "${tara.name}:" so it's clear who is speaking
+- Never mention exams, marks, or scores unless KS4`
 
-    : `You are Tara, a warm expert UK tutor for children in Year ${scholarYear} (age ${ageMin}–${ageMax}).
+    : `${bandPersonality}
 
-Student: ${scholarName}, Year ${scholarYear}.
+Student: ${scholarName}, Year ${scholarYear} (age ${ageMin}–${ageMax}).
 Subject: ${subject}.
+Topic: ${topic}.
 Question: "${question?.q || 'unknown'}"
 Options: ${(question?.opts || []).map((o, i) => `${i + 1}. ${o}`).join(', ')}
 Correct answer: "${correctAnswer}"
 Student chose: "${scholarAnswer || 'unknown'}"${scholarAnswer && scholarAnswer !== correctAnswer ? ' (INCORRECT)' : ''}
 Student's reasoning: "${text}"
 
+${ageGuidance}
+
 INSTRUCTIONS:
-- Acknowledge what the student chose ("${scholarAnswer}") — explain briefly why it might have seemed right, then guide them to understand why "${correctAnswer}" is correct
-- Be specific to THIS question and THIS answer — no generic praise
-- If their reasoning is correct, praise the specific insight they showed
-- If their reasoning is wrong or incomplete, gently explain WHY the correct answer is right, referencing the specific concept
-- For maths: refer to the specific operation or method
-- For English: name the grammar rule or literary device
-- For verbal/NVR: explain the pattern or rule that leads to the answer
-- Keep it to 2–3 sentences maximum
-- Use encouraging language appropriate for age ${ageMin}
-- Start with "Tara:" so it's clear who is speaking
+- Acknowledge what the student chose — explain briefly why it might have seemed right, then guide them to "${correctAnswer}"
+- Be specific to THIS question about ${topic}
+- For number bonds: use "parts" and "whole" language
+- For counting/addition: use concrete objects
+- For subtraction: use taking-away language
+- For fractions: use sharing/pizza/cake analogies
+- For English/grammar: name the rule simply, give an example
+- For verbal/NVR: explain the pattern step by step
+- For science: connect to real-world experience
+- Keep it to ${tara.maxWords ? `${tara.maxWords} words maximum` : '2–3 sentences'}
+- Start with "${tara.name}:" so it's clear who is speaking
 - Never be sycophantic — be genuinely helpful and specific`;
 
   // ── 5. Main AI call ──────────────────────────────────────────────────────────
@@ -230,8 +277,8 @@ INSTRUCTIONS:
             : `Here is my explanation of why "${correctAnswer}" is the correct answer:\n\n"${text}"`
           },
         ],
-        max_tokens: 150,
-        temperature: 0.6,
+        max_tokens: tara.maxWords ? Math.min(tara.maxWords * 2, 200) : 150,
+        temperature: band === "ks4" ? 0.4 : 0.6,
       }),
     });
 
@@ -254,12 +301,15 @@ INSTRUCTIONS:
     if (!responseSafe) {
       console.warn('[Tara] Response flagged unsafe, using fallback');
       const fallback = mode === "followup"
-        ? localFallbackFollowup(scholarName)
+        ? localFallbackFollowup(scholarName, scholarYear)
         : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
       return NextResponse.json({ feedback: fallback });
     }
 
-    const normalised = feedback.startsWith('Tara:') ? feedback : `Tara: ${feedback}`;
+    const taraPrefix = `${tara.name}:`;
+    const normalised = feedback.startsWith(taraPrefix) || feedback.startsWith('Tara:')
+      ? feedback
+      : `${taraPrefix} ${feedback}`;
     return NextResponse.json({ feedback: normalised });
 
   } catch (err) {
@@ -267,7 +317,7 @@ INSTRUCTIONS:
     const reason = err?.name === 'AbortError' ? 'timeout' : String(err);
     console.warn(`[Tara] API failed (${reason}), using local fallback`);
     const fallback = mode === "followup"
-      ? localFallbackFollowup(scholarName)
+      ? localFallbackFollowup(scholarName, scholarYear)
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
     return NextResponse.json({ feedback: fallback });
   }

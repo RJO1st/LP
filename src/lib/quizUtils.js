@@ -11,6 +11,7 @@
  *   getSessionTimer         — total session timer per engine type (seconds)
  *   getPerQuestionTimer     — per-question countdown for MainQuizEngine (seconds)
  */
+// Journal integration — dynamically imported inside saveQuizResult
 
 // ─── SHUFFLE ──────────────────────────────────────────────────────────────────
 const shuffle = (arr) => {
@@ -241,6 +242,21 @@ export async function saveQuizResult(supabase, {
 
     try { await supabase.rpc('increment_scholar_xp', { s_id: studentId, xp_to_add: xp }); }
     catch (err) { console.warn('[saveQuizResult] increment_scholar_xp RPC failed:', err?.message); }
+
+    // ── Journal entry for KS1/KS2 adaptive dashboards (non-fatal) ─────
+    try {
+      const { createJournalEntry } = await import('@/lib/journalIntegration');
+      createJournalEntry(supabase, {
+        scholarId: studentId,
+        subject: normSubject,
+        topic: questions[0]?.topic || 'general',
+        score: finalScore,
+        total: questions.length,
+        yearLevel: parseInt(questions[0]?.year_level || questions[0]?._studentYear || 4, 10),
+      });
+    } catch (journalErr) {
+      console.warn('[saveQuizResult] Journal entry failed (non-fatal):', journalErr?.message);
+    }
 
     // First-quiz parent email
     try {

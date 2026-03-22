@@ -61,16 +61,6 @@
 import { scoreDiagnostic, masteryToTier, MASTERY_THRESHOLDS } from './masteryEngine.js';
 
 // ─── CANONICAL TOPIC SEQUENCES ────────────────────────────────────────────────
-// THE authoritative code-side source for all subjects, strands, and topic slugs.
-//
-// ⚠️  Slug rules:
-//    - lowercase_with_underscores only
-//    - must match question_bank.topic exactly
-//    - must match scholar_topic_mastery.topic exactly
-//    - once in production, renaming requires a DB migration on both columns
-//
-// To add a subject: append an entry. Zero other files need changing.
-// To add a topic: append to the appropriate strand array.
 
 export const TOPIC_SEQUENCES = {
 
@@ -124,10 +114,6 @@ export const TOPIC_SEQUENCES = {
     advanced:     ['nuclear_physics','quantum_physics','mechanics','thermodynamics'],
   },
 
-  // UK KS4 Combined Science: biology + chemistry + physics topics interleaved.
-  // smartQuestionSelection resolves this to one science per session (lowest mastery first).
-  // Topic pool mirrors the three individual sciences so questions are drawn from
-  // the same question_bank rows — no separate content needed.
   combined_science: {
     foundation:   ['cell_structure','states_of_matter','forces','living_organisms','mixtures','energy'],
     intermediate: ['human_body_systems','chemical_reactions','electricity','ecosystems','atomic_structure','waves'],
@@ -227,8 +213,6 @@ export const TOPIC_SEQUENCES = {
   },
 
   // ── Fallback ──────────────────────────────────────────────────────────────
-  // Used for any subject without an explicit entry. Sufficient for basic
-  // mastery tracking until a proper sequence is defined.
 
   default: {
     foundation:   ['introduction','core_concepts','basic_skills'],
@@ -238,8 +222,6 @@ export const TOPIC_SEQUENCES = {
 };
 
 // ─── SUBJECT METADATA ─────────────────────────────────────────────────────────
-// UI display names, Lucide icon names, Tailwind colour classes.
-// Add a row here when adding a new subject — no other file needs updating.
 
 const SUBJECT_META = {
   mathematics:               { label: 'Mathematics',             icon: 'calculator',     colour: 'bg-blue-500'    },
@@ -267,7 +249,6 @@ const SUBJECT_META = {
   design_technology:         { label: 'Design & Technology',     icon: 'wrench',         colour: 'bg-orange-700'  },
   english_language:          { label: 'English Language',        icon: 'book-open',      colour: 'bg-purple-500'  },
   english_literature:        { label: 'English Literature',      icon: 'book-open',      colour: 'bg-purple-600'  },
-  mathematics:               { label: 'Mathematics',             icon: 'calculator',     colour: 'bg-blue-500'    },
   business_studies:          { label: 'Business Studies',        icon: 'briefcase',      colour: 'bg-yellow-600'  },
   economics:                 { label: 'Economics',               icon: 'trending-up',    colour: 'bg-emerald-600' },
   individuals_and_societies: { label: 'Individuals & Societies', icon: 'users-2',        colour: 'bg-purple-600'  },
@@ -275,9 +256,6 @@ const SUBJECT_META = {
 };
 
 // ─── IN-MEMORY SEQUENCE CACHE ─────────────────────────────────────────────────
-// Avoids repeated DB lookups within the same process lifecycle.
-// Key: `${curriculum ?? 'default'}::${subject}`
-// TTL: 5 minutes (sequences change rarely; redeploy clears cache anyway)
 
 const _sequenceCache = new Map();
 const CACHE_TTL_MS   = 5 * 60 * 1000;
@@ -292,59 +270,61 @@ function _cacheSet(key, value) {
   _sequenceCache.set(key, { value, ts: Date.now() });
 }
 
+// ─── CIRCUIT BREAKER ──────────────────────────────────────────────────────────
+// On the first 404 / "relation does not exist" response, this flag flips to
+// false and all subsequent getTopicSequence() calls skip the DB entirely.
+// Zero network requests, zero console 404 noise, for the rest of the module's
+// lifetime. Resets automatically on server restart or hot-module reload.
+// When you actually create the curriculum_topic_progression table, restart
+// the dev server — the flag resets to true and DB-driven loading resumes.
+let _dbTableExists = true;
+
 // ─── DB-AWARE TOPIC SEQUENCE LOADER ──────────────────────────────────────────
-/**
- * getTopicSequence — THE function to call whenever you need topic sequences.
- *
- * Resolution order:
- *   1. In-memory cache (avoids repeated DB calls within same request)
- *   2. DB table `curriculum_topic_progression` (if it exists and has rows)
- *   3. Hard-coded TOPIC_SEQUENCES fallback (always works, even without DB)
- *
- * When the DB table doesn't exist yet, this silently falls through to the
- * code-side fallback — zero errors, zero config needed.
- *
- * When you're ready to go DB-driven for a curriculum:
- *   INSERT INTO curriculum_topic_progression (curriculum, subject, strand, topic_slug, position, version, valid_from)
- *   VALUES ('uk_11plus', 'mathematics', 'foundation', 'place_value', 1, '2025', now()), ...
- * That's it. No code changes.
- *
- * @param {string}  subject
- * @param {string}  [curriculum]  - if provided, checks for curriculum-specific overrides first
- * @param {object}  [supabase]    - if omitted, skips DB check (safe for server-less contexts)
- * @returns {Promise<{foundation, intermediate, advanced}>}
- */
+
 export async function getTopicSequence(subject, curriculum = null, supabase = null) {
   const cacheKey = `${curriculum ?? 'default'}::${subject}`;
   const cached   = _cacheGet(cacheKey);
   if (cached) return cached;
 
-  // ── DB lookup ─────────────────────────────────────────────────────────────
-  if (supabase) {
+  // ── DB lookup — skipped entirely once table confirmed missing ─────────────
+  if (supabase && _dbTableExists) {
     try {
       let query = supabase
         .from('curriculum_topic_progression')
         .select('strand, topic_slug, position')
         .eq('subject', subject)
-        .is('valid_to', null)          // current version only
+        .is('valid_to', null)
         .order('position', { ascending: true });
 
-      // Prefer curriculum-specific rows; fall back to global (curriculum = null)
       if (curriculum) {
         query = query.or(`curriculum.eq.${curriculum},curriculum.is.null`);
       } else {
         query = query.is('curriculum', null);
       }
 
-      const { data, error } = await query;
+      const { data, error, status } = await query;
 
-      if (!error && data?.length > 0) {
-        // If both curriculum-specific and global rows exist, curriculum-specific wins
+      // Table doesn't exist → flip circuit breaker, never query again this session
+      if (
+        status === 404 ||
+        error?.code === 'PGRST116' ||
+        error?.message?.includes('does not exist') ||
+        error?.message?.includes('relation')
+      ) {
+        _dbTableExists = false;
+        // Fall through to hardcoded sequences
+      } else if (!error && data?.length > 0) {
+        // Prefer curriculum-specific rows; fill gaps with global (curriculum = null) rows
         const rows = curriculum
           ? [
               ...data.filter(r => r.curriculum === curriculum),
-              ...data.filter(r => r.curriculum === null &&
-                !data.find(r2 => r2.curriculum === curriculum && r2.strand === r.strand && r2.topic_slug === r.topic_slug)
+              ...data.filter(r =>
+                r.curriculum === null &&
+                !data.find(r2 =>
+                  r2.curriculum === curriculum &&
+                  r2.strand === r.strand &&
+                  r2.topic_slug === r.topic_slug
+                )
               ),
             ]
           : data;
@@ -355,14 +335,14 @@ export async function getTopicSequence(subject, curriculum = null, supabase = nu
           advanced:     rows.filter(r => r.strand === 'advanced').map(r => r.topic_slug),
         };
 
-        // Only use DB result if it has at least one strand populated
         if (seq.foundation.length || seq.intermediate.length || seq.advanced.length) {
           _cacheSet(cacheKey, seq);
           return seq;
         }
       }
+      // else: DB returned 0 rows or non-fatal error — fall through to hardcoded
     } catch {
-      // Table doesn't exist yet or query failed — fall through to code fallback silently
+      // Network error — don't flip circuit breaker (may be transient)
     }
   }
 
@@ -382,22 +362,14 @@ export function getTopicSequenceSync(subject) {
 
 // ─── TOPIC HELPERS ────────────────────────────────────────────────────────────
 
-/**
- * Get a flat ordered topic list (foundation → intermediate → advanced).
- * @param {object} sequence - result of getTopicSequence()
- */
 export function getTopicList(sequence) {
   if (typeof sequence === 'string') {
-    // Called with subject string directly — sync fallback
     const seq = getTopicSequenceSync(sequence);
     return [...(seq.foundation ?? []), ...(seq.intermediate ?? []), ...(seq.advanced ?? [])];
   }
   return [...(sequence?.foundation ?? []), ...(sequence?.intermediate ?? []), ...(sequence?.advanced ?? [])];
 }
 
-/**
- * Get which strand (foundation | intermediate | advanced) a topic belongs to.
- */
 export function getTopicStrand(sequence, topic) {
   if (typeof sequence === 'string') sequence = getTopicSequenceSync(sequence);
   if (sequence?.foundation?.includes(topic))   return 'foundation';
@@ -406,17 +378,12 @@ export function getTopicStrand(sequence, topic) {
   return null;
 }
 
-/**
- * Get all topics in the same strand as the given topic.
- * Used by smartQuestionSelection for quest coherence.
- */
 export function getStrandTopics(sequence, topic) {
   const strand = getTopicStrand(sequence, topic);
   if (!strand) return [];
   return sequence[strand] ?? [];
 }
 
-/** Get subject display metadata (label, Lucide icon, Tailwind colour). */
 export function getSubjectMeta(subject) {
   return SUBJECT_META[subject] ?? {
     label:  subject.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -425,12 +392,12 @@ export function getSubjectMeta(subject) {
   };
 }
 
-/** All registered subject slugs — useful for admin UIs and population scripts. */
 export function getAllSubjects() {
   return Object.keys(TOPIC_SEQUENCES).filter(s => s !== 'default');
 }
 
 // ─── MILESTONES ───────────────────────────────────────────────────────────────
+
 const MILESTONES = {
   first_correct:   { label: 'First correct answer!',        emoji: '🎯', storyPoints: 5   },
   topic_started:   { label: 'Started a new topic',          emoji: '🚀', storyPoints: 10  },
@@ -441,17 +408,7 @@ const MILESTONES = {
 };
 
 // ─── DIAGNOSTIC QUESTION SAMPLER ──────────────────────────────────────────────
-/**
- * Select diagnostic questions for entry assessment.
- * 2 questions per topic (1 developing + 1 expected), up to 20 total.
- *
- * @param {array}  questionBank
- * @param {string} subject
- * @param {string} curriculum
- * @param {number} yearLevel
- * @param {object} [sequence]   - pre-fetched sequence (avoids re-fetching)
- * @returns {array}
- */
+
 export function selectDiagnosticQuestions(questionBank, subject, curriculum, yearLevel, sequence = null) {
   const seq       = sequence ?? getTopicSequenceSync(subject);
   const allTopics = getTopicList(seq);
@@ -474,20 +431,7 @@ export function selectDiagnosticQuestions(questionBank, subject, curriculum, yea
 }
 
 // ─── GENERATE LEARNING PATH ───────────────────────────────────────────────────
-/**
- * Generate a personalised topic path from diagnostic scores + existing mastery.
- *
- * Priority per strand: struggling first, then developing, mastered topics skipped.
- * If everything is mastered, returns enrichment from the advanced strand.
- *
- * @param {string} curriculum
- * @param {string} subject
- * @param {number} yearLevel
- * @param {object} diagnosticScores  { topic: score 0–1 }
- * @param {array}  masteryRecords    scholar_topic_mastery rows
- * @param {object} [sequence]        pre-fetched sequence
- * @returns {array}
- */
+
 export function generateLearningPath(
   curriculum, subject, yearLevel,
   diagnosticScores = {}, masteryRecords = [],
@@ -555,13 +499,7 @@ function _buildPathItem(topic, subject, curriculum, yearLevel, currentScore, ban
 }
 
 // ─── ADVANCE PATH ─────────────────────────────────────────────────────────────
-/**
- * Recompute path state after new mastery data. Returns fields to upsert.
- *
- * @param {object} savedPath      scholar_learning_path DB row
- * @param {array}  masteryRecords updated mastery rows
- * @returns {object}
- */
+
 export function advanceLearningPath(savedPath, masteryRecords) {
   const masteryMap = {};
   for (const r of masteryRecords) masteryMap[r.topic] = r.mastery_score;
@@ -597,12 +535,7 @@ export function advanceLearningPath(savedPath, masteryRecords) {
 }
 
 // ─── MILESTONE CHECK ──────────────────────────────────────────────────────────
-/**
- * Detect which milestones were crossed after an answer.
- * @param {object} prevMastery  mastery record before
- * @param {object} newMastery   mastery record after
- * @returns {array}
- */
+
 export function checkMilestones(prevMastery, newMastery) {
   const achieved = [];
   const prev = prevMastery?.mastery_score ?? 0;
@@ -616,14 +549,7 @@ export function checkMilestones(prevMastery, newMastery) {
 }
 
 // ─── EXAM READINESS ───────────────────────────────────────────────────────────
-/**
- * Weighted exam readiness score (0–100). Foundation topics weighted 1.5×.
- *
- * @param {array}  masteryRecords
- * @param {string} subject
- * @param {object} [sequence]  pre-fetched sequence
- * @returns {{ score, label, topicsNeeded, colour }}
- */
+
 export function estimateExamReadiness(masteryRecords, subject, sequence = null) {
   if (!masteryRecords?.length) return { score: 0, label: 'Not started', topicsNeeded: [], colour: '#ef4444' };
 
@@ -650,28 +576,11 @@ export function estimateExamReadiness(masteryRecords, subject, sequence = null) 
 }
 
 // ─── TEACHER DASHBOARD AGGREGATIONS ──────────────────────────────────────────
-// These functions operate on arrays of per-student mastery data.
-// They are intentionally stateless and pure — no DB calls — so they can run
-// on cached/pre-fetched data and be reused by REST endpoints, LTI responses,
-// and materialized view refresh jobs.
 
-/**
- * Aggregate mastery across all scholars in a class, per topic.
- *
- * Input:  array of { scholar_id, topic, mastery_score } rows
- * Output: array of { topic, avg_mastery, pct_mastered, pct_struggling,
- *                    scholar_count, strand } sorted weakest-first
- *
- * @param {array}  masteryRows    all scholar_topic_mastery rows for the class
- * @param {string} subject
- * @param {object} [sequence]    pre-fetched sequence (avoids re-lookup)
- * @returns {array}
- */
 export function aggregateClassMastery(masteryRows, subject, sequence = null) {
   const seq       = sequence ?? getTopicSequenceSync(subject);
   const allTopics = getTopicList(seq);
 
-  // Group by topic
   const byTopic = {};
   for (const row of masteryRows) {
     if (!byTopic[row.topic]) byTopic[row.topic] = [];
@@ -679,33 +588,24 @@ export function aggregateClassMastery(masteryRows, subject, sequence = null) {
   }
 
   return allTopics.map(topic => {
-    const scores  = byTopic[topic] ?? [];
-    const count   = scores.length;
-    const avg     = count > 0 ? scores.reduce((a, b) => a + b, 0) / count : 0;
+    const scores     = byTopic[topic] ?? [];
+    const count      = scores.length;
+    const avg        = count > 0 ? scores.reduce((a, b) => a + b, 0) / count : 0;
     const mastered   = scores.filter(s => s >= MASTERY_THRESHOLDS.mastered).length;
     const struggling = scores.filter(s => s < MASTERY_THRESHOLDS.developing).length;
 
     return {
       topic,
-      display_name:    topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      strand:          getTopicStrand(seq, topic),
-      scholar_count:   count,
-      avg_mastery:     Math.round(avg * 100) / 100,
-      pct_mastered:    count > 0 ? Math.round((mastered   / count) * 100) : 0,
-      pct_struggling:  count > 0 ? Math.round((struggling / count) * 100) : 0,
+      display_name:   topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      strand:         getTopicStrand(seq, topic),
+      scholar_count:  count,
+      avg_mastery:    Math.round(avg * 100) / 100,
+      pct_mastered:   count > 0 ? Math.round((mastered   / count) * 100) : 0,
+      pct_struggling: count > 0 ? Math.round((struggling / count) * 100) : 0,
     };
-  }).sort((a, b) => a.avg_mastery - b.avg_mastery); // weakest topics first
+  }).sort((a, b) => a.avg_mastery - b.avg_mastery);
 }
 
-/**
- * Identify scholars who are struggling (below threshold) on a given topic.
- * Used for targeted teacher interventions.
- *
- * @param {array}  masteryRows    all scholar_topic_mastery rows for the class
- * @param {string} topic
- * @param {number} [threshold]   mastery score below which a scholar is "struggling" (default 0.4)
- * @returns {array}              { scholar_id, mastery_score, attempts_total }
- */
 export function getStrugglingStudents(masteryRows, topic, threshold = 0.4) {
   return masteryRows
     .filter(r => r.topic === topic && (r.mastery_score ?? 0) < threshold)
@@ -718,28 +618,17 @@ export function getStrugglingStudents(masteryRows, topic, threshold = 0.4) {
     .sort((a, b) => a.mastery_score - b.mastery_score);
 }
 
-/**
- * Generate group-level recommendations for a teacher.
- * Returns the top N topics to focus on next, with suggested tier and rationale.
- *
- * @param {array}  masteryRows   all scholar_topic_mastery rows for the class
- * @param {string} subject
- * @param {number} [topN]        how many recommendations to return (default 3)
- * @param {object} [sequence]
- * @returns {array}              { topic, display_name, strand, rationale, suggested_tier, pct_struggling }
- */
 export function getGroupRecommendations(masteryRows, subject, topN = 3, sequence = null) {
   const aggregated = aggregateClassMastery(masteryRows, subject, sequence);
 
-  // Focus on topics where >30% of the class is struggling and not yet mastered by most
   const candidates = aggregated.filter(t =>
     t.pct_struggling > 30 && t.pct_mastered < 70 && t.scholar_count > 0
   );
 
   return candidates.slice(0, topN).map(t => {
-    const tier = t.avg_mastery < 0.3  ? 'developing'
-               : t.avg_mastery < 0.6  ? 'expected'
-               :                         'exceeding';
+    const tier = t.avg_mastery < 0.3 ? 'developing'
+               : t.avg_mastery < 0.6 ? 'expected'
+               :                        'exceeding';
 
     const rationale = t.pct_struggling > 60
       ? `${t.pct_struggling}% of the class is struggling — consider a group lesson`
@@ -760,58 +649,33 @@ export function getGroupRecommendations(masteryRows, subject, topN = 3, sequence
 }
 
 // ─── LTI / API SHAPE ──────────────────────────────────────────────────────────
-/**
- * Serialise a scholar's current learning state into a portable object
- * suitable for LTI 1.3 responses, REST API endpoints, and webhook payloads.
- *
- * This is a pure transform — no DB calls. Pass in pre-fetched data.
- * The shape is intentionally stable: adding fields is safe, removing is a breaking change.
- *
- * @param {object} params
- * @param {object} params.scholar         scholars row
- * @param {object} params.learningPath    scholar_learning_path row
- * @param {array}  params.masteryRecords  scholar_topic_mastery rows
- * @param {string} params.subject
- * @param {object} [params.sequence]
- * @returns {object}  LTI-compatible learning state payload
- */
+
 export function serialiseLearningState({ scholar, learningPath, masteryRecords, subject, sequence = null }) {
   const { score, label: readinessLabel } = estimateExamReadiness(masteryRecords, subject, sequence);
-  const currentTopic = learningPath?.current_topic ?? null;
+  const currentTopic  = learningPath?.current_topic ?? null;
   const completionPct = learningPath?.completion_pct ?? 0;
 
   const masteryMap = {};
   for (const r of masteryRecords) masteryMap[r.topic] = r.mastery_score;
 
   return {
-    // Scholar identifiers (safe for external systems)
-    scholar_id:       scholar.id,
-    display_name:     scholar.name,
-    year_group:       scholar.year_group,
-    curriculum:       scholar.curriculum,
-
-    // Current learning state
+    scholar_id:      scholar.id,
+    display_name:    scholar.name,
+    year_group:      scholar.year_group,
+    curriculum:      scholar.curriculum,
     subject,
-    current_topic:    currentTopic,
-    next_milestone:   learningPath?.next_milestone ?? null,
-    completion_pct:   completionPct,
-
-    // Readiness
-    exam_readiness:   { score, label: readinessLabel },
-
-    // Per-topic mastery summary (for LMS grade passback)
-    topic_mastery:    masteryMap,
-
-    // Recommended next action (for LTI deep linking)
+    current_topic:   currentTopic,
+    next_milestone:  learningPath?.next_milestone ?? null,
+    completion_pct:  completionPct,
+    exam_readiness:  { score, label: readinessLabel },
+    topic_mastery:   masteryMap,
     recommended_action: {
-      type:    'quiz',
+      type:  'quiz',
       subject,
-      topic:   currentTopic,
-      tier:    masteryMap[currentTopic] != null ? masteryToTier(masteryMap[currentTopic]) : 'developing',
+      topic: currentTopic,
+      tier:  masteryMap[currentTopic] != null ? masteryToTier(masteryMap[currentTopic]) : 'developing',
     },
-
-    // Metadata
-    generated_at: new Date().toISOString(),
-    schema_version: '1.0',
+    generated_at:    new Date().toISOString(),
+    schema_version:  '1.0',
   };
 }
