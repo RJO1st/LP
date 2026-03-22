@@ -1452,6 +1452,9 @@ const UK_NATIONAL_SUBJECTS = {
               localStorage.setItem("active_scholar", JSON.stringify(updated));
             }}
             onStartRevisionTopic={(topic) => launchQuest(subjects[0] || "mathematics")}
+            leaderboard={leaderboard}
+            scholarId={scholar.id}
+            supabase={supabase}
           />
         </ThemeProvider>
       ) : (

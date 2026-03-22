@@ -962,7 +962,28 @@ export default function ParentDashboard() {
                       {isCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
                     </button>
                   </div>
-
+                  {/* Exam date — KS3/KS4 only */}
+                  {parseInt(scholar.year_level || scholar.year || 0) >= 7 && (
+                    <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                      <div className="flex-1">
+                        <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Exam Date</div>
+                        <input
+                          type="date"
+                          value={scholar.exam_date || ""}
+                          onChange={async (e) => {
+                            await supabase.from("scholars").update({ exam_date: e.target.value }).eq("id", scholar.id);
+                            fetchScholars();
+                          }}
+                          className="text-sm font-bold text-slate-700 bg-transparent border-none outline-none w-full"
+                        />
+                      </div>
+                      {scholar.exam_date && (
+                        <span className="text-xs font-bold text-indigo-600 whitespace-nowrap">
+                          {Math.max(0, Math.ceil((new Date(scholar.exam_date) - new Date()) / 86400000))}d left
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {/* Progress insights — expandable */}
                   <div className="rounded-xl border border-indigo-100 overflow-hidden">
                     <button

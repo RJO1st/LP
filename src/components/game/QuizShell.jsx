@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import TaraEIB from "./TaraEIB";
 import AnswerReview from "../AnswerReview";
+import AdaptiveTimer from './AdaptiveTimer';
 
 // Lazy-load certificate (only needed on Distinction)
 const MasteryCertificate = lazy(() => import("./MasteryCertificate"));
@@ -174,7 +175,7 @@ export function EngineHeader({
   Icon, bg, border, textColor, accent, btnClass,
   label, qIdx = 0, totalQuestions = 10, timeLeft, onClose,
   // new props (optional, falls back gracefully)
-  subject, total,
+  subject, total, yearLevel, totalTime,
 }) {
   const labels   = getSubjectLabels(subject);
   const colors   = getColors(subject);
@@ -222,11 +223,15 @@ export function EngineHeader({
           <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
             {qIdx + 1} / {count}
           </span>
-          {timeLeft != null && (
-            <span className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${timerCls}`}>
-              <Clock size={11} />
-              {fmtTime(timeLeft)}
-            </span>
+         {timeLeft != null && (
+            yearLevel ? (
+              <AdaptiveTimer timeLeft={timeLeft} total={totalTime || 45} yearLevel={yearLevel} />
+            ) : (
+              <span className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${timerCls}`}>
+                <Clock size={11} />
+                {fmtTime(timeLeft)}
+              </span>
+            )
           )}
           <button onClick={() => onClose?.()} className="text-slate-400 hover:text-rose-500 transition-colors ml-1">
             <XCircle size={22} />

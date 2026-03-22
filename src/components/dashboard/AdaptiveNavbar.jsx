@@ -14,6 +14,7 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import DarkModeToggle from "./DarkModeToggle";
 
 export default function AdaptiveNavbar({ xp = 0, onMenu }) {
   const { band, theme: t } = useTheme();
@@ -87,6 +88,11 @@ export default function AdaptiveNavbar({ xp = 0, onMenu }) {
       >
         {t.xpIcon} {xp.toLocaleString()} {t.xpName}
       </div>
+      {/* Dark mode toggle — KS4 only */}
+      <DarkModeToggle onToggle={(isDark) => {
+        // Future: propagate to ThemeProvider to swap KS4 colours
+        document.documentElement.style.setProperty('--lp-dark', isDark ? '1' : '0');
+      }} />
     </div>
   );
 }

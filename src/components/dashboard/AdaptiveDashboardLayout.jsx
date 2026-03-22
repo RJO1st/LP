@@ -1,10 +1,11 @@
 "use client";
 /**
- * AdaptiveDashboardLayout.jsx (v4)
+ * AdaptiveDashboardLayout.jsx (v5)
  * Deploy to: src/components/dashboard/AdaptiveDashboardLayout.jsx
  *
- * v4: Wider max-width. No rainbow emoji. DailyAdventure dynamic by subject.
- *     Active subject state lifted here so DailyAdventure + SkillMap + Start button sync.
+ * v5: 2-column grid layout on desktop. Responsive single column on mobile.
+ *     Left: greeting, stats, skill map, daily adventure
+ *     Right: pet, leaderboard, journal, career/exam, revision, flashcards, mock
  */
 
 import React, { useState } from "react";
@@ -23,6 +24,9 @@ import RevisionPlanner from "./RevisionPlanner";
 import PeerComparison from "./PeerComparison";
 import MockTestLauncher from "./MockTestLauncher";
 import AdaptiveStartButton from "./AdaptiveStartButton";
+import AdaptiveLeaderboard from "./AdaptiveLeaderboard";
+import DigitalPet from "./DigitalPet";
+import GoalSetting from "./GoalSetting";
 
 const SUBJECT_LABELS = {
   mathematics: "Maths", maths: "Maths", english: "English",
@@ -30,9 +34,6 @@ const SUBJECT_LABELS = {
   verbal_reasoning: "Verbal Reasoning", non_verbal_reasoning: "NVR",
   history: "History", geography: "Geography", computing: "Computing",
   physics: "Physics", chemistry: "Chemistry", biology: "Biology",
-  religious_studies: "Religious Studies",
-religious_education: "Religious Education",
-design_and_technology: "Design & Technology",
 };
 
 export default function AdaptiveDashboardLayout({
@@ -49,6 +50,9 @@ export default function AdaptiveDashboardLayout({
   masteryData = [],
   peerComparisons = [],
   pastMocks = [],
+  leaderboard = [],
+  scholarId,
+  supabase,
   onStartQuest,
   onTopicClick,
   onDismissEncourage,
@@ -60,11 +64,6 @@ export default function AdaptiveDashboardLayout({
 }) {
   const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
-
-  // Wider layout for better subject tab display
-  const maxWidth = band === "ks4" ? 640 : band === "ks3" ? 600 : 580;
-
-  const activeLabel = SUBJECT_LABELS[activeSubject] || activeSubject.replace(/_/g, " ");
 
   return (
     <div style={{
@@ -81,100 +80,157 @@ export default function AdaptiveDashboardLayout({
       <AdaptiveNavbar xp={stats.xp ?? 0} />
 
       <div style={{
-        maxWidth,
+        maxWidth: 1100,
         margin: "0 auto",
         padding: "0 16px 40px",
-        display: "flex",
-        flexDirection: "column",
-        gap: band === "ks1" ? 18 : 14,
       }}>
-        <AdaptiveGreeting
-          scholarName={scholar.name}
-          streak={stats.streak ?? 0}
-          xp={stats.xp ?? 0}
-          yearLevel={scholar.year_level}
-          examName={examData?.examName}
-          daysUntilExam={examData?.daysUntilExam}
-        />
-
-        <AdaptiveStats stats={stats} />
-
-        {/* Daily Adventure — dynamic by active subject */}
-        {dailyAdventure && (
-          <DailyAdventure
-            totalQuestions={dailyAdventure.totalQuestions}
-            completed={dailyAdventure.completed}
-            subject={activeSubject}
-            topic={topics.find(t => t.subject === activeSubject && t.status === "current")?.slug || ""}
-            onStart={() => onStartAdventure?.(activeSubject)}
-          />
-        )}
-
-        {encouragement && (
-          <TaraEncouragement
-            message={encouragement.text}
-            visible={encouragement.visible !== false}
-            onDismiss={onDismissEncourage}
-          />
-        )}
-
-        {(band === "ks3" || band === "ks4") && (
-          <ExamModeSwitch
-            currentMode={scholar.exam_mode || "general"}
-            curriculum={scholar.curriculum}
-            onSwitch={onExamModeSwitch}
-          />
-        )}
-
-        <SkillMap
-          topics={topics}
-          subjects={subjects}
-          subject={activeSubject}
-          onTopicClick={onTopicClick}
-          onSubjectChange={setActiveSubject}
-        />
-
-        {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
-
-        <QuestJournal entries={journalEntries} />
-
-        {careerTopic && (
-          <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
-        )}
-
-        {examData && (
-          <ExamPanel
-            predictedGrade={examData.predictedGrade}
-            previousGrade={examData.previousGrade}
-            examName={examData.examName}
-            daysUntilExam={examData.daysUntilExam}
-            topicsRemaining={examData.topicsRemaining}
-            mocksCompleted={examData.mocksCompleted}
-            revisionPlan={examData.revisionPlan ?? []}
-          />
-        )}
-
-        {masteryData.length > 0 && (band === "ks3" || band === "ks4") && (
-          <RevisionPlanner
-            masteryData={masteryData}
-            examDate={examData?.examDate}
+        {/* ── TOP: Greeting + Stats (full width) ────────────────────── */}
+        <div style={{ marginBottom: 16 }}>
+          <AdaptiveGreeting
+            scholarName={scholar.name}
+            streak={stats.streak ?? 0}
+            xp={stats.xp ?? 0}
+            yearLevel={scholar.year_level}
             examName={examData?.examName}
-            onStartTopic={onStartRevisionTopic}
+            daysUntilExam={examData?.daysUntilExam}
           />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <AdaptiveStats stats={stats} />
+        </div>
+
+        {/* ── Tara encouragement (full width) ────────────────────────── */}
+        {encouragement && (
+          <div style={{ marginBottom: 16 }}>
+            <TaraEncouragement
+              message={encouragement.text}
+              visible={encouragement.visible !== false}
+              onDismiss={onDismissEncourage}
+            />
+          </div>
         )}
 
-        {(band === "ks3" || band === "ks4") && (
-          <MockTestLauncher
-            subject={activeSubject?.toLowerCase() || "mathematics"}
-            curriculum={scholar.curriculum}
-            examMode={scholar.exam_mode || "general"}
-            pastMocks={pastMocks}
-            onStartMock={onStartMock}
-          />
-        )}
+        {/* ── MAIN GRID: 2 columns on desktop ────────────────────────── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 16,
+        }}>
+          {/* Desktop: 2-column layout */}
+          <style>{`
+            @media (min-width: 768px) {
+              .lp-dash-grid { grid-template-columns: 3fr 2fr !important; }
+            }
+          `}</style>
+          <div className="lp-dash-grid" style={{
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: 16,
+          }}>
 
-        {/* Start quest button — launches the active subject */}
-        <AdaptiveStartButton onClick={() => onStartQuest?.(activeSubject)} />
+            {/* ═══ LEFT COLUMN ═══════════════════════════════════════ */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Daily Adventure — KS1 */}
+              {dailyAdventure && (
+                <DailyAdventure
+                  totalQuestions={dailyAdventure.totalQuestions}
+                  completed={dailyAdventure.completed}
+                  subject={activeSubject}
+                  topic={topics.find(t => t.subject === activeSubject && t.status === "current")?.slug || ""}
+                  onStart={() => onStartAdventure?.(activeSubject)}
+                />
+              )}
+
+              {/* Exam mode switch — KS3/KS4 */}
+              {(band === "ks3" || band === "ks4") && (
+                <ExamModeSwitch
+                  currentMode={scholar.exam_mode || "general"}
+                  curriculum={scholar.curriculum}
+                  onSwitch={onExamModeSwitch}
+                />
+              )}
+
+              {/* Skill Map with subject tabs */}
+              <SkillMap
+                topics={topics}
+                subjects={subjects}
+                subject={activeSubject}
+                onTopicClick={onTopicClick}
+                onSubjectChange={setActiveSubject}
+              />
+
+              {/* Quest Journal — KS1+KS2 */}
+              <QuestJournal entries={journalEntries} />
+
+              {/* Revision Planner — KS3/KS4 */}
+              {masteryData.length > 0 && (band === "ks3" || band === "ks4") && (
+                <RevisionPlanner
+                  masteryData={masteryData}
+                  examDate={examData?.examDate}
+                  examName={examData?.examName}
+                  onStartTopic={onStartRevisionTopic}
+                />
+              )}
+            </div>
+
+            {/* ═══ RIGHT COLUMN ══════════════════════════════════════ */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Digital Pet — KS1/KS2 */}
+              <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
+
+              {/* Exam Panel — KS4 */}
+              {examData && (
+                <ExamPanel
+                  predictedGrade={examData.predictedGrade}
+                  previousGrade={examData.previousGrade}
+                  examName={examData.examName}
+                  daysUntilExam={examData.daysUntilExam}
+                  topicsRemaining={examData.topicsRemaining}
+                  mocksCompleted={examData.mocksCompleted}
+                  revisionPlan={examData.revisionPlan ?? []}
+                />
+              )}
+
+              {/* Leaderboard */}
+              <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+
+              {/* Peer Comparison — KS3/KS4 */}
+              {peerComparisons.length > 0 && (
+                <PeerComparison comparisons={peerComparisons} />
+              )}
+
+              {/* Goal Setting — KS3 */}
+              <GoalSetting scholarId={scholarId} stats={stats} />
+
+              {/* Career Popup — KS2/KS3 */}
+              {careerTopic && (
+                <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
+              )}
+
+              {/* Mock Test Launcher — KS3/KS4 */}
+              {(band === "ks3" || band === "ks4") && (
+                <MockTestLauncher
+                  subject={activeSubject?.toLowerCase() || "mathematics"}
+                  curriculum={scholar.curriculum}
+                  examMode={scholar.exam_mode || "general"}
+                  pastMocks={pastMocks}
+                  onStartMock={onStartMock}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── START QUEST CTA (full width) ───────────────────────────── */}
+        <div style={{ marginTop: 16 }}>
+          <AdaptiveStartButton
+            onClick={() => onStartQuest?.(activeSubject)}
+            subject={activeSubject}
+          />
+        </div>
       </div>
     </div>
   );

@@ -235,7 +235,9 @@ export default function useDashboardData(scholar, supabase) {
         setExamData({
           predictedGrade: estimateGrade(masteryPct), previousGrade: null,
           examName: scholar?.exam_mode === "gcse" ? "GCSE" : scholar?.exam_mode === "waec" ? "WAEC" : "Exam",
-          daysUntilExam: 42, topicsRemaining: allTopics.length - mastered,
+          daysUntilExam: scholar?.exam_date
+  ? Math.max(0, Math.ceil((new Date(scholar.exam_date) - new Date()) / (1000 * 60 * 60 * 24)))
+  : null, topicsRemaining: allTopics.length - mastered,
           mocksCompleted: quizzes.filter(q => q.details?.mock).length,
           revisionPlan: buildRevisionPlan(masteryRows),
         });

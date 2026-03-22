@@ -4,13 +4,17 @@
 // POST   /api/reminders                    → create/update reminder
 // DELETE /api/reminders?scholar_id=xxx     → disable reminder
 
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  { cookies: { getAll: () => cookieStore.getAll() } }
+);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scholarId = req.nextUrl.searchParams.get("scholar_id");

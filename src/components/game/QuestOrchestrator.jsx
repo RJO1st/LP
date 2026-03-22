@@ -36,6 +36,7 @@ import { useReadAloud }            from "@/hooks/useReadAloud";
 import { getQuestFrame, getTimerConfig, getSubmitLabel,
          getNextLabel, getRewardLabel, getTaraFeedback } from '@/lib/questOrchestratorAdapter';
 import KeyboardShortcuts from '@/components/game/KeyboardShortcuts';
+import AdaptiveTimer from './AdaptiveTimer';
 
 const XP_PER_QUESTION = 10;
 
@@ -739,7 +740,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
         {/* ── HEADER — full width, coloured accent bar ── */}
         <EngineHeader
-          Icon={theme.Icon}
+           Icon={theme.Icon}
           subject={subject}
           bg={theme.bg}
           border={theme.border}
@@ -750,6 +751,8 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
           qIdx={qIdx}
           totalQuestions={sessionQuestions.length}
           timeLeft={timeLeft}
+          totalTime={perQTimer}
+          yearLevel={student?.year_level}
           onClose={onClose}
         />
 
