@@ -239,12 +239,20 @@ function hasMathsVisual(question, subject) {
   if (!isMaths && !isScience && !isNVR && !isEnglish) return false;
 
   // ── NVR / VERBAL REASONING ────────────────────────────────────────────────────
-  if (isNVR && /circle|square|triangle|diamond|star|cross|grow|shrink|larger|smaller|alternate|fill|rectangle|pentagon|hexagon|octagon/i.test(text)) return true;
-  if (isNVR && /how many sides|how many corners|how many edges|how many vertices|what shape|which shape|sides does|corners does/i.test(text)) return true;
-  if (isNVR && /sequence|series|pattern|next in|matrix|odd one out/i.test(text)) return true;
-  // VR-specific: letter/alphabet sequences (AlphabetStripVis) + analogies
-  if (isNVR && /letter|alphabet|next.*letter|[A-Z]\s+[A-Z]\s+[A-Z]/i.test(text)) return true;
-  if (isNVR && (topic.includes("analogy") || /is to.*as|analogy/i.test(text))) return true;
+  if (/how many sides|how many corners|how many edges|how many vertices|what shape|which shape|sides does|corners does/i.test(text)) return true;
+    // Sequence/pattern questions — NVRVisuals handles these
+    if (/sequence|series|next in|what comes next/i.test(text) && /circle|square|triangle|rectangle|pentagon|hexagon/i.test(text)) return true;
+    // Matrix questions
+    if (/matrix|grid.*pattern/i.test(text)) return true;
+    // Odd one out with named shapes
+    if (/odd one out|does not belong|which.*different/i.test(text) && /circle|square|triangle|rectangle/i.test(text)) return true;
+    // Reflection of letters — NVRReflectionVis handles these
+    if (/reflect.*letter|letter.*reflect|mirror.*letter/i.test(text)) return true;
+    // Rotation with degrees — NVRRotationVis handles these
+    if (/rotat.*\d+\s*degree|turn.*\d+\s*degree|\d+\s*degree.*rotat/i.test(text)) return true;
+    // Folding nets — NVRNetVis handles these
+    if (/net.*fold|fold.*net|which net|net of a/i.test(text)) return true;
+ 
 
   // ── SCIENCE ──────────────────────────────────────────────────────────────────
   if (isScience) {

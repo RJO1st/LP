@@ -417,6 +417,90 @@ export function NVRMatrixVis({ cells }) {
   );
 }
 
+export function NVRShapeReflectionVis({ shape = "flag", horizontal = false, direction = "right" }) {
+  const W = 240, H = 120;
+  const midX = W / 2, midY = H / 2;
+ 
+  const shapes = {
+    flag: (x, y, dir) => {
+      const pole = `M${x},${y - 30} L${x},${y + 30}`;
+      const flag = dir === "right" ? `M${x},${y - 30} L${x + 25},${y - 15} L${x},${y}Z`
+        : dir === "left" ? `M${x},${y - 30} L${x - 25},${y - 15} L${x},${y}Z`
+        : dir === "up" ? `M${x - 15},${y} L${x},${y - 25} L${x + 15},${y}Z`
+        : `M${x - 15},${y} L${x},${y + 25} L${x + 15},${y}Z`;
+      return { pole, flag };
+    },
+    arrow: (x, y, dir) => {
+      const pts = {
+        right: `${x-15},${y-8} ${x+5},${y-8} ${x+5},${y-16} ${x+20},${y} ${x+5},${y+16} ${x+5},${y+8} ${x-15},${y+8}`,
+        left: `${x+15},${y-8} ${x-5},${y-8} ${x-5},${y-16} ${x-20},${y} ${x-5},${y+16} ${x-5},${y+8} ${x+15},${y+8}`,
+        up: `${x-8},${y+15} ${x-8},${y-5} ${x-16},${y-5} ${x},${y-20} ${x+16},${y-5} ${x+8},${y-5} ${x+8},${y+15}`,
+        down: `${x-8},${y-15} ${x-8},${y+5} ${x-16},${y+5} ${x},${y+20} ${x+16},${y+5} ${x+8},${y+5} ${x+8},${y-15}`,
+      };
+      return { polygon: pts[dir] || pts.right };
+    },
+    triangle: (x, y, dir) => {
+      const pts = {
+        right: `${x-15},${y-18} ${x+18},${y} ${x-15},${y+18}`,
+        left: `${x+15},${y-18} ${x-18},${y} ${x+15},${y+18}`,
+        up: `${x-18},${y+15} ${x},${y-18} ${x+18},${y+15}`,
+        down: `${x-18},${y-15} ${x},${y+18} ${x+18},${y-15}`,
+      };
+      return { polygon: pts[dir] || pts.right };
+    },
+    square: (x, y) => ({ rect: { x: x-15, y: y-15, w: 30, h: 30 } }),
+  };
+ 
+  const shapeGen = shapes[shape] || shapes.triangle;
+  const origX = horizontal ? midX : midX - 55;
+  const origY = horizontal ? midY - 30 : midY;
+ 
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:"12px 8px" }}>
+      <span style={{ fontSize:9, fontWeight:700, color:"#64748b", letterSpacing:1, textTransform:"uppercase" }}>
+        {horizontal ? "Horizontal" : "Vertical"} Reflection
+      </span>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {(() => {
+          const s = shapeGen(origX, origY, direction);
+          return (
+            <g>
+              {s.pole && <path d={s.pole} stroke="#6366f1" strokeWidth={3} fill="none" strokeLinecap="round" />}
+              {s.flag && <path d={s.flag} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
+              {s.polygon && <polygon points={s.polygon} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
+              {s.rect && <rect x={s.rect.x} y={s.rect.y} width={s.rect.w} height={s.rect.h} fill="#818cf8" stroke="#6366f1" strokeWidth={2} rx={3} />}
+            </g>
+          );
+        })()}
+        {horizontal ? (
+          <>
+            <line x1={20} y1={midY} x2={W-20} y2={midY} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
+            <text x={W-16} y={midY-4} fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
+          </>
+        ) : (
+          <>
+            <line x1={midX} y1={10} x2={midX} y2={H-10} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
+            <text x={midX} y={8} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
+          </>
+        )}
+        {(() => {
+          const refX = horizontal ? origX : midX + 55;
+          const refY = horizontal ? midY + 30 : origY;
+          return (
+            <g>
+              <circle cx={refX} cy={refY} r={22} fill="#f1f5f9" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="4,3" />
+              <text x={refX} y={refY+6} textAnchor="middle" fontSize={22} fontWeight={900} fill="#f59e0b">?</text>
+            </g>
+          );
+        })()}
+        <text x={origX} y={origY+40} textAnchor="middle" fontSize={9} fontWeight={700} fill="#6366f1">Original</text>
+      </svg>
+      <span style={{ fontSize:10, fontWeight:700, color:"#6366f1", background:"#eef2ff", padding:"3px 10px", borderRadius:8, border:"1px solid #c7d2fe" }}>
+        Which is the correct reflection?
+      </span>
+    </div>
+  );
+}
 
 export function NVRPaperFoldVis({ foldType = "half_vertical", punchPositions = [[0.5, 0.5]] }) {
   const W = 180, H = 150;

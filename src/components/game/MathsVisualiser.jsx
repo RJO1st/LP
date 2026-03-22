@@ -10,7 +10,7 @@ import React, { useMemo } from "react";
 // These were extracted from this file for maintainability.
 // Each module is self-contained with its own design tokens.
 import { ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis, StateChangesVis, PHScaleVis, MoleculeVis, CellVis, PunnettVis, EnergyStoresVis, WaveVis, EMSpectrumVis, FreeBodyVis } from "./ScienceVisuals";
-import { NVRShapeItem, NVRVis, NVRShapePropertyVis, NVRReflectionVis, NVRNetVis, NVRRotationVis, NVROddOneOutVis, NVRMatrixVis, NVRPaperFoldVis } from "./NVRVisuals";
+import { NVRShapeItem, NVRVis, NVRShapePropertyVis, NVRReflectionVis, NVRNetVis, NVRRotationVis, NVROddOneOutVis, NVRMatrixVis, NVRPaperFoldVis, NVRShapeReflectionVis } from "./NVRVisuals";
 import { CoordinateVis, AngleVis, AngleOnLineDiagram, TriangleAngleDiagram, AnglesAtPointDiagram, VerticallyOppositeDiagram, AreaVis, RulerVis, FormulaTriangleVis } from "./GeometryVisuals";
 import { TAccountVis, BreakEvenVis, SupplyDemandVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
 import InteractiveGraph from "./InteractiveGraph";
@@ -488,11 +488,21 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     }
 
     // ── Reflection / mirror ─────────────────────────────────────────────────
-    if (/reflect|mirror/i.test(questionText)) {
-      // Extract the letter/shape being reflected if present
-      const letterM = (questionText || "").match(/reflection of ['"]?([a-z])['"]?/i);
-      const letter  = letterM ? letterM[1].toUpperCase() : "d";
-      return { type: "nvr_reflection", letter };
+    if (/reflect|mirror|flip/i.test(questionText)) {
+      const letterM = questionText.match(/(?:letter|the)\s+[''""]?([A-Za-z])[''""]?/i)
+                   || questionText.match(/reflection of\s+[''""]?([A-Za-z])[''""]?/i)
+                   || questionText.match(/[''""]([A-Za-z])[''""] is (?:reflected|mirrored|flipped)/i);
+      if (letterM) {
+        return { type: "nvr_reflection", letter: letterM[1].toUpperCase() };
+      }
+      const shapeM = questionText.match(/(flag|arrow|triangle|square|circle|star|cross|L.shape|T.shape)/i);
+      if (shapeM) {
+        const shape = shapeM[1].toLowerCase();
+        const isHorizontal = /horizontal|across a horizontal/i.test(questionText);
+        const direction = questionText.match(/pointing\s+(right|left|up|down)/i)?.[1]?.toLowerCase() || "right";
+        return { type: "nvr_shape_reflection", shape, horizontal: isHorizontal, direction };
+      }
+      return { type: "nvr_reflection", letter: "F" };
     }
 
     // ── 3D nets / folding ────────────────────────────────────────────────────
@@ -596,7 +606,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     const whole = Math.max(...nums.slice(0,3));
     const parts = nums.filter(n => n < whole);
     if (parts.length >= 1) {
-      return { type: "number_bond", whole, partA: parts[0], partB: whole - parts[0] };
+      return { type: "number_bond", whole, partA: parts[0], partB: null };
     }
     // Single number: show whole with two unknown parts
     return { type: "number_bond", whole, partA: null, partB: null };
@@ -1752,6 +1762,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "formula_triangle": return `Formula triangle: ${visual.title || ""}`;
       case "nvr":              return `Non-verbal reasoning pattern sequence`;
       case "nvr_reflection":   return `Mirror reflection visual`;
+      case "nvr_shape_reflection": return `Shape reflection: ${visual.shape} reflected ${visual.horizontal ? "horizontally" : "vertically"}`;
       case "nvr_net":          return `3D net of a ${visual.shape3d}`;
       case "nvr_rotation":     return `Rotation ${visual.degrees} degrees ${visual.clockwise?"clockwise":"anti-clockwise"}`;
       case "nvr_oddoneout":    return `Odd one out visual`;
@@ -1778,6 +1789,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "counting":        return <CountingVis       {...visual} />;
       case "nvr":             return <NVRVis            {...visual} />;
       case "nvr_reflection":  return <NVRReflectionVis  {...visual} />;
+      case "nvr_shape_reflection": return <NVRShapeReflectionVis shape={visual.shape} horizontal={visual.horizontal} direction={visual.direction} />;
       case "nvr_net":         return <NVRNetVis          {...visual} />;
       case "nvr_rotation":    return <NVRRotationVis     {...visual} />;
       case "nvr_oddoneout":   return <NVROddOneOutVis />;

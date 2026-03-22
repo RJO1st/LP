@@ -1439,7 +1439,7 @@ const UK_NATIONAL_SUBJECTS = {
             masteryData={adaptiveData.masteryData}
             peerComparisons={adaptiveData.peerComparisons}
             pastMocks={adaptiveData.pastMocks}
-            onStartQuest={() => launchQuest(subjects[0] || "mathematics")}
+            onStartQuest={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
             onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics")}
             onDismissEncourage={() => {}}
             onDismissCareer={() => {}}
@@ -1451,7 +1451,7 @@ const UK_NATIONAL_SUBJECTS = {
               setScholar(updated);
               localStorage.setItem("active_scholar", JSON.stringify(updated));
             }}
-            onStartRevisionTopic={(topic) => launchQuest(subjects[0] || "mathematics")}
+            onStartRevisionTopic={(topic) => launchQuest(topic || subjects[0] || "mathematics")}
             leaderboard={leaderboard}
             scholarId={scholar.id}
             supabase={supabase}

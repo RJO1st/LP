@@ -5,8 +5,8 @@ import Script from 'next/script';
 
 
 export const metadata = {
-  title: 'LaunchPard — Where Education Becomes Adventure',
-  description: 'AI-powered learning that adapts to your child. Adaptive learning, instant feedback, and space-themed missions.',
+  title: 'LaunchPard — One Platform, Every Scholar',
+  description: 'The AI-powered learning engine that adapts to your child. Personalized learning journeys, real-time feedback, and engaging quests. Empower your child to reach their full potential with LaunchPard.',
   icons: {
     icon: '/favicon.svg',
     apple: '/logo192.png',

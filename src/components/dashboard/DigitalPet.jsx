@@ -19,36 +19,36 @@ const PET_TYPES = [
     name: "Starling",
     stages: [
       { emoji: "🥚", label: "Egg", minXp: 0 },
-      { emoji: "🐣", label: "Hatchling", minXp: 100 },
-      { emoji: "🐥", label: "Chick", minXp: 500 },
-      { emoji: "🦅", label: "Eagle", minXp: 2000 },
+      { emoji: "🐣", label: "Hatchling", minXp: 500 },
+      { emoji: "🐥", label: "Chick", minXp: 2500 },
+      { emoji: "🦅", label: "Eagle", minXp: 10000 },
     ],
   },
   {
     name: "Cosmo",
     stages: [
       { emoji: "🌑", label: "Seed", minXp: 0 },
-      { emoji: "🌱", label: "Sprout", minXp: 100 },
-      { emoji: "🌿", label: "Sapling", minXp: 500 },
-      { emoji: "🌳", label: "Great Tree", minXp: 2000 },
+      { emoji: "🌱", label: "Sprout", minXp: 500 },
+      { emoji: "🌿", label: "Sapling", minXp: 2500 },
+      { emoji: "🌳", label: "Great Tree", minXp: 10000 },
     ],
   },
   {
     name: "Blaze",
     stages: [
       { emoji: "💫", label: "Spark", minXp: 0 },
-      { emoji: "🔥", label: "Flame", minXp: 100 },
-      { emoji: "☀️", label: "Sun", minXp: 500 },
-      { emoji: "⭐", label: "Supernova", minXp: 2000 },
+      { emoji: "🔥", label: "Flame", minXp: 500 },
+      { emoji: "☀️", label: "Sun", minXp: 2500 },
+      { emoji: "⭐", label: "Supernova", minXp: 10000 },
     ],
   },
   {
     name: "Buddy",
     stages: [
       { emoji: "🫧", label: "Bubble", minXp: 0 },
-      { emoji: "🐾", label: "Paw Print", minXp: 100 },
-      { emoji: "🐶", label: "Puppy", minXp: 500 },
-      { emoji: "🦁", label: "Lion", minXp: 2000 },
+      { emoji: "🐾", label: "Paw Print", minXp: 500 },
+      { emoji: "🐶", label: "Puppy", minXp: 2500 },
+      { emoji: "🦁", label: "Lion", minXp: 10000 },
     ],
   },
 ];
