@@ -764,6 +764,19 @@ export default function ParentDashboard() {
           });
         } catch (emailError) { console.error("Email send failed:", emailError); }
 
+        // Sync curriculum to Brevo contact list (non-blocking)
+        fetch('/api/brevo/sync-contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            firstName: (user.user_metadata?.full_name || '').split(' ')[0],
+            lastName: (user.user_metadata?.full_name || '').split(' ').slice(1).join(' '),
+            curriculum: newCurriculum,
+            source: 'scholar_added',
+          }),
+        }).catch(() => {});
+
         setScholars(prev => [...prev, data]);
         setNewName(""); setNewCurriculum("uk_national"); setNewGrade(1);
         setNewProvince(""); setNewStream(""); setNewTrade("");
@@ -1056,7 +1069,7 @@ export default function ParentDashboard() {
                   onChange={e => setNewName(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 placeholder:text-slate-300 transition-colors"
                 />
-
+                
                 <div>
                   <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">Curriculum</label>
                   <div className="grid grid-cols-3 gap-1.5">
