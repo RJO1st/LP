@@ -81,7 +81,7 @@ function LoginForm() {
 
       const { data: scholars, error: fetchError } = await supabase
         .from("scholars")
-        .select("*, parents(id, email)")
+        .select("*")
         .eq("access_code", code)
         .limit(1);
 
