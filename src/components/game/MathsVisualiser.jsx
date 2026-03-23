@@ -15,6 +15,8 @@ import { CoordinateVis, AngleVis, AngleOnLineDiagram, TriangleAngleDiagram, Angl
 import { TAccountVis, BreakEvenVis, SupplyDemandVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
 import { CompassVis, MapGridVis, ClimateGraphVis, LayerDiagramVis, WaterCycleVis, TimelineVis, SourceAnalysisVis, MapRegionVis} from "./GeographyHistoryVisuals";
 import { HumanBodyVis, SolarSystemVis, ClassificationKeyVis, LightDiagramVis, ElectricalSymbolsVis, MagnetVis, PhotosynthesisVis, RespirationVis} from "./ScienceVisuals_Ext";
+import { SentenceStructureVis, SpellingPatternVis, PunctuationVis, WordClassVis } from "./EnglishVisuals";
+import { NVRShapeRotationVis, NVRCodeVis, NVRPlanElevationVis } from "./NVRVisuals_Ext";
 import InteractiveGraph from "./InteractiveGraph";
 import DataTable from "./DataTable";
 import LongMultiplication from "./LongMultiplication";
@@ -1002,6 +1004,155 @@ function AlphabetStripVis({ highlighted, offset }) {
     </div>
   );
 }
+// ── English / Grammar Visualiser ─────────────────────────────────────────────
+function parseEnglish(topic, questionText, yearLevel) {
+  const t = (topic || "").toLowerCase();
+  const q = (questionText || "").toLowerCase();
+ 
+  // Sentence structure / clauses
+  if (t.includes("clause") || t.includes("sentence_type") || t.includes("sentence_structure") ||
+      /main clause|subordinate clause|relative clause|compound sentence|complex sentence|simple sentence/i.test(questionText)) {
+    // Try to extract sentence and identify clauses from question text
+    const parts = [];
+    // Look for quoted sentence
+    const sentenceMatch = (questionText || "").match(/['"]([^'"]{10,80})['"]/);
+    if (sentenceMatch) {
+      const sentence = sentenceMatch[1];
+      // Split on conjunctions
+      const conjunctions = /\b(because|although|when|while|if|since|after|before|until|unless|so|but|and|which|who|that)\b/i;
+      const splitParts = sentence.split(conjunctions);
+      splitParts.forEach((part, i) => {
+        const trimmed = part.trim();
+        if (!trimmed) return;
+        if (conjunctions.test(trimmed)) {
+          parts.push({ text: trimmed, type: "conjunction" });
+        } else if (i === 0) {
+          parts.push({ text: trimmed, type: "main" });
+        } else {
+          parts.push({ text: trimmed, type: "subordinate" });
+        }
+      });
+    }
+    if (parts.length >= 2) return { type: "sentence_structure", parts };
+    // Fallback with generic example
+    return { type: "sentence_structure", parts: [
+      { text: "The dog barked", type: "main" },
+      { text: "because", type: "conjunction" },
+      { text: "it heard a noise", type: "subordinate" },
+    ]};
+  }
+ 
+  // Spelling patterns
+  if (t.includes("spelling") || t.includes("phonics") || t.includes("digraph") || t.includes("trigraph") ||
+      /spell|silent letter|split digraph|magic e|double letter/i.test(questionText)) {
+    // Extract word from question
+    const wordMatch = (questionText || "").match(/(?:word|spell|spelling of)\s+['"]?(\w{3,12})['"]?/i);
+    const word = wordMatch?.[1] || "";
+    if (word) {
+      const highlighted = [];
+      const lw = word.toLowerCase();
+      // Detect silent letters
+      if (/^kn/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_k", highlighted }; }
+      if (/^wr/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_w", highlighted }; }
+      if (/mb$/i.test(word)) { highlighted.push(word.length - 1); return { type: "spelling_pattern", word, pattern: "silent_b", highlighted }; }
+      // Magic e
+      if (/[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(word)) {
+        highlighted.push(word.length - 1);
+        return { type: "spelling_pattern", word, pattern: "magic_e", highlighted };
+      }
+      // Double letters
+      for (let i = 0; i < word.length - 1; i++) {
+        if (lw[i] === lw[i + 1]) { highlighted.push(i, i + 1); return { type: "spelling_pattern", word, pattern: "double_letter", highlighted }; }
+      }
+      // Generic
+      return { type: "spelling_pattern", word, pattern: "", highlighted: [] };
+    }
+  }
+ 
+  // Punctuation
+  if (t.includes("punctuation") || t.includes("apostrophe") || t.includes("comma") ||
+      /punctuation|comma|apostrophe|speech marks|quotation|colon|semicolon|exclamation|question mark/i.test(questionText)) {
+    const sentenceMatch = (questionText || "").match(/['"]([^'"]{8,60})['"]/);
+    const sentence = sentenceMatch?.[1] || "";
+    if (sentence) {
+      const marks = [];
+      sentence.split("").forEach((ch, i) => {
+        if (ch === ",") marks.push({ pos: i, type: "comma" });
+        if (ch === "'") marks.push({ pos: i, type: "apostrophe" });
+        if (ch === "!") marks.push({ pos: i, type: "exclamation" });
+        if (ch === "?") marks.push({ pos: i, type: "question_mark" });
+        if (ch === ":") marks.push({ pos: i, type: "colon" });
+        if (ch === ";") marks.push({ pos: i, type: "semicolon" });
+      });
+      return { type: "punctuation", sentence, marks, missingPos: -1 };
+    }
+  }
+ 
+  // Word classes
+  if (t.includes("word_class") || t.includes("parts_of_speech") || t.includes("noun_phrase") ||
+      /word class|parts of speech|noun phrase|verb phrase|identify the noun|identify the verb|identify the adjective/i.test(questionText)) {
+    // Try to extract a phrase and label words
+    const phraseMatch = (questionText || "").match(/['"]([^'"]{5,40})['"]/);
+    if (phraseMatch) {
+      const phrase = phraseMatch[1];
+      const wordList = phrase.split(/\s+/).map(w => {
+        const lw = w.toLowerCase().replace(/[^a-z]/g, "");
+        const determiners = ["the","a","an","this","that","these","those","my","your","his","her","its","our","their"];
+        const prepositions = ["in","on","at","to","for","with","by","from","of","about","into","through","over","under"];
+        const conjunctions = ["and","but","or","so","yet","because","although","when","while","if"];
+        const pronouns = ["i","me","you","he","she","it","we","they","him","her","us","them"];
+        if (determiners.includes(lw)) return { word: w, cls: "determiner" };
+        if (prepositions.includes(lw)) return { word: w, cls: "preposition" };
+        if (conjunctions.includes(lw)) return { word: w, cls: "conjunction" };
+        if (pronouns.includes(lw)) return { word: w, cls: "pronoun" };
+        if (/ly$/.test(lw)) return { word: w, cls: "adverb" };
+        if (/ing$|ed$|es$|s$/.test(lw) && lw.length > 3) return { word: w, cls: "verb" };
+        if (/ful$|ous$|ive$|al$|ish$|less$|able$/.test(lw)) return { word: w, cls: "adjective" };
+        return { word: w, cls: "noun" };
+      });
+      return { type: "word_class", words: wordList };
+    }
+  }
+ 
+  return null;
+}
+// ── NVR (3D shapes, rotations, codes) ─────────────────────────────────────────
+function parseNVRExt(topic, questionText, yearLevel) {
+  const t = (topic || "").toLowerCase();
+  const q = (questionText || "").toLowerCase();
+ 
+  // Actual shape rotation (enhanced — replaces generic NVRRotationVis)
+  if (/rotat.*\d+\s*degree|turn.*\d+\s*degree|\d+\s*degree.*rotat/i.test(questionText)) {
+    const degMatch = (questionText || "").match(/(\d+)\s*degree/i);
+    const degrees = degMatch ? parseInt(degMatch[1]) : 90;
+    const clockwise = !/anti|counter/i.test(questionText);
+    const SHAPES = ["triangle","square","pentagon","hexagon","circle","rectangle","arrow"];
+    const shape = SHAPES.find(s => q.includes(s)) || "triangle";
+    return { type: "nvr_shape_rotation", shape, degrees, clockwise };
+  }
+ 
+  // Letter/number codes
+  if (/code|cipher|A\s*=\s*1|letter.*number|number.*letter|decode|encode/i.test(questionText) &&
+      (t.includes("code") || t.includes("cipher") || t.includes("verbal") || t.includes("nvr"))) {
+    const encodedMatch = (questionText || "").match(/['"]([A-Z0-9\s-]{2,20})['"]/);
+    const encoded = encodedMatch?.[1] || "";
+    return { type: "nvr_code", encoded, decoded: "", codeType: "a1" };
+  }
+ 
+  // Plan and elevation
+  if (/plan view|elevation|front view|side view|bird.*eye|3d.*2d|2d.*3d/i.test(questionText) ||
+      t.includes("plan") || t.includes("elevation")) {
+    const shapes = { cuboid: "cuboid", cylinder: "cylinder", "l-shape": "l-shape", "l shape": "l-shape",
+                     "triangular prism": "triangular_prism", prism: "triangular_prism" };
+    let shape3d = "cuboid";
+    for (const [name, val] of Object.entries(shapes)) {
+      if (q.includes(name)) { shape3d = val; break; }
+    }
+    return { type: "nvr_plan_elevation", shape3d };
+  }
+ 
+  return null;
+}
 
 // ── VR Word Analogy ───────────────────────────────────────────────────────────
 function AnalogyVis({ wordA, wordB, wordC, relationship }) {
@@ -1391,6 +1542,11 @@ function parseTier3(topic, questionText, subject, yearLevel) {
       const sentM = (questionText || "").match(/"([^"]{5,60})"/);
       if (sentM) {
         const words = sentM[1].split(/\s+/).slice(0, 6);
+        // English visuals
+  if (isEnglish) {
+    const engVis = parseEnglish(topicStr, questionStr, year);
+    if (engVis) return engVis;
+  }
         // Simple heuristic labelling
         const POS_HINTS = {
           noun:["dog","cat","ball","house","school","teacher","city","boy","girl","car","rain","sun","tree"],
@@ -2341,6 +2497,13 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "thermometer":         return `Thermometer showing ${visual.value}°C`;
       case "conversion_ladder":   return `Unit conversion: ${visual.units?.join(" → ")}`;
       case "carroll_diagram":     return `Carroll diagram: ${visual.criteria1} and ${visual.criteria2}`;
+      case "sentence_structure": return `Sentence structure with ${visual.parts?.length || 0} clauses`;
+      case "spelling_pattern":   return `Spelling pattern: ${visual.word}`;
+      case "punctuation":        return `Punctuation in: ${visual.sentence?.substring(0, 30)}`;
+      case "word_class":         return `Word classes: ${visual.words?.map(w => w.word).join(" ")}`;
+      case "nvr_shape_rotation": return `${visual.shape} rotated ${visual.degrees}° ${visual.clockwise ? "clockwise" : "anticlockwise"}`;
+      case "nvr_code":           return `Code cipher: ${visual.encoded}`;
+      case "nvr_plan_elevation": return `Plan and elevation of ${visual.shape3d}`;
       default:                 return "Maths visual aid";
     }
   })();
@@ -2437,6 +2600,13 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "thermometer":         return <ThermometerVis value={visual.value} min={visual.min} max={visual.max} />;
       case "conversion_ladder":   return <ConversionLadderVis units={visual.units} factors={visual.factors} highlighted={visual.highlighted} />;
       case "carroll_diagram":     return <CarrollDiagramVis criteria1={visual.criteria1} criteria2={visual.criteria2} items={visual.items} />;
+      case "sentence_structure": return <SentenceStructureVis parts={visual.parts} />;
+      case "spelling_pattern":   return <SpellingPatternVis word={visual.word} pattern={visual.pattern} highlighted={visual.highlighted} />;
+      case "punctuation":        return <PunctuationVis sentence={visual.sentence} marks={visual.marks} missingPos={visual.missingPos} />;
+      case "word_class":         return <WordClassVis words={visual.words} />;
+      case "nvr_shape_rotation": return <NVRShapeRotationVis shape={visual.shape} degrees={visual.degrees} clockwise={visual.clockwise} />;
+      case "nvr_code":           return <NVRCodeVis encoded={visual.encoded} decoded={visual.decoded} codeType={visual.codeType} />;
+      case "nvr_plan_elevation": return <NVRPlanElevationVis shape3d={visual.shape3d} />;
       default:                return null;
     }
   })();
@@ -2889,6 +3059,13 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
       : /quarter/i.test(questionText) ? "quarter"
       : /horizontal/i.test(questionText) ? "half_horizontal"
       : "half_vertical";
+
+      // NVR enhanced visuals
+  if (isNVR) {
+    const nvrExt = parseNVRExt(topicStr, questionStr, year);
+    if (nvrExt) return nvrExt;
+  }
+ 
     // Generate punch positions based on question content
     const punches = /corner/i.test(questionText) ? [[0.8, 0.2]]
       : /centre|center|middle/i.test(questionText) ? [[0.5, 0.5]]

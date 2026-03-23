@@ -764,6 +764,16 @@ export default function ParentDashboard() {
           });
         } catch (emailError) { console.error("Email send failed:", emailError); }
 
+        setNewScholarGuide({ name: scholar.name, codename: scholar.codename, pin: scholar.pin });
+        {newScholarGuide && (
+          <ScholarStartGuide
+            scholarName={newScholarGuide.name}
+            codename={newScholarGuide.codename}
+            pin={newScholarGuide.pin}
+            onDismiss={() => setNewScholarGuide(null)}
+          />
+        )}
+
         // Sync curriculum to Brevo contact list (non-blocking)
         fetch('/api/brevo/sync-contact', {
           method: 'POST',

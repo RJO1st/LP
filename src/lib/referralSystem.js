@@ -2,79 +2,83 @@
  * referralSystem.js
  * Deploy to: src/lib/referralSystem.js
  *
- * Referral programme: parents share a code, both parties earn credit.
- * Credits are tracked in DB and applied when Stripe/Paystack billing goes live.
- *
- * Run the SQL migration below BEFORE deploying this file.
+ * Privacy-safe referral system. Codes are random alphanumeric — NO parent names.
+ * Format: LP-XXXX-YYYY (e.g. LP-7K2M-9FH3)
  */
-
-/*
- * ── SQL MIGRATION (run in Supabase) ───────────────────────────────────────────
- 
-ALTER TABLE parents ADD COLUMN IF NOT EXISTS referral_code text UNIQUE;
-ALTER TABLE parents ADD COLUMN IF NOT EXISTS referred_by text;
-ALTER TABLE parents ADD COLUMN IF NOT EXISTS referral_credits integer DEFAULT 0;
-
--- Index for fast lookup when a new parent signs up with a referral code
-CREATE INDEX IF NOT EXISTS idx_parents_referral_code ON parents (referral_code) WHERE referral_code IS NOT NULL;
-
-*/
 
 /**
- * Generate a referral code from the parent's name.
- * Format: LP-{FIRST_NAME}-{RANDOM4} e.g. LP-ROTIMI-7X2K
+ * Generate a random referral code (no PII).
  */
-export function generateReferralCode(fullName) {
-  const first = (fullName || "USER").trim().split(/\s+/)[0].toUpperCase().slice(0, 8);
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid confusion
-  let rand = "";
-  for (let i = 0; i < 4; i++) rand += chars[Math.floor(Math.random() * chars.length)];
-  return `LP-${first}-${rand}`;
+function generateCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no I/L/O/0/1 to avoid confusion
+  const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `LP-${seg()}-${seg()}`;
 }
 
 /**
- * Ensure a parent has a referral code. Called on dashboard load.
- * Idempotent — skips if code already exists.
+ * Ensure a parent has a referral code. If they have an old name-based one (LP-ROTIMI-...),
+ * migrate it to anonymous format.
  */
-export async function ensureReferralCode(supabase, parentId, fullName) {
+export async function ensureReferralCode(supabase, parentId, parentName) {
   const { data: parent } = await supabase
     .from("parents")
     .select("referral_code")
     .eq("id", parentId)
     .single();
 
-  if (parent?.referral_code) return parent.referral_code;
+  if (parent?.referral_code) {
+    // Check if old format contains a name (3rd segment is 4 chars = new format, longer = old name format)
+    const parts = parent.referral_code.split("-");
+    const isOldFormat = parts.length === 3 && parts[1].length > 4;
 
-  // Generate and save — retry on collision (unique constraint)
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const code = generateReferralCode(fullName);
+    if (isOldFormat) {
+      // Migrate to anonymous code
+      const newCode = generateCode();
+      await supabase
+        .from("parents")
+        .update({ referral_code: newCode })
+        .eq("id", parentId);
+
+      // Also update any references in referred_by
+      await supabase
+        .from("parents")
+        .update({ referred_by: newCode })
+        .eq("referred_by", parent.referral_code);
+
+      return newCode;
+    }
+
+    return parent.referral_code;
+  }
+
+  // Generate new code
+  let code = generateCode();
+  let attempts = 0;
+
+  while (attempts < 5) {
     const { error } = await supabase
       .from("parents")
       .update({ referral_code: code })
       .eq("id", parentId);
 
     if (!error) return code;
-    if (error.code !== "23505") throw error; // 23505 = unique violation, retry
+
+    // Collision — regenerate
+    code = generateCode();
+    attempts++;
   }
 
-  throw new Error("Failed to generate unique referral code after 3 attempts");
+  return null;
 }
 
 /**
  * Apply a referral code during signup.
- * Called after parent record is created.
- *
- * @param {object} supabase
- * @param {string} newParentId — the parent who just signed up
- * @param {string} referralCode — the code they entered (e.g. LP-ROTIMI-7X2K)
- * @returns {{ success: boolean, referrerName?: string, error?: string }}
  */
 export async function applyReferralCode(supabase, newParentId, referralCode) {
   if (!referralCode || !referralCode.startsWith("LP-")) {
     return { success: false, error: "Invalid referral code format" };
   }
 
-  // Find the referrer
   const { data: referrer, error: findErr } = await supabase
     .from("parents")
     .select("id, full_name, referral_credits")
@@ -85,12 +89,10 @@ export async function applyReferralCode(supabase, newParentId, referralCode) {
     return { success: false, error: "Referral code not found" };
   }
 
-  // Prevent self-referral
   if (referrer.id === newParentId) {
     return { success: false, error: "You cannot refer yourself" };
   }
 
-  // Mark the new parent as referred
   const { error: updateNewErr } = await supabase
     .from("parents")
     .update({ referred_by: referralCode.toUpperCase() })
@@ -100,7 +102,6 @@ export async function applyReferralCode(supabase, newParentId, referralCode) {
     return { success: false, error: "Failed to apply referral" };
   }
 
-  // Credit the referrer (+1 month)
   const { error: creditErr } = await supabase
     .from("parents")
     .update({ referral_credits: (referrer.referral_credits || 0) + 1 })
@@ -108,17 +109,13 @@ export async function applyReferralCode(supabase, newParentId, referralCode) {
 
   if (creditErr) {
     console.warn("[referral] Failed to credit referrer:", creditErr.message);
-    // Non-fatal — the new parent is still marked as referred
   }
 
-  return {
-    success: true,
-    referrerName: referrer.full_name?.split(" ")[0] || "a friend",
-  };
+  return { success: true, referrerName: "a friend" }; // Never expose referrer name
 }
 
 /**
- * Get referral stats for a parent (for dashboard display).
+ * Get referral stats for a parent.
  */
 export async function getReferralStats(supabase, parentId) {
   const { data: parent } = await supabase
@@ -129,7 +126,6 @@ export async function getReferralStats(supabase, parentId) {
 
   if (!parent) return { code: null, credits: 0, referredBy: null, referralCount: 0 };
 
-  // Count how many people used this parent's code
   const { count } = await supabase
     .from("parents")
     .select("id", { count: "exact", head: true })
@@ -138,7 +134,7 @@ export async function getReferralStats(supabase, parentId) {
   return {
     code: parent.referral_code,
     credits: parent.referral_credits || 0,
-    referredBy: parent.referred_by,
+    referredBy: parent.referred_by ? true : false, // Boolean only — don't expose who
     referralCount: count || 0,
   };
 }

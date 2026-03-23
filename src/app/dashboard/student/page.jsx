@@ -1206,7 +1206,7 @@ const UK_NATIONAL_SUBJECTS = {
     }
   };
 
-  const subjects     = [...new Set([...getSubjectsForScholar(curriculum, examYear), ...examExtras])];
+  const subjects = [...new Set([...getSubjectsForScholar(scholar), ...examExtras])];
   const levelInfo    = getLevelInfo(scholar.total_xp || 0);
 
   // ── Test Centre ──────────────────────────────────────────────────
