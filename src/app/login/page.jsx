@@ -1,16 +1,13 @@
 "use client";
 /**
- * Login Page — Updated March 2026
+ * Login Page — Fixed March 23 2026
  * Deploy to: src/app/login/page.jsx
  *
- * Fixes:
- *   - Added Forgot Password flow (Supabase resetPasswordForEmail)
- *   - Mobile optimised (no overlapping elements)
- *   - Removed launchpard.com overlay
- *   - Responsive layout
+ * Scholar login: access_code only (no PIN). Format: QUEST-1234
+ * Forgot access code: sends email to parent with all their scholars' codes
  */
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
@@ -36,14 +33,20 @@ function LoginForm() {
   const [loginType, setLoginType] = useState(typeFromUrl === "scholar" ? "scholar" : "parent");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [codename, setCodename] = useState("");
-  const [pin, setPin] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Forgot password (parent)
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
+
+  // Forgot access code (scholar)
+  const [showForgotCode, setShowForgotCode] = useState(false);
+  const [parentEmail, setParentEmail] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   // ── Parent login ──────────────────────────────────────────────────
   const handleParentLogin = async (e) => {
@@ -65,43 +68,38 @@ function LoginForm() {
     }
   };
 
-  // ── Scholar login ─────────────────────────────────────────────────
+  // ── Scholar login (access code only) ──────────────────────────────
   const handleScholarLogin = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
+      const code = accessCode.trim().toUpperCase();
+
+      if (!code) throw new Error("Please enter your access code.");
+
       const { data: scholars, error: fetchError } = await supabase
         .from("scholars")
         .select("*, parents(id, email)")
-        .eq("codename", codename.trim().toUpperCase())
+        .eq("access_code", code)
         .limit(1);
 
       if (fetchError) throw fetchError;
-      if (!scholars?.length) throw new Error("Codename not found. Check with your parent.");
+      if (!scholars?.length) throw new Error("Access code not found. Ask your parent for help.");
 
       const scholar = scholars[0];
 
-      if (String(scholar.pin) !== String(pin)) {
-        throw new Error("Incorrect PIN. Try again or ask your parent.");
-      }
-
-      // Sign in via parent's auth
-      if (scholar.parents?.email) {
-        localStorage.setItem("active_scholar", JSON.stringify(scholar));
-        localStorage.setItem("scholar_login", "true");
-        router.push("/dashboard/student");
-      } else {
-        throw new Error("Account not linked. Ask your parent to log in first.");
-      }
+      localStorage.setItem("active_scholar", JSON.stringify(scholar));
+      localStorage.setItem("scholar_login", "true");
+      router.push("/dashboard/student");
     } catch (err) {
       setError(err.message || "Login failed");
       setLoading(false);
     }
   };
 
-  // ── Forgot password ───────────────────────────────────────────────
+  // ── Forgot password (parent) ──────────────────────────────────────
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setError(null);
@@ -122,6 +120,37 @@ function LoginForm() {
     }
   };
 
+  // ── Forgot access code (scholar → email parent) ───────────────────
+  const handleForgotCode = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const trimmedEmail = parentEmail.trim().toLowerCase();
+      if (!trimmedEmail) throw new Error("Please enter your parent's email.");
+
+      // Call our API route that looks up scholars and emails the parent
+      const res = await fetch("/api/forgot-access-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentEmail: trimmedEmail }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Something went wrong. Try again.");
+      }
+
+      setCodeSent(true);
+    } catch (err) {
+      setError(err.message || "Failed to send access code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-4">
       <div className="bg-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-700">
@@ -132,7 +161,7 @@ function LoginForm() {
           <h1 className="text-2xl sm:text-3xl font-black">Welcome Back</h1>
         </div>
 
-        {/* ── Forgot Password Modal ─────────────────────────────────── */}
+        {/* ── Forgot Password (Parent) ──────────────────────────────── */}
         {showForgotPassword ? (
           <div>
             <h2 className="text-lg font-black mb-2">Reset Password</h2>
@@ -174,6 +203,55 @@ function LoginForm() {
                 </button>
 
                 <button type="button" onClick={() => { setShowForgotPassword(false); setError(null); }}
+                  className="w-full text-slate-400 text-sm font-bold hover:text-slate-300">
+                  ← Back to login
+                </button>
+              </form>
+            )}
+          </div>
+
+        /* ── Forgot Access Code (Scholar) ─────────────────────────── */
+        ) : showForgotCode ? (
+          <div>
+            <h2 className="text-lg font-black mb-2">Forgot Access Code?</h2>
+            {codeSent ? (
+              <div className="text-center">
+                <div className="text-4xl mb-3">📧</div>
+                <p className="text-emerald-400 font-bold mb-2">Email sent!</p>
+                <p className="text-slate-400 text-sm mb-4">
+                  We sent the access code to your parent at <span className="text-white font-bold">{parentEmail}</span>.
+                  Ask them to check their inbox.
+                </p>
+                <button onClick={() => { setShowForgotCode(false); setCodeSent(false); setParentEmail(""); setError(null); }}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold text-sm">
+                  ← Back to login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotCode} className="space-y-4">
+                <p className="text-slate-400 text-sm">
+                  Enter your parent's email. We'll send them your access code so they can help you log in.
+                </p>
+
+                {error && (
+                  <div className="p-3 bg-rose-500/20 border border-rose-500 rounded-xl text-rose-200 text-sm font-bold">
+                    {error}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Parent's Email</label>
+                  <input type="email" required placeholder="parent@example.com" value={parentEmail}
+                    onChange={(e) => setParentEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
+                </div>
+
+                <button type="submit" disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
+                  {loading ? "Sending..." : "Send Access Code to Parent"}
+                </button>
+
+                <button type="button" onClick={() => { setShowForgotCode(false); setError(null); }}
                   className="w-full text-slate-400 text-sm font-bold hover:text-slate-300">
                   ← Back to login
                 </button>
@@ -235,7 +313,6 @@ function LoginForm() {
                     className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
                 </div>
 
-                {/* Forgot password link */}
                 <div className="text-right">
                   <button type="button"
                     onClick={() => { setShowForgotPassword(true); setResetEmail(email); setError(null); }}
@@ -250,29 +327,30 @@ function LoginForm() {
                 </button>
               </form>
             ) : (
-              /* ── Scholar Form ───────────────────────────────────────── */
+              /* ── Scholar Form (access code only) ────────────────────── */
               <form onSubmit={handleScholarLogin} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Codename</label>
-                  <input type="text" required placeholder="e.g. STARFOX" value={codename}
-                    onChange={(e) => setCodename(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base uppercase tracking-wider" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1.5">PIN</label>
-                  <input type="number" required placeholder="4-digit PIN" value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base tracking-[0.5em] text-center" />
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Access Code</label>
+                  <input type="text" required placeholder="E.G. QUEST-1234" value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base tracking-wider text-center uppercase" />
+                  <p className="text-[11px] text-slate-500 mt-1.5 text-center">
+                    Your parent gave you this code when they added you
+                  </p>
                 </div>
 
                 <button type="submit" disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
                   {loading ? "Signing in..." : "Sign In"}
                 </button>
+
+                <div className="text-center">
+                  <button type="button"
+                    onClick={() => { setShowForgotCode(true); setError(null); }}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">
+                    Forgot access code?
+                  </button>
+                </div>
               </form>
             )}
 
