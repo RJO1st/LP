@@ -1,14 +1,13 @@
 "use client";
 /**
- * AdaptiveDashboardLayout.jsx (v5)
+ * AdaptiveDashboardLayout.jsx (v7)
  * Deploy to: src/components/dashboard/AdaptiveDashboardLayout.jsx
  *
- * v5: 2-column grid layout on desktop. Responsive single column on mobile.
- *     Left: greeting, stats, skill map, daily adventure
- *     Right: pet, leaderboard, journal, career/exam, revision, flashcards, mock
+ * v7: Dynamic mastery per active subject. Free tier counter hidden for trial/pro.
+ *     Clean 2-column CSS grid via <style> tag. No Tailwind arbitrary values.
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import AdaptiveNavbar from "./AdaptiveNavbar";
 import AdaptiveGreeting from "./AdaptiveGreeting";
@@ -28,14 +27,6 @@ import AdaptiveLeaderboard from "./AdaptiveLeaderboard";
 import DigitalPet from "./DigitalPet";
 import GoalSetting from "./GoalSetting";
 
-const SUBJECT_LABELS = {
-  mathematics: "Maths", maths: "Maths", english: "English",
-  english_studies: "English", science: "Science", basic_science: "Science",
-  verbal_reasoning: "Verbal Reasoning", non_verbal_reasoning: "NVR",
-  history: "History", geography: "Geography", computing: "Computing",
-  physics: "Physics", chemistry: "Chemistry", biology: "Biology",
-};
-
 export default function AdaptiveDashboardLayout({
   scholar = {},
   stats = {},
@@ -53,6 +44,11 @@ export default function AdaptiveDashboardLayout({
   leaderboard = [],
   scholarId,
   supabase,
+  coins = 0,
+  todayQCount = 0,
+  effectiveTier = "pro",
+  onSignOut,
+  onAvatar,
   onStartQuest,
   onTopicClick,
   onDismissEncourage,
@@ -62,8 +58,23 @@ export default function AdaptiveDashboardLayout({
   onExamModeSwitch,
   onStartRevisionTopic,
 }) {
-  const { band, theme: t, isDark } = useTheme();
+  const { band, theme: t } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
+
+  // ── Dynamic mastery per active subject ──────────────────────────────────
+  const subjectMastery = useMemo(() => {
+    const subjectRows = masteryData.filter(r =>
+      (r.subject || "").toLowerCase() === (activeSubject || "").toLowerCase()
+    );
+    if (subjectRows.length === 0) {
+      return { pct: stats.masteryPct ?? 0, count: stats.topicCount ?? 0 };
+    }
+    const avg = subjectRows.reduce((sum, r) => sum + (r.mastery_score ?? r.p_know ?? 0), 0) / subjectRows.length;
+    return { pct: Math.round(avg * 100), count: subjectRows.length };
+  }, [masteryData, activeSubject, stats]);
+
+  // ── Only show free tier counter when actually on free plan ──────────────
+  const isFreeTier = effectiveTier === "free";
 
   return (
     <div style={{
@@ -75,16 +86,22 @@ export default function AdaptiveDashboardLayout({
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Nunito:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        .lp-grid{display:grid;grid-template-columns:1fr;gap:16px}
+        .lp-grid>*{min-width:0;overflow:hidden}
+        @media(min-width:768px){.lp-grid{grid-template-columns:3fr 2fr}}
       `}</style>
 
-      <AdaptiveNavbar xp={stats.xp ?? 0} />
+      <AdaptiveNavbar
+        xp={stats.xp ?? 0}
+        coins={coins}
+        todayQCount={todayQCount}
+        effectiveTier={isFreeTier ? "free" : "pro"}
+        onAvatar={onAvatar}
+        onSignOut={onSignOut}
+      />
 
-      <div style={{
-        maxWidth: 1100,
-        margin: "0 auto",
-        padding: "0 16px 40px",
-      }}>
-        {/* ── TOP: Greeting + Stats (full width) ────────────────────── */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px 40px" }}>
+
         <div style={{ marginBottom: 16 }}>
           <AdaptiveGreeting
             scholarName={scholar.name}
@@ -97,10 +114,13 @@ export default function AdaptiveDashboardLayout({
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <AdaptiveStats stats={stats} />
+          <AdaptiveStats stats={{
+            ...stats,
+            masteryPct: subjectMastery.pct,
+            topicCount: subjectMastery.count,
+          }} />
         </div>
 
-        {/* ── Tara encouragement (full width) ────────────────────────── */}
         {encouragement && (
           <div style={{ marginBottom: 16 }}>
             <TaraEncouragement
@@ -111,120 +131,80 @@ export default function AdaptiveDashboardLayout({
           </div>
         )}
 
-        {/* ── MAIN GRID: 2 columns on desktop ────────────────────────── */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 16,
-        }}>
-          {/* Desktop: 2-column layout */}
-          <style>{`
-            @media (min-width: 768px) {
-              .lp-dash-grid { grid-template-columns: 3fr 2fr !important; }
-            }
-          `}</style>
-          <div className="lp-dash-grid" style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 16,
-          }}>
+        {/* ── MAIN GRID ─────────────────────────────────────────────── */}
+        <div className="lp-grid">
 
-            {/* ═══ LEFT COLUMN ═══════════════════════════════════════ */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Daily Adventure — KS1 */}
-              {dailyAdventure && (
-                <DailyAdventure
-                  totalQuestions={dailyAdventure.totalQuestions}
-                  completed={dailyAdventure.completed}
-                  subject={activeSubject}
-                  topic={topics.find(t => t.subject === activeSubject && t.status === "current")?.slug || ""}
-                  onStart={() => onStartAdventure?.(activeSubject)}
-                />
-              )}
-
-              {/* Exam mode switch — KS3/KS4 */}
-              {(band === "ks3" || band === "ks4") && (
-                <ExamModeSwitch
-                  currentMode={scholar.exam_mode || "general"}
-                  curriculum={scholar.curriculum}
-                  onSwitch={onExamModeSwitch}
-                />
-              )}
-
-              {/* Skill Map with subject tabs */}
-              <SkillMap
-                topics={topics}
-                subjects={subjects}
+          {/* ═══ LEFT COLUMN ═══ */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            {dailyAdventure && (
+              <DailyAdventure
+                totalQuestions={dailyAdventure.totalQuestions}
+                completed={dailyAdventure.completed}
                 subject={activeSubject}
-                onTopicClick={onTopicClick}
-                onSubjectChange={setActiveSubject}
+                topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
+                onStart={() => onStartAdventure?.(activeSubject)}
               />
-
-              {/* Quest Journal — KS1+KS2 */}
-              <QuestJournal entries={journalEntries} />
-
-              {/* Revision Planner — KS3/KS4 */}
-              {masteryData.length > 0 && (band === "ks3" || band === "ks4") && (
-                <RevisionPlanner
-                  masteryData={masteryData}
-                  examDate={examData?.examDate}
-                  examName={examData?.examName}
-                  onStartTopic={onStartRevisionTopic}
-                />
-              )}
-            </div>
-
-            {/* ═══ RIGHT COLUMN ══════════════════════════════════════ */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Digital Pet — KS1/KS2 */}
-              <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
-
-              {/* Exam Panel — KS4 */}
-              {examData && (
-                <ExamPanel
-                  predictedGrade={examData.predictedGrade}
-                  previousGrade={examData.previousGrade}
-                  examName={examData.examName}
-                  daysUntilExam={examData.daysUntilExam}
-                  topicsRemaining={examData.topicsRemaining}
-                  mocksCompleted={examData.mocksCompleted}
-                  revisionPlan={examData.revisionPlan ?? []}
-                />
-              )}
-
-              {/* Leaderboard */}
-              <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
-
-              {/* Peer Comparison — KS3/KS4 */}
-              {peerComparisons.length > 0 && (
-                <PeerComparison comparisons={peerComparisons} />
-              )}
-
-              {/* Goal Setting — KS3 */}
-              <GoalSetting scholarId={scholarId} stats={stats} />
-
-              {/* Career Popup — KS2/KS3 */}
-              {careerTopic && (
-                <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
-              )}
-
-              {/* Mock Test Launcher — KS3/KS4 */}
-              {(band === "ks3" || band === "ks4") && (
-                <MockTestLauncher
-                  subject={activeSubject?.toLowerCase() || "mathematics"}
-                  curriculum={scholar.curriculum}
-                  examMode={scholar.exam_mode || "general"}
-                  pastMocks={pastMocks}
-                  onStartMock={onStartMock}
-                />
-              )}
-            </div>
+            )}
+            {(band === "ks3" || band === "ks4") && (
+              <ExamModeSwitch
+                currentMode={scholar.exam_mode || "general"}
+                curriculum={scholar.curriculum}
+                onSwitch={onExamModeSwitch}
+              />
+            )}
+            <SkillMap
+              topics={topics}
+              subjects={subjects}
+              subject={activeSubject}
+              onTopicClick={onTopicClick}
+              onSubjectChange={setActiveSubject}
+            />
+            <QuestJournal entries={journalEntries} />
+            {masteryData.length > 0 && (band === "ks3" || band === "ks4") && (
+              <RevisionPlanner
+                masteryData={masteryData}
+                examDate={examData?.examDate}
+                examName={examData?.examName}
+                onStartTopic={onStartRevisionTopic}
+              />
+            )}
           </div>
+
+          {/* ═══ RIGHT COLUMN ═══ */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
+            {examData && (
+              <ExamPanel
+                predictedGrade={examData.predictedGrade}
+                previousGrade={examData.previousGrade}
+                examName={examData.examName}
+                daysUntilExam={examData.daysUntilExam}
+                topicsRemaining={examData.topicsRemaining}
+                mocksCompleted={examData.mocksCompleted}
+                revisionPlan={examData.revisionPlan ?? []}
+              />
+            )}
+            <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+            {peerComparisons.length > 0 && (
+              <PeerComparison comparisons={peerComparisons} />
+            )}
+            <GoalSetting scholarId={scholarId} stats={stats} />
+            {careerTopic && (
+              <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
+            )}
+            {(band === "ks3" || band === "ks4") && (
+              <MockTestLauncher
+                subject={activeSubject?.toLowerCase() || "mathematics"}
+                curriculum={scholar.curriculum}
+                examMode={scholar.exam_mode || "general"}
+                pastMocks={pastMocks}
+                onStartMock={onStartMock}
+              />
+            )}
+          </div>
+
         </div>
 
-        {/* ── START QUEST CTA (full width) ───────────────────────────── */}
         <div style={{ marginTop: 16 }}>
           <AdaptiveStartButton
             onClick={() => onStartQuest?.(activeSubject)}

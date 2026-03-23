@@ -13,6 +13,8 @@ import { ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis, StateC
 import { NVRShapeItem, NVRVis, NVRShapePropertyVis, NVRReflectionVis, NVRNetVis, NVRRotationVis, NVROddOneOutVis, NVRMatrixVis, NVRPaperFoldVis, NVRShapeReflectionVis } from "./NVRVisuals";
 import { CoordinateVis, AngleVis, AngleOnLineDiagram, TriangleAngleDiagram, AnglesAtPointDiagram, VerticallyOppositeDiagram, AreaVis, RulerVis, FormulaTriangleVis } from "./GeometryVisuals";
 import { TAccountVis, BreakEvenVis, SupplyDemandVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
+import { CompassVis, MapGridVis, ClimateGraphVis, LayerDiagramVis, WaterCycleVis, TimelineVis, SourceAnalysisVis, MapRegionVis} from "./GeographyHistoryVisuals";
+import { HumanBodyVis, SolarSystemVis, ClassificationKeyVis, LightDiagramVis, ElectricalSymbolsVis, MagnetVis, PhotosynthesisVis, RespirationVis} from "./ScienceVisuals_Ext";
 import InteractiveGraph from "./InteractiveGraph";
 import DataTable from "./DataTable";
 import LongMultiplication from "./LongMultiplication";
@@ -486,7 +488,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       ];
       return { type: "nvr", sequence };
     }
-
+    
     // ── Reflection / mirror ─────────────────────────────────────────────────
     if (/reflect|mirror|flip/i.test(questionText)) {
       const letterM = questionText.match(/(?:letter|the)\s+[''""]?([A-Za-z])[''""]?/i)
@@ -1514,6 +1516,35 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     }
   }
 
+  // Light / optics
+  if (isPhysics && (t.includes("light") || t.includes("optic") ||
+      /reflection|refraction|mirror|lens|angle of incidence|normal line|light ray/i.test(questionText))) {
+    const isRefraction = /refraction|refract|bend|slow|boundary|glass|water/i.test(questionText);
+    const angleMatch = (questionText || "").match(/(\d+)\s*(?:°|degrees?)/i);
+    return {
+      type: "light_diagram",
+      scenario: isRefraction ? "refraction" : "reflection",
+      angle: angleMatch ? parseInt(angleMatch[1]) : 45,
+    };
+  }
+ 
+  // Electrical symbols
+  if (isPhysics && (t.includes("circuit_symbol") || t.includes("electrical_symbol") ||
+      /circuit symbol|electrical symbol|draw.*circuit|identify.*component/i.test(questionText))) {
+    const KNOWN = ["cell","battery","lamp","switch_open","resistor","ammeter","voltmeter"];
+    const found = KNOWN.filter(c => questionText.toLowerCase().includes(c.replace("_"," ")));
+    return { type: "electrical_symbols", components: found.length > 0 ? found : KNOWN.slice(0, 5), highlighted: found[0] || "" };
+  }
+ 
+  // Magnets
+  if (isPhysics && (t.includes("magnet") || /magnet|magnetic|north pole|south pole|attract|repel|compass.*magnet/i.test(questionText))) {
+    const scenario = /attract/i.test(questionText) ? "attract"
+      : /repel/i.test(questionText) ? "repel"
+      : /field line|magnetic field/i.test(questionText) ? "field_lines"
+      : "bar";
+    return { type: "magnet", scenario };
+  }
+
   // ── CHEMISTRY ───────────────────────────────────────────────────────────────
 
   // Atom / Bohr model
@@ -1630,6 +1661,56 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     const traitM  = (questionText||"").match(/trait[:\s]+([^.?\n]{3,30})/i);
     return { type:"punnett", parent1, parent2, trait:traitM?.[1]?.trim() };
   }
+   // Human body systems
+  if (isBio && (t.includes("skeleton") || t.includes("digestive") || t.includes("circulat") ||
+      t.includes("respirat") || t.includes("body_system") || t.includes("organ") ||
+      /skeleton|skull|ribs|spine|femur|digestive|stomach|intestine|oesophagus|circulatory|heart|arteries|veins|respiratory|lungs|trachea|diaphragm/i.test(questionText))) {
+    const system = /digestive|stomach|intestine|oesophagus/i.test(questionText + t) ? "digestive"
+      : /circulat|heart|arter|vein|blood/i.test(questionText + t) ? "circulatory"
+      : /respirat|lung|trachea|diaphragm|bronch/i.test(questionText + t) ? "respiratory"
+      : "skeleton";
+    const organs = ["skull","ribs","spine","femur","pelvis","stomach","intestine","heart","lungs","trachea","diaphragm"];
+    const highlighted = organs.find(o => questionText.toLowerCase().includes(o)) || "";
+    return { type: "human_body", system, highlighted };
+  }
+ 
+  // Solar system
+  if (isBio && !isChem && (t.includes("solar") || t.includes("planet") || t.includes("space") ||
+      /solar system|planet|mercury|venus|earth|mars|jupiter|saturn|uranus|neptune|orbit|sun.*planet/i.test(questionText))) {
+    const planets = ["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"];
+    const highlighted = planets.find(p => questionText.toLowerCase().includes(p)) || "";
+    return { type: "solar_system", highlighted, showOrbits: true };
+  }
+ 
+  // NOTE: Solar system should also trigger from generic "science" subject, not just biology.
+  // Add this BEFORE the biology section in parseTier4:
+  if ((isPhysics || isBio || subj.includes("science")) &&
+      (t.includes("solar") || t.includes("planet") || /solar system|planet|mercury|venus|mars|jupiter|saturn/i.test(questionText))) {
+    const planets = ["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"];
+    const highlighted = planets.find(p => questionText.toLowerCase().includes(p)) || "";
+    return { type: "solar_system", highlighted, showOrbits: true };
+  }
+ 
+  // Classification
+  if (isBio && (t.includes("classif") || t.includes("kingdom") || t.includes("vertebrat") ||
+      /classify|vertebrate|invertebrate|mammal|reptile|amphibian|fish|bird|insect|arachnid/i.test(questionText))) {
+    const groups = ["mammals","birds","reptiles","fish","amphibians","insects","arachnids","vertebrates","invertebrates"];
+    const highlighted = groups.find(g => questionText.toLowerCase().includes(g.replace(/s$/, ""))) || "";
+    return { type: "classification_key", highlighted };
+  }
+ 
+  // Photosynthesis
+  if (isBio && (t.includes("photosynthesis") || /photosynthesis|chloroplast|chlorophyll|plant.*energy|leaf.*sunlight/i.test(questionText))) {
+    const terms = ["sunlight","co₂","carbon dioxide","water","glucose","oxygen"];
+    const highlighted = terms.find(t => questionText.toLowerCase().includes(t)) || "";
+    return { type: "photosynthesis", highlighted };
+  }
+ 
+  // Respiration
+  if (isBio && (t.includes("respirat") || /respiration|aerobic|anaerobic|glucose.*oxygen.*energy|mitochondria/i.test(questionText))) {
+    const isAnaerobic = /anaerobic|lactic acid|without oxygen/i.test(questionText);
+    return { type: "respiration", respType: isAnaerobic ? "anaerobic" : "aerobic" };
+  }
 
   // ── ACCOUNTING / COMMERCE / ECONOMICS ────────────────────────────────────────
 
@@ -1662,62 +1743,527 @@ function parseTier4(topic, questionText, subject, yearLevel) {
 
   return null;
 }
+// ─── PROBABILITY VISUAL ─────────────────────────────────────────────────────
+// Shows dice/spinner/coin with outcomes highlighted
+function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" }) {
+  const W = 180, H = 120;
+  
+  if (context === "dice") {
+    // Draw a die face showing total outcomes
+    const dotPositions = {
+      1: [[50,50]], 2: [[30,30],[70,70]], 3: [[30,30],[50,50],[70,70]],
+      4: [[30,30],[70,30],[30,70],[70,70]], 5: [[30,30],[70,30],[50,50],[30,70],[70,70]],
+      6: [[30,30],[70,30],[30,50],[70,50],[30,70],[70,70]],
+    };
+    const dots = dotPositions[Math.min(total, 6)] || dotPositions[6];
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
+        <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability</span>
+        <svg width={100} height={100} viewBox="0 0 100 100">
+          <rect x={5} y={5} width={90} height={90} rx={12} fill={T.slateBg} stroke={T.slateBd} strokeWidth={2} />
+          {dots.map((d, i) => (
+            <circle key={i} cx={d[0]} cy={d[1]} r={8}
+              fill={i < favourable ? T.indigo : T.slateBd}
+              stroke={i < favourable ? T.indigo : T.slateBd} strokeWidth={1} />
+          ))}
+        </svg>
+        <div style={{ display:"flex", gap:12, fontSize:10, fontWeight:700 }}>
+          <span style={{ color:T.indigo }}>{favourable} favourable</span>
+          <span style={{ color:T.textMid }}>{total} total</span>
+        </div>
+        <span style={{ fontSize:9, fontWeight:600, color:T.textMid, background:T.indigoBg, padding:"2px 8px", borderRadius:6, border:`1px solid ${T.indigoBd}` }}>
+          P = {favourable}/{total}
+        </span>
+      </div>
+    );
+  }
+ 
+  if (context === "coin") {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
+        <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability — Coin</span>
+        <div style={{ display:"flex", gap:16 }}>
+          {["H", "T"].map((side, i) => (
+            <div key={i} style={{
+              width:50, height:50, borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center",
+              background: i < favourable ? T.indigoBg : T.slateBg,
+              border: `2.5px solid ${i < favourable ? T.indigo : T.slateBd}`,
+              fontSize:18, fontWeight:900, color: i < favourable ? T.indigo : T.textMid,
+            }}>{side}</div>
+          ))}
+        </div>
+        <span style={{ fontSize:10, fontWeight:700, color:T.indigo }}>P = {favourable}/2</span>
+      </div>
+    );
+  }
+ 
+  // Spinner (default)
+  const sliceAngle = 360 / total;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
+      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability — Spinner</span>
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        {Array.from({ length: total }, (_, i) => {
+          const startAngle = (i * sliceAngle - 90) * Math.PI / 180;
+          const endAngle = ((i + 1) * sliceAngle - 90) * Math.PI / 180;
+          const x1 = 60 + 50 * Math.cos(startAngle);
+          const y1 = 60 + 50 * Math.sin(startAngle);
+          const x2 = 60 + 50 * Math.cos(endAngle);
+          const y2 = 60 + 50 * Math.sin(endAngle);
+          const large = sliceAngle > 180 ? 1 : 0;
+          const isFav = i < favourable;
+          return (
+            <path key={i}
+              d={`M60,60 L${x1},${y1} A50,50 0 ${large},1 ${x2},${y2} Z`}
+              fill={isFav ? T.indigoBg : T.slateBg}
+              stroke={isFav ? T.indigo : T.slateBd}
+              strokeWidth={1.5}
+            />
+          );
+        })}
+        <circle cx={60} cy={60} r={4} fill={T.slate} />
+      </svg>
+      <div style={{ display:"flex", gap:12, fontSize:10, fontWeight:700 }}>
+        <span style={{ color:T.indigo }}>{favourable} favourable</span>
+        <span style={{ color:T.textMid }}>{total} total outcomes</span>
+      </div>
+    </div>
+  );
+}
+ 
+// ─── PERCENTAGE BAR VISUAL ──────────────────────────────────────────────────
+function PercentageBarVis({ value = 50 }) {
+  const W = 180;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
+      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Percentage</span>
+      <div style={{ width:W, position:"relative" }}>
+        {/* Bar */}
+        <div style={{ width:"100%", height:24, background:T.slateBg, borderRadius:12, border:`1.5px solid ${T.slateBd}`, overflow:"hidden" }}>
+          <div style={{ width:`${value}%`, height:"100%", background:`linear-gradient(90deg, ${T.indigo}, ${T.nebula})`, borderRadius:12, transition:"width 0.5s" }} />
+        </div>
+        {/* Marker */}
+        <div style={{ position:"absolute", left:`${value}%`, top:-6, transform:"translateX(-50%)" }}>
+          <div style={{ width:2, height:36, background:T.indigo }} />
+        </div>
+        {/* Labels */}
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:8 }}>
+          <span style={{ fontSize:10, fontWeight:700, color:T.textMid }}>0%</span>
+          <span style={{ fontSize:14, fontWeight:900, color:T.indigo }}>{value}%</span>
+          <span style={{ fontSize:10, fontWeight:700, color:T.textMid }}>100%</span>
+        </div>
+      </div>
+      {/* Visual fraction */}
+      <div style={{ display:"flex", gap:2, marginTop:4 }}>
+        {Array.from({ length: 10 }, (_, i) => (
+          <div key={i} style={{
+            width:14, height:14, borderRadius:3,
+            background: i < Math.round(value / 10) ? T.indigo : T.slateBg,
+            border: `1px solid ${i < Math.round(value / 10) ? T.indigo : T.slateBd}`,
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+ 
+// ─── SYMMETRY VISUAL ────────────────────────────────────────────────────────
+function SymmetryVis({ shape = "square" }) {
+  const W = 160, H = 140;
+  const shapes = {
+    square:      { points: "40,30 120,30 120,110 40,110", lines: 4 },
+    rectangle:   { points: "30,40 130,40 130,100 30,100", lines: 2 },
+    circle:      { cx: 80, cy: 70, r: 45, lines: "infinite" },
+    triangle:    { points: "80,25 130,110 30,110", lines: 1 },
+    pentagon:    { points: "80,20 135,55 115,110 45,110 25,55", lines: 5 },
+    hexagon:     { points: "80,20 125,45 125,95 80,120 35,95 35,45", lines: 6 },
+    kite:        { points: "80,20 120,65 80,120 40,65", lines: 1 },
+    parallelogram:{ points: "50,30 140,30 110,110 20,110", lines: 0 },
+  };
+  const s = shapes[shape] || shapes.square;
+  const lineCount = s.lines === "infinite" ? "∞" : s.lines;
+ 
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:10 }}>
+      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Lines of Symmetry</span>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {s.points ? (
+          <polygon points={s.points} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        ) : (
+          <circle cx={s.cx} cy={s.cy} r={s.r} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        )}
+        {/* Draw symmetry lines */}
+        {s.lines >= 1 && (
+          <line x1={80} y1={5} x2={80} y2={H-5} stroke={T.rose} strokeWidth={1.5} strokeDasharray="4,3" />
+        )}
+        {s.lines >= 2 && (
+          <line x1={10} y1={70} x2={W-10} y2={70} stroke={T.rose} strokeWidth={1.5} strokeDasharray="4,3" />
+        )}
+        {(s.lines >= 4 || s.lines === "infinite") && (
+          <>
+            <line x1={20} y1={20} x2={W-20} y2={H-20} stroke={T.amber} strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={W-20} y1={20} x2={20} y2={H-20} stroke={T.amber} strokeWidth={1} strokeDasharray="3,3" />
+          </>
+        )}
+      </svg>
+      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+        <span style={{ fontSize:12, fontWeight:900, color:T.indigo }}>{lineCount}</span>
+        <span style={{ fontSize:10, fontWeight:600, color:T.textMid }}>line{s.lines !== 1 ? "s" : ""} of symmetry</span>
+      </div>
+      <span style={{ fontSize:9, fontWeight:600, color:T.textMid, background:T.indigoBg, padding:"2px 8px", borderRadius:6, border:`1px solid ${T.indigoBd}` }}>
+        {shape.charAt(0).toUpperCase() + shape.slice(1)}
+      </span>
+    </div>
+  );
+}
+ 
+// ─── TALLY CHART VISUAL ─────────────────────────────────────────────────────
+function TallyChartVis({ items = [] }) {
+  if (items.length === 0) return null;
+  const maxCount = Math.max(...items.map(i => i.count), 1);
+ 
+  const tallyMarks = (count) => {
+    const groups = Math.floor(count / 5);
+    const remainder = count % 5;
+    let marks = "";
+    for (let i = 0; i < groups; i++) marks += "||||̶ ";  // 5-mark group
+    for (let i = 0; i < remainder; i++) marks += "|";
+    return marks || "0";
+  };
+ 
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:10, width:"100%" }}>
+      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase", textAlign:"center" }}>Tally Chart</span>
+      <div style={{ border:`1.5px solid ${T.slateBd}`, borderRadius:8, overflow:"hidden" }}>
+        {/* Header */}
+        <div style={{ display:"flex", background:T.slateBg, borderBottom:`1.5px solid ${T.slateBd}` }}>
+          <div style={{ flex:1, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate }}>Item</div>
+          <div style={{ flex:1, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate }}>Tally</div>
+          <div style={{ width:50, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate, textAlign:"center" }}>Total</div>
+        </div>
+        {/* Rows */}
+        {items.map((item, i) => (
+          <div key={i} style={{
+            display:"flex", alignItems:"center",
+            borderBottom: i < items.length - 1 ? `1px solid ${T.slateBd}` : "none",
+            background: i % 2 === 0 ? "#fff" : T.slateBg,
+          }}>
+            <div style={{ flex:1, padding:"5px 10px", fontSize:10, fontWeight:700, color:T.text }}>{item.label}</div>
+            <div style={{ flex:1, padding:"5px 10px", fontSize:11, fontWeight:600, color:T.indigo, fontFamily:"monospace", letterSpacing:1 }}>
+              {tallyMarks(item.count)}
+            </div>
+            <div style={{ width:50, padding:"5px 10px", fontSize:11, fontWeight:900, color:T.indigo, textAlign:"center" }}>{item.count}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function parseGeography(topic, questionText, yearLevel) {
+  const t = (topic || "").toLowerCase();
+  const q = (questionText || "").toLowerCase();
+  const nums = ((questionText || "").match(/\d+/g) || []).map(Number);
+ 
+  // Compass / directions
+  if (t.includes("compass") || t.includes("direction") || t.includes("bearing") ||
+      /north|south|east|west|bearing|compass|cardinal/i.test(questionText)) {
+    const bearingMatch = (questionText || "").match(/(\d+)\s*(?:°|degrees?)/i);
+    const dirMap = { north: 0, northeast: 45, east: 90, southeast: 135, south: 180, southwest: 225, west: 270, northwest: 315,
+                     ne: 45, se: 135, sw: 225, nw: 315, n: 0, e: 90, s: 180, w: 270 };
+    let bearing = bearingMatch ? parseInt(bearingMatch[1]) : 0;
+    let label = "";
+    for (const [name, deg] of Object.entries(dirMap)) {
+      if (q.includes(name)) { bearing = deg; label = name.toUpperCase(); break; }
+    }
+    return { type: "compass", bearing, label: label || (bearing > 0 ? `${bearing}°` : "") };
+  }
+ 
+  // Grid references
+  if (t.includes("grid") || /grid reference|4.figure|6.figure|coordinate.*map|map.*reference/i.test(questionText)) {
+    const gridRefMatch = (questionText || "").match(/\b([A-E])(\d)\b/i);
+    const features = [];
+    // Try to extract features mentioned
+    const featureWords = ["church", "school", "farm", "lake", "forest", "town", "bridge", "hill"];
+    featureWords.forEach((fw, i) => {
+      if (q.includes(fw)) features.push({ name: fw, row: (i % 4) + 1, col: i % 5 });
+    });
+    return {
+      type: "map_grid",
+      gridRef: gridRefMatch ? `${gridRefMatch[1].toUpperCase()}${gridRefMatch[2]}` : "",
+      rows: 5, cols: 5, features,
+    };
+  }
+ 
+  // Climate graph
+  if (t.includes("climate") || t.includes("weather") || t.includes("rainfall") ||
+      /climate graph|temperature.*rainfall|precipitation.*month/i.test(questionText)) {
+    // Extract any monthly data or use typical UK data
+    const temps = nums.length >= 12 ? nums.slice(0, 12) : [4, 4, 6, 9, 12, 15, 17, 17, 14, 11, 7, 5];
+    const rainfall = nums.length >= 24 ? nums.slice(12, 24) : [55, 40, 50, 45, 50, 55, 50, 60, 55, 60, 65, 60];
+    const locationMatch = (questionText || "").match(/(?:in|for|of)\s+([A-Z][a-zA-Z\s]{2,20})/);
+    return { type: "climate_graph", location: locationMatch?.[1]?.trim() || "", temps, rainfall };
+  }
+ 
+  // Water cycle
+  if (/water cycle|evaporation.*condensation|precipitation.*collection|transpiration/i.test(questionText) ||
+      t.includes("water_cycle")) {
+    const stages = ["evaporation", "condensation", "precipitation", "collection", "transpiration"];
+    const highlighted = stages.filter(s => q.includes(s));
+    return { type: "water_cycle", highlighted };
+  }
+ 
+  // Rock cycle / Earth layers / Soil
+  if (/rock cycle|igneous|sedimentary|metamorphic/i.test(questionText) || t.includes("rock")) {
+    const highlighted = ["igneous", "sedimentary", "metamorphic"].find(r => q.includes(r)) || "";
+    return { type: "layer_diagram", context: "rock_cycle", highlighted };
+  }
+  if (/earth.*layer|crust|mantle|core|inner core|outer core/i.test(questionText) || t.includes("earth_layer")) {
+    const highlighted = ["crust", "mantle", "outer core", "inner core"].find(l => q.includes(l)) || "";
+    return { type: "layer_diagram", context: "earth", highlighted };
+  }
+  if (/soil.*layer|topsoil|subsoil|bedrock|humus/i.test(questionText) || t.includes("soil")) {
+    const highlighted = ["topsoil", "subsoil", "bedrock"].find(l => q.includes(l)) || "";
+    return { type: "layer_diagram", context: "soil", highlighted };
+  }
+ 
+  // Map / continent / country questions
+  if (/continent|which country|where is|capital.*of|locate.*map|map.*world/i.test(questionText) ||
+      t.includes("continent") || t.includes("country") || t.includes("capital")) {
+    const COUNTRIES = {
+      "england": "uk", "scotland": "uk", "wales": "uk", "northern ireland": "uk", "united kingdom": "uk", "uk": "uk",
+      "france": "europe", "germany": "europe", "spain": "europe", "italy": "europe", "poland": "europe", "russia": "europe",
+      "egypt": "africa", "nigeria": "africa", "kenya": "africa", "south africa": "africa", "congo": "africa",
+      "north america": "world", "south america": "world", "asia": "world", "europe": "world", "africa": "world", "oceania": "world",
+      "australia": "world", "china": "world", "india": "world", "brazil": "world", "canada": "world",
+    };
+    let region = "world", highlighted = "";
+    for (const [country, reg] of Object.entries(COUNTRIES)) {
+      if (q.includes(country)) { region = reg; highlighted = country; break; }
+    }
+    return { type: "map_region", region, highlighted };
+  }
+ 
+  return null;
+}
+ 
+function parseHistory(topic, questionText, yearLevel) {
+  const t = (topic || "").toLowerCase();
+  const q = (questionText || "").toLowerCase();
+  const nums = ((questionText || "").match(/\d{3,4}/g) || []).map(Number);
+ 
+  // Timeline
+  if (t.includes("timeline") || t.includes("chronolog") ||
+      /what year|when did|order.*events|which came first|put.*order|century|decade|timeline/i.test(questionText)) {
+    // Extract year + event pairs
+    const yearMatches = [...(questionText || "").matchAll(/(\d{3,4})\s*[-–:]\s*([^,.\n]{3,40})/g)];
+    let events = yearMatches.map(m => ({ year: parseInt(m[1]), label: m[2].trim() }));
+    // If no structured data, use standalone years
+    if (events.length < 2 && nums.length >= 2) {
+      events = nums.slice(0, 5).map(y => ({ year: y, label: "" }));
+    }
+    // Known historical events as fallback enrichment
+    const KNOWN_EVENTS = {
+      1066: "Battle of Hastings", 1215: "Magna Carta", 1485: "Battle of Bosworth",
+      1588: "Spanish Armada", 1666: "Great Fire of London", 1776: "American Independence",
+      1815: "Battle of Waterloo", 1914: "WW1 begins", 1939: "WW2 begins", 1945: "WW2 ends",
+      1969: "Moon landing", 1989: "Berlin Wall falls",
+    };
+    events = events.map(e => ({
+      ...e,
+      label: e.label || KNOWN_EVENTS[e.year] || `${e.year}`,
+    }));
+    if (events.length >= 2) {
+      const highlighted = nums[0] || null;
+      return { type: "timeline", events, highlighted };
+    }
+  }
+ 
+  // Source analysis
+  if (/source [A-Z]|primary source|secondary source|reliability|bias|provenance|how useful|how reliable/i.test(questionText) ||
+      t.includes("source") || t.includes("evidence")) {
+    const isPrimary = /primary|diary|letter|photograph|artefact|eyewitness/i.test(questionText);
+    const origins = ["letter", "diary", "photograph", "newspaper", "speech", "painting", "artefact", "document"];
+    const origin = origins.find(o => q.includes(o)) || "document";
+    const dateMatch = (questionText || "").match(/\b(\d{4})\b/);
+    const authorMatch = (questionText || "").match(/(?:by|from|written by)\s+([A-Z][a-zA-Z\s]{2,20})/);
+    return {
+      type: "source_analysis",
+      sourceType: isPrimary ? "primary" : "secondary",
+      origin,
+      date: dateMatch?.[1] || "",
+      author: authorMatch?.[1]?.trim() || "",
+      reliability: null,
+    };
+  }
+ 
+  // Map-based history questions (e.g. "Where did the Romans invade?")
+  if (/where.*happen|map|empire|invasion|location.*battle|route/i.test(questionText)) {
+    return { type: "map_region", region: "europe", highlighted: "" };
+  }
+ 
+  return null;
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MathsVisualiser({ question, subject, yearLevel }) {
-  const visual = useMemo(() => {
-    if (!question) return null;
-    const subj = (subject || "").toLowerCase();
-    const year = parseInt(yearLevel ?? question?.year_level ?? 99, 10);
+// ── Exported parser — single source of truth ────────────────────────────────
+// Called by MathsVisualiser (rendering) and canVisualise (decision).
+// Returns a visual descriptor object or null.
+export function resolveVisual(question, subject, yearLevel) {
+  if (!question) return null;
+  const subj = (subject || "").toLowerCase();
+  const year = parseInt(yearLevel ?? question?.year_level ?? 99, 10);
 
-    const isMaths      = subj.includes("math");
-    const isScience    = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
-    const isNVR        = subj.includes("verbal") || subj.includes("nvr");
-    const isEnglish    = subj.includes("english");
-    const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
-    if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce) return null;
+  const isMaths    = subj.includes("math");
+  const isScience  = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
+  const isNVR      = subj.includes("verbal") || subj.includes("nvr");
+  const isEnglish  = subj.includes("english");
+  const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
+  const isGeography  = subj.includes("geograph") || subj.includes("hass") || subj.includes("social_stud");
+  const isHistory    = subj.includes("histor");
+  if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce && !isGeography && !isHistory) return null;
 
-    // "science" as a generic subject — infer biology/physics/chemistry from topic/question
-    // so Tier 4 parsers (which check subj.includes("biol") etc.) still fire
-    let enrichedSubject = subject || "";
-    if (subj === "science" || subj.includes("science")) {
-      const q2 = (question.q || question.question_text || "").toLowerCase();
-      const t2 = (question.topic || "").toLowerCase();
-      if (/cell|mitochondria|photosynthesis|organ|plant|animal|dna|gene|inherit|chloroplast|vacuole|nucleus|ribosome|membrane/i.test(q2 + t2))
-        enrichedSubject = "biology";
-      else if (/force|velocity|speed|wave|circuit|energy|electric|magnet|light|sound|pressure|gravity|motion|newton/i.test(q2 + t2))
-        enrichedSubject = "physics";
-      else if (/atom|element|compound|reaction|acid|alkali|periodic|molecule|ph|bond|oxidat|precipitat|dissolv|solut/i.test(q2 + t2))
-        enrichedSubject = "chemistry";
+  let enrichedSubject = subject || "";
+  if (subj === "science" || subj.includes("science")) {
+    const q2 = (question.q || question.question_text || "").toLowerCase();
+    const t2 = (question.topic || "").toLowerCase();
+    if (/cell|mitochondria|photosynthesis|organ|plant|animal|dna|gene|inherit|chloroplast|vacuole|nucleus|ribosome|membrane/i.test(q2 + t2))
+      enrichedSubject = "biology";
+    else if (/force|velocity|speed|wave|circuit|energy|electric|magnet|light|sound|pressure|gravity|motion|newton/i.test(q2 + t2))
+      enrichedSubject = "physics";
+    else if (/atom|element|compound|reaction|acid|alkali|periodic|molecule|ph|bond|oxidat|precipitat|dissolv|solut/i.test(q2 + t2))
+      enrichedSubject = "chemistry";
+  }
+
+  const topicStr    = question.topic || question._anchorTopic || "";
+  const questionStr = question.q || question.question_text || "";
+
+  const t4 = parseTier4(topicStr, questionStr, enrichedSubject, year);
+  if (t4) return t4;
+
+  const t3 = parseTier3(topicStr, questionStr, enrichedSubject, year);
+  if (t3) return t3;
+  if (isGeography || (isScience && /water cycle|rock cycle|soil|earth.*layer/i.test(questionStr + topicStr))) {
+    const geo = parseGeography(topicStr, questionStr, year);
+    if (geo) return geo;
+  }
+  if (isHistory) {
+    const hist = parseHistory(topicStr, questionStr, year);
+    if (hist) return hist;
+  }
+  // Pie chart
+  if (subj.includes("math") && (t.includes("pie_chart") || t.includes("pie") || /pie chart|pie graph|sector|slice/i.test(questionText))) {
+    const labelValuePairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+    if (labelValuePairs.length >= 2) {
+      return { type: "pie_chart", slices: labelValuePairs.slice(0, 6).map(m => ({ label: m[1].trim(), value: parseInt(m[2]) })) };
     }
+    // Fallback with just numbers
+    if (nums.length >= 2) {
+      return { type: "pie_chart", slices: nums.slice(0, 4).map((n, i) => ({ label: `Part ${i + 1}`, value: n })) };
+    }
+  }
+ 
+  // Pictogram
+  if (subj.includes("math") && (t.includes("pictogram") || /pictogram|picture graph|key.*represents/i.test(questionText))) {
+    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+    if (pairs.length >= 2) {
+      const items = pairs.slice(0, 5).map(m => ({ label: m[1].trim(), count: parseInt(m[2]) }));
+      const keyMatch = (questionText || "").match(/(?:key|represents?|stands? for|=)\s*(\d+)/i);
+      return { type: "pictogram", items, keyValue: keyMatch ? parseInt(keyMatch[1]) : 2 };
+    }
+  }
+ 
+  // Line graph
+  if (subj.includes("math") && (t.includes("line_graph") || /line graph|plot.*points.*graph|trend.*graph/i.test(questionText))) {
+    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
+    if (pairs.length >= 2) {
+      return {
+        type: "line_graph",
+        points: pairs.slice(0, 8).map(m => ({ x: m[1].trim(), y: parseInt(m[2]) })),
+        xLabel: "", yLabel: "", title: "",
+      };
+    }
+  }
+ 
+  // Thermometer / negative numbers
+  if (subj.includes("math") && (t.includes("temperature") || t.includes("thermometer") ||
+      /thermometer|degrees celsius|°C|temperature.*negative|below zero|below freezing/i.test(questionText))) {
+    const tempMatch = (questionText || "").match(/(-?\d+)\s*(?:°C|degrees)/i);
+    const value = tempMatch ? parseInt(tempMatch[1]) : 0;
+    return { type: "thermometer", value, min: Math.min(value - 10, -10), max: Math.max(value + 10, 30) };
+  }
+ 
+  // Conversion ladder
+  if (subj.includes("math") && (t.includes("conversion") || t.includes("convert") ||
+      /convert|mm to cm|cm to m|m to km|g to kg|ml to l|kg to g|km to m|l to ml/i.test(questionText))) {
+    if (/mm|cm|m|km/i.test(questionText) && /convert|change|how many/i.test(questionText)) {
+      return { type: "conversion_ladder", units: ["km", "m", "cm", "mm"], factors: ["×1000", "×100", "×10"],
+        highlighted: ["mm","cm","m","km"].find(u => questionText.toLowerCase().includes(u)) || "" };
+    }
+    if (/g|kg/i.test(questionText)) {
+      return { type: "conversion_ladder", units: ["kg", "g"], factors: ["×1000"],
+        highlighted: ["kg","g"].find(u => questionText.toLowerCase().includes(u)) || "" };
+    }
+    if (/ml|l/i.test(questionText)) {
+      return { type: "conversion_ladder", units: ["l", "ml"], factors: ["×1000"],
+        highlighted: ["l","ml"].find(u => questionText.toLowerCase().includes(u)) || "" };
+    }
+  }
+ 
+  // Carroll diagram
+  if (subj.includes("math") && (t.includes("carroll") || /carroll diagram/i.test(questionText))) {
+    const c1Match = (questionText || "").match(/(?:is |are )?(\w+)\s*(?:and|\/)\s*(?:is |are )?(\w+)/i);
+    return {
+      type: "carroll_diagram",
+      criteria1: c1Match?.[1] || "Even",
+      criteria2: c1Match?.[2] || "> 10",
+      items: [],
+    };
+  }
+ 
+  // Symmetry (component already built)
+  if (subj.includes("math") && (t.includes("symmetr") || /line.*symmetry|lines? of symmetry|symmetrical/i.test(questionText))) {
+    const SHAPES = ["square","rectangle","triangle","circle","pentagon","hexagon","octagon","kite","parallelogram"];
+    const shape = SHAPES.find(s => questionText.toLowerCase().includes(s)) || "square";
+    return { type: "symmetry", shape };
+  }
+ 
+  // Probability (component already built)
+  if (subj.includes("math") && (t.includes("probabil") || /chance|likely|unlikely|certain|impossible|spinner|dice|coin/i.test(questionText))) {
+    const total = nums.find(n => n > 1 && n <= 20) || 6;
+    const favourable = nums.find((n, i) => i > 0 && n >= 1 && n < total) || 1;
+    const context = /dice|die/i.test(questionText) ? "dice" : /coin/i.test(questionText) ? "coin" : "spinner";
+    return { type: "probability", total, favourable, context };
+  }
+ 
+  // Percentage bar (component already built)
+  if (subj.includes("math") && (t.includes("percent") || /%/.test(questionText))) {
+    const pct = nums.find(n => n > 0 && n <= 100);
+    if (pct) return { type: "percentage_bar", value: pct };
+  }
+ 
+  // Tally chart (component already built)
+  if (subj.includes("math") && /tally|tallies/i.test(questionText)) {
+    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+    if (pairs.length >= 2) {
+      return { type: "tally_chart", items: pairs.slice(0, 6).map(m => ({ label: m[1].trim(), count: parseInt(m[2]) })) };
+    }
+  }
 
-    // Tier 4 first: higher science, accounting, economics
-    const t4 = parseTier4(
-      question.topic || question._anchorTopic || "",
-      question.q || question.question_text || "",
-      enrichedSubject,
-      year
-    );
-    if (t4) return t4;
+  return parseVisualExtended(topicStr, questionStr, enrichedSubject, year);
+}
 
-    // Tier 3: English, VR, new maths types
-    const t3 = parseTier3(
-      question.topic || question._anchorTopic || "",
-      question.q || question.question_text || "",
-      enrichedSubject,
-      year
-    );
-    if (t3) return t3;
+// ── canVisualise — single source of truth for panel decisions ────────────────
+export function canVisualise(question, subject, yearLevel) {
+  return resolveVisual(question, subject, yearLevel) !== null;
+}
 
-    return parseVisualExtended(
-      question.topic || question._anchorTopic || "",
-      question.q || question.question_text || "",
-      enrichedSubject,
-      year
-    );
-  }, [question, subject, yearLevel]);
+export default function MathsVisualiser({ question, subject, yearLevel }) {
+  const visual = useMemo(
+    () => resolveVisual(question, subject, yearLevel),
+    [question, subject, yearLevel]
+  );
 
   if (!visual) return null;
 
@@ -1773,6 +2319,28 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "grammar":          return `Grammar labelling diagram`;
       case "synonym_ladder":   return `Synonym word ladder`;
       case "word_builder":     return `Word parts: prefix, root, suffix`;
+      case "compass":         return `Compass showing ${visual.label || visual.bearing + "°"}`;
+      case "map_grid":        return `Map grid${visual.gridRef ? ` — find ${visual.gridRef}` : ""}`;
+      case "climate_graph":   return `Climate graph${visual.location ? ` for ${visual.location}` : ""}`;
+      case "layer_diagram":   return `${visual.context} layers diagram`;
+      case "water_cycle":     return `Water cycle diagram`;
+      case "timeline":        return `Timeline with ${visual.events?.length || 0} events`;
+      case "source_analysis": return `Historical ${visual.sourceType} source: ${visual.origin}`;
+      case "map_region":      return `Map showing ${visual.region}${visual.highlighted ? ` — ${visual.highlighted}` : ""}`;
+      case "human_body":          return `${visual.system} diagram${visual.highlighted ? ` — ${visual.highlighted}` : ""}`;
+      case "solar_system":        return `Solar system${visual.highlighted ? ` — ${visual.highlighted}` : ""}`;
+      case "classification_key":  return `Classification key${visual.highlighted ? ` — ${visual.highlighted}` : ""}`;
+      case "light_diagram":       return `Light ${visual.scenario} diagram`;
+      case "electrical_symbols":  return `Electrical circuit symbols`;
+      case "magnet":              return `Magnet diagram: ${visual.scenario}`;
+      case "photosynthesis":      return `Photosynthesis diagram`;
+      case "respiration":         return `${visual.respType} respiration diagram`;
+      case "pie_chart":           return `Pie chart with ${visual.slices?.length || 0} slices`;
+      case "pictogram":           return `Pictogram with ${visual.items?.length || 0} items`;
+      case "line_graph":          return `Line graph`;
+      case "thermometer":         return `Thermometer showing ${visual.value}°C`;
+      case "conversion_ladder":   return `Unit conversion: ${visual.units?.join(" → ")}`;
+      case "carroll_diagram":     return `Carroll diagram: ${visual.criteria1} and ${visual.criteria2}`;
       default:                 return "Maths visual aid";
     }
   })();
@@ -1846,6 +2414,29 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "t_account":       return <TAccountVis         {...visual} />;
       case "break_even":      return <BreakEvenVis        {...visual} />;
       case "supply_demand":   return <SupplyDemandVis     {...visual} />;
+      case "compass":         return <CompassVis          {...visual} />;
+      case "map_grid":        return <MapGridVis          {...visual} />;
+      case "climate_graph":   return <ClimateGraphVis     {...visual} />;
+      case "layer_diagram":   return <LayerDiagramVis     context={visual.context} highlighted={visual.highlighted} />;
+      case "water_cycle":     return <WaterCycleVis       highlighted={visual.highlighted} />;
+      case "timeline":        return <TimelineVis         events={visual.events} highlighted={visual.highlighted} />;
+      case "source_analysis": return <SourceAnalysisVis   {...visual} />;
+      case "map_region":      return <MapRegionVis        region={visual.region} highlighted={visual.highlighted} />;
+      case "human_body":          return <HumanBodyVis system={visual.system} highlighted={visual.highlighted} />;
+      case "solar_system":        return <SolarSystemVis highlighted={visual.highlighted} showOrbits={visual.showOrbits} />;
+      case "classification_key":  return <ClassificationKeyVis highlighted={visual.highlighted} />;
+      case "light_diagram":       return <LightDiagramVis scenario={visual.scenario} angle={visual.angle} />;
+      case "electrical_symbols":  return <ElectricalSymbolsVis components={visual.components} highlighted={visual.highlighted} />;
+      case "magnet":              return <MagnetVis scenario={visual.scenario} />;
+      case "photosynthesis":      return <PhotosynthesisVis highlighted={visual.highlighted} />;
+      case "respiration":         return <RespirationVis respType={visual.respType} />;
+      // ── New Maths ───────────────────────────────────────────────────────────
+      case "pie_chart":           return <PieChartVis slices={visual.slices} />;
+      case "pictogram":           return <PictogramVis items={visual.items} keyValue={visual.keyValue} />;
+      case "line_graph":          return <LineGraphVis points={visual.points} xLabel={visual.xLabel} yLabel={visual.yLabel} title={visual.title} />;
+      case "thermometer":         return <ThermometerVis value={visual.value} min={visual.min} max={visual.max} />;
+      case "conversion_ladder":   return <ConversionLadderVis units={visual.units} factors={visual.factors} highlighted={visual.highlighted} />;
+      case "carroll_diagram":     return <CarrollDiagramVis criteria1={visual.criteria1} criteria2={visual.criteria2} items={visual.items} />;
       default:                return null;
     }
   })();

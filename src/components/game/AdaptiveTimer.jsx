@@ -18,8 +18,8 @@
 import React from "react";
 import { getAgeBand } from "@/lib/ageBandConfig";
 
-export default function AdaptiveTimer({ timeLeft, total, yearLevel }) {
-  const band = getAgeBand(yearLevel);
+export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }) {
+  const band = getAgeBand(yearLevel, curriculum);
   const pct = total > 0 ? timeLeft / total : 1;
   const isLow = pct < 0.25;
 

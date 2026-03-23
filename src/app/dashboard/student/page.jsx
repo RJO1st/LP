@@ -1329,56 +1329,7 @@ const UK_NATIONAL_SUBJECTS = {
         />
       )}
 
-      {/* ── NAV ─────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-slate-100 px-3 sm:px-5 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
-          <span className="font-black text-lg text-slate-800">LaunchPard</span>
-          <span className="text-xs text-slate-300 font-bold hidden sm:inline">·</span>
-          <span className="text-xs text-slate-400 font-bold hidden sm:inline">
-            {currDef.country} {examModeDef ? `${examModeDef.emoji} ${examModeDef.label}` : currDef.name}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-       {(getAgeBand(scholar?.year_level || scholar?.year || 4) === "ks3" || 
-            getAgeBand(scholar?.year_level || scholar?.year || 4) === "ks4") && (
-            <button
-              onClick={() => setShowProgress(v => !v)}
-              className="hidden md:flex items-center gap-2 bg-indigo-50 text-indigo-700
-                         font-bold px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-colors"
-            >
-              <span className="text-sm">{showProgress ? "Hide Progress" : "Show Progress"}</span>
-            </button>
-          )}
 
-          {effectiveTier === "free" && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200"
-              title="Free plan: 10 questions per day">
-              <span className="text-xs">📝</span>
-              <span className="font-black text-indigo-600 text-xs">{todayQCount}/10</span>
-              <span className="text-[9px] text-indigo-400 font-bold">today</span>
-            </div>
-          )}
-          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-200">
-            <CoinIcon size={16} />
-            <span className="font-black text-yellow-700 text-sm">{scholar.coins || 0}</span>
-          </div>
-          <button
-            onClick={() => setShowAvatarShop(true)}
-            className="flex items-center gap-2 bg-purple-50 text-purple-700 font-bold px-3 py-2 rounded-xl hover:bg-purple-100 transition-colors"
-            title="Customize Avatar"
-          >
-            <span className="text-lg">👤</span>
-            <span className="hidden md:inline text-xs">Avatar</span>
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="text-xs text-slate-400 hover:text-rose-500 font-bold uppercase tracking-wider px-3 py-2 rounded-lg hover:bg-rose-50 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
 
       {/* ── TRIAL BANNER ────────────────────────────────────────── */}
       {trialInfo && trialInfo.status === 'trial' && (
@@ -1417,8 +1368,8 @@ const UK_NATIONAL_SUBJECTS = {
           </div>
         </div>
       )}
-      {dashboardMode === "adaptive" ? (
-        <ThemeProvider yearLevel={scholar.year_level || scholar.year || 4}>
+     {dashboardMode === "adaptive" ? (
+        <ThemeProvider yearLevel={scholar?.year_level} curriculum={scholar?.curriculum}>
           <AdaptiveDashboardLayout
             scholar={{
               ...scholar,
@@ -1455,6 +1406,11 @@ const UK_NATIONAL_SUBJECTS = {
             leaderboard={leaderboard}
             scholarId={scholar.id}
             supabase={supabase}
+            coins={scholar.coins || 0}
+            todayQCount={todayQCount}
+            effectiveTier={effectiveTier}
+            onSignOut={handleSignOut}
+            onAvatar={() => setShowAvatarShop(true)}
           />
         </ThemeProvider>
       ) : (

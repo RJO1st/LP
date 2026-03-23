@@ -29,7 +29,7 @@ export async function createJournalEntry(supabase, {
 }) {
   if (!supabase || !scholarId) return;
 
-  const band = getAgeBand(yearLevel);
+  const band = getAgeBand(yearLevel, scholar?.curriculum);
   // Only KS1 and KS2 get journal entries
   if (band !== 'ks1' && band !== 'ks2') return;
 

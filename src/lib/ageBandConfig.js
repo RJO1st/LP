@@ -11,8 +11,17 @@
  *   const theme = getBandConfig(band);
  */
 
-export function getAgeBand(yearLevel) {
+export function getAgeBand(yearLevel, curriculum = '') {
   const yr = parseInt(yearLevel, 10) || 4;
+  const c = (curriculum || '').toLowerCase();
+
+  // Nigerian curricula — year_level 1-3 means different ages
+  if (c === 'ng_jss')     return 'ks3';
+  if (c === 'ng_sss')     return 'ks4';
+  if (c === 'ng_primary') return yr <= 2 ? 'ks1' : 'ks2';
+  if (c === 'ca_secondary') return yr <= 10 ? 'ks3' : 'ks4';
+
+  // Default
   if (yr <= 2)  return 'ks1';
   if (yr <= 6)  return 'ks2';
   if (yr <= 9)  return 'ks3';
@@ -23,8 +32,8 @@ export function getBandConfig(band) {
   return BAND_CONFIGS[band] ?? BAND_CONFIGS.ks2;
 }
 
-export function getConfigForYear(yearLevel) {
-  return getBandConfig(getAgeBand(yearLevel));
+export function getConfigForYear(yearLevel, curriculum = '') {
+  return getBandConfig(getAgeBand(yearLevel, curriculum));
 }
 
 export const BAND_CONFIGS = {

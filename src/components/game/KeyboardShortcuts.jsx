@@ -43,7 +43,7 @@ export default function KeyboardShortcuts({
   disabled = false,
   children,
 }) {
-  const band = getAgeBand(yearLevel);
+  const band = getAgeBand(yearLevel, scholar?.curriculum);
   const active = band === "ks3" || band === "ks4";
 
   const handleKey = useCallback(

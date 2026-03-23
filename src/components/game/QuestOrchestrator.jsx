@@ -21,7 +21,7 @@ import {
 } from "../../lib/quizUtils";
 import { useTaraGate }          from "./TaraEIB";
 import ImageDisplay             from "./ImageDisplay";
-import MathsVisualiser         from "./MathsVisualiser";
+import MathsVisualiser, { canVisualise } from "./MathsVisualiser";
 import ReadingComprehensionEngine from "./ReadingComprehensionEngine";
 import STEMEngine               from "./STEMEngine";
 import HumanitiesEngine         from "./HumanitiesEngine";
@@ -223,125 +223,15 @@ function LoadingCard({ subject }) {
 }
 
 // ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
-// ─── LAYOUT HELPER ────────────────────────────────────────────────────────────
-// Mirrors MathsVisualiser's parser entry conditions without doing any rendering.
-// Used to decide whether to activate the side-by-side grid layout.
-function hasMathsVisual(question, subject) {
-  if (!question) return false;
-  const subj  = (subject || "").toLowerCase();
-  const topic = (question.topic || "").toLowerCase();
-  const text  = question.q || question.question_text || "";
-
-  const isMaths   = subj.includes("math");
-  const isScience = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
-  const isNVR     = subj.includes("verbal") || subj.includes("nvr") || topic.includes("nvr");
-  const isEnglish = subj.includes("english");
-  if (!isMaths && !isScience && !isNVR && !isEnglish) return false;
-
-  // ── NVR / VERBAL REASONING ────────────────────────────────────────────────────
-  if (/how many sides|how many corners|how many edges|how many vertices|what shape|which shape|sides does|corners does/i.test(text)) return true;
-    // Sequence/pattern questions — NVRVisuals handles these
-    if (/sequence|series|next in|what comes next/i.test(text) && /circle|square|triangle|rectangle|pentagon|hexagon/i.test(text)) return true;
-    // Matrix questions
-    if (/matrix|grid.*pattern/i.test(text)) return true;
-    // Odd one out with named shapes
-    if (/odd one out|does not belong|which.*different/i.test(text) && /circle|square|triangle|rectangle/i.test(text)) return true;
-    // Reflection of letters — NVRReflectionVis handles these
-    if (/reflect.*letter|letter.*reflect|mirror.*letter/i.test(text)) return true;
-    // Rotation with degrees — NVRRotationVis handles these
-    if (/rotat.*\d+\s*degree|turn.*\d+\s*degree|\d+\s*degree.*rotat/i.test(text)) return true;
-    // Folding nets — NVRNetVis handles these
-    if (/net.*fold|fold.*net|which net|net of a/i.test(text)) return true;
- 
-
-  // ── SCIENCE ──────────────────────────────────────────────────────────────────
-  if (isScience) {
-    if (topic.includes("force") || topic.includes("newton")) return true;
-    if (topic.includes("velocit") || topic.includes("speed") || topic.includes("motion")) return true;
-    if (/m\/s|km\/h|mph/i.test(text)) return true;
-    if (topic.includes("food_chain") || topic.includes("ecosystem") || /food chain|eats/i.test(text)) return true;
-    if (topic.includes("distance_time") || topic.includes("velocity_time") || topic.includes("circuit")) return true;
-    if (/d-t graph|v-t graph|series circuit|parallel circuit/i.test(text)) return true;
-    if (topic.includes("periodic") || topic.includes("element") || topic.includes("atom")) return true;
-    if (/find.*(speed|force|distance|mass|power|density)/i.test(text)) return true;
-    if (topic.includes("wave") || /longitudinal|transverse|frequency|amplitude/i.test(text)) return true;
-    if (topic.includes("molecule") || /H2O|CO2|NaCl|methane|oxygen molecule/i.test(text)) return true;
-    // Fix: match both 'cell' and 'cell_biology', 'cell_structure' etc.
-    if (topic.includes("cell") || /plant cell|animal cell/i.test(text)) return true;
-    if (topic.includes("ph") || /acidic|alkaline|pH scale/i.test(text)) return true;
-    if (topic.includes("energy") || /kinetic energy|potential energy|thermal energy/i.test(text)) return true;
-    if (topic.includes("em_spectrum") || /electromagnetic|infrared|ultraviolet|gamma ray|x-ray/i.test(text)) return true;
-    if (topic.includes("state") || /melting|freezing|boiling|evaporat|condensat/i.test(text)) return true;
-    if (topic.includes("genetics") || /punnett|dominant|recessive|allele/i.test(text)) return true;
-    // Fix: photosynthesis — show a cell diagram (CellVis) as a proxy
-    if (topic.includes("photosynthesis") || /photosynthesis|chloroplast|chlorophyll/i.test(text)) return true;
-    // Fix: electromagnet, magnetism
-    if (topic.includes("magnet") || /magnet|electromagnet|magnetic field/i.test(text)) return true;
-  }
-
-  // ── MATHS ─────────────────────────────────────────────────────────────────────
-  if (isMaths) {
-    const year = parseInt(question?.year_level ?? question?._studentYear ?? 4, 10);
-    // Early years arithmetic visuals
-    if (year <= 4) {
-      if (/[0-9]+\s*[+]\s*[0-9]+/.test(text)) return true;
-      if (/[0-9]+\s*[-]\s*[0-9]+/.test(text)) return true;
-      // Skip dots grid for decimal operands (2.5 × 4 — explanation panel is better)
-      if (!(/\d+\.\d+\s*[×x*]|[×x*]\s*\d+\.\d+/.test(text)) &&
-          (/[0-9]+\s*[x*]\s*[0-9]+/i.test(text) || text.includes("\u00d7") ||
-           /\d+\s+(?:multiplied\s+by|times)\s+\d+/i.test(text))) return true;
-      if (/[0-9]+\s*\/\s*[0-9]+/.test(text)) return true;
-      if (/half|quarter|third/i.test(text)) return true;
-      if (topic.includes("place_value") || topic.includes("count") || topic.includes("number_bond")) return true;
-      if (year <= 2 && /eat|ate|take away|fly away|fell? off|lost|left|fewer|less|gives? away|burst|popped|spent|sold|more|gets?|join|arrive|together|total|altogether|groups? of|bags? of|boxes? of/i.test(text)) return true;
-    }
-    // All-year maths visuals
-    if (topic.includes("coord") || topic.includes("plot") || /\(-?\d+,\s*-?\d+\)/.test(text)) return true;
-    if (topic.includes("number_line") || topic.includes("rounding") || /round.*nearest|number line/i.test(text)) return true;
-    // Negative numbers and "more/less than" phrasing → number line visual
-    if (topic.includes("negative") || /negative|more than\s+-?\d+|less than\s+-?\d+|\d+\s+more than\s+-?\d+|\d+\s+less than\s+-?\d+|-\d+\s*[+\-]/i.test(text)) return true;
-    if (topic.includes("venn") || /factors? of|multiples? of/i.test(text)) return true;
-    if (topic.includes("bar_chart") || topic.includes("statistics") || /bar chart|how many more/i.test(text)) return true;
-    // Word-form multiplication (all years): "6 groups of 7", "7 multiplied by 4", "3 times 5"
-    if (/\d+\s+(?:groups?|bags?|rows?|sets?|packs?|plates?|baskets?)\s+of\s+\d+/i.test(text)) return true;
-    if (/\d+\s+(?:multiplied\s+by|times)\s+\d+/i.test(text)) return true;
-    if (topic.includes("angle") || /acute|obtuse|reflex|right angle|\d+\s*°/i.test(text)) return true;
-    if (topic.includes("area") || topic.includes("perimeter") || /area|perimeter/i.test(text)) return true;
-    if (topic.includes("quadratic") || /x\^2|quadratic/i.test(text)) return true;
-    // IXL-aligned additions: clock, money, division, ruler, ratio
-    if (topic.includes("time") || topic.includes("clock") || /o'clock|half past|quarter past|quarter to|\d+:\d+/i.test(text)) return true;
-    if (topic.includes("money") || topic.includes("coin") || /pence|penny|pennies|£|\bp\b/i.test(text)) return true;
-    if (topic.includes("division") || topic.includes("sharing") || /divide|share|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups/i.test(text)) return true;
-    if (topic.includes("measure") || topic.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(text)) return true;
-    if (topic.includes("ratio") || topic.includes("proportion") || /ratio|for every|\d+\s*:\s*\d+/i.test(text)) return true;
-    if (topic.includes("fraction") || /fraction|numerator|denominator/i.test(text)) return true;
-    if (topic.includes("algebra") || /equation|solve for|variable|expression|\d+x\s*=|\d+\s*[×x]\s*\?|\?\s*[×x+\-]\s*\d+/i.test(text)) return true;
-    if (topic.includes("probability") || /probability|likelihood|chance/i.test(text)) return true;
-    if (topic.includes("sequence") || /next.*term|nth term|arithmetic sequence/i.test(text)) return true;
-    if (topic.includes("percent") || /%/.test(text) || /percent/i.test(text)) return true;
-    if (/hcf|lcm|highest common factor|lowest common multiple/i.test(text)) return true;
-    if (/\bmean\b|\baverage\b|\bmode\b|\bmedian\b/i.test(text)) return true;
-  }
-
-  // ── ENGLISH ──────────────────────────────────────────────────────────────────
-  if (isEnglish) {
-    if (topic.includes("grammar") || topic.includes("noun") || topic.includes("verb") || topic.includes("adjective")) return true;
-    if (topic.includes("prefix") || topic.includes("suffix") || /prefix|suffix|root word/i.test(text)) return true;
-    if (topic.includes("synonym") || topic.includes("antonym") || /synonym|antonym|opposite|similar meaning/i.test(text)) return true;
-    if (topic.includes("analogy") || /is to.*as|analogy/i.test(text)) return true;
-  }
-
-  return false;
-}
 
 function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic }) {
   const perQTimer   = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj        = subject?.toLowerCase() || "maths";
   const theme       = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
   const labels      = useMemo(() => getSubjectLabels(subject), [subject]);
-  const questFrame  = useMemo(() => getQuestFrame(student?.year_level, subject, null), [student?.year_level, subject]);
+  const questFrame = useMemo(() => getQuestFrame(student?.year_level, subject, null, curriculum), [student?.year_level, subject]);
   const timerConfig = useMemo(() => getTimerConfig(student?.year_level), [student?.year_level]);
-  const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUESTION), [student?.year_level]);
+const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUESTION), [student?.year_level]);
 
   const [sessionQuestions, setSessionQuestions] = useState([]);
   const [qIdx,             setQIdx]             = useState(0);
@@ -626,7 +516,7 @@ function MainQuizEngine({ student, subject, curriculum, questionCount, previousQ
 
   // ── Left-panel content ─────────────────────────────────────────────────────
   // Priority: passage text → maths/science visual → generic subject context panel
-  const hasVisual  = q.image_url || hasMathsVisual(q, subject);
+  const hasVisual  = q.image_url || canVisualise(q, subject, q.year_level ?? student?.year_level ?? 6);
 
   // ── Passage persistence: keep passage in left panel across all linked questions
   // When current question has a _passageId, use the session passage.
@@ -1063,7 +953,9 @@ export default function QuestOrchestrator({
   // Year/Grade/Primary 2: 15 questions (age 6-7)
   // Year/Grade/Primary 3+: 20 questions (age 7+)
   const yearLevel = Number(student?.year_level || student?.year || 4);
-  const questionCount = questionCountProp || (yearLevel <= 1 ? 10 : yearLevel <= 2 ? 15 : 20);
+const c = (curriculum || '').toLowerCase();
+const isNigerianSecondary = c === 'ng_jss' || c === 'ng_sss';
+const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel <= 1 ? 10 : yearLevel <= 2 ? 15 : 20);
 
   // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
   // Journey shows the scholar their personalised path and auto-advances after 3 seconds

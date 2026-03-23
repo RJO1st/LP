@@ -24,14 +24,13 @@ import { getAgeBand, getBandConfig } from "@/lib/ageBandConfig";
 
 const ThemeContext = createContext(null);
 
-export function ThemeProvider({ yearLevel, children }) {
+export function ThemeProvider({ yearLevel, curriculum, children }) {
   const value = useMemo(() => {
-    const band = getAgeBand(yearLevel);
+    const band = getAgeBand(yearLevel, curriculum);
     const theme = getBandConfig(band);
     const isDark = band === "ks2" || band === "ks4";
     return { band, theme, isDark, yearLevel: parseInt(yearLevel, 10) || 4 };
-  }, [yearLevel]);
-
+  }, [yearLevel, curriculum]);
   return (
     <ThemeContext.Provider value={value}>
       {children}

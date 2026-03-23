@@ -124,16 +124,17 @@ function SignupForm() {
         console.warn("Welcome email failed (non-blocking):", emailErr.message);
       }
 
-      fetch('/api/brevo/sync-contact', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    email, firstName: fullName?.split(' ')[0] || '',
-    lastName: fullName?.split(' ').slice(1).join(' ') || '',
-    curriculum: selectedCurriculum || '',
-    source: 'signup_page',
-  }),
-}).catch(() => {});
+       fetch('/api/brevo/sync-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.fullName?.split(' ')[0] || '',
+          lastName: formData.fullName?.split(' ').slice(1).join(' ') || '',
+          curriculum: '',
+          source: 'signup_page',
+        }),
+      }).catch(() => {});
 
       // 5. Auto sign-in and redirect
       const { error: signInError } = await supabase.auth.signInWithPassword({
