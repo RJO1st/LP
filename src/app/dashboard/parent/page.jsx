@@ -10,6 +10,7 @@ import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 import ReferralBanner from "../../../components/ReferralBanner";
 import ReadinessScore from "@/components/ReadinessScore";
+import DashboardTour from "@/components/DashboardTour";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -281,6 +282,7 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
       <div className="w-6 h-6 border-2 border-indigo-400/40 border-t-indigo-500 rounded-full animate-spin mx-auto" />
     </div>
   );
+  <DashboardTour type="parent" userId={parent?.id || user?.id} />
 
   if (!data) return null;
 

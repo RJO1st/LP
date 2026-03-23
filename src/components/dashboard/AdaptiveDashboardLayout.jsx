@@ -26,6 +26,7 @@ import AdaptiveStartButton from "./AdaptiveStartButton";
 import AdaptiveLeaderboard from "./AdaptiveLeaderboard";
 import DigitalPet from "./DigitalPet";
 import GoalSetting from "./GoalSetting";
+import DashboardTour from "@/components/DashboardTour";
 
 export default function AdaptiveDashboardLayout({
   scholar = {},
@@ -84,6 +85,7 @@ export default function AdaptiveDashboardLayout({
       color: t.colours.text,
       transition: "background 0.5s",
     }}>
+      <DashboardTour type="scholar" userId={scholarId} band={band} />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Nunito:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         .lp-grid{display:grid;grid-template-columns:1fr;gap:16px}

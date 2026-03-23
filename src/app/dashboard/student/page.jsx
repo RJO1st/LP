@@ -22,6 +22,7 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import AdaptiveDashboardLayout from '@/components/dashboard/AdaptiveDashboardLayout';
 import useDashboardData from '@/hooks/useDashboardData';
 import { getAgeBand } from '@/lib/ageBandConfig';
+import DashboardTour from "@/components/DashboardTour";
 
 // ── Tier 1 components ─────────────────────────────────────────────
 import SubjectInsightCard                   from "../../../components/SubjectInsightCard";
@@ -1413,7 +1414,10 @@ const UK_NATIONAL_SUBJECTS = {
             onAvatar={() => setShowAvatarShop(true)}
           />
         </ThemeProvider>
+        ) : dashboardMode === "Adaptive" ? (
+<DashboardTour type="scholar" userId={scholar.id} band={getAgeBand(scholar.year_level, scholar.curriculum)} />
       ) : (
+        
       <main className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-6 space-y-5">
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}

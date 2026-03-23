@@ -11,6 +11,66 @@ const shuffle = (array) => {
 };
 const pick    = (arr)   => arr[Math.floor(Math.random() * arr.length)];
 const rand    = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const YEAR_NUMBER_CAPS = {
+  1: { max: 20,     maxMultiplier: 5,   allowNegatives: false, allowDecimals: false, allowFractions: false },
+  2: { max: 100,    maxMultiplier: 10,  allowNegatives: false, allowDecimals: false, allowFractions: false },
+  3: { max: 1000,   maxMultiplier: 12,  allowNegatives: false, allowDecimals: false, allowFractions: true  },
+  4: { max: 10000,  maxMultiplier: 12,  allowNegatives: false, allowDecimals: true,  allowFractions: true  },
+  5: { max: 100000, maxMultiplier: 100, allowNegatives: true,  allowDecimals: true,  allowFractions: true  },
+  6: { max: 1000000,maxMultiplier: 1000,allowNegatives: true,  allowDecimals: true,  allowFractions: true  },
+};
+function getYearCaps(yearLevel) {
+  const y = parseInt(yearLevel, 10) || 4;
+  return YEAR_NUMBER_CAPS[Math.min(Math.max(y, 1), 6)] || YEAR_NUMBER_CAPS[6];
+}
+function isQuestionAgeAppropriate(questionText, yearLevel) {
+  const caps = getYearCaps(yearLevel);
+  const text = questionText || "";
+ 
+  // Extract all numbers from the question
+  const numbers = (text.match(/-?\d+\.?\d*/g) || []).map(Number);
+ 
+  // Check max number
+  if (numbers.some(n => Math.abs(n) > caps.max)) return false;
+ 
+  // Check negatives
+  if (!caps.allowNegatives && numbers.some(n => n < 0)) return false;
+ 
+  // Check decimals
+  if (!caps.allowDecimals && /\d+\.\d+/.test(text)) return false;
+ 
+  // Check fractions (allow simple fractions like 1/2 for Y3+)
+  if (!caps.allowFractions && /\d+\/\d+/.test(text)) return false;
+ 
+  // Check multiplication operands
+  const multMatch = text.match(/(\d+)\s*[×x*]\s*(\d+)/i);
+  if (multMatch) {
+    const [, a, b] = multMatch.map(Number);
+    if (Math.max(a, b) > caps.maxMultiplier) return false;
+  }
+ 
+  // Y1-2 specific: reject abstract concepts
+  if (yearLevel <= 2) {
+    if (/algebra|equation|variable|percentage|ratio|proportion|decimal|negative/i.test(text)) return false;
+  }
+ 
+  // Y1-3: reject large division
+  if (yearLevel <= 3) {
+    const divMatch = text.match(/(\d+)\s*[÷/]\s*(\d+)/);
+    if (divMatch && Number(divMatch[1]) > caps.max) return false;
+  }
+ 
+  return true;
+}
+
+function filterByYearLevel(questions, yearLevel) {
+  return questions.filter(q => {
+    const text = q.q || q.question_text || "";
+    return isQuestionAgeAppropriate(text, yearLevel);
+  });
+}
+
+// Shuffle MCQ options so the correct answer isn't always opts[0]
 
 // Shuffle MCQ options so the correct answer isn't always opts[0]
 const shuffleTemplate = (t) => {
@@ -202,7 +262,8 @@ export async function generateSessionQuestions(scholar, subject, difficultyTier 
       }
     }
 
-    return questions.slice(0, count);
+    const filterYear = parseInt(scholar?.year_level || scholar?.year || 4, 10);
+    return filterByYearLevel(questions, filterYear).slice(0, count);
   } catch (error) {
     console.error('Error generating session questions:', error);
     return [];
