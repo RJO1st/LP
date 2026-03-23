@@ -1,284 +1,294 @@
 "use client";
+/**
+ * Login Page — Updated March 2026
+ * Deploy to: src/app/login/page.jsx
+ *
+ * Fixes:
+ *   - Added Forgot Password flow (Supabase resetPasswordForEmail)
+ *   - Mobile optimised (no overlapping elements)
+ *   - Removed launchpard.com overlay
+ *   - Responsive layout
+ */
 
-import { createBrowserClient } from "@supabase/ssr";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
-import Image from "next/image";
-
-// ── Seeded stars — no Math.random, no hydration mismatch ─────────────────────
-const pseudoRandom = (seed, salt = 0) => {
-  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
-  return x - Math.floor(x);
-};
-const STARS = Array.from({ length: 50 }, (_, i) => ({
-  left:           (pseudoRandom(i, 1) * 100).toFixed(4) + "%",
-  top:            (pseudoRandom(i, 2) * 100).toFixed(4) + "%",
-  animationDelay: (pseudoRandom(i, 3) * 3).toFixed(4) + "s",
-  opacity:        (pseudoRandom(i, 4) * 0.4 + 0.3).toFixed(4),
-}));
-
-function LoginContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const loginType = searchParams.get("type") || "parent";
-
-  const [supabase, setSupabase] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [parentForm, setParentForm] = useState({ email: "", password: "" });
-  const [scholarForm, setScholarForm] = useState({ accessCode: "" });
-
-  useEffect(() => {
-    const client = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    setSupabase(client);
-
-    client.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push("/dashboard/parent");
-    });
-  }, [router]);
-
-  // Parent login
-  const handleParentLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: parentForm.email,
-        password: parentForm.password
-      });
-      if (signInError) throw signInError;
-      if (data.user) {
-        const { data: parent, error: parentError } = await supabase
-          .from("parents")
-          .select("*")
-          .eq("id", data.user.id)
-          .single();
-        if (parentError || !parent) {
-          const trialEnd = new Date();
-          trialEnd.setDate(trialEnd.getDate() + 7);
-          await supabase.from("parents").upsert({
-            id: data.user.id,
-            email: parentForm.email,
-            full_name: data.user.user_metadata?.full_name || "",
-            subscription_status: "trial",
-            trial_end: trialEnd.toISOString(),
-            max_children: 3
-          }, { onConflict: "id" });
-        }
-        router.push("/dashboard/parent");
-      }
-    } catch (err) {
-      setError(err.message || "Invalid email or password");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Scholar login
-  const handleScholarLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const code = scholarForm.accessCode.trim().toUpperCase();
-      const { data, error: queryError } = await supabase
-        .from("scholars")
-        .select("*")
-        .eq("access_code", code)
-        .maybeSingle();
-      if (queryError) throw new Error("Database error. Please try again.");
-      if (!data) throw new Error(`No scholar found with code "${code}". Please check the code and try again.`);
-      localStorage.setItem("active_scholar", JSON.stringify(data));
-      router.push("/dashboard/student");
-    } catch (err) {
-      setError(err.message || "Invalid access code");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!supabase) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0e27]">
-        <div className="text-white">Loading...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0e27] flex items-center justify-center p-4 relative overflow-hidden">
-
-      {/* Stars */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        {STARS.map((s, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
-            style={{ left: s.left, top: s.top, animationDelay: s.animationDelay, opacity: s.opacity }}
-          />
-        ))}
-      </div>
-
-      <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Login Card */}
-      <div className="relative z-10 bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700 p-8 max-w-md w-full shadow-2xl">
-
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <Image src="/logo.svg" alt="LaunchPard" width={48} height={48} className="flex-shrink-0" style={{ objectFit: "contain" }} />
-            <span className="text-2xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              LaunchPard
-            </span>
-          </div>
-          <div className="inline-block bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold px-3 py-1 rounded-full mb-3">
-            BETA
-          </div>
-          <h1 className="text-2xl font-black text-white mb-1">
-            {loginType === "scholar" ? "Scholar Login" : "Parent Login"}
-          </h1>
-          <p className="text-slate-400 text-sm">
-            {loginType === "scholar" ? "Enter your quest access code" : "Welcome back to LaunchPard"}
-          </p>
-        </div>
-
-        {/* Login Type Switcher */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => router.push("/login?type=parent")}
-            className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-              loginType === "parent"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-white"
-            }`}
-          >
-            Parent
-          </button>
-          <button
-            onClick={() => router.push("/login?type=scholar")}
-            className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-              loginType === "scholar"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-white"
-            }`}
-          >
-            Scholar
-          </button>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-6 text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* PARENT FORM */}
-        {loginType === "parent" && (
-          <form onSubmit={handleParentLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">Email</label>
-              <input
-                type="email"
-                required
-                value={parentForm.email}
-                onChange={(e) => setParentForm({ ...parentForm, email: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">Password</label>
-              <input
-                type="password"
-                required
-                value={parentForm.password}
-                onChange={(e) => setParentForm({ ...parentForm, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black py-4 rounded-xl shadow-lg shadow-indigo-500/50 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
-        )}
-
-        {/* SCHOLAR FORM */}
-        {loginType === "scholar" && (
-          <form onSubmit={handleScholarLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">Access Code</label>
-              <input
-                type="text"
-                required
-                value={scholarForm.accessCode}
-                onChange={(e) => setScholarForm({ accessCode: e.target.value.toUpperCase() })}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none transition-colors text-center text-lg font-bold tracking-widest"
-                placeholder="QUEST-1234"
-                maxLength={10}
-              />
-              <p className="text-xs text-slate-500 mt-2 text-center">Get your code from your parent</p>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black py-4 rounded-xl shadow-lg shadow-indigo-500/50 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {loading ? "Checking code..." : "Start Quest"}
-            </button>
-          </form>
-        )}
-
-        {/* Footer links */}
-        {loginType === "parent" && (
-          <div className="mt-6 text-center text-sm text-slate-400">
-            Don't have an account?{" "}
-            <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-bold">
-              Start free trial
-            </a>
-          </div>
-        )}
-        {loginType === "scholar" && (
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-400 mb-3">Don't have an access code?</p>
-            <a href="/login?type=parent" className="text-indigo-400 hover:text-indigo-300 font-bold text-sm">
-              Ask your parent or switch to Parent Login
-            </a>
-          </div>
-        )}
-        <div className="mt-6 text-center">
-          <a href="/" className="text-slate-500 hover:text-slate-400 text-sm">← Back to home</a>
-        </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-        .animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
-      `}</style>
-    </div>
-  );
-}
+import Link from "next/link";
+import { createBrowserClient } from "@supabase/ssr";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0e27]">
-        <div className="text-white">Loading...</div>
-      </div>
-    }>
-      <LoginContent />
+    <Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+      <LoginForm />
     </Suspense>
+  );
+}
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const typeFromUrl = searchParams.get("type");
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  const [loginType, setLoginType] = useState(typeFromUrl === "scholar" ? "scholar" : "parent");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [codename, setCodename] = useState("");
+  const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+
+  // ── Parent login ──────────────────────────────────────────────────
+  const handleParentLogin = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInError) throw signInError;
+      router.push("/dashboard/parent");
+    } catch (err) {
+      setError(err.message || "Invalid login credentials");
+      setLoading(false);
+    }
+  };
+
+  // ── Scholar login ─────────────────────────────────────────────────
+  const handleScholarLogin = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { data: scholars, error: fetchError } = await supabase
+        .from("scholars")
+        .select("*, parents(id, email)")
+        .eq("codename", codename.trim().toUpperCase())
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+      if (!scholars?.length) throw new Error("Codename not found. Check with your parent.");
+
+      const scholar = scholars[0];
+
+      if (String(scholar.pin) !== String(pin)) {
+        throw new Error("Incorrect PIN. Try again or ask your parent.");
+      }
+
+      // Sign in via parent's auth
+      if (scholar.parents?.email) {
+        localStorage.setItem("active_scholar", JSON.stringify(scholar));
+        localStorage.setItem("scholar_login", "true");
+        router.push("/dashboard/student");
+      } else {
+        throw new Error("Account not linked. Ask your parent to log in first.");
+      }
+    } catch (err) {
+      setError(err.message || "Login failed");
+      setLoading(false);
+    }
+  };
+
+  // ── Forgot password ───────────────────────────────────────────────
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        resetEmail.trim(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
+
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err) {
+      setError(err.message || "Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-4">
+      <div className="bg-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-700">
+
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-5">
+          <img src="/logo.svg" alt="LaunchPard" className="w-14 h-14 mb-2 drop-shadow-[0_0_15px_rgba(79,172,254,0.4)]" style={{ objectFit: "contain" }} />
+          <h1 className="text-2xl sm:text-3xl font-black">Welcome Back</h1>
+        </div>
+
+        {/* ── Forgot Password Modal ─────────────────────────────────── */}
+        {showForgotPassword ? (
+          <div>
+            <h2 className="text-lg font-black mb-2">Reset Password</h2>
+            {resetSent ? (
+              <div className="text-center">
+                <div className="text-4xl mb-3">📧</div>
+                <p className="text-emerald-400 font-bold mb-2">Check your email</p>
+                <p className="text-slate-400 text-sm mb-4">
+                  We sent a password reset link to <span className="text-white font-bold">{resetEmail}</span>.
+                  Check your inbox and spam folder.
+                </p>
+                <button onClick={() => { setShowForgotPassword(false); setResetSent(false); setResetEmail(""); }}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold text-sm">
+                  ← Back to login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <p className="text-slate-400 text-sm">
+                  Enter your email and we'll send you a link to reset your password.
+                </p>
+
+                {error && (
+                  <div className="p-3 bg-rose-500/20 border border-rose-500 rounded-xl text-rose-200 text-sm font-bold">
+                    {error}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Email Address</label>
+                  <input type="email" required placeholder="you@example.com" value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
+                </div>
+
+                <button type="submit" disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </button>
+
+                <button type="button" onClick={() => { setShowForgotPassword(false); setError(null); }}
+                  className="w-full text-slate-400 text-sm font-bold hover:text-slate-300">
+                  ← Back to login
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* ── Login Type Toggle ───────────────────────────────────── */}
+            <div className="grid grid-cols-2 gap-2 mb-5">
+              <button
+                onClick={() => { setLoginType("parent"); setError(null); }}
+                className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                  loginType === "parent"
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                }`}
+              >
+                Parent
+              </button>
+              <button
+                onClick={() => { setLoginType("scholar"); setError(null); }}
+                className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                  loginType === "scholar"
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                }`}
+              >
+                Scholar
+              </button>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-rose-500/20 border border-rose-500 rounded-xl text-rose-200 text-sm font-bold">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500 rounded-xl text-emerald-200 text-sm font-bold">
+                {success}
+              </div>
+            )}
+
+            {/* ── Parent Form ────────────────────────────────────────── */}
+            {loginType === "parent" ? (
+              <form onSubmit={handleParentLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Email</label>
+                  <input type="email" required placeholder="you@example.com" value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Password</label>
+                  <input type="password" required placeholder="Your password" value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
+                </div>
+
+                {/* Forgot password link */}
+                <div className="text-right">
+                  <button type="button"
+                    onClick={() => { setShowForgotPassword(true); setResetEmail(email); setError(null); }}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">
+                    Forgot password?
+                  </button>
+                </div>
+
+                <button type="submit" disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+              </form>
+            ) : (
+              /* ── Scholar Form ───────────────────────────────────────── */
+              <form onSubmit={handleScholarLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Codename</label>
+                  <input type="text" required placeholder="e.g. STARFOX" value={codename}
+                    onChange={(e) => setCodename(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base uppercase tracking-wider" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">PIN</label>
+                  <input type="number" required placeholder="4-digit PIN" value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base tracking-[0.5em] text-center" />
+                </div>
+
+                <button type="submit" disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+              </form>
+            )}
+
+            {/* Bottom links */}
+            <p className="text-sm text-slate-400 text-center mt-5">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-bold">
+                Start free trial
+              </Link>
+            </p>
+            <div className="mt-3 text-center">
+              <Link href="/" className="text-slate-500 text-sm hover:text-slate-400">← Back to home</Link>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
