@@ -396,21 +396,21 @@ export default function KS1QuizShell({
             marginTop: 20, paddingTop: 14,
             borderTop: `1px solid ${GOLD}06`,
           }}>
-            <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
+            <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
               style={{
                 padding: "14px 32px", borderRadius: 16,
                 fontSize: 16, fontWeight: 900,
                 display: "flex", alignItems: "center", gap: 8,
-                cursor: selectedAnswer != null || showResult ? "pointer" : "default",
-                opacity: selectedAnswer == null && !showResult ? 0.3 : 1,
+                cursor: (selectedAnswer != null || showResult) && !(showResult && !canProceed) ? "pointer" : "default",
+                opacity: (selectedAnswer == null && !showResult) || (showResult && !canProceed) ? 0.3 : 1,
                 transition: "all 0.2s",
                 ...N,
                 background: `linear-gradient(135deg, ${GOLD}, #f59e0b)`,
                 color: "#1a1040",
                 border: "none",
-                boxShadow: selectedAnswer != null || showResult ? `0 0 24px ${GOLD}35` : "none",
+                boxShadow: (selectedAnswer != null || showResult) && !(showResult && !canProceed) ? `0 0 24px ${GOLD}35` : "none",
               }}>
-              {showResult ? "Next Adventure →" : "Lock In Answer"} ✨
+              {showResult && !canProceed ? "Tell Tara what you learned ↓" : showResult ? "Next Adventure →" : "Lock In Answer"} ✨
             </button>
           </div>
 

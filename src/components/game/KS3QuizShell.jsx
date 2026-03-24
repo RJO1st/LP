@@ -290,13 +290,13 @@ export default function KS3QuizShell({
               🎯 {showMentor ? "Hide Mentor" : "Ask Mentor"}
             </button>
             <div className="flex items-center gap-3">
-              <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
+              <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
                 className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{
                   background: showResult ? "#10b981" : "linear-gradient(135deg, #10b981, #059669)",
                   color: showResult ? "#0c1222" : "#fff",
                 }}>
-                {showResult ? "Next Challenge →" : "Submit Answer"}
+                {showResult && !canProceed ? "Explain to Tara first ↓" : showResult ? "Next Challenge →" : "Submit Answer"}
               </button>
             </div>
           </div>

@@ -43,23 +43,7 @@ export default function KS4QuizShell({
         style={{ background: "rgba(13,17,23,0.95)", borderBottom: "1px solid rgba(167,139,250,0.08)" }}>
         <div className="flex items-center gap-4">
           <span className="text-lg font-bold tracking-tight text-white/90">KS4 Exam Studio</span>
-          <div className="hidden md:flex items-center gap-4 text-xs">
-            <span className="text-cyan-400 font-semibold underline underline-offset-4 decoration-cyan-400/50">Exam Mode</span>
-            <button
-              onClick={() => {
-                // Scroll to mark scheme note if visible in left panel, otherwise toggle Tara panel
-                const msEl = document.getElementById("ks4-mark-scheme");
-                if (msEl) { msEl.scrollIntoView({ behavior: "smooth" }); msEl.style.outline = "2px solid rgba(0,229,195,0.5)"; setTimeout(() => { msEl.style.outline = "none"; }, 2000); }
-                else { setShowTaraPanel((p) => !p); }
-              }}
-              className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
-              title="View mark scheme notes & AI guidance"
-            >Mark Scheme</button>
-            <button
-              onClick={() => setShowTaraPanel((p) => !p)}
-              className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
-            >AI Tutor</button>
-          </div>
+          <span className="hidden md:inline text-cyan-400 text-xs font-semibold underline underline-offset-4 decoration-cyan-400/50">Exam Mode</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -185,10 +169,10 @@ export default function KS4QuizShell({
               🤖 {showTaraPanel ? "Hide Tara" : "Ask Tara"}
             </button>
             <div className="flex items-center gap-3">
-              <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
+              <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
                 className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{ background: showResult ? "#a78bfa" : "linear-gradient(135deg, #a78bfa, #7c87f3)", color: "#0d1117" }}>
-                {showResult ? "Next →" : "Submit Answer"}
+                {showResult && !canProceed ? "Explain to Tara first ↓" : showResult ? "Next →" : "Submit Answer"}
               </button>
             </div>
           </div>

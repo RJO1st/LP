@@ -66,6 +66,7 @@ import DashboardTour from "@/components/DashboardTour";
 import Flashcards from "./Flashcards";
 import CertificatesPanel from "./CertificatesPanel";
 import SubjectProgressChart from "./SubjectProgressChart";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
 import StickerCollection from "./StickerCollection";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
@@ -923,7 +924,7 @@ export default function AdaptiveDashboardLayout({
                           color: active ? "#fff" : "#7c3aed",
                           borderColor: active ? "#7c3aed" : "rgba(124,58,237,0.12)",
                         }}>
-                        {s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()).split(" ")[0]}
+                        {getSubjectLabel(s, band).split(" ")[0]}
                       </button>
                     );
                   })}

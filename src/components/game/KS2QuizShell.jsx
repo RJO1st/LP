@@ -390,13 +390,13 @@ export default function KS2QuizShell({
             borderTop: `1px solid ${CYAN}08`,
           }}>
             <div />
-            <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
+            <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
               style={{
                 padding: "10px 28px", borderRadius: 2,
                 fontSize: 12, fontWeight: 900, letterSpacing: "0.1em",
                 display: "flex", alignItems: "center", gap: 8,
-                cursor: selectedAnswer != null || showResult ? "pointer" : "default",
-                opacity: selectedAnswer == null && !showResult ? 0.3 : 1,
+                cursor: (selectedAnswer != null || showResult) && !(showResult && !canProceed) ? "pointer" : "default",
+                opacity: (selectedAnswer == null && !showResult) || (showResult && !canProceed) ? 0.3 : 1,
                 transition: "all 0.2s",
                 ...N,
                 ...(showResult ? {
@@ -411,7 +411,7 @@ export default function KS2QuizShell({
                   boxShadow: selectedAnswer != null ? `0 0 15px ${CYAN}15` : "none",
                 }),
               }}>
-              {showResult ? "NEXT MISSION ▸" : "CONFIRM"} 🚀
+              {showResult && !canProceed ? "TELL TARA WHAT YOU LEARNED ↓" : showResult ? "NEXT MISSION ▸" : "CONFIRM"} 🚀
             </button>
           </div>
 

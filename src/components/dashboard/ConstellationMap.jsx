@@ -415,11 +415,12 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
                 key={key}
                 d={`M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`}
                 fill="none"
-                stroke={bothActive ? `${meta.color}50` : eitherLocked ? "rgba(148,163,184,0.06)" : "rgba(148,163,184,0.1)"}
-                strokeWidth={bothActive ? 1.5 : 0.8}
+                stroke={bothActive ? `${meta.color}` : eitherLocked ? "rgba(148,163,184,0.12)" : "rgba(148,163,184,0.25)"}
+                strokeWidth={bothActive ? 2 : 1.2}
                 strokeDasharray={eitherLocked ? "3 4" : undefined}
+                strokeOpacity={bothActive ? 0.6 : undefined}
                 style={{
-                  filter: bothActive ? `drop-shadow(0 0 4px ${meta.glow}40)` : undefined,
+                  filter: bothActive ? `drop-shadow(0 0 6px ${meta.glow}80)` : undefined,
                   transition: "all 0.5s ease",
                 }}
               />
