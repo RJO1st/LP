@@ -1,26 +1,64 @@
 "use client";
 /**
- * KS1QuizShell.jsx
+ * KS1QuizShell.jsx — v2 Soft HUD Edition
  * Deploy to: src/components/game/KS1QuizShell.jsx
  *
- * Celestial Nursery — magical adventure quiz for ages 5-7
- * Large friendly text, warm colours, gentle animations
- * Left: Story panel with Tara as friendly space guide, star trail progress
- * Right: Big tap-friendly answer buttons with star/planet icons
- * Top: Celestial Nursery brand, star progress, gentle timer
- * Theme: Deep space purple-blue with warm gold stars
+ * Celestial Nursery — soft glowing adventure quiz for ages 5-7
+ * Warm purple-blue with gold/amber glowing borders, rounded corners,
+ * gentle pulsing stars, kid-friendly large text and tap targets.
+ * Softer, friendlier take on the HUD aesthetic.
  */
 
 import React, { useState } from "react";
 
 const N = { fontFamily: "'Nunito', 'Comic Sans MS', sans-serif" };
 const OPTION_ICONS = ["🌟", "🪐", "🌙", "⭐"];
+const GOLD = "#fbbf24";
+const GOLD_DIM = "rgba(251,191,36,0.08)";
+const PURPLE = "#a78bfa";
 const OPTION_COLORS = [
-  { bg: "rgba(251,191,36,0.12)", border: "#fbbf24", text: "#fbbf24" },
-  { bg: "rgba(168,85,247,0.12)", border: "#a855f7", text: "#a855f7" },
-  { bg: "rgba(56,189,248,0.12)", border: "#38bdf8", text: "#38bdf8" },
-  { bg: "rgba(52,211,153,0.12)", border: "#34d399", text: "#34d399" },
+  { bg: "rgba(251,191,36,0.1)", border: "#fbbf24", glow: "rgba(251,191,36,0.2)" },
+  { bg: "rgba(168,85,247,0.1)", border: "#a855f7", glow: "rgba(168,85,247,0.2)" },
+  { bg: "rgba(56,189,248,0.1)", border: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
+  { bg: "rgba(52,211,153,0.1)", border: "#34d399", glow: "rgba(52,211,153,0.2)" },
 ];
+
+/* ── Soft glowing frame for cards ───── */
+function GlowFrame({ children, color = GOLD, intensity = 0.15, style = {} }) {
+  return (
+    <div style={{
+      position: "relative",
+      borderRadius: 20,
+      border: `1.5px solid ${color}25`,
+      boxShadow: `0 0 20px ${color}${Math.round(intensity * 255).toString(16).padStart(2, "0")}, inset 0 1px 0 ${color}10`,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+/* ── Animated star sparkle ───── */
+function Sparkles() {
+  return (
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
+      {[...Array(12)].map((_, i) => (
+        <div key={i} style={{
+          position: "absolute",
+          left: `${10 + (i * 7.3 % 80)}%`,
+          top: `${5 + (i * 13.7 % 85)}%`,
+          width: 3 + (i % 3),
+          height: 3 + (i % 3),
+          borderRadius: "50%",
+          background: i % 3 === 0 ? GOLD : i % 3 === 1 ? PURPLE : "#38bdf8",
+          opacity: 0.15 + (i % 5) * 0.08,
+          animation: `ks1-sparkle ${2 + (i % 4) * 0.7}s ease-in-out infinite`,
+          animationDelay: `${(i % 8) * 0.3}s`,
+        }} />
+      ))}
+    </div>
+  );
+}
 
 export default function KS1QuizShell({
   question, options = [], passage, questionIndex = 0, totalQuestions = 10,
@@ -37,185 +75,282 @@ export default function KS1QuizShell({
     return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
-  // Star trail progress
   const progress = totalQuestions > 0 ? ((questionIndex) / totalQuestions) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4" style={{
-      background: "rgba(15,14,26,0.95)", backdropFilter: "blur(12px)",
-    }}>
-    <div className="w-full flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl" style={{
-      maxWidth: "900px", maxHeight: "90vh",
-      background: "linear-gradient(180deg, #1a1040 0%, #2d1b69 40%, #1a1040 100%)",
+      background: "rgba(12,8,32,0.96)", backdropFilter: "blur(14px)",
     }}>
 
-      {/* ═══ TOP NAV — friendly & warm ═══════════════════════════════════ */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0"
-        style={{ background: "rgba(26,16,64,0.9)", borderBottom: "1px solid rgba(251,191,36,0.15)" }}>
+    <div className="w-full flex flex-col overflow-hidden shadow-2xl" style={{
+      maxWidth: "920px", maxHeight: "90vh",
+      background: "linear-gradient(170deg, #1a1050 0%, #251668 30%, #1e1260 60%, #150e48 100%)",
+      borderRadius: 24,
+      border: `1.5px solid ${GOLD}15`,
+      boxShadow: `0 0 50px rgba(251,191,36,0.06), 0 0 100px rgba(168,85,247,0.04)`,
+      position: "relative",
+    }}>
+      <Sparkles />
 
+      {/* ═══ TOP NAV — warm & magical ═══════════════════════════════ */}
+      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 shrink-0" style={{
+        background: `linear-gradient(90deg, ${GOLD}06, rgba(26,16,80,0.9), ${GOLD}06)`,
+        borderBottom: `1px solid ${GOLD}12`,
+        position: "relative", zIndex: 3,
+      }}>
+        {/* Brand */}
         <div className="flex items-center gap-2">
-          <span className="text-2xl">✨</span>
-          <span className="text-base font-black text-amber-300 tracking-tight hidden sm:inline" style={N}>Celestial Nursery</span>
+          <div style={{
+            width: 34, height: 34, borderRadius: 12,
+            background: `${GOLD}12`, border: `1.5px solid ${GOLD}20`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, boxShadow: `0 0 12px ${GOLD}15`,
+          }}>✨</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: GOLD, ...N }}>Celestial Nursery</div>
+            <div style={{ fontSize: 9, color: `${GOLD}35`, fontWeight: 700, ...N }}>Space Mission {questionIndex + 1}</div>
+          </div>
         </div>
 
         {/* Star trail progress */}
-        <div className="flex-1 max-w-[200px] mx-4">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-              <div className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${progress}%`, background: "linear-gradient(90deg, #fbbf24, #f59e0b)" }} />
-            </div>
-            <span className="text-xs font-bold text-amber-300" style={N}>
-              {questionIndex + 1}/{totalQuestions}
+        <div className="flex-1 max-w-[180px] mx-4">
+          <div style={{
+            height: 8, borderRadius: 10, overflow: "hidden",
+            background: `${GOLD}08`, border: `1px solid ${GOLD}10`,
+            position: "relative",
+          }}>
+            <div style={{
+              height: "100%", borderRadius: 10,
+              width: `${progress}%`,
+              background: `linear-gradient(90deg, ${GOLD}, #f59e0b)`,
+              boxShadow: `0 0 10px ${GOLD}40`,
+              transition: "width 0.7s ease",
+            }} />
+            {/* Star marker at progress point */}
+            <div style={{
+              position: "absolute", top: -6, left: `calc(${progress}% - 10px)`,
+              fontSize: 16, transition: "left 0.7s ease",
+              filter: `drop-shadow(0 0 4px ${GOLD})`,
+            }}>⭐</div>
+          </div>
+          <div style={{ textAlign: "center", marginTop: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: `${GOLD}80`, ...N }}>
+              {questionIndex + 1} / {totalQuestions}
             </span>
           </div>
         </div>
 
+        {/* Right: Stats */}
         <div className="flex items-center gap-3">
           {streak > 0 && (
-            <span className="text-sm font-bold text-amber-200 flex items-center gap-1" style={N}>
-              🔥 {streak}
-            </span>
+            <div style={{
+              padding: "4px 10px", borderRadius: 10,
+              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 900, color: "#fbbf24", ...N }}>🔥 {streak}</span>
+            </div>
           )}
-          <span className="text-sm font-bold text-amber-200 flex items-center gap-1" style={N}>
-            ⭐ {xp}
-          </span>
+          <div style={{
+            padding: "4px 10px", borderRadius: 10,
+            background: `${GOLD}08`, border: `1px solid ${GOLD}12`,
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 900, color: GOLD, ...N }}>⭐ {xp}</span>
+          </div>
           {timeLeft != null && (
-            <span className="text-sm font-bold text-white/60 bg-white/5 px-2.5 py-1 rounded-full" style={N}>
-              ⏱ {formatTime(timeLeft)}
-            </span>
+            <div style={{
+              padding: "4px 10px", borderRadius: 10,
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.5)", ...N }}>⏱ {formatTime(timeLeft)}</span>
+            </div>
           )}
-          <button onClick={onClose} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors"
-            style={{ color: "#fbbf24", fontSize: 15 }} title="Exit quest">
-            ✕
-          </button>
+          <button onClick={onClose} style={{
+            width: 30, height: 30, borderRadius: 10,
+            background: "rgba(255,255,255,0.03)", border: `1px solid ${GOLD}12`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: `${GOLD}60`, fontSize: 14, cursor: "pointer",
+          }} title="Exit quest">✕</button>
         </div>
       </header>
 
-      {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* ═══ MAIN CONTENT ═══════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
 
-        {/* ─── LEFT: Story Panel ────────────────────────────────────── */}
-        <div className="lg:w-[45%] overflow-y-auto p-5 md:p-8 max-h-[40vh] lg:max-h-none"
-          style={{ borderRight: "1px solid rgba(251,191,36,0.06)" }}>
+        {/* ─── LEFT: Story Panel ────────────────────────────── */}
+        <div className="lg:w-[45%] overflow-y-auto p-5 md:p-7 max-h-[40vh] lg:max-h-none"
+          style={{ borderRight: `1px solid ${GOLD}06` }}>
 
-          {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
           {leftPanelContent ? (
             <div className="h-full">{leftPanelContent}</div>
           ) : (
             <>
               {/* Mission badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-                style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }}>
-                <span className="text-sm">🚀</span>
-                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider" style={N}>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "6px 14px", borderRadius: 12,
+                background: `${GOLD}08`, border: `1px solid ${GOLD}15`,
+                marginBottom: 14,
+              }}>
+                <span style={{ fontSize: 14 }}>🚀</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: `${GOLD}90`, ...N }}>
                   {subjectLabel} Adventure
                 </span>
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-black text-white mb-5 leading-snug" style={N}>
+              <h1 style={{
+                fontSize: "clamp(22px, 5vw, 30px)", fontWeight: 900, color: "#fff",
+                marginBottom: 20, lineHeight: 1.25, ...N,
+              }}>
                 {missionTitle || `Space Mission ${questionIndex + 1}`}
               </h1>
 
               {/* Story passage */}
               {passage && (
-                <div className="rounded-2xl p-5 mb-5 relative overflow-hidden"
-                  style={{ background: "linear-gradient(135deg, rgba(45,27,105,0.8), rgba(26,16,64,0.9))", border: "1px solid rgba(251,191,36,0.1)" }}>
-                  <div className="absolute top-2 right-3 text-2xl opacity-20">🌌</div>
-                  <div className="text-base text-white/80 leading-relaxed space-y-3" style={N}>
+                <GlowFrame color={PURPLE} intensity={0.1} style={{
+                  background: "linear-gradient(135deg, rgba(45,22,104,0.7), rgba(30,18,96,0.8))",
+                  padding: 20, marginBottom: 20,
+                }}>
+                  <div style={{ position: "absolute", top: 8, right: 12, fontSize: 24, opacity: 0.15 }}>🌌</div>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.75)", lineHeight: 1.7, ...N }}>
                     {passage.split("\n").filter(Boolean).map((p, i) => (
-                      <p key={i}>{p}</p>
+                      <p key={i} style={{ marginBottom: 8 }}>{p}</p>
                     ))}
                   </div>
-                </div>
+                </GlowFrame>
               )}
 
               {/* Tara guide */}
-              <div className="rounded-2xl p-5" style={{
-                background: "rgba(251,191,36,0.05)",
-                border: "1px solid rgba(251,191,36,0.1)",
+              <GlowFrame color={GOLD} intensity={0.1} style={{
+                background: `${GOLD}04`, padding: 18,
               }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-                    style={{ background: "rgba(251,191,36,0.15)" }}>
-                    🧚
-                  </div>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 14,
+                    background: `${GOLD}10`, border: `1.5px solid ${GOLD}20`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 20, boxShadow: `0 0 10px ${GOLD}15`,
+                  }}>🧚</div>
                   <div>
-                    <span className="text-sm font-black text-amber-200 block" style={N}>Tara the Star Guide</span>
-                    <span className="text-[10px] text-amber-300/50" style={N}>Here to help!</span>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: GOLD, ...N }}>Tara the Star Guide</span>
+                    <br />
+                    <span style={{ fontSize: 9, color: `${GOLD}40`, fontWeight: 700, ...N }}>Here to help!</span>
                   </div>
                 </div>
-                <p className="text-sm text-amber-100/60 leading-relaxed" style={N}>
-                  {taraHint || `Hello, little explorer! 🌟 Look at the question carefully. You're doing amazing — mission ${questionIndex + 1} is almost complete!`}
+                <p style={{ fontSize: 14, color: "rgba(251,191,36,0.55)", lineHeight: 1.6, ...N }}>
+                  {taraHint || `Hello, little explorer! 🌟 Look at the question carefully. You're doing amazing!`}
                 </p>
                 {!showTaraHelp && (
-                  <button onClick={() => setShowTaraHelp(true)}
-                    className="mt-3 text-xs font-bold text-amber-300 hover:text-amber-200 transition-colors" style={N}>
+                  <button onClick={() => setShowTaraHelp(true)} style={{
+                    marginTop: 10, fontSize: 12, fontWeight: 900, color: GOLD,
+                    background: `${GOLD}08`, border: `1px solid ${GOLD}15`,
+                    padding: "6px 14px", borderRadius: 10, cursor: "pointer", ...N,
+                  }}>
                     ✨ Give me a hint!
                   </button>
                 )}
                 {showTaraHelp && (
-                  <div className="mt-3 p-3 rounded-xl" style={{ background: "rgba(251,191,36,0.06)" }}>
-                    <p className="text-sm text-amber-200/70" style={N}>
-                      {taraHint || "Read each answer slowly. Which one makes the most sense? Trust your brain — you know this! 🌟"}
+                  <div style={{
+                    marginTop: 10, padding: 12, borderRadius: 14,
+                    background: `${GOLD}06`, border: `1px solid ${GOLD}10`,
+                  }}>
+                    <p style={{ fontSize: 13, color: "rgba(251,191,36,0.6)", ...N }}>
+                      {taraHint || "Read each answer slowly. Which one makes the most sense? Trust your brain! 🌟"}
                     </p>
                   </div>
                 )}
-              </div>
+              </GlowFrame>
 
               {!passage && (
-                <div className="mt-5 rounded-2xl p-8 text-center"
-                  style={{ background: "rgba(251,191,36,0.03)", border: "1px dashed rgba(251,191,36,0.12)" }}>
-                  <span className="text-5xl block mb-3">🌟</span>
-                  <p className="text-amber-200/30 text-sm font-bold" style={N}>Ready for your adventure!</p>
+                <div style={{
+                  marginTop: 20, padding: 32, textAlign: "center", borderRadius: 20,
+                  border: `1.5px dashed ${GOLD}10`, background: `${GOLD}02`,
+                }}>
+                  <span style={{ fontSize: 40, display: "block", marginBottom: 8 }}>🌟</span>
+                  <p style={{ fontSize: 14, color: `${GOLD}25`, fontWeight: 900, ...N }}>Ready for your adventure!</p>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* ─── RIGHT: Answer Buttons ────────────────────────────────── */}
+        {/* ─── RIGHT: Answer Buttons ────────────────────────── */}
         <div className="lg:w-[55%] overflow-y-auto p-4 md:p-6 flex flex-col"
-          style={{ background: "rgba(26,16,64,0.5)" }}>
+          style={{ background: "rgba(30,18,96,0.4)" }}>
 
-          {/* Question */}
-          <div className="mb-2">
-            <span className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
-              style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
+          {/* Question badge */}
+          <div style={{ marginBottom: 6 }}>
+            <span style={{
+              display: "inline-block", padding: "5px 14px", borderRadius: 10,
+              fontSize: 11, fontWeight: 900, ...N,
+              background: `${GOLD}08`, color: GOLD, border: `1px solid ${GOLD}15`,
+            }}>
               Question {questionIndex + 1}
             </span>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-black text-white mb-6 leading-snug" style={N}>
+          <h2 style={{
+            fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 900, color: "#fff",
+            marginBottom: 20, lineHeight: 1.35, ...N,
+          }}>
             {question}
           </h2>
 
-          {/* Big, friendly answer buttons */}
-          <div className="space-y-2 flex-1">
+          {/* Big, friendly answer buttons with glow */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
               const wrong = showResult && !isCorrect && selected;
               const col = OPTION_COLORS[i] || OPTION_COLORS[0];
 
+              let borderCol = `${col.border}20`;
+              let bgCol = `${col.border}04`;
+              let glowShadow = "none";
+
+              if (selected && !showResult) {
+                borderCol = `${col.border}60`;
+                bgCol = col.bg;
+                glowShadow = `0 0 16px ${col.glow}, inset 0 0 12px ${col.border}08`;
+              }
+              if (correct) {
+                borderCol = "#22c55e";
+                bgCol = "rgba(34,197,94,0.1)";
+                glowShadow = "0 0 16px rgba(34,197,94,0.2)";
+              }
+              if (wrong) {
+                borderCol = "#ef4444";
+                bgCol = "rgba(239,68,68,0.1)";
+                glowShadow = "0 0 12px rgba(239,68,68,0.15)";
+              }
+
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="w-full text-left px-3 py-3 md:px-4 md:py-3.5 rounded-xl border-2 transition-all flex items-center gap-3"
                   style={{
-                    background: correct ? "rgba(34,197,94,0.12)" : wrong ? "rgba(239,68,68,0.12)" : selected ? col.bg : "rgba(255,255,255,0.03)",
-                    borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? col.border : "rgba(255,255,255,0.06)",
+                    width: "100%", textAlign: "left",
+                    padding: "12px 16px",
+                    borderRadius: 16,
+                    background: bgCol,
+                    border: `2px solid ${borderCol}`,
+                    display: "flex", alignItems: "center", gap: 12,
+                    cursor: showResult ? "default" : "pointer",
+                    transition: "all 0.2s ease",
+                    boxShadow: glowShadow,
                     transform: selected ? "scale(1.02)" : "scale(1)",
                   }}>
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-                    style={{
-                      background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? `${col.border}30` : "rgba(255,255,255,0.05)",
-                    }}>
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 12,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 20, flexShrink: 0,
+                    background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? `${col.border}20` : "rgba(255,255,255,0.04)",
+                    border: `1.5px solid ${correct ? "#22c55e" : wrong ? "#ef4444" : selected ? `${col.border}40` : "rgba(255,255,255,0.06)"}`,
+                    boxShadow: selected ? `0 0 8px ${col.glow}` : "none",
+                  }}>
                     {correct ? "✅" : wrong ? "❌" : OPTION_ICONS[i]}
                   </div>
-                  <span className="text-base md:text-lg text-white/80 font-bold" style={N}>
+                  <span style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800, ...N }}>
                     {typeof opt === "string" ? opt : opt?.text || opt}
                   </span>
-                  {correct && <span className="ml-auto text-2xl">🎉</span>}
+                  {correct && <span style={{ marginLeft: "auto", fontSize: 22 }}>🎉</span>}
                 </button>
               );
             })}
@@ -223,59 +358,79 @@ export default function KS1QuizShell({
 
           {/* Result explanation */}
           {showResult && explanation && (
-            <div className="mt-4 p-5 rounded-2xl" style={{
-              background: isCorrect ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
-              border: `1px solid ${isCorrect ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`
-            }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{isCorrect ? "🌟" : "💡"}</span>
-                <span className="text-sm font-black text-white/60" style={N}>
+            <GlowFrame
+              color={isCorrect ? "#22c55e" : "#ef4444"}
+              intensity={0.1}
+              style={{
+                marginTop: 14, padding: 18,
+                background: isCorrect ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.05)",
+              }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 18 }}>{isCorrect ? "🌟" : "💡"}</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: isCorrect ? "#4ade80" : "#fca5a5", ...N }}>
                   {isCorrect ? "Amazing work, explorer!" : "Let's learn something new!"}
                 </span>
               </div>
-              <p className="text-sm text-white/60 leading-relaxed" style={N}>{explanation}</p>
-            </div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, ...N }}>{explanation}</p>
+            </GlowFrame>
           )}
 
-          {/* Tara EIB (Explain It Back) — appears after wrong answer */}
           {taraEIBWidget}
 
           {/* Streak bonus */}
           {streak > 0 && !showResult && (
-            <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-xl"
-              style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.1)" }}>
-              <span className="text-sm">🔥</span>
-              <span className="text-xs font-black text-amber-300" style={N}>{streak} in a row! +{streak * 5} bonus stars!</span>
+            <div style={{
+              marginTop: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "8px 16px", borderRadius: 14,
+              background: `${GOLD}05`, border: `1px solid ${GOLD}10`,
+              boxShadow: `0 0 12px ${GOLD}08`,
+            }}>
+              <span style={{ fontSize: 14 }}>🔥</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: GOLD, ...N }}>{streak} in a row! +{streak * 5} bonus stars!</span>
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-6 pt-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <button onClick={onSkip}
-              className="text-sm text-white/20 hover:text-white/40 transition-colors font-bold" style={N}>
-              Skip →
-            </button>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "flex-end",
+            marginTop: 20, paddingTop: 14,
+            borderTop: `1px solid ${GOLD}06`,
+          }}>
             <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
-              className="px-8 py-4 rounded-2xl text-base font-black flex items-center gap-2 transition-all active:scale-95 disabled:opacity-30"
               style={{
-                background: showResult
-                  ? "linear-gradient(135deg, #fbbf24, #f59e0b)"
-                  : "linear-gradient(135deg, #fbbf24, #f59e0b)",
-                color: "#1a1040",
-                boxShadow: selectedAnswer != null || showResult ? "0 0 20px rgba(251,191,36,0.3)" : "none",
+                padding: "14px 32px", borderRadius: 16,
+                fontSize: 16, fontWeight: 900,
+                display: "flex", alignItems: "center", gap: 8,
+                cursor: selectedAnswer != null || showResult ? "pointer" : "default",
+                opacity: selectedAnswer == null && !showResult ? 0.3 : 1,
+                transition: "all 0.2s",
                 ...N,
+                background: `linear-gradient(135deg, ${GOLD}, #f59e0b)`,
+                color: "#1a1040",
+                border: "none",
+                boxShadow: selectedAnswer != null || showResult ? `0 0 24px ${GOLD}35` : "none",
               }}>
               {showResult ? "Next Adventure →" : "Lock In Answer"} ✨
             </button>
           </div>
 
-          <p className="text-[9px] text-white/10 text-center mt-3 uppercase tracking-wider font-bold" style={N}>
+          <p style={{
+            fontSize: 9, color: `${GOLD}10`, textAlign: "center", marginTop: 8,
+            fontWeight: 900, ...N,
+          }}>
             ✨ BELIEVE IN YOURSELF, EXPLORER ✨
           </p>
         </div>
       </div>
     </div>
+
+    {/* ── Animations ── */}
+    <style>{`
+      @keyframes ks1-sparkle {
+        0%, 100% { opacity: 0.1; transform: scale(0.8); }
+        50% { opacity: 0.4; transform: scale(1.3); }
+      }
+    `}</style>
     </div>
   );
 }
