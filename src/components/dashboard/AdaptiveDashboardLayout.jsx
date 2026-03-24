@@ -135,6 +135,26 @@ function KS2Radar() {
   );
 }
 
+function KS3HudAmbient() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+      {/* Faint tech grid */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.025,
+        backgroundImage: "linear-gradient(rgba(91,106,191,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(91,106,191,0.3) 1px, transparent 1px)",
+        backgroundSize: "60px 60px" }} />
+      {/* Soft accent orb — top right */}
+      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "-8%", right: "-12%", opacity: 0.06,
+        background: "radial-gradient(circle, rgba(91,106,191,0.3) 0%, transparent 70%)" }} />
+      {/* Secondary orb — bottom left */}
+      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", bottom: "5%", left: "-8%", opacity: 0.04,
+        background: "radial-gradient(circle, rgba(14,165,233,0.25) 0%, transparent 70%)" }} />
+      {/* Horizontal scan line (very subtle) */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, opacity: 0.06,
+        background: "rgba(91,106,191,0.4)", animation: "ks3DataSweep 12s linear infinite" }} />
+    </div>
+  );
+}
+
 function KS4AtelierAmbient() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
@@ -179,12 +199,13 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
       backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 18,
     },
     ks3: {
-      background: "rgba(255,255,255,0.6)", borderRadius: 16,
-      border: `1px solid ${glow ? "rgba(91,106,191,0.15)" : "rgba(255,255,255,0.7)"}`,
+      background: "rgba(255,255,255,0.65)", borderRadius: 14,
+      border: glow ? "1px solid rgba(91,106,191,0.18)" : "1px solid rgba(91,106,191,0.08)",
       boxShadow: glow
-        ? "0 4px 20px rgba(91,106,191,0.06), inset 0 1px 0 rgba(255,255,255,0.7)"
-        : "0 1px 8px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.6)",
-      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 18,
+        ? "0 4px 24px rgba(91,106,191,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 0 0.5px rgba(91,106,191,0.06)"
+        : "0 1px 8px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
+      position: "relative", overflow: "hidden",
     },
     ks4: {
       background: "rgba(255,255,255,0.82)", borderRadius: 16,
@@ -205,6 +226,40 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
             animation: "ks4Scan 5s linear infinite" }} />
         </div>
       )}
+      {/* KS3 HUD accent corners + top edge glow */}
+      {band === "ks3" && (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 14, overflow: "hidden" }}>
+          {/* Top accent edge line */}
+          <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1,
+            background: glow
+              ? "linear-gradient(90deg, transparent, rgba(91,106,191,0.35) 20%, rgba(14,165,233,0.25) 50%, rgba(91,106,191,0.35) 80%, transparent)"
+              : "linear-gradient(90deg, transparent, rgba(91,106,191,0.12) 30%, rgba(91,106,191,0.12) 70%, transparent)",
+          }} />
+          {/* Corner bracket — top-left */}
+          <svg width="18" height="18" style={{ position: "absolute", top: 4, left: 4 }}>
+            <path d="M0 14 L0 2 Q0 0 2 0 L14 0" fill="none" stroke="rgba(91,106,191,0.2)" strokeWidth="1.5" />
+          </svg>
+          {/* Corner bracket — top-right */}
+          <svg width="18" height="18" style={{ position: "absolute", top: 4, right: 4 }}>
+            <path d="M18 14 L18 2 Q18 0 16 0 L4 0" fill="none" stroke="rgba(91,106,191,0.2)" strokeWidth="1.5" />
+          </svg>
+          {/* Corner bracket — bottom-left */}
+          <svg width="18" height="18" style={{ position: "absolute", bottom: 4, left: 4 }}>
+            <path d="M0 4 L0 16 Q0 18 2 18 L14 18" fill="none" stroke="rgba(91,106,191,0.12)" strokeWidth="1.5" />
+          </svg>
+          {/* Corner bracket — bottom-right */}
+          <svg width="18" height="18" style={{ position: "absolute", bottom: 4, right: 4 }}>
+            <path d="M18 4 L18 16 Q18 18 16 18 L4 18" fill="none" stroke="rgba(91,106,191,0.12)" strokeWidth="1.5" />
+          </svg>
+          {/* Faint tech grid overlay */}
+          {glow && (
+            <div style={{ position: "absolute", inset: 0, opacity: 0.018,
+              backgroundImage: "linear-gradient(rgba(91,106,191,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(91,106,191,0.4) 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
+            }} />
+          )}
+        </div>
+      )}
       <div style={{ position: "relative", zIndex: 1 }}>
         {children}
       </div>
@@ -222,33 +277,53 @@ function SectionHeader({ band, icon, title, subtitle, accent, size = "md" }) {
     xl: { title: 22, subtitle: 12, icon: 24 },
   };
   const fs = fontSizes[size] || fontSizes.md;
+  const isKs3 = band === "ks3";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-      {icon && (
-        <div style={{
-          width: fs.icon + 8, height: fs.icon + 8, borderRadius: band === "ks1" ? 12 : band === "ks4" ? 8 : 10,
-          background: `${cfg.accent}15`, display: "flex", alignItems: "center", justifyContent: "center",
-          border: `1px solid ${cfg.accent}20`,
-        }}>
-          <span style={{ fontSize: fs.icon }}>{icon}</span>
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {icon && (
+          <div style={{
+            width: fs.icon + 8, height: fs.icon + 8,
+            borderRadius: band === "ks1" ? 12 : band === "ks4" ? 8 : isKs3 ? 6 : 10,
+            background: isKs3 ? `linear-gradient(135deg, ${cfg.accent}12, ${cfg.accent}08)` : `${cfg.accent}15`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: isKs3 ? `1px solid ${cfg.accent}18` : `1px solid ${cfg.accent}20`,
+            boxShadow: isKs3 ? `0 0 8px ${cfg.accent}08` : "none",
+          }}>
+            <span style={{ fontSize: fs.icon }}>{icon}</span>
+          </div>
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{
+            fontSize: fs.title, fontWeight: 800,
+            color: isDark ? "#fff" : cfg.textPrimary, fontFamily: cfg.font,
+            letterSpacing: band === "ks4" ? "0.04em" : isKs3 ? "0.02em" : 0,
+          }}>
+            {title}
+          </div>
+          {subtitle && (
+            <div style={{ fontSize: fs.subtitle, fontWeight: 600, color: cfg.textMuted,
+              textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>
+              {subtitle}
+            </div>
+          )}
         </div>
-      )}
-      <div>
-        <div style={{
-          fontSize: fs.title, fontWeight: 800,
-          color: isDark ? "#fff" : cfg.textPrimary, fontFamily: cfg.font,
-          letterSpacing: band === "ks4" ? "0.04em" : 0,
-        }}>
-          {title}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: fs.subtitle, fontWeight: 600, color: cfg.textMuted,
-            textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>
-            {subtitle}
+        {/* KS3 HUD data tick marks */}
+        {isKs3 && (
+          <div style={{ display: "flex", gap: 2, opacity: 0.15 }}>
+            {[6, 10, 14, 8, 12].map((h, i) => (
+              <div key={i} style={{ width: 2, height: h, borderRadius: 1, background: cfg.accent }} />
+            ))}
           </div>
         )}
       </div>
+      {/* KS3 accent underline */}
+      {isKs3 && (
+        <div style={{ marginTop: 8, height: 1, borderRadius: 1,
+          background: `linear-gradient(90deg, ${cfg.accent}25, ${cfg.accent}08 60%, transparent)`,
+        }} />
+      )}
     </div>
   );
 }
@@ -269,7 +344,10 @@ function BandKeyframes({ band }) {
       @keyframes ks2PlanetGlow { 0%,100%{opacity:0.15;transform:scale(1)} 50%{opacity:0.35;transform:scale(1.3)} }
       @keyframes ks2OrbitPulse { 0%,100%{opacity:0.08} 50%{opacity:0.15} }
     `,
-    ks3: ``,
+    ks3: `
+      @keyframes ks3EdgePulse { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
+      @keyframes ks3DataSweep { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
+    `,
     ks4: `
       @keyframes ks4Scan { 0%{backgroundPosition:0 0} 100%{backgroundPosition:0 100%} }
       @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.1)} 50%{box-shadow:0 0 30px rgba(124,58,237,0.18)} }
@@ -321,6 +399,7 @@ export default function AdaptiveDashboardLayout({
       <BandKeyframes band={band} />
       {band === "ks1" && <KS1Nebula />}
       {band === "ks2" && <KS2Radar />}
+      {band === "ks3" && <KS3HudAmbient />}
       {band === "ks4" && <KS4AtelierAmbient />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: band === "ks1" ? 16 : 14, position: "relative", zIndex: 1 }}>
