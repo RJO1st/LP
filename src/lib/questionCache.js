@@ -75,7 +75,7 @@ export const setCachedQuestions = async (subject, year, questions, curriculum = 
  * Pre-warm cache for likely next subjects (call after quiz completes).
  */
 export const prewarmCache = async (year, currentSubject, curriculum = 'uk_11plus', fetcher) => {
-  const allSubjects = ['maths', 'english', 'verbal', 'nvr', 'science'];
+  const allSubjects = ['mathematics', 'english', 'verbal_reasoning', 'nvr', 'science'];
   const others = allSubjects.filter(s => s !== currentSubject);
   // Fire and forget — pre-fetch next 2 subjects
   for (const s of others.slice(0, 2)) {

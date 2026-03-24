@@ -30,7 +30,7 @@ const MILESTONES = {
     { id: "streak_7",     label: "Week Warrior",         emoji: "🏅", threshold: (m) => m.streak >= 7, desc: "Learn every day for a week" },
     { id: "accuracy_hero",label: "Perfect Score",        emoji: "🎯", threshold: (m) => m.accuracy >= 100, desc: "Get 100% on an adventure" },
     { id: "xp_100",       label: "Rising Star",          emoji: "🚀", threshold: (m) => m.totalXP >= 100, desc: "Earn 100 stars" },
-    { id: "xp_500",       label: "Shining Bright",       emoji: "🌈", threshold: (m) => m.totalXP >= 500, desc: "Earn 500 stars" },
+    { id: "xp_500",       label: "Shining Bright",       emoji: "✨", threshold: (m) => m.totalXP >= 500, desc: "Earn 500 stars" },
     { id: "xp_1000",      label: "Constellation",        emoji: "🦄", threshold: (m) => m.totalXP >= 1000, desc: "Earn 1000 stars" },
   ],
   ks2: [

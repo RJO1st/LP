@@ -154,7 +154,7 @@ function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n) {
   const HINTS_RULE = `HINTS: Each question MUST have a "hints" array (1–3 items). Hint 1 = directional (no spoilers). Hint 2 = structural (what to look for). Hint 3 = near-answer (almost gives it away). Never reveal the answer outright in hints 1 or 2.`;
 
   // ── MATHS ────────────────────────────────────────────────────────────────
-  if (subject === 'maths') {
+  if (subject === 'mathematics' || subject === 'maths') {
     const useSteps = tier.difficulty >= 45 && grade >= 3;
     const topics    = grade <= 2
       ? 'addition, subtraction, counting, simple shapes, measurement'

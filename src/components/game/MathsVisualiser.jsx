@@ -29,7 +29,6 @@ const RX_DECIMAL_OP = /\d+\.\d+\s*[×x*]|[×x*]\s*\d+\.\d+/;  // decimal × some
 
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
 const T = {
-  // LaunchPard brand colours — used as accents on light background
   indigo:     "#4f46e5",
   indigoBg:   "#eef2ff",
   indigoBd:   "#c7d2fe",
@@ -53,7 +52,6 @@ const T = {
 };
 
 // ─── PANEL ────────────────────────────────────────────────────────────────────
-// Light background — high contrast, colour-blind safe base
 function Panel({ children, accent = T.indigo, bg, bd, ariaLabel }) {
   const panelBg = bg || "#ffffff";
   const panelBd = bd || `${accent}44`;
@@ -245,19 +243,16 @@ function PlaceValueVis({ tens, ones }) {
 
 // MULTIPLICATION — clean array with row/col separators ────────────────────────
 function MultiplicationVis({ rows, cols }) {
-  // Coloured block groups — each row is a distinct colour group
   const total = rows * cols;
   const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#e11d48", "#0891b2", "#7c3aed",
                   "#ea580c", "#06b6d4", "#84cc16", "#ec4899", "#64748b", "#0d9488"];
   const BG =     ["#eef2ff", "#ecfdf5", "#fefce8", "#fff1f2", "#ecfeff", "#f5f3ff",
                   "#fff7ed", "#ecfeff", "#f7fee7", "#fdf2f8", "#f1f5f9", "#f0fdfa"];
 
-  // Scale: show up to 10 rows, 10 cols
   const dispR = Math.min(rows, 10);
   const dispC = Math.min(cols, 10);
   const truncR = rows > dispR;
   const truncC = cols > dispC;
-  // Block size scales with grid
   const maxDim = Math.max(dispR, dispC);
   const blockSize = maxDim > 8 ? 12 : maxDim > 6 ? 14 : maxDim > 4 ? 16 : 20;
   const gap = blockSize > 14 ? 2 : 3;
@@ -309,7 +304,6 @@ function FractionVis({ numerator, denominator }) {
             width: segW, height: 48, borderRadius: 7,
             background: i < num ? "#7c3aed" : "#ede9fe",
             border: `2px solid ${i < num ? "#6d28d9" : "#c4b5fd"}`,
-            // Hatch pattern on shaded for colour-blind safety
             backgroundImage: i < num
               ? "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 5px)"
               : "none",
@@ -380,22 +374,49 @@ const DICE = {
   6:[[25,22],[75,22],[25,50],[75,50],[25,78],[75,78]],
 };
 function CountingVis({ count }) {
-  const safe = Math.min(count, 10);
-  const layout = DICE[safe];
+  const safe = Math.min(count, 25);
+  const layout = safe <= 10 ? DICE[safe] : null;
+
+  // For counts > 10, use a grid of dots
+  if (!layout) {
+    const cols = safe <= 15 ? 5 : 6;
+    const rows = Math.ceil(safe / cols);
+    const dotR = safe <= 15 ? 8 : 6;
+    const gap = safe <= 15 ? 22 : 18;
+    const pad = 10;
+    const w = pad * 2 + cols * gap;
+    const h = pad * 2 + rows * gap;
+    return (
+      <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
+        <svg width={Math.min(w, 160)} height={Math.min(h, 120)} viewBox={`0 0 ${w} ${h}`}>
+          <rect x={2} y={2} width={w - 4} height={h - 4} rx={12}
+            fill="white" stroke={T.amberBd} strokeWidth={2} />
+          {Array.from({ length: safe }, (_, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            return (
+              <circle key={i} cx={pad + gap / 2 + col * gap} cy={pad + gap / 2 + row * gap}
+                r={dotR} fill={T.amber} stroke={T.amber} strokeWidth={0.5} />
+            );
+          })}
+        </svg>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.amber, textAlign: "center", marginTop: 4 }}>
+          Count the dots
+        </div>
+      </Panel>
+    );
+  }
+
   return (
     <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
-      {layout ? (
-        <svg width={88} height={88} viewBox="0 0 100 100">
-          <rect x={3} y={3} width={94} height={94} rx={16}
-            fill="white" stroke={T.amberBd} strokeWidth={2.5} />
-          {layout.map(([cx,cy],i) => (
-            <circle key={i} cx={cx} cy={cy} r={10}
-              fill={T.amber} stroke={T.amber} strokeWidth={1} />
-          ))}
-        </svg>
-      ) : (
-        <DotCluster count={safe} color={T.amber} bg={T.amberBg} border={T.amber} size={18} />
-      )}
+      <svg width={88} height={88} viewBox="0 0 100 100">
+        <rect x={3} y={3} width={94} height={94} rx={16}
+          fill="white" stroke={T.amberBd} strokeWidth={2.5} />
+        {layout.map(([cx,cy],i) => (
+          <circle key={i} cx={cx} cy={cy} r={10}
+            fill={T.amber} stroke={T.amber} strokeWidth={1} />
+        ))}
+      </svg>
     </Panel>
   );
 }
@@ -422,18 +443,14 @@ const NVR_SHAPES = {
   },
 };
 
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARSER (core)
 // ═══════════════════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════════════════
-// PARSER
-// ═══════════════════════════════════════════════════════════════════════════════
-function parseVisual(topic, questionText, subject, yearLevel) {
-  const t    = (topic || "").toLowerCase();
-  const q    = (questionText || "").toLowerCase();
+function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
+  const t    = (topicStr || "").toLowerCase();
+  const q    = (questionStr || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
-  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
+  const nums = ((questionStr || "").match(RX_NUM) || []).map(Number);
 
   // ── NVR ──────────────────────────────────────────────────────────────────
   if (subj.includes("verbal") && subj.includes("non") || t.includes("nvr") || t.includes("non_verbal")) {
@@ -441,8 +458,8 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     // ── Geometry/property questions (single shape) ─────────────────────────
     // "How many sides does a triangle have?" / "What shape has 6 sides?" etc.
     const SHAPE_NAMES = ["triangle","square","rectangle","pentagon","hexagon","octagon","circle","diamond"];
-    const geoQ = /how many sides|how many corners|how many edges|how many vertices|what shape|which shape|name.*shape|sides does|corners does/i.test(questionText);
-    const shapeMentioned = SHAPE_NAMES.find(s => new RegExp(`\\b${s}`, "i").test(questionText));
+    const geoQ = /how many sides|how many corners|how many edges|how many vertices|what shape|which shape|name.*shape|sides does|corners does/i.test(questionStr);
+    const shapeMentioned = SHAPE_NAMES.find(s => new RegExp(`\\b${s}`, "i").test(questionStr));
 
     if (geoQ && shapeMentioned) {
       return { type: "shape_property", shapeName: shapeMentioned };
@@ -453,7 +470,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     }
 
     // ── Sequence questions (need ≥ 2 shapes to make a sequence meaningful) ──
-    const shapeMatch = (questionText || "").match(/\b(circle|square|triangle|diamond|star|cross)s?\b/gi);
+    const shapeMatch = (questionStr || "").match(/\b(circle|square|triangle|diamond|star|cross)s?\b/gi);
     if (shapeMatch && shapeMatch.length >= 2) {
       const shapes = shapeMatch.map(s => s.toLowerCase());
       const fillCycle = ["white", T.indigoBg, "#c7d2fe", T.nebulaBg];
@@ -469,7 +486,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       return { type: "nvr", sequence };
     }
     // Size sequence: growing/shrinking
-    if (/grow|shrink|larger|smaller|bigger/i.test(questionText)) {
+    if (/grow|shrink|larger|smaller|bigger/i.test(questionStr)) {
       const shape = "circle";
       const sequence = [
         { shape, size: 8,  fill: T.indigoBg, stroke: T.indigo },
@@ -480,7 +497,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       return { type: "nvr", sequence };
     }
     // Fill alternation
-    if (/alternate|pattern|fill/i.test(questionText)) {
+    if (/alternate|pattern|fill/i.test(questionStr)) {
       const shape = "square";
       const sequence = [
         { shape, size: 14, fill: T.indigo, stroke: T.indigo },
@@ -492,41 +509,41 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     }
     
     // ── Reflection / mirror ─────────────────────────────────────────────────
-    if (/reflect|mirror|flip/i.test(questionText)) {
-      const letterM = questionText.match(/(?:letter|the)\s+[''""]?([A-Za-z])[''""]?/i)
-                   || questionText.match(/reflection of\s+[''""]?([A-Za-z])[''""]?/i)
-                   || questionText.match(/[''""]([A-Za-z])[''""] is (?:reflected|mirrored|flipped)/i);
+    if (/reflect|mirror|flip/i.test(questionStr)) {
+      const letterM = questionStr.match(/(?:letter|the)\s+[''""]?([A-Za-z])[''""]?/i)
+                   || questionStr.match(/reflection of\s+[''""]?([A-Za-z])[''""]?/i)
+                   || questionStr.match(/[''""]([A-Za-z])[''""] is (?:reflected|mirrored|flipped)/i);
       if (letterM) {
         return { type: "nvr_reflection", letter: letterM[1].toUpperCase() };
       }
-      const shapeM = questionText.match(/(flag|arrow|triangle|square|circle|star|cross|L.shape|T.shape)/i);
+      const shapeM = questionStr.match(/(flag|arrow|triangle|square|circle|star|cross|L.shape|T.shape)/i);
       if (shapeM) {
         const shape = shapeM[1].toLowerCase();
-        const isHorizontal = /horizontal|across a horizontal/i.test(questionText);
-        const direction = questionText.match(/pointing\s+(right|left|up|down)/i)?.[1]?.toLowerCase() || "right";
+        const isHorizontal = /horizontal|across a horizontal/i.test(questionStr);
+        const direction = questionStr.match(/pointing\s+(right|left|up|down)/i)?.[1]?.toLowerCase() || "right";
         return { type: "nvr_shape_reflection", shape, horizontal: isHorizontal, direction };
       }
       return { type: "nvr_reflection", letter: "F" };
     }
 
     // ── 3D nets / folding ────────────────────────────────────────────────────
-    if (/net|fold|cube|cuboid|prism|pyramid|3d shape/i.test(questionText)) {
-      const shape3d = /pyramid/i.test(questionText) ? "pyramid"
-                    : /prism/i.test(questionText)   ? "prism"
+    if (/net|fold|cube|cuboid|prism|pyramid|3d shape/i.test(questionStr)) {
+      const shape3d = /pyramid/i.test(questionStr) ? "pyramid"
+                    : /prism/i.test(questionStr)   ? "prism"
                     : "cube";
       return { type: "nvr_net", shape3d };
     }
 
     // ── Rotation / transformation ───────────────────────────────────────────
-    if (/rotat|turn|clockwise|anti.clockwise|degrees?/i.test(questionText)) {
-      const degM  = (questionText || "").match(/(\d+)\s*degrees?/i);
+    if (/rotat|turn|clockwise|anti.clockwise|degrees?/i.test(questionStr)) {
+      const degM  = (questionStr || "").match(/(\d+)\s*degrees?/i);
       const deg   = degM ? parseInt(degM[1]) : 90;
-      const cw    = !/anti.clockwise|counter.clockwise/i.test(questionText);
+      const cw    = !/anti.clockwise|counter.clockwise/i.test(questionStr);
       return { type: "nvr_rotation", degrees: deg, clockwise: cw };
     }
 
     // ── Odd one out / classification ────────────────────────────────────────
-    if (/odd one out|which.*different|does not belong/i.test(questionText)) {
+    if (/odd one out|which.*different|does not belong/i.test(questionStr)) {
       return { type: "nvr_oddoneout" };
     }
   }
@@ -535,31 +552,31 @@ function parseVisual(topic, questionText, subject, yearLevel) {
   if (subj.includes("physics") || (subj.includes("science") && (t.includes("force") || t.includes("velocit") || t.includes("speed") || t.includes("motion")))) {
 
     // Velocity / speed
-    if (t.includes("velocit") || t.includes("speed") || t.includes("motion") || /m\/s|km\/h|mph/i.test(questionText)) {
+    if (t.includes("velocit") || t.includes("speed") || t.includes("motion") || /m\/s|km\/h|mph/i.test(questionStr)) {
       const speeds = nums.filter(n => n > 0 && n < 1000);
       if (speeds.length >= 1) {
-        const unit = /km\/h/i.test(questionText) ? "km/h" : /mph/i.test(questionText) ? "mph" : "m/s";
+        const unit = /km\/h/i.test(questionStr) ? "km/h" : /mph/i.test(questionStr) ? "mph" : "m/s";
         return {
           type: "velocity",
           v1: speeds[0],
           v2: speeds[1] ?? null,
-          label1: /initial|start|begin|u\s*=/i.test(questionText) ? "initial (u)" : "velocity",
-          label2: /final|end|v\s*=/i.test(questionText) ? "final (v)" : "new velocity",
+          label1: /initial|start|begin|u\s*=/i.test(questionStr) ? "initial (u)" : "velocity",
+          label2: /final|end|v\s*=/i.test(questionStr) ? "final (v)" : "new velocity",
           unit,
         };
       }
     }
 
     // Forces
-    if (t.includes("force") || t.includes("newton") || /\d+\s*n\b/i.test(questionText)) {
+    if (t.includes("force") || t.includes("newton") || /\d+\s*n\b/i.test(questionStr)) {
       const forces = nums.filter(n => n <= 1000);
       if (forces.length >= 2) {
         return {
           type: "forces",
           force1: Math.max(forces[0], forces[1]),
           force2: Math.min(forces[0], forces[1]),
-          label1: /push/i.test(questionText) ? "Push" : "Force A",
-          label2: /friction|resist/i.test(questionText) ? "Friction" : "Force B",
+          label1: /push/i.test(questionStr) ? "Push" : "Force A",
+          label2: /friction|resist/i.test(questionStr) ? "Friction" : "Force B",
         };
       }
     }
@@ -573,7 +590,7 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       const ROLE = { grass:"producer",plant:"producer",algae:"producer",
         rabbit:"primary consumer",mouse:"primary consumer",insect:"primary consumer",
         fox:"secondary consumer",hawk:"predator",snake:"secondary consumer" };
-      const match = (questionText || "").match(/([a-zA-Z ]{2,18})\s*(?:→|->)\s*([a-zA-Z ]{2,18})(?:\s*(?:→|->)\s*([a-zA-Z ]{2,18}))?/i);
+      const match = (questionStr || "").match(/([a-zA-Z ]{2,18})\s*(?:→|->)\s*([a-zA-Z ]{2,18})(?:\s*(?:→|->)\s*([a-zA-Z ]{2,18}))?/i);
       if (match) {
         const chain = [match[1],match[2],match[3]].filter(Boolean)
           .map(s => s.trim().toLowerCase())
@@ -589,51 +606,45 @@ function parseVisual(topic, questionText, subject, yearLevel) {
 
   // ── MATHS ────────────────────────────────────────────────────────────────
   if (!subj.includes("math")) return null;
-  // NOTE: yearLevel guard removed — clock, money, division, ruler, ratio
-  // are handled below for all year levels via parseVisualExtended fallbacks.
-  // Only truly early-years visuals (counting, word problems) guard internally.
 
-  if ((t.includes("count") || t.includes("number_recog")) && yearLevel <= 4) {
+  if ((t.includes("count") || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
     const n = nums[0];
-    if (n && n <= 10) return { type: "counting", count: n };
+    if (n && n <= 25) return { type: "counting", count: n };
+    // If no number in question text, try to infer from the correct answer option
+    if (!n && question?.opts?.length) {
+      const correctIdx = question?.a ?? 0;
+      const ansNum = parseInt(question.opts[correctIdx], 10);
+      if (ansNum && ansNum <= 25) return { type: "counting", count: ansNum };
+    }
   }
 
-  const addMatch = (questionText || "").match(/(\d+)\s*[+＋]\s*(\d+)/);
+  const addMatch = (questionStr || "").match(/(\d+)\s*[+＋]\s*(\d+)/);
   if (addMatch) {
     const a = parseInt(addMatch[1]), b = parseInt(addMatch[2]);
     if (a + b <= 20 && yearLevel <= 2) return { type: "addition", a, b };
   }
   if (t.includes("number_bond") && nums.length >= 1) {
-    // "What two numbers make 8?" → whole=8, show as bond with ?+?=8
-    // "3 + __ = 10" → whole=10, partA=3
-    // "7 and 3 make __" → whole=10, partA=7, partB=3
     const whole = Math.max(...nums.slice(0,3));
     const parts = nums.filter(n => n < whole);
     if (parts.length >= 1) {
       return { type: "number_bond", whole, partA: parts[0], partB: null };
     }
-    // Single number: show whole with two unknown parts
     return { type: "number_bond", whole, partA: null, partB: null };
   }
 
-  const subMatch = (questionText || "").match(/(\d+)\s*[−\-–]\s*(\d+)/)
-    || (questionText || "").match(/(\d+)\s*minus\s*(\d+)/i);
+  const subMatch = (questionStr || "").match(/(\d+)\s*[−\-–]\s*(\d+)/)
+    || (questionStr || "").match(/(\d+)\s*minus\s*(\d+)/i);
   if (subMatch) {
     const from = parseInt(subMatch[1]), remove = parseInt(subMatch[2]);
     if (from <= 15) return { type: "subtraction", from, remove };
   }
 
   // ── WORD PROBLEM DETECTION (Y1/Y2) ────────────────────────────────────────
-  // Catches: "You have 4 bananas and eat 3", "Take away 1 from 4",
-  //          "5 birds, 2 fly away", "6 sweets shared between 3", etc.
-  // Skip entirely for comparison questions — they need a different visual
-  const isComparisonQ = /which is greater|which is (?:bigger|larger|more|less|smaller)|greater than|less than|compare|more than|fewer than/i.test(questionText);
+  const isComparisonQ = /which is greater|which is (?:bigger|larger|more|less|smaller)|greater than|less than|compare|more than|fewer than/i.test(questionStr);
   if (!isComparisonQ && yearLevel <= 2 && nums.length >= 2) {
     const a = nums[0], b = nums[1];
-    // Subtraction word problems
-    // Handle "take away X from Y" / "subtract X from Y" — numbers are in reverse order
-    const takeAwayMatch = (questionText || "").match(/take away\s+(\d+)\s+from\s+(\d+)/i)
-      || (questionText || "").match(/subtract\s+(\d+)\s+from\s+(\d+)/i);
+    const takeAwayMatch = (questionStr || "").match(/take away\s+(\d+)\s+from\s+(\d+)/i)
+      || (questionStr || "").match(/subtract\s+(\d+)\s+from\s+(\d+)/i);
     if (takeAwayMatch) {
       const remove = parseInt(takeAwayMatch[1]), from = parseInt(takeAwayMatch[2]);
       if (from > 0 && remove > 0 && from >= remove && from <= 15) {
@@ -644,19 +655,16 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     if (isSubWord && a > 0 && b > 0 && a >= b && a <= 15) {
       return { type: "subtraction", from: a, remove: b };
     }
-    // Handle "X from Y" subtraction where larger number comes second
     if (isSubWord && a > 0 && b > 0 && b > a && b <= 15) {
       return { type: "subtraction", from: b, remove: a };
     }
-    // Addition word problems — suppress for currency/narrative real-world problems
     const isAddWord = /more|gets?|got|add|join|arrive[sd]?|come[s]?|found|buy|bought|pick(?:s|ed)?|collect(?:s|ed)?|together|total|altogether|in all/i.test(q);
     const isAddWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|costs?|saves?|earns?/i.test(q);
     if (isAddWord && !isAddWordProblem && a + b <= 20) {
       return { type: "addition", a, b };
     }
-    // Multiplication word problems: "3 bags of 4 apples", "5 groups of 2"
-    const mulWordMatch = (questionText || "").match(/(\d+)\s*(?:bags?|boxes?|groups?|rows?|plates?|baskets?|packs?|sets?)\s*(?:of|with|each\s+(?:has|have|containing))\s*(\d+)/i)
-      || (questionText || "").match(/(\d+)\s*(?:children|students|friends|people)\s+(?:each\s+)?(?:get|have|gets|receives?|got)\s+(\d+)/i);
+    const mulWordMatch = (questionStr || "").match(/(\d+)\s*(?:bags?|boxes?|groups?|rows?|plates?|baskets?|packs?|sets?)\s*(?:of|with|each\s+(?:has|have|containing))\s*(\d+)/i)
+      || (questionStr || "").match(/(\d+)\s*(?:children|students|friends|people)\s+(?:each\s+)?(?:get|have|gets|receives?|got)\s+(\d+)/i);
     if (mulWordMatch) {
       const r = parseInt(mulWordMatch[1]), c = parseInt(mulWordMatch[2]);
       if (r <= 6 && c <= 8 && r > 0 && c > 0) return { type: "multiplication", rows: r, cols: c };
@@ -664,10 +672,10 @@ function parseVisual(topic, questionText, subject, yearLevel) {
   }
 
   // ── MISSING VALUE (12 × ? = 36, ? + 5 = 11) ──────────────────────────────
-  if (subj.includes("math") && /\?|__+/.test(questionText)) {
-    const eqNum = (questionText || "").match(/=\s*(\d+)/);
-    const missingMul = (questionText || "").match(/(\d+)\s*[×x\*]\s*\?/i) || (questionText || "").match(/\?\s*[×x\*]\s*(\d+)/i);
-    const missingAdd = (questionText || "").match(/(\d+)\s*\+\s*\?/i) || (questionText || "").match(/\?\s*\+\s*(\d+)/i);
+  if (subj.includes("math") && /\?|__+/.test(questionStr)) {
+    const eqNum = (questionStr || "").match(/=\s*(\d+)/);
+    const missingMul = (questionStr || "").match(/(\d+)\s*[×x\*]\s*\?/i) || (questionStr || "").match(/\?\s*[×x\*]\s*(\d+)/i);
+    const missingAdd = (questionStr || "").match(/(\d+)\s*\+\s*\?/i) || (questionStr || "").match(/\?\s*\+\s*(\d+)/i);
     if (eqNum && (missingMul || missingAdd)) {
       const result = parseInt(eqNum[1]);
       const known  = parseInt((missingMul || missingAdd)[1]);
@@ -678,10 +686,8 @@ function parseVisual(topic, questionText, subject, yearLevel) {
   }
 
   // ── NUMBER LINE: "X more/less than N" (works with negatives) ──────────────────
-  // e.g. "What number is 3 more than -6?" → number line showing -6 as start, 
-  // direction arrow of +3, destination marked as ? (answer hidden)
-  const moreMatch = (questionText || "").match(/(\d+)\s*more\s+than\s+(-?\d+)/i);
-  const lessMatch = (questionText || "").match(/(\d+)\s*(?:less|fewer)\s+than\s+(-?\d+)/i);
+  const moreMatch = (questionStr || "").match(/(\d+)\s*more\s+than\s+(-?\d+)/i);
+  const lessMatch = (questionStr || "").match(/(\d+)\s*(?:less|fewer)\s+than\s+(-?\d+)/i);
   if (moreMatch || lessMatch) {
     const m    = moreMatch || lessMatch;
     const diff = parseInt(m[1]);
@@ -689,23 +695,19 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     const ans  = moreMatch ? base + diff : base - diff;
     const lo   = Math.min(base, ans) - 2;
     const hi   = Math.max(base, ans) + 2;
-    // Pass 'start' (the known value) and 'steps'/'direction' — do NOT pass 'marked'=ans
-    // NumberLineVis will show the start dot + a dashed arc + "?" at destination
     return { type: "number_line", min: lo, max: hi,
       start: base, steps: diff, direction: moreMatch ? "right" : "left",
       label: moreMatch ? `Start at ${base}, count ${diff} right` : `Start at ${base}, count ${diff} left` };
   }
 
-  // Skip multiplication dot grid if either operand is a decimal (2.5 × 4 etc.)
-  const hasDecimalOperand = /\d+\.\d+\s*[×x\*]|[×x\*]\s*\d+\.\d+/.test(questionText || "");
+  const hasDecimalOperand = /\d+\.\d+\s*[×x\*]|[×x\*]\s*\d+\.\d+/.test(questionStr || "");
 
   // ── DIVISION: X ÷ Y — number line with grouping jumps ─────────────────────
-  const divMatch = (questionText || "").match(/(\d+)\s*(?:÷|divided\s*by)\s*(\d+)/i);
+  const divMatch = (questionStr || "").match(/(\d+)\s*(?:÷|divided\s*by)\s*(\d+)/i);
   if (divMatch) {
     const total = parseInt(divMatch[1]), divisor = parseInt(divMatch[2]);
     if (divisor >= 2 && total > 0 && total <= 200) {
       const groups = Math.floor(total / divisor);
-      // Number line with jumps of divisor-size, landing at total
       return {
         type: "number_line", min: 0, max: total,
         start: 0, jumps: Math.min(groups, 10), jumpSize: divisor,
@@ -714,15 +716,13 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     }
   }
 
-  const mulMatch = !hasDecimalOperand && (questionText || "").match(/(\d+)\s*(?:[×x\*]|times|multiplied\s*by)\s*(\d+)/i);
-  const grpMatch = (questionText || "").match(/(\d+)\s*groups?\s*of\s*(\d+)/i);
+  const mulMatch = !hasDecimalOperand && (questionStr || "").match(/(\d+)\s*(?:[×x\*]|times|multiplied\s*by)\s*(\d+)/i);
+  const grpMatch = (questionStr || "").match(/(\d+)\s*groups?\s*of\s*(\d+)/i);
   if (mulMatch || grpMatch) {
     const m = mulMatch || grpMatch;
     const r = parseInt(m[1]), c = parseInt(m[2]);
     if (r > 0 && c > 0) {
-      // Small grids (≤6×6): coloured block visual
       if (r <= 6 && c <= 6) return { type: "multiplication", rows: r, cols: c };
-      // Larger: number line with repeated jumps (r jumps of c)
       if (r <= 12 && c <= 12) return {
         type: "number_line", min: 0, max: r * c + 2,
         start: 0, jumps: r, jumpSize: c,
@@ -731,14 +731,12 @@ function parseVisual(topic, questionText, subject, yearLevel) {
     }
   }
 
-  const fracMatch = (questionText || "").match(/(\d+)\s*\/\s*(\d+)/);
+  const fracMatch = (questionStr || "").match(/(\d+)\s*\/\s*(\d+)/);
   if (t.includes("fraction") || fracMatch) {
-    // Fraction on a number line: "1/3 + 1/3", "place X/Y on a number line", fraction multiplication
-    if (fracMatch && /number line|line.*fraction|fraction.*line|add.*fraction|fraction.*add/i.test(questionText)) {
+    if (fracMatch && /number line|line.*fraction|fraction.*line|add.*fraction|fraction.*add/i.test(questionStr)) {
       const num = parseInt(fracMatch[1]), den = parseInt(fracMatch[2]);
       if (den >= 2 && den <= 12 && num <= den * 2) {
-        // Check for multiplication: "7 × 1/5"
-        const mulFrac = (questionText || "").match(/(\d+)\s*[×x\*]\s*(\d+)\s*\/\s*(\d+)/i);
+        const mulFrac = (questionStr || "").match(/(\d+)\s*[×x\*]\s*(\d+)\s*\/\s*(\d+)/i);
         if (mulFrac) {
           const multiplier = parseInt(mulFrac[1]);
           const fracNum = parseInt(mulFrac[2]);
@@ -750,7 +748,6 @@ function parseVisual(topic, questionText, subject, yearLevel) {
             label: `${multiplier} × ${fracNum}/${fracDen} = ?`
           };
         }
-        // Addition: show fraction marks on 0→1 or 0→2
         return {
           type: "number_line", min: 0, max: Math.max(1, Math.ceil(num / den)),
           fractionDenom: den, label: `${num}/${den} on a number line`
@@ -758,20 +755,36 @@ function parseVisual(topic, questionText, subject, yearLevel) {
       }
     }
     if (fracMatch) return { type: "fraction", numerator: parseInt(fracMatch[1]), denominator: parseInt(fracMatch[2]) };
-    if (/half/i.test(questionText))    return { type: "fraction", numerator: 1, denominator: 2 };
-    if (/quarter/i.test(questionText)) return { type: "fraction", numerator: 1, denominator: 4 };
-    if (/third/i.test(questionText))   return { type: "fraction", numerator: 1, denominator: 3 };
+    if (/half/i.test(questionStr))    return { type: "fraction", numerator: 1, denominator: 2 };
+    if (/quarter/i.test(questionStr)) return { type: "fraction", numerator: 1, denominator: 4 };
+    if (/third/i.test(questionStr))   return { type: "fraction", numerator: 1, denominator: 3 };
+    // Infer from "divided into N equal parts" + "eat/take/remove M part(s)"
+    const partsMatch = (questionStr || "").match(/(?:divided|split|cut)\s+(?:into\s+)?(\d+)\s+equal\s+parts?/i);
+    if (partsMatch) {
+      const den = parseInt(partsMatch[1]);
+      const takenMatch = (questionStr || "").match(/(?:eat|take|remove|give|shade|colour|color)\s+(\d+)\s+part/i);
+      const taken = takenMatch ? parseInt(takenMatch[1]) : 1;
+      // If question asks what's LEFT, show remainder; if asks what was taken, show taken
+      const isLeft = /left|remain|have\s+left/i.test(questionStr);
+      const num = isLeft ? den - taken : taken;
+      if (den >= 2 && den <= 12) return { type: "fraction", numerator: num, denominator: den };
+    }
+    // Fallback: try to parse fraction from the correct answer option (e.g. "3/4")
+    if (question?.opts?.length) {
+      const correctIdx = question?.a ?? 0;
+      const answerFrac = String(question.opts[correctIdx] || "").match(/^(\d+)\s*\/\s*(\d+)$/);
+      if (answerFrac) return { type: "fraction", numerator: parseInt(answerFrac[1]), denominator: parseInt(answerFrac[2]) };
+    }
   }
 
   if (t.includes("place_value")) {
     const big = nums.find(n => n >= 10 && n <= 99);
     if (big) return { type: "place_value", tens: Math.floor(big/10), ones: big%10 };
-    const tm = (questionText||"").match(/(\d+)\s*tens?/i);
-    const om = (questionText||"").match(/(\d+)\s*ones?/i);
+    const tm = (questionStr||"").match(/(\d+)\s*tens?/i);
+    const om = (questionStr||"").match(/(\d+)\s*ones?/i);
     if (tm||om) return { type:"place_value", tens: tm?parseInt(tm[1]):0, ones: om?parseInt(om[1]):0 };
   }
 
-  // ── COMPARISON (Y1/Y2) ────────────────────────────────────────────────────
   if (isComparisonQ && yearLevel <= 4 && nums.length >= 2) {
     return { type: "comparison", a: nums[0], b: nums[1] };
   }
@@ -784,11 +797,6 @@ function parseVisual(topic, questionText, subject, yearLevel) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── Clock / Telling Time ──────────────────────────────────────────────────────
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TIER 2 COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
 function ClockVis({ hours, minutes, label }) {
   const cx = 60, cy = 60, r = 50;
   const minAngle = (minutes / 60) * 360 - 90;
@@ -877,7 +885,6 @@ function DivisionVis({ total, groups }) {
     return Math.max(0, count);
   });
   const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
-  // Dynamic dot size based on total
   const dotSize = total > 40 ? 7 : total > 20 ? 9 : 10;
   const dotGap = total > 40 ? 2 : 3;
   const groupPad = total > 40 ? "4px 5px" : "6px 8px";
@@ -911,7 +918,6 @@ function DivisionVis({ total, groups }) {
 // ── Division Equation (large numbers — no answer revealed) ────────────────────
 function DivisionEquationVis({ total, groups }) {
   const W = 190, H = 100;
-  // Show groups as blocks to visualise "sharing into groups"
   const maxBlocks = Math.min(groups, 8);
   const blockW = Math.min(18, Math.floor((W - 40) / maxBlocks) - 4);
 
@@ -919,10 +925,8 @@ function DivisionEquationVis({ total, groups }) {
     <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
       ariaLabel={`Division: ${total} divided by ${groups}`}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Large equation display */}
         <text x={W/2} y={32} textAnchor="middle" fontSize={22} fontWeight="900" fill={T.indigo}>{total}</text>
         <text x={W/2} y={50} textAnchor="middle" fontSize={12} fontWeight="700" fill={T.textMid}>÷ {groups} = ?</text>
-        {/* Group blocks */}
         <g transform={`translate(${(W - maxBlocks * (blockW + 4)) / 2}, 60)`}>
           {Array.from({ length: maxBlocks }, (_, i) => (
             <g key={i}>
@@ -1004,21 +1008,19 @@ function AlphabetStripVis({ highlighted, offset }) {
     </div>
   );
 }
+
 // ── English / Grammar Visualiser ─────────────────────────────────────────────
-function parseEnglish(topic, questionText, yearLevel) {
-  const t = (topic || "").toLowerCase();
-  const q = (questionText || "").toLowerCase();
+function parseEnglish(topicStr, questionStr, yearLevel, question) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
  
   // Sentence structure / clauses
   if (t.includes("clause") || t.includes("sentence_type") || t.includes("sentence_structure") ||
-      /main clause|subordinate clause|relative clause|compound sentence|complex sentence|simple sentence/i.test(questionText)) {
-    // Try to extract sentence and identify clauses from question text
+      /main clause|subordinate clause|relative clause|compound sentence|complex sentence|simple sentence/i.test(questionStr)) {
     const parts = [];
-    // Look for quoted sentence
-    const sentenceMatch = (questionText || "").match(/['"]([^'"]{10,80})['"]/);
+    const sentenceMatch = (questionStr || "").match(/['"]([^'"]{10,80})['"]/);
     if (sentenceMatch) {
       const sentence = sentenceMatch[1];
-      // Split on conjunctions
       const conjunctions = /\b(because|although|when|while|if|since|after|before|until|unless|so|but|and|which|who|that)\b/i;
       const splitParts = sentence.split(conjunctions);
       splitParts.forEach((part, i) => {
@@ -1034,7 +1036,6 @@ function parseEnglish(topic, questionText, yearLevel) {
       });
     }
     if (parts.length >= 2) return { type: "sentence_structure", parts };
-    // Fallback with generic example
     return { type: "sentence_structure", parts: [
       { text: "The dog barked", type: "main" },
       { text: "because", type: "conjunction" },
@@ -1044,35 +1045,40 @@ function parseEnglish(topic, questionText, yearLevel) {
  
   // Spelling patterns
   if (t.includes("spelling") || t.includes("phonics") || t.includes("digraph") || t.includes("trigraph") ||
-      /spell|silent letter|split digraph|magic e|double letter/i.test(questionText)) {
-    // Extract word from question
-    const wordMatch = (questionText || "").match(/(?:word|spell|spelling of)\s+['"]?(\w{3,12})['"]?/i);
-    const word = wordMatch?.[1] || "";
+      /spell|silent letter|split digraph|magic e|double letter/i.test(questionStr)) {
+    // Try to extract the target word from the question text
+    const wordMatch = (questionStr || "").match(/(?:spell(?:ing)?\s+(?:of\s+)?(?:the\s+word\s+)?)['"]+(\w{3,12})['"]+/i)
+      || (questionStr || "").match(/(?:correct\s+spelling\s+(?:of|for)\s+)['"]?(\w{3,12})['"]?/i);
+    let word = wordMatch?.[1] || "";
+    // If regex captured a stop-word (the, for, a, is, etc.), fall back to correct answer from options
+    const STOP_WORDS = new Set(["the","for","a","an","is","of","to","in","it","on","at","by","or","and","as","if","do","so","up","no","my","me","he","we","us"]);
+    if (!word || STOP_WORDS.has(word.toLowerCase())) {
+      // Use the correct answer option as the spelling word (it IS the word being spelled)
+      const opts = question?.opts || [];
+      const correctIdx = question?.a ?? 0;
+      word = (opts[correctIdx] || "").replace(/[^a-zA-Z]/g, "");
+    }
     if (word) {
       const highlighted = [];
       const lw = word.toLowerCase();
-      // Detect silent letters
       if (/^kn/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_k", highlighted }; }
       if (/^wr/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_w", highlighted }; }
       if (/mb$/i.test(word)) { highlighted.push(word.length - 1); return { type: "spelling_pattern", word, pattern: "silent_b", highlighted }; }
-      // Magic e
       if (/[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(word)) {
         highlighted.push(word.length - 1);
         return { type: "spelling_pattern", word, pattern: "magic_e", highlighted };
       }
-      // Double letters
       for (let i = 0; i < word.length - 1; i++) {
-        if (lw[i] === lw[i + 1]) { highlighted.push(i, i + 1); return { type: "spelling_pattern", word, pattern: "double_letter", highlighted }; }
+        if (lw[i] === lw[i+1]) { highlighted.push(i, i+1); return { type: "spelling_pattern", word, pattern: "double_letter", highlighted }; }
       }
-      // Generic
       return { type: "spelling_pattern", word, pattern: "", highlighted: [] };
     }
   }
  
   // Punctuation
   if (t.includes("punctuation") || t.includes("apostrophe") || t.includes("comma") ||
-      /punctuation|comma|apostrophe|speech marks|quotation|colon|semicolon|exclamation|question mark/i.test(questionText)) {
-    const sentenceMatch = (questionText || "").match(/['"]([^'"]{8,60})['"]/);
+      /punctuation|comma|apostrophe|speech marks|quotation|colon|semicolon|exclamation|question mark/i.test(questionStr)) {
+    const sentenceMatch = (questionStr || "").match(/['"]([^'"]{8,60})['"]/);
     const sentence = sentenceMatch?.[1] || "";
     if (sentence) {
       const marks = [];
@@ -1090,9 +1096,8 @@ function parseEnglish(topic, questionText, yearLevel) {
  
   // Word classes
   if (t.includes("word_class") || t.includes("parts_of_speech") || t.includes("noun_phrase") ||
-      /word class|parts of speech|noun phrase|verb phrase|identify the noun|identify the verb|identify the adjective/i.test(questionText)) {
-    // Try to extract a phrase and label words
-    const phraseMatch = (questionText || "").match(/['"]([^'"]{5,40})['"]/);
+      /word class|parts of speech|noun phrase|verb phrase|identify the noun|identify the verb|identify the adjective/i.test(questionStr)) {
+    const phraseMatch = (questionStr || "").match(/['"]([^'"]{5,40})['"]/);
     if (phraseMatch) {
       const phrase = phraseMatch[1];
       const wordList = phrase.split(/\s+/).map(w => {
@@ -1116,31 +1121,32 @@ function parseEnglish(topic, questionText, yearLevel) {
  
   return null;
 }
+
 // ── NVR (3D shapes, rotations, codes) ─────────────────────────────────────────
-function parseNVRExt(topic, questionText, yearLevel) {
-  const t = (topic || "").toLowerCase();
-  const q = (questionText || "").toLowerCase();
+function parseNVRExt(topicStr, questionStr, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
  
   // Actual shape rotation (enhanced — replaces generic NVRRotationVis)
-  if (/rotat.*\d+\s*degree|turn.*\d+\s*degree|\d+\s*degree.*rotat/i.test(questionText)) {
-    const degMatch = (questionText || "").match(/(\d+)\s*degree/i);
+  if (/rotat.*\d+\s*degree|turn.*\d+\s*degree|\d+\s*degree.*rotat/i.test(questionStr)) {
+    const degMatch = (questionStr || "").match(/(\d+)\s*degree/i);
     const degrees = degMatch ? parseInt(degMatch[1]) : 90;
-    const clockwise = !/anti|counter/i.test(questionText);
+    const clockwise = !/anti|counter/i.test(questionStr);
     const SHAPES = ["triangle","square","pentagon","hexagon","circle","rectangle","arrow"];
     const shape = SHAPES.find(s => q.includes(s)) || "triangle";
     return { type: "nvr_shape_rotation", shape, degrees, clockwise };
   }
  
   // Letter/number codes
-  if (/code|cipher|A\s*=\s*1|letter.*number|number.*letter|decode|encode/i.test(questionText) &&
+  if (/code|cipher|A\s*=\s*1|letter.*number|number.*letter|decode|encode/i.test(questionStr) &&
       (t.includes("code") || t.includes("cipher") || t.includes("verbal") || t.includes("nvr"))) {
-    const encodedMatch = (questionText || "").match(/['"]([A-Z0-9\s-]{2,20})['"]/);
+    const encodedMatch = (questionStr || "").match(/['"]([A-Z0-9\s-]{2,20})['"]/);
     const encoded = encodedMatch?.[1] || "";
     return { type: "nvr_code", encoded, decoded: "", codeType: "a1" };
   }
  
   // Plan and elevation
-  if (/plan view|elevation|front view|side view|bird.*eye|3d.*2d|2d.*3d/i.test(questionText) ||
+  if (/plan view|elevation|front view|side view|bird.*eye|3d.*2d|2d.*3d/i.test(questionStr) ||
       t.includes("plan") || t.includes("elevation")) {
     const shapes = { cuboid: "cuboid", cylinder: "cylinder", "l-shape": "l-shape", "l shape": "l-shape",
                      "triangular prism": "triangular_prism", prism: "triangular_prism" };
@@ -1219,9 +1225,7 @@ function NumberSequenceVis({ sequence, gapIndex, rule }) {
 }
 
 // ── NVR Matrix (2×2 pattern) ──────────────────────────────────────────────────
-
 function GrammarVis({ sentence, labels }) {
-  // labels = [{ word, pos, color }]  pos = noun|verb|adjective|adverb|preposition
   const POS_COLORS = {
     noun:        { bg:"#dbeafe", border:"#3b82f6", text:"#1d4ed8" },
     verb:        { bg:"#dcfce7", border:"#22c55e", text:"#15803d" },
@@ -1256,7 +1260,6 @@ function GrammarVis({ sentence, labels }) {
 
 // ── Synonym Strength Ladder ───────────────────────────────────────────────────
 function SynonymLadderVis({ words, concept }) {
-  // words = [{word, strength}] where strength 1–5
   const sorted = [...words].sort((a, b) => a.strength - b.strength);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", width:"100%" }}>
@@ -1314,7 +1317,7 @@ function WordBuilderVis({ prefix, root, suffix }) {
 }
 
 
-// ── Comparison Visual (greater/less than) ─────────────────────────────────────
+// ─── Comparison Visual (greater/less than) ─────────────────────────────────────
 function ComparisonVis({ a, b }) {
   const isAGreater = a > b;
   const isEqual    = a === b;
@@ -1332,7 +1335,6 @@ function ComparisonVis({ a, b }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
       <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-        {/* Group A */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
             {renderDots(a, DOT_COLORS[0])}
@@ -1343,13 +1345,11 @@ function ComparisonVis({ a, b }) {
             borderRadius:8, border:`2px solid ${DOT_COLORS[0]}`,
           }}>{a}</div>
         </div>
-        {/* Symbol */}
         <div style={{
           fontSize:28, fontWeight:900,
           color: isEqual ? T.slate : isAGreater ? T.emerald : T.nebula,
           width:32, textAlign:"center",
         }}>{symbol}</div>
-        {/* Group B */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
             {renderDots(b, DOT_COLORS[1])}
@@ -1369,23 +1369,22 @@ function ComparisonVis({ a, b }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PARSER EXTENSIONS — Tier 3
+// PARSER EXTENSIONS — Tier 3 (all use topicStr as first argument)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function parseTier3(topic, questionText, subject, yearLevel) {
-  const t    = (topic || "").toLowerCase();
-  const q    = (questionText || "").toLowerCase();
+function parseTier3(topicStr, questionStr, subject, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
-  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
+  const nums = ((questionStr || "").match(RX_NUM) || []).map(Number);
 
   // ── TIME / CLOCK ───────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("time") || t.includes("clock") || /o'clock|half past|quarter past|quarter to/i.test(questionText))) {
-    // "What time is shown?" / "3 o'clock" / "half past 4" / "quarter to 7"
-    const oclockMatch  = (questionText || "").match(/(\d{1,2})\s*o'?clock/i);
-    const halfPast     = (questionText || "").match(/half\s+past\s+(\d{1,2})/i);
-    const quarterPast  = (questionText || "").match(/quarter\s+past\s+(\d{1,2})/i);
-    const quarterTo    = (questionText || "").match(/quarter\s+to\s+(\d{1,2})/i);
-    const colonTime    = (questionText || "").match(/(\d{1,2}):(\d{2})/);
+  if (subj.includes("math") && (t.includes("time") || t.includes("clock") || /o'clock|half past|quarter past|quarter to/i.test(questionStr))) {
+    const oclockMatch  = (questionStr || "").match(/(\d{1,2})\s*o'?clock/i);
+    const halfPast     = (questionStr || "").match(/half\s+past\s+(\d{1,2})/i);
+    const quarterPast  = (questionStr || "").match(/quarter\s+past\s+(\d{1,2})/i);
+    const quarterTo    = (questionStr || "").match(/quarter\s+to\s+(\d{1,2})/i);
+    const colonTime    = (questionStr || "").match(/(\d{1,2}):(\d{2})/);
     if (oclockMatch)  return { type:"clock", hours:parseInt(oclockMatch[1]), minutes:0, label:`${oclockMatch[1]} o'clock` };
     if (halfPast)     return { type:"clock", hours:parseInt(halfPast[1]), minutes:30, label:`Half past ${halfPast[1]}` };
     if (quarterPast)  return { type:"clock", hours:parseInt(quarterPast[1]), minutes:15, label:`Quarter past ${quarterPast[1]}` };
@@ -1395,8 +1394,7 @@ function parseTier3(topic, questionText, subject, yearLevel) {
   }
 
   // ── MONEY / COINS ──────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("money") || t.includes("coin") || /pence|penny|pennies|£|\bp\b/i.test(questionText))) {
-    // Parse coin denominations mentioned
+  if (subj.includes("math") && (t.includes("money") || t.includes("coin") || /pence|penny|pennies|£|\bp\b/i.test(questionStr))) {
     const coinPatterns = [
       { re: /£2\s*coin/gi, coin:"£2" },
       { re: /£1\s*coin/gi, coin:"£1" },
@@ -1409,10 +1407,9 @@ function parseTier3(topic, questionText, subject, yearLevel) {
     ];
     const coins = [];
     for (const { re, coin } of coinPatterns) {
-      const matches = (questionText || "").match(re) || [];
+      const matches = (questionStr || "").match(re) || [];
       matches.forEach(() => coins.push(coin));
     }
-    // If specific coins named, show them; else synthesise from total
     if (coins.length > 0) {
       const totalP = coins.reduce((s, c) => {
         const map = {"£2":200,"£1":100,"50p":50,"20p":20,"10p":10,"5p":5,"2p":2,"1p":1};
@@ -1420,12 +1417,11 @@ function parseTier3(topic, questionText, subject, yearLevel) {
       }, 0);
       return { type:"money", coins, total:totalP };
     }
-    // If just a total amount mentioned, show representative coins
-    const totalPMatch = (questionText || "").match(/£(\d+)(?:\.(\d{2}))?/);
-    const totalPences = (questionText || "").match(/(\d+)\s*p\b/i);
+    const totalPMatch = (questionStr || "").match(/£(\d+)(?:\.(\d{2}))?/);
+    const totalPences = (questionStr || "").match(/(\d+)\s*p\b/i);
     if (totalPMatch) {
       const p = parseInt(totalPMatch[1]) * 100 + parseInt(totalPMatch[2] || 0);
-      if (p <= 500) { // only render sensible amounts
+      if (p <= 500) {
         const coins = [];
         let rem = p;
         for (const [denom, coin] of [[200,"£2"],[100,"£1"],[50,"50p"],[20,"20p"],[10,"10p"],[5,"5p"],[2,"2p"],[1,"1p"]]) {
@@ -1449,24 +1445,22 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 
   // ── DIVISION GROUPING ──────────────────────────────────────────────────────
   if (subj.includes("math") && (t.includes("division") || t.includes("sharing") ||
-      /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups|÷|divided by/i.test(questionText))) {
-    const isWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|per month|per year|costs?|saves?|earns?|spends?|charges?|buys?|sells?/i.test(questionText);
+      /share|divide|split|each get|equally|how many weeks|how many days|how many months|how many times|how many groups|÷|divided by/i.test(questionStr))) {
+    const isWordProblem = /Real World|Challenge:|£|€|\$|per week|per day|per month|per year|costs?|saves?|earns?|spends?|charges?|buys?|sells?/i.test(questionStr);
     if (!isWordProblem && nums.length >= 2) {
       const total  = Math.max(...nums.slice(0, 3));
       const groups = nums.find(n => n !== total && n >= 2 && n <= 20);
       if (total && groups) {
         if (total <= 60) return { type:"division", total, groups };
-        // Too large for dots — equation visual (no answer revealed)
         return { type: "division_equation", total, groups };
       }
     }
   }
 
   // ── RULER / MEASUREMENT ────────────────────────────────────────────────────
-  // Only trigger ruler for actual measurement questions, NOT perimeter/area/shape questions
-  const isShapeQuestion = /perimeter|area|hexagon|pentagon|triangle|rectangle|square|polygon|circle|circumference|octagon|shape/i.test(questionText);
-  if (subj.includes("math") && !isShapeQuestion && (t.includes("measure") || t.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(questionText))) {
-    const cmMatch = (questionText || "").match(/(\d+(?:\.\d+)?)\s*cm/i);
+  const isShapeQuestion = /perimeter|area|hexagon|pentagon|triangle|rectangle|square|polygon|circle|circumference|octagon|shape/i.test(questionStr);
+  if (subj.includes("math") && !isShapeQuestion && (t.includes("measure") || t.includes("length") || /\bcm\b|\bmm\b|centimetre|millimetre|ruler/i.test(questionStr))) {
+    const cmMatch = (questionStr || "").match(/(\d+(?:\.\d+)?)\s*cm/i);
     if (cmMatch) {
       const cm = parseFloat(cmMatch[1]);
       if (cm > 0 && cm <= 18) return { type:"ruler", cm };
@@ -1474,8 +1468,8 @@ function parseTier3(topic, questionText, subject, yearLevel) {
   }
 
   // ── RATIO / PROPORTION ─────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("ratio") || t.includes("proportion") || /ratio|for every|:\s*\d/i.test(questionText))) {
-    const ratioMatch = (questionText || "").match(/(\d+)\s*:\s*(\d+)/);
+  if (subj.includes("math") && (t.includes("ratio") || t.includes("proportion") || /ratio|for every|:\s*\d/i.test(questionStr))) {
+    const ratioMatch = (questionStr || "").match(/(\d+)\s*:\s*(\d+)/);
     if (ratioMatch) {
       const a = parseInt(ratioMatch[1]), b = parseInt(ratioMatch[2]);
       if (a <= 10 && b <= 10) {
@@ -1486,41 +1480,33 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 
   // ── VERBAL REASONING: ALPHABET STRIP ──────────────────────────────────────
   if (subj.includes("verbal") && !subj.includes("non")) {
-    // Letter codes: "A=1, B=2..." / "What is the 5th letter?" / "3 letters after D"
-    const letterQ = (questionText || "").match(/letter[s]?\s+(?:after|before|from|of)/i)
-      || /alphabet|code|cipher|positions?/i.test(questionText)
+    const letterQ = (questionStr || "").match(/letter[s]?\s+(?:after|before|from|of)/i)
+      || /alphabet|code|cipher|positions?/i.test(questionStr)
       || t.includes("letter_code") || t.includes("alphabet");
     if (letterQ) {
-      const mentioned = ((questionText || "").match(/\b([A-Z])\b/g) || []).filter((c, i, a) => a.indexOf(c) === i);
-      const offsetM = (questionText || "").match(/(\d+)\s*(?:letters?|places?|positions?)\s*(?:after|forward|on)/i);
+      const mentioned = ((questionStr || "").match(/\b([A-Z])\b/g) || []).filter((c, i, a) => a.indexOf(c) === i);
+      const offsetM = (questionStr || "").match(/(\d+)\s*(?:letters?|places?|positions?)\s*(?:after|forward|on)/i);
       return { type:"alphabet_strip", highlighted: mentioned.slice(0, 4), offset: offsetM ? parseInt(offsetM[1]) : null };
     }
 
-    // Analogies: "Hot is to Cold as Day is to ___"
-    const analogyM = (questionText || "").match(/(\w+)\s+is\s+to\s+(\w+)\s+as\s+(\w+)\s+is\s+to/i);
+    const analogyM = (questionStr || "").match(/(\w+)\s+is\s+to\s+(\w+)\s+as\s+(\w+)\s+is\s+to/i);
     if (analogyM) {
       return { type:"analogy", wordA:analogyM[1], wordB:analogyM[2], wordC:analogyM[3] };
     }
 
-    // Number sequences: "2, 4, 6, __, 10"
-    const seqNums = ((questionText || "").match(/\d+/g) || []).map(Number);
-    const hasGap  = /\?|__|___|\.\.\.|blank/i.test(questionText);
+    const seqNums = ((questionStr || "").match(/\d+/g) || []).map(Number);
+    const hasGap  = /\?|__|___|\.\.\.|blank/i.test(questionStr);
     if (seqNums.length >= 3 && hasGap) {
-      // Simple arithmetic sequence detection
       const diffs = seqNums.slice(1).map((n, i) => n - seqNums[i]);
       const isAP  = diffs.every(d => Math.abs(d - diffs[0]) < 1);
       const rule  = isAP ? (diffs[0] > 0 ? `+${diffs[0]} each time` : `${diffs[0]} each time`) : null;
       return { type:"number_sequence", sequence:seqNums, gapIndex:seqNums.length, rule };
     }
-
-    // Odd one out
-    const oddOneMatch = /odd one out|doesn.t belong|which.*different/i.test(questionText);
-    if (oddOneMatch) return null; // No visual for odd-one-out yet
   }
 
   // ── NVR: MATRIX ───────────────────────────────────────────────────────────
   if ((subj.includes("verbal") && subj.includes("non")) || t.includes("matrix") || t.includes("nvr")) {
-    if (t.includes("matrix") || /complete.*(?:grid|matrix|pattern)|which.*(?:fits|completes|goes)/i.test(questionText)) {
+    if (t.includes("matrix") || /complete.*(?:grid|matrix|pattern)|which.*(?:fits|completes|goes)/i.test(questionStr)) {
       const shapes = ["circle","square","triangle","diamond"];
       const fills  = [T.indigoBg, T.nebulaBg, "#dcfce7", "#fef9c3"];
       const cells  = [
@@ -1535,19 +1521,11 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 
   // ── ENGLISH: GRAMMAR ───────────────────────────────────────────────────────
   if (subj.includes("english")) {
-    // Parts of speech
     if (t.includes("grammar") || t.includes("noun") || t.includes("verb") || t.includes("adjective")
-      || /parts? of speech|identify the (noun|verb|adjective|adverb)|which word is/i.test(questionText)) {
-      // Try to extract a short sentence and label it
-      const sentM = (questionText || "").match(/"([^"]{5,60})"/);
+      || /parts? of speech|identify the (noun|verb|adjective|adverb)|which word is/i.test(questionStr)) {
+      const sentM = (questionStr || "").match(/"([^"]{5,60})"/);
       if (sentM) {
         const words = sentM[1].split(/\s+/).slice(0, 6);
-        // English visuals
-  if (isEnglish) {
-    const engVis = parseEnglish(topicStr, questionStr, year);
-    if (engVis) return engVis;
-  }
-        // Simple heuristic labelling
         const POS_HINTS = {
           noun:["dog","cat","ball","house","school","teacher","city","boy","girl","car","rain","sun","tree"],
           verb:["ran","runs","jumped","eating","played","is","was","said","went","bought","made","took","gave"],
@@ -1560,14 +1538,13 @@ function parseTier3(topic, questionText, subject, yearLevel) {
             if (hints.includes(clean)) return { word:w, pos };
           }
           if (/^(the|a|an)$/i.test(clean)) return { word:w, pos:"article" };
-          return { word:w, pos:"noun" }; // default fallback
+          return { word:w, pos:"noun" };
         });
         return { type:"grammar", sentence:sentM[1], labels };
       }
     }
 
-    // Prefix/suffix
-    if (t.includes("prefix") || t.includes("suffix") || /prefix|suffix|root word|word family/i.test(questionText)) {
+    if (t.includes("prefix") || t.includes("suffix") || /prefix|suffix|root word|word family/i.test(questionStr)) {
       const prefixMap = { un:"happy", re:"write", pre:"view", dis:"agree", mis:"spell", over:"come", im:"possible", in:"visible" };
       const suffixMap = { ness:"happy", ful:"care", less:"hope", tion:"invent", ing:"play", ed:"play", er:"teach" };
       for (const [pre, root] of Object.entries(prefixMap)) {
@@ -1582,20 +1559,16 @@ function parseTier3(topic, questionText, subject, yearLevel) {
       }
     }
 
-    // Synonyms / vocabulary strength
-    if (t.includes("synonym") || t.includes("vocabulary") || /synonym|means the same|similar meaning|word for/i.test(questionText)) {
-      // Static sets for common concepts
-      const SYNONYM_SETS = {
-        happy:  [{word:"content",strength:2},{word:"pleased",strength:3},{word:"delighted",strength:4},{word:"ecstatic",strength:5}],
-        sad:    [{word:"unhappy",strength:2},{word:"gloomy",strength:3},{word:"miserable",strength:4},{word:"devastated",strength:5}],
-        big:    [{word:"large",strength:2},{word:"huge",strength:3},{word:"enormous",strength:4},{word:"colossal",strength:5}],
-        angry:  [{word:"annoyed",strength:2},{word:"irritated",strength:3},{word:"furious",strength:4},{word:"enraged",strength:5}],
-        cold:   [{word:"cool",strength:2},{word:"chilly",strength:3},{word:"freezing",strength:4},{word:"arctic",strength:5}],
-        fast:   [{word:"quick",strength:2},{word:"swift",strength:3},{word:"rapid",strength:4},{word:"lightning",strength:5}],
-      };
-      for (const [concept, words] of Object.entries(SYNONYM_SETS)) {
-        if (q.includes(concept)) return { type:"synonym_ladder", words, concept:`words for "${concept}"` };
-      }
+    const SYNONYM_SETS = {
+      happy:  [{word:"content",strength:2},{word:"pleased",strength:3},{word:"delighted",strength:4},{word:"ecstatic",strength:5}],
+      sad:    [{word:"unhappy",strength:2},{word:"gloomy",strength:3},{word:"miserable",strength:4},{word:"devastated",strength:5}],
+      big:    [{word:"large",strength:2},{word:"huge",strength:3},{word:"enormous",strength:4},{word:"colossal",strength:5}],
+      angry:  [{word:"annoyed",strength:2},{word:"irritated",strength:3},{word:"furious",strength:4},{word:"enraged",strength:5}],
+      cold:   [{word:"cool",strength:2},{word:"chilly",strength:3},{word:"freezing",strength:4},{word:"arctic",strength:5}],
+      fast:   [{word:"quick",strength:2},{word:"swift",strength:3},{word:"rapid",strength:4},{word:"lightning",strength:5}],
+    };
+    for (const [concept, words] of Object.entries(SYNONYM_SETS)) {
+      if (q.includes(concept)) return { type:"synonym_ladder", words, concept:`words for "${concept}"` };
     }
   }
 
@@ -1606,16 +1579,11 @@ function parseTier3(topic, questionText, subject, yearLevel) {
 // TIER 4 — HIGHER SCIENCES + ACCOUNTING/COMMERCE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ── Bohr Atom Diagram ─────────────────────────────────────────────────────────
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TIER 4 PARSER
-// ═══════════════════════════════════════════════════════════════════════════════
-function parseTier4(topic, questionText, subject, yearLevel) {
-  const t    = (topic || "").toLowerCase();
-  const q    = (questionText || "").toLowerCase();
+function parseTier4(topicStr, questionStr, subject, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
-  const nums = ((questionText || "").match(RX_NUM) || []).map(Number);
+  const nums = ((questionStr || "").match(RX_NUM) || []).map(Number);
 
   const isPhysics   = subj.includes("physics")   || (subj.includes("science") && (t.includes("force") || t.includes("wave") || t.includes("energy") || t.includes("electr")));
   const isChem      = subj.includes("chem")       || (subj.includes("science") && (t.includes("atom") || t.includes("element") || t.includes("react") || t.includes("periodic") || t.includes("ph") || t.includes("state") || t.includes("molecul")));
@@ -1624,26 +1592,23 @@ function parseTier4(topic, questionText, subject, yearLevel) {
 
   // ── PHYSICS ─────────────────────────────────────────────────────────────────
 
-  // Wave
-  if (isPhysics && (t.includes("wave") || /wavelength|amplitude|frequency|transverse|longitudinal/i.test(questionText))) {
-    const isLong = /longitudinal|sound|compression|rarefaction/i.test(questionText);
+  if (isPhysics && (t.includes("wave") || /wavelength|amplitude|frequency|transverse|longitudinal/i.test(questionStr))) {
+    const isLong = /longitudinal|sound|compression|rarefaction/i.test(questionStr);
     const amp = nums.find(n => n > 0 && n < 50) || 24;
     return { type:"wave", waveType: isLong ? "longitudinal" : "transverse", amplitude:amp,
       label: isLong ? "Longitudinal wave (e.g. sound)" : "Transverse wave (e.g. light)" };
   }
 
-  // EM Spectrum
-  if (isPhysics && (t.includes("electromagnetic") || t.includes("em_spectrum") || /electromagnetic spectrum|radio wave|microwave|infrared|ultraviolet|x.ray|gamma ray|visible light/i.test(questionText))) {
+  if (isPhysics && (t.includes("electromagnetic") || t.includes("em_spectrum") || /electromagnetic spectrum|radio wave|microwave|infrared|ultraviolet|x.ray|gamma ray|visible light/i.test(questionStr))) {
     const BANDS = ["radio","microwave","infrared","visible","uv","ultraviolet","x-ray","x ray","gamma"];
     const found = BANDS.filter(b => q.includes(b));
     return { type:"em_spectrum", highlighted: found };
   }
 
-  // Free body / resultant forces
-  if (isPhysics && (t.includes("resultant") || t.includes("free_body") || /resultant force|free body|balanced force|unbalanced/i.test(questionText))) {
+  if (isPhysics && (t.includes("resultant") || t.includes("free_body") || /resultant force|free body|balanced force|unbalanced/i.test(questionStr))) {
     const directions = ["up","down","left","right"];
     const forces = [];
-    const forceMatches = (questionText || "").matchAll(/(\d+)\s*n\s*(?:acting\s+)?(?:to\s+the\s+)?(up|down|left|right|upward|downward)/gi);
+    const forceMatches = (questionStr || "").matchAll(/(\d+)\s*n\s*(?:acting\s+)?(?:to\s+the\s+)?(up|down|left|right|upward|downward)/gi);
     for (const m of forceMatches) {
       const dir = m[2].toLowerCase().replace("ward","");
       forces.push({ label:dir, value:parseInt(m[1]), direction:dir });
@@ -1655,8 +1620,7 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     return { type:"free_body", forces };
   }
 
-  // Energy stores
-  if (isPhysics && (t.includes("energy") || /energy store|kinetic energy|potential energy|thermal energy|energy transfer/i.test(questionText))) {
+  if (isPhysics && (t.includes("energy") || /energy store|kinetic energy|potential energy|thermal energy|energy transfer/i.test(questionStr))) {
     const STORES = [
       { key:"kinetic",       patterns:/kinetic|moving/ },
       { key:"thermal",       patterns:/thermal|heat|temperature/ },
@@ -1672,11 +1636,10 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     }
   }
 
-  // Light / optics
   if (isPhysics && (t.includes("light") || t.includes("optic") ||
-      /reflection|refraction|mirror|lens|angle of incidence|normal line|light ray/i.test(questionText))) {
-    const isRefraction = /refraction|refract|bend|slow|boundary|glass|water/i.test(questionText);
-    const angleMatch = (questionText || "").match(/(\d+)\s*(?:°|degrees?)/i);
+      /reflection|refraction|mirror|lens|angle of incidence|normal line|light ray/i.test(questionStr))) {
+    const isRefraction = /refraction|refract|bend|slow|boundary|glass|water/i.test(questionStr);
+    const angleMatch = (questionStr || "").match(/(\d+)\s*(?:°|degrees?)/i);
     return {
       type: "light_diagram",
       scenario: isRefraction ? "refraction" : "reflection",
@@ -1684,28 +1647,24 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     };
   }
  
-  // Electrical symbols
   if (isPhysics && (t.includes("circuit_symbol") || t.includes("electrical_symbol") ||
-      /circuit symbol|electrical symbol|draw.*circuit|identify.*component/i.test(questionText))) {
+      /circuit symbol|electrical symbol|draw.*circuit|identify.*component/i.test(questionStr))) {
     const KNOWN = ["cell","battery","lamp","switch_open","resistor","ammeter","voltmeter"];
-    const found = KNOWN.filter(c => questionText.toLowerCase().includes(c.replace("_"," ")));
+    const found = KNOWN.filter(c => questionStr.toLowerCase().includes(c.replace("_"," ")));
     return { type: "electrical_symbols", components: found.length > 0 ? found : KNOWN.slice(0, 5), highlighted: found[0] || "" };
   }
  
-  // Magnets
-  if (isPhysics && (t.includes("magnet") || /magnet|magnetic|north pole|south pole|attract|repel|compass.*magnet/i.test(questionText))) {
-    const scenario = /attract/i.test(questionText) ? "attract"
-      : /repel/i.test(questionText) ? "repel"
-      : /field line|magnetic field/i.test(questionText) ? "field_lines"
+  if (isPhysics && (t.includes("magnet") || /magnet|magnetic|north pole|south pole|attract|repel|compass.*magnet/i.test(questionStr))) {
+    const scenario = /attract/i.test(questionStr) ? "attract"
+      : /repel/i.test(questionStr) ? "repel"
+      : /field line|magnetic field/i.test(questionStr) ? "field_lines"
       : "bar";
     return { type: "magnet", scenario };
   }
 
   // ── CHEMISTRY ───────────────────────────────────────────────────────────────
 
-  // Atom / Bohr model
-  if (isChem && (t.includes("atom") || t.includes("electron") || /atomic structure|electron shell|bohr|proton|neutron|electron/i.test(questionText))) {
-    // Try to extract element
+  if (isChem && (t.includes("atom") || t.includes("electron") || /atomic structure|electron shell|bohr|proton|neutron|electron/i.test(questionStr))) {
     const ELEMENTS = {
       hydrogen:  { protons:1, neutrons:0, electrons:1, element:"H" },
       helium:    { protons:2, neutrons:2, electrons:2, element:"He" },
@@ -1723,10 +1682,9 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     for (const [name, data] of Object.entries(ELEMENTS)) {
       if (q.includes(name)) return { type:"atom", ...data };
     }
-    // Generic: extract p/n from question
-    const pMatch = (questionText||"").match(/(\d+)\s*protons?/i);
-    const nMatch = (questionText||"").match(/(\d+)\s*neutrons?/i);
-    const eMatch = (questionText||"").match(/(\d+)\s*electrons?/i);
+    const pMatch = (questionStr||"").match(/(\d+)\s*protons?/i);
+    const nMatch = (questionStr||"").match(/(\d+)\s*neutrons?/i);
+    const eMatch = (questionStr||"").match(/(\d+)\s*electrons?/i);
     if (pMatch || nMatch) {
       const p = parseInt(pMatch?.[1] || "6");
       const n = parseInt(nMatch?.[1] || p.toString());
@@ -1735,8 +1693,7 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     }
   }
 
-  // Periodic table element
-  if (isChem && (t.includes("periodic") || t.includes("element") || /group \d|period \d|periodic table|noble gas|alkali metal|halogen|transition metal/i.test(questionText))) {
+  if (isChem && (t.includes("periodic") || t.includes("element") || /group \d|period \d|periodic table|noble gas|alkali metal|halogen|transition metal/i.test(questionStr))) {
     const ELEM_DB = {
       hydrogen:  { symbol:"H",  name:"Hydrogen",  atomicNumber:1,  atomicMass:"1",   group:1,  period:1, category:"non-metal" },
       helium:    { symbol:"He", name:"Helium",     atomicNumber:2,  atomicMass:"4",   group:18, period:1, category:"noble gas" },
@@ -1765,29 +1722,25 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     }
   }
 
-  // State changes
-  if (isChem && (t.includes("state") || /melting|freezing|evaporation|condensation|sublimation|solid|liquid|gas|boiling/i.test(questionText))) {
+  if (isChem && (t.includes("state") || /melting|freezing|evaporation|condensation|sublimation|solid|liquid|gas|boiling/i.test(questionStr))) {
     const STATES = ["solid","liquid","gas"];
     const found = STATES.filter(s => q.includes(s));
     return { type:"state_changes", highlighted: found };
   }
 
-  // Molecule
-  if (isChem && (t.includes("molecule") || t.includes("compound") || /\bH2O\b|\bCO2\b|\bCH4\b|\bO2\b|\bN2\b|\bHCl\b|\bNaCl\b/i.test(questionText))) {
+  if (isChem && (t.includes("molecule") || t.includes("compound") || /\bH2O\b|\bCO2\b|\bCH4\b|\bO2\b|\bN2\b|\bHCl\b|\bNaCl\b/i.test(questionStr))) {
     const FORMULAS = ["H2O","CO2","CH4","O2","N2","HCl","NaCl"];
-    const found = FORMULAS.find(f => new RegExp(`\\b${f}\\b`, "i").test(questionText));
+    const found = FORMULAS.find(f => new RegExp(`\\b${f}\\b`, "i").test(questionStr));
     if (found) return { type:"molecule", formula:found };
-    // Check names
-    if (/water/i.test(questionText)) return { type:"molecule", formula:"H2O" };
-    if (/carbon dioxide/i.test(questionText)) return { type:"molecule", formula:"CO2" };
-    if (/methane/i.test(questionText)) return { type:"molecule", formula:"CH4" };
-    if (/oxygen/i.test(questionText) && !/carbon|water/i.test(questionText)) return { type:"molecule", formula:"O2" };
-    if (/sodium chloride|salt/i.test(questionText)) return { type:"molecule", formula:"NaCl" };
+    if (/water/i.test(questionStr)) return { type:"molecule", formula:"H2O" };
+    if (/carbon dioxide/i.test(questionStr)) return { type:"molecule", formula:"CO2" };
+    if (/methane/i.test(questionStr)) return { type:"molecule", formula:"CH4" };
+    if (/oxygen/i.test(questionStr) && !/carbon|water/i.test(questionStr)) return { type:"molecule", formula:"O2" };
+    if (/sodium chloride|salt/i.test(questionStr)) return { type:"molecule", formula:"NaCl" };
   }
 
-  // pH scale
-  if (isChem && (t.includes("ph") || /\bpH\b|acid|alkali|alkaline|neutral|indicator/i.test(questionText))) {
-    const phMatch = (questionText||"").match(/pH\s*(?:of\s*)?(?:=\s*)?(\d+(?:\.\d+)?)/i);
+  if (isChem && (t.includes("ph") || /\bpH\b|acid|alkali|alkaline|neutral|indicator/i.test(questionStr))) {
+    const phMatch = (questionStr||"").match(/pH\s*(?:of\s*)?(?:=\s*)?(\d+(?:\.\d+)?)/i);
     const SUBSTANCE_PH = {
       "lemon juice":3, "vinegar":3, "cola":4, "rain":6, "pure water":7, "water":7,
       "milk":7, "blood":7.4, "sea water":8, "baking soda":9, "bleach":13, "stomach acid":2,
@@ -1803,86 +1756,69 @@ function parseTier4(topic, questionText, subject, yearLevel) {
 
   // ── BIOLOGY ─────────────────────────────────────────────────────────────────
 
-  // Cell
-  if (isBio && (t.includes("cell") || /animal cell|plant cell|cell membrane|cell wall|nucleus|chloroplast|vacuole|mitochondria/i.test(questionText))) {
-    const isPlant = /plant/i.test(questionText) || /chloroplast|cell wall|vacuole/i.test(questionText);
+  if (isBio && (t.includes("cell") || /animal cell|plant cell|cell membrane|cell wall|nucleus|chloroplast|vacuole|mitochondria/i.test(questionStr))) {
+    const isPlant = /plant/i.test(questionStr) || /chloroplast|cell wall|vacuole/i.test(questionStr);
     return { type:"cell", cellType: isPlant ? "plant" : "animal" };
   }
 
-  // Punnett square
-  if (isBio && (t.includes("punnett") || t.includes("inherit") || t.includes("genetic") || /dominant|recessive|allele|genotype|phenotype|cross.*\b[A-Z][a-z]\b/i.test(questionText))) {
-    const crossMatch = (questionText||"").match(/\b([A-Z][a-z])\s*[×x]\s*([A-Z][a-z])\b/);
+  if (isBio && (t.includes("punnett") || t.includes("inherit") || t.includes("genetic") || /dominant|recessive|allele|genotype|phenotype|cross.*\b[A-Z][a-z]\b/i.test(questionStr))) {
+    const crossMatch = (questionStr||"").match(/\b([A-Z][a-z])\s*[×x]\s*([A-Z][a-z])\b/);
     const parent1 = crossMatch?.[1] || "Aa";
     const parent2 = crossMatch?.[2] || "Aa";
-    const traitM  = (questionText||"").match(/trait[:\s]+([^.?\n]{3,30})/i);
+    const traitM  = (questionStr||"").match(/trait[:\s]+([^.?\n]{3,30})/i);
     return { type:"punnett", parent1, parent2, trait:traitM?.[1]?.trim() };
   }
-   // Human body systems
+  
   if (isBio && (t.includes("skeleton") || t.includes("digestive") || t.includes("circulat") ||
       t.includes("respirat") || t.includes("body_system") || t.includes("organ") ||
-      /skeleton|skull|ribs|spine|femur|digestive|stomach|intestine|oesophagus|circulatory|heart|arteries|veins|respiratory|lungs|trachea|diaphragm/i.test(questionText))) {
-    const system = /digestive|stomach|intestine|oesophagus/i.test(questionText + t) ? "digestive"
-      : /circulat|heart|arter|vein|blood/i.test(questionText + t) ? "circulatory"
-      : /respirat|lung|trachea|diaphragm|bronch/i.test(questionText + t) ? "respiratory"
+      /skeleton|skull|ribs|spine|femur|digestive|stomach|intestine|oesophagus|circulatory|heart|arteries|veins|respiratory|lungs|trachea|diaphragm/i.test(questionStr))) {
+    const system = /digestive|stomach|intestine|oesophagus/i.test(questionStr + t) ? "digestive"
+      : /circulat|heart|arter|vein|blood/i.test(questionStr + t) ? "circulatory"
+      : /respirat|lung|trachea|diaphragm|bronch/i.test(questionStr + t) ? "respiratory"
       : "skeleton";
     const organs = ["skull","ribs","spine","femur","pelvis","stomach","intestine","heart","lungs","trachea","diaphragm"];
-    const highlighted = organs.find(o => questionText.toLowerCase().includes(o)) || "";
+    const highlighted = organs.find(o => questionStr.toLowerCase().includes(o)) || "";
     return { type: "human_body", system, highlighted };
   }
  
-  // Solar system
-  if (isBio && !isChem && (t.includes("solar") || t.includes("planet") || t.includes("space") ||
-      /solar system|planet|mercury|venus|earth|mars|jupiter|saturn|uranus|neptune|orbit|sun.*planet/i.test(questionText))) {
-    const planets = ["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"];
-    const highlighted = planets.find(p => questionText.toLowerCase().includes(p)) || "";
-    return { type: "solar_system", highlighted, showOrbits: true };
-  }
- 
-  // NOTE: Solar system should also trigger from generic "science" subject, not just biology.
-  // Add this BEFORE the biology section in parseTier4:
   if ((isPhysics || isBio || subj.includes("science")) &&
-      (t.includes("solar") || t.includes("planet") || /solar system|planet|mercury|venus|mars|jupiter|saturn/i.test(questionText))) {
+      (t.includes("solar") || t.includes("planet") || /solar system|planet|mercury|venus|mars|jupiter|saturn/i.test(questionStr))) {
     const planets = ["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"];
-    const highlighted = planets.find(p => questionText.toLowerCase().includes(p)) || "";
+    const highlighted = planets.find(p => questionStr.toLowerCase().includes(p)) || "";
     return { type: "solar_system", highlighted, showOrbits: true };
   }
  
-  // Classification
   if (isBio && (t.includes("classif") || t.includes("kingdom") || t.includes("vertebrat") ||
-      /classify|vertebrate|invertebrate|mammal|reptile|amphibian|fish|bird|insect|arachnid/i.test(questionText))) {
+      /classify|vertebrate|invertebrate|mammal|reptile|amphibian|fish|bird|insect|arachnid/i.test(questionStr))) {
     const groups = ["mammals","birds","reptiles","fish","amphibians","insects","arachnids","vertebrates","invertebrates"];
-    const highlighted = groups.find(g => questionText.toLowerCase().includes(g.replace(/s$/, ""))) || "";
+    const highlighted = groups.find(g => questionStr.toLowerCase().includes(g.replace(/s$/, ""))) || "";
     return { type: "classification_key", highlighted };
   }
  
-  // Photosynthesis
-  if (isBio && (t.includes("photosynthesis") || /photosynthesis|chloroplast|chlorophyll|plant.*energy|leaf.*sunlight/i.test(questionText))) {
+  if (isBio && (t.includes("photosynthesis") || /photosynthesis|chloroplast|chlorophyll|plant.*energy|leaf.*sunlight/i.test(questionStr))) {
     const terms = ["sunlight","co₂","carbon dioxide","water","glucose","oxygen"];
-    const highlighted = terms.find(t => questionText.toLowerCase().includes(t)) || "";
+    const highlighted = terms.find(t => questionStr.toLowerCase().includes(t)) || "";
     return { type: "photosynthesis", highlighted };
   }
  
-  // Respiration
-  if (isBio && (t.includes("respirat") || /respiration|aerobic|anaerobic|glucose.*oxygen.*energy|mitochondria/i.test(questionText))) {
-    const isAnaerobic = /anaerobic|lactic acid|without oxygen/i.test(questionText);
+  if (isBio && (t.includes("respirat") || /respiration|aerobic|anaerobic|glucose.*oxygen.*energy|mitochondria/i.test(questionStr))) {
+    const isAnaerobic = /anaerobic|lactic acid|without oxygen/i.test(questionStr);
     return { type: "respiration", respType: isAnaerobic ? "anaerobic" : "aerobic" };
   }
 
   // ── ACCOUNTING / COMMERCE / ECONOMICS ────────────────────────────────────────
 
-  // T-Account
-  if (isAccounting && (t.includes("t-account") || t.includes("t_account") || t.includes("double entry") || t.includes("debit") || t.includes("credit") || /\bdebit\b|\bcredit\b|ledger|journal/i.test(questionText))) {
-    const accountMatch = (questionText||"").match(/(?:account(?:s?)|ledger)\s+(?:for\s+)?([A-Z][a-zA-Z\s]{2,20})/i);
+  if (isAccounting && (t.includes("t-account") || t.includes("t_account") || t.includes("double entry") || t.includes("debit") || t.includes("credit") || /\bdebit\b|\bcredit\b|ledger|journal/i.test(questionStr))) {
+    const accountMatch = (questionStr||"").match(/(?:account(?:s?)|ledger)\s+(?:for\s+)?([A-Z][a-zA-Z\s]{2,20})/i);
     const debits  = [{ label:"Opening balance", amount:1000 }, { label:"Sales", amount:500 }];
     const credits = [{ label:"Purchases", amount:300 }, { label:"Expenses", amount:200 }];
     return { type:"t_account", account: accountMatch?.[1]?.trim() || "Account Name", debits, credits };
   }
 
-  // Break-even
-  if (isAccounting && (t.includes("break") || t.includes("break_even") || /break.even|breakeven|fixed cost|variable cost|contribution/i.test(questionText))) {
-    const fcMatch  = (questionText||"").match(/fixed costs?\s*(?:of|=|:)?\s*[£$]?(\d[\d,]*)/i);
-    const vcMatch  = (questionText||"").match(/variable costs?\s*(?:per unit)?\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
-    const spMatch  = (questionText||"").match(/(?:selling price|price per unit|revenue per unit)\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
+  if (isAccounting && (t.includes("break") || t.includes("break_even") || /break.even|breakeven|fixed cost|variable cost|contribution/i.test(questionStr))) {
+    const fcMatch  = (questionStr||"").match(/fixed costs?\s*(?:of|=|:)?\s*[£$]?(\d[\d,]*)/i);
+    const vcMatch  = (questionStr||"").match(/variable costs?\s*(?:per unit)?\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
+    const spMatch  = (questionStr||"").match(/(?:selling price|price per unit|revenue per unit)\s*(?:of|=|:)?\s*[£$]?(\d+(?:\.\d+)?)/i);
     const fc  = fcMatch  ? parseInt(fcMatch[1].replace(",",""))  : 2000;
     const vc  = vcMatch  ? parseFloat(vcMatch[1])                 : 4;
     const sp  = spMatch  ? parseFloat(spMatch[1])                 : 8;
@@ -1890,241 +1826,23 @@ function parseTier4(topic, questionText, subject, yearLevel) {
     return { type:"break_even", fixedCost:fc, variableCostPerUnit:vc, pricePerUnit:sp, breakEvenQty:beq };
   }
 
-  // Supply & Demand
-  if (isAccounting && (t.includes("supply") || t.includes("demand") || t.includes("equilibrium") || /supply|demand|equilibrium|market price|price mechanism/i.test(questionText))) {
-    const pMatch = (questionText||"").match(/price\s*(?:of|=|:)?\s*[£$]?(\d+)/i);
-    const qMatch = (questionText||"").match(/quantity\s*(?:of|=|:)?\s*(\d+)/i);
+  if (isAccounting && (t.includes("supply") || t.includes("demand") || t.includes("equilibrium") || /supply|demand|equilibrium|market price|price mechanism/i.test(questionStr))) {
+    const pMatch = (questionStr||"").match(/price\s*(?:of|=|:)?\s*[£$]?(\d+)/i);
+    const qMatch = (questionStr||"").match(/quantity\s*(?:of|=|:)?\s*(\d+)/i);
     return { type:"supply_demand", eqPrice: pMatch ? parseInt(pMatch[1]) : 50, eqQty: qMatch ? parseInt(qMatch[1]) : 50 };
   }
 
   return null;
 }
-// ─── PROBABILITY VISUAL ─────────────────────────────────────────────────────
-// Shows dice/spinner/coin with outcomes highlighted
-function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" }) {
-  const W = 180, H = 120;
-  
-  if (context === "dice") {
-    // Draw a die face showing total outcomes
-    const dotPositions = {
-      1: [[50,50]], 2: [[30,30],[70,70]], 3: [[30,30],[50,50],[70,70]],
-      4: [[30,30],[70,30],[30,70],[70,70]], 5: [[30,30],[70,30],[50,50],[30,70],[70,70]],
-      6: [[30,30],[70,30],[30,50],[70,50],[30,70],[70,70]],
-    };
-    const dots = dotPositions[Math.min(total, 6)] || dotPositions[6];
-    return (
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
-        <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability</span>
-        <svg width={100} height={100} viewBox="0 0 100 100">
-          <rect x={5} y={5} width={90} height={90} rx={12} fill={T.slateBg} stroke={T.slateBd} strokeWidth={2} />
-          {dots.map((d, i) => (
-            <circle key={i} cx={d[0]} cy={d[1]} r={8}
-              fill={i < favourable ? T.indigo : T.slateBd}
-              stroke={i < favourable ? T.indigo : T.slateBd} strokeWidth={1} />
-          ))}
-        </svg>
-        <div style={{ display:"flex", gap:12, fontSize:10, fontWeight:700 }}>
-          <span style={{ color:T.indigo }}>{favourable} favourable</span>
-          <span style={{ color:T.textMid }}>{total} total</span>
-        </div>
-        <span style={{ fontSize:9, fontWeight:600, color:T.textMid, background:T.indigoBg, padding:"2px 8px", borderRadius:6, border:`1px solid ${T.indigoBd}` }}>
-          P = {favourable}/{total}
-        </span>
-      </div>
-    );
-  }
- 
-  if (context === "coin") {
-    return (
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
-        <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability — Coin</span>
-        <div style={{ display:"flex", gap:16 }}>
-          {["H", "T"].map((side, i) => (
-            <div key={i} style={{
-              width:50, height:50, borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center",
-              background: i < favourable ? T.indigoBg : T.slateBg,
-              border: `2.5px solid ${i < favourable ? T.indigo : T.slateBd}`,
-              fontSize:18, fontWeight:900, color: i < favourable ? T.indigo : T.textMid,
-            }}>{side}</div>
-          ))}
-        </div>
-        <span style={{ fontSize:10, fontWeight:700, color:T.indigo }}>P = {favourable}/2</span>
-      </div>
-    );
-  }
- 
-  // Spinner (default)
-  const sliceAngle = 360 / total;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
-      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Probability — Spinner</span>
-      <svg width={120} height={120} viewBox="0 0 120 120">
-        {Array.from({ length: total }, (_, i) => {
-          const startAngle = (i * sliceAngle - 90) * Math.PI / 180;
-          const endAngle = ((i + 1) * sliceAngle - 90) * Math.PI / 180;
-          const x1 = 60 + 50 * Math.cos(startAngle);
-          const y1 = 60 + 50 * Math.sin(startAngle);
-          const x2 = 60 + 50 * Math.cos(endAngle);
-          const y2 = 60 + 50 * Math.sin(endAngle);
-          const large = sliceAngle > 180 ? 1 : 0;
-          const isFav = i < favourable;
-          return (
-            <path key={i}
-              d={`M60,60 L${x1},${y1} A50,50 0 ${large},1 ${x2},${y2} Z`}
-              fill={isFav ? T.indigoBg : T.slateBg}
-              stroke={isFav ? T.indigo : T.slateBd}
-              strokeWidth={1.5}
-            />
-          );
-        })}
-        <circle cx={60} cy={60} r={4} fill={T.slate} />
-      </svg>
-      <div style={{ display:"flex", gap:12, fontSize:10, fontWeight:700 }}>
-        <span style={{ color:T.indigo }}>{favourable} favourable</span>
-        <span style={{ color:T.textMid }}>{total} total outcomes</span>
-      </div>
-    </div>
-  );
-}
- 
-// ─── PERCENTAGE BAR VISUAL ──────────────────────────────────────────────────
-function PercentageBarVis({ value = 50 }) {
-  const W = 180;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12 }}>
-      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Percentage</span>
-      <div style={{ width:W, position:"relative" }}>
-        {/* Bar */}
-        <div style={{ width:"100%", height:24, background:T.slateBg, borderRadius:12, border:`1.5px solid ${T.slateBd}`, overflow:"hidden" }}>
-          <div style={{ width:`${value}%`, height:"100%", background:`linear-gradient(90deg, ${T.indigo}, ${T.nebula})`, borderRadius:12, transition:"width 0.5s" }} />
-        </div>
-        {/* Marker */}
-        <div style={{ position:"absolute", left:`${value}%`, top:-6, transform:"translateX(-50%)" }}>
-          <div style={{ width:2, height:36, background:T.indigo }} />
-        </div>
-        {/* Labels */}
-        <div style={{ display:"flex", justifyContent:"space-between", marginTop:8 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:T.textMid }}>0%</span>
-          <span style={{ fontSize:14, fontWeight:900, color:T.indigo }}>{value}%</span>
-          <span style={{ fontSize:10, fontWeight:700, color:T.textMid }}>100%</span>
-        </div>
-      </div>
-      {/* Visual fraction */}
-      <div style={{ display:"flex", gap:2, marginTop:4 }}>
-        {Array.from({ length: 10 }, (_, i) => (
-          <div key={i} style={{
-            width:14, height:14, borderRadius:3,
-            background: i < Math.round(value / 10) ? T.indigo : T.slateBg,
-            border: `1px solid ${i < Math.round(value / 10) ? T.indigo : T.slateBd}`,
-          }} />
-        ))}
-      </div>
-    </div>
-  );
-}
- 
-// ─── SYMMETRY VISUAL ────────────────────────────────────────────────────────
-function SymmetryVis({ shape = "square" }) {
-  const W = 160, H = 140;
-  const shapes = {
-    square:      { points: "40,30 120,30 120,110 40,110", lines: 4 },
-    rectangle:   { points: "30,40 130,40 130,100 30,100", lines: 2 },
-    circle:      { cx: 80, cy: 70, r: 45, lines: "infinite" },
-    triangle:    { points: "80,25 130,110 30,110", lines: 1 },
-    pentagon:    { points: "80,20 135,55 115,110 45,110 25,55", lines: 5 },
-    hexagon:     { points: "80,20 125,45 125,95 80,120 35,95 35,45", lines: 6 },
-    kite:        { points: "80,20 120,65 80,120 40,65", lines: 1 },
-    parallelogram:{ points: "50,30 140,30 110,110 20,110", lines: 0 },
-  };
-  const s = shapes[shape] || shapes.square;
-  const lineCount = s.lines === "infinite" ? "∞" : s.lines;
- 
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:10 }}>
-      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase" }}>Lines of Symmetry</span>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {s.points ? (
-          <polygon points={s.points} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
-        ) : (
-          <circle cx={s.cx} cy={s.cy} r={s.r} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
-        )}
-        {/* Draw symmetry lines */}
-        {s.lines >= 1 && (
-          <line x1={80} y1={5} x2={80} y2={H-5} stroke={T.rose} strokeWidth={1.5} strokeDasharray="4,3" />
-        )}
-        {s.lines >= 2 && (
-          <line x1={10} y1={70} x2={W-10} y2={70} stroke={T.rose} strokeWidth={1.5} strokeDasharray="4,3" />
-        )}
-        {(s.lines >= 4 || s.lines === "infinite") && (
-          <>
-            <line x1={20} y1={20} x2={W-20} y2={H-20} stroke={T.amber} strokeWidth={1} strokeDasharray="3,3" />
-            <line x1={W-20} y1={20} x2={20} y2={H-20} stroke={T.amber} strokeWidth={1} strokeDasharray="3,3" />
-          </>
-        )}
-      </svg>
-      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-        <span style={{ fontSize:12, fontWeight:900, color:T.indigo }}>{lineCount}</span>
-        <span style={{ fontSize:10, fontWeight:600, color:T.textMid }}>line{s.lines !== 1 ? "s" : ""} of symmetry</span>
-      </div>
-      <span style={{ fontSize:9, fontWeight:600, color:T.textMid, background:T.indigoBg, padding:"2px 8px", borderRadius:6, border:`1px solid ${T.indigoBd}` }}>
-        {shape.charAt(0).toUpperCase() + shape.slice(1)}
-      </span>
-    </div>
-  );
-}
- 
-// ─── TALLY CHART VISUAL ─────────────────────────────────────────────────────
-function TallyChartVis({ items = [] }) {
-  if (items.length === 0) return null;
-  const maxCount = Math.max(...items.map(i => i.count), 1);
- 
-  const tallyMarks = (count) => {
-    const groups = Math.floor(count / 5);
-    const remainder = count % 5;
-    let marks = "";
-    for (let i = 0; i < groups; i++) marks += "||||̶ ";  // 5-mark group
-    for (let i = 0; i < remainder; i++) marks += "|";
-    return marks || "0";
-  };
- 
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:10, width:"100%" }}>
-      <span style={{ fontSize:9, fontWeight:700, color:T.textMid, letterSpacing:1, textTransform:"uppercase", textAlign:"center" }}>Tally Chart</span>
-      <div style={{ border:`1.5px solid ${T.slateBd}`, borderRadius:8, overflow:"hidden" }}>
-        {/* Header */}
-        <div style={{ display:"flex", background:T.slateBg, borderBottom:`1.5px solid ${T.slateBd}` }}>
-          <div style={{ flex:1, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate }}>Item</div>
-          <div style={{ flex:1, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate }}>Tally</div>
-          <div style={{ width:50, padding:"6px 10px", fontSize:9, fontWeight:800, color:T.slate, textAlign:"center" }}>Total</div>
-        </div>
-        {/* Rows */}
-        {items.map((item, i) => (
-          <div key={i} style={{
-            display:"flex", alignItems:"center",
-            borderBottom: i < items.length - 1 ? `1px solid ${T.slateBd}` : "none",
-            background: i % 2 === 0 ? "#fff" : T.slateBg,
-          }}>
-            <div style={{ flex:1, padding:"5px 10px", fontSize:10, fontWeight:700, color:T.text }}>{item.label}</div>
-            <div style={{ flex:1, padding:"5px 10px", fontSize:11, fontWeight:600, color:T.indigo, fontFamily:"monospace", letterSpacing:1 }}>
-              {tallyMarks(item.count)}
-            </div>
-            <div style={{ width:50, padding:"5px 10px", fontSize:11, fontWeight:900, color:T.indigo, textAlign:"center" }}>{item.count}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-function parseGeography(topic, questionText, yearLevel) {
-  const t = (topic || "").toLowerCase();
-  const q = (questionText || "").toLowerCase();
-  const nums = ((questionText || "").match(/\d+/g) || []).map(Number);
+function parseGeography(topicStr, questionStr, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
+  const nums = ((questionStr || "").match(/\d+/g) || []).map(Number);
  
-  // Compass / directions
   if (t.includes("compass") || t.includes("direction") || t.includes("bearing") ||
-      /north|south|east|west|bearing|compass|cardinal/i.test(questionText)) {
-    const bearingMatch = (questionText || "").match(/(\d+)\s*(?:°|degrees?)/i);
+      /north|south|east|west|bearing|compass|cardinal/i.test(questionStr)) {
+    const bearingMatch = (questionStr || "").match(/(\d+)\s*(?:°|degrees?)/i);
     const dirMap = { north: 0, northeast: 45, east: 90, southeast: 135, south: 180, southwest: 225, west: 270, northwest: 315,
                      ne: 45, se: 135, sw: 225, nw: 315, n: 0, e: 90, s: 180, w: 270 };
     let bearing = bearingMatch ? parseInt(bearingMatch[1]) : 0;
@@ -2135,11 +1853,9 @@ function parseGeography(topic, questionText, yearLevel) {
     return { type: "compass", bearing, label: label || (bearing > 0 ? `${bearing}°` : "") };
   }
  
-  // Grid references
-  if (t.includes("grid") || /grid reference|4.figure|6.figure|coordinate.*map|map.*reference/i.test(questionText)) {
-    const gridRefMatch = (questionText || "").match(/\b([A-E])(\d)\b/i);
+  if (t.includes("grid") || /grid reference|4.figure|6.figure|coordinate.*map|map.*reference/i.test(questionStr)) {
+    const gridRefMatch = (questionStr || "").match(/\b([A-E])(\d)\b/i);
     const features = [];
-    // Try to extract features mentioned
     const featureWords = ["church", "school", "farm", "lake", "forest", "town", "bridge", "hill"];
     featureWords.forEach((fw, i) => {
       if (q.includes(fw)) features.push({ name: fw, row: (i % 4) + 1, col: i % 5 });
@@ -2151,40 +1867,35 @@ function parseGeography(topic, questionText, yearLevel) {
     };
   }
  
-  // Climate graph
   if (t.includes("climate") || t.includes("weather") || t.includes("rainfall") ||
-      /climate graph|temperature.*rainfall|precipitation.*month/i.test(questionText)) {
-    // Extract any monthly data or use typical UK data
+      /climate graph|temperature.*rainfall|precipitation.*month/i.test(questionStr)) {
     const temps = nums.length >= 12 ? nums.slice(0, 12) : [4, 4, 6, 9, 12, 15, 17, 17, 14, 11, 7, 5];
     const rainfall = nums.length >= 24 ? nums.slice(12, 24) : [55, 40, 50, 45, 50, 55, 50, 60, 55, 60, 65, 60];
-    const locationMatch = (questionText || "").match(/(?:in|for|of)\s+([A-Z][a-zA-Z\s]{2,20})/);
+    const locationMatch = (questionStr || "").match(/(?:in|for|of)\s+([A-Z][a-zA-Z\s]{2,20})/);
     return { type: "climate_graph", location: locationMatch?.[1]?.trim() || "", temps, rainfall };
   }
  
-  // Water cycle
-  if (/water cycle|evaporation.*condensation|precipitation.*collection|transpiration/i.test(questionText) ||
+  if (/water cycle|evaporation.*condensation|precipitation.*collection|transpiration/i.test(questionStr) ||
       t.includes("water_cycle")) {
     const stages = ["evaporation", "condensation", "precipitation", "collection", "transpiration"];
     const highlighted = stages.filter(s => q.includes(s));
     return { type: "water_cycle", highlighted };
   }
  
-  // Rock cycle / Earth layers / Soil
-  if (/rock cycle|igneous|sedimentary|metamorphic/i.test(questionText) || t.includes("rock")) {
+  if (/rock cycle|igneous|sedimentary|metamorphic/i.test(questionStr) || t.includes("rock")) {
     const highlighted = ["igneous", "sedimentary", "metamorphic"].find(r => q.includes(r)) || "";
     return { type: "layer_diagram", context: "rock_cycle", highlighted };
   }
-  if (/earth.*layer|crust|mantle|core|inner core|outer core/i.test(questionText) || t.includes("earth_layer")) {
+  if (/earth.*layer|crust|mantle|core|inner core|outer core/i.test(questionStr) || t.includes("earth_layer")) {
     const highlighted = ["crust", "mantle", "outer core", "inner core"].find(l => q.includes(l)) || "";
     return { type: "layer_diagram", context: "earth", highlighted };
   }
-  if (/soil.*layer|topsoil|subsoil|bedrock|humus/i.test(questionText) || t.includes("soil")) {
+  if (/soil.*layer|topsoil|subsoil|bedrock|humus/i.test(questionStr) || t.includes("soil")) {
     const highlighted = ["topsoil", "subsoil", "bedrock"].find(l => q.includes(l)) || "";
     return { type: "layer_diagram", context: "soil", highlighted };
   }
  
-  // Map / continent / country questions
-  if (/continent|which country|where is|capital.*of|locate.*map|map.*world/i.test(questionText) ||
+  if (/continent|which country|where is|capital.*of|locate.*map|map.*world/i.test(questionStr) ||
       t.includes("continent") || t.includes("country") || t.includes("capital")) {
     const COUNTRIES = {
       "england": "uk", "scotland": "uk", "wales": "uk", "northern ireland": "uk", "united kingdom": "uk", "uk": "uk",
@@ -2203,22 +1914,18 @@ function parseGeography(topic, questionText, yearLevel) {
   return null;
 }
  
-function parseHistory(topic, questionText, yearLevel) {
-  const t = (topic || "").toLowerCase();
-  const q = (questionText || "").toLowerCase();
-  const nums = ((questionText || "").match(/\d{3,4}/g) || []).map(Number);
+function parseHistory(topicStr, questionStr, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
+  const nums = ((questionStr || "").match(/\d{3,4}/g) || []).map(Number);
  
-  // Timeline
   if (t.includes("timeline") || t.includes("chronolog") ||
-      /what year|when did|order.*events|which came first|put.*order|century|decade|timeline/i.test(questionText)) {
-    // Extract year + event pairs
-    const yearMatches = [...(questionText || "").matchAll(/(\d{3,4})\s*[-–:]\s*([^,.\n]{3,40})/g)];
+      /what year|when did|order.*events|which came first|put.*order|century|decade|timeline/i.test(questionStr)) {
+    const yearMatches = [...(questionStr || "").matchAll(/(\d{3,4})\s*[-–:]\s*([^,.\n]{3,40})/g)];
     let events = yearMatches.map(m => ({ year: parseInt(m[1]), label: m[2].trim() }));
-    // If no structured data, use standalone years
     if (events.length < 2 && nums.length >= 2) {
       events = nums.slice(0, 5).map(y => ({ year: y, label: "" }));
     }
-    // Known historical events as fallback enrichment
     const KNOWN_EVENTS = {
       1066: "Battle of Hastings", 1215: "Magna Carta", 1485: "Battle of Bosworth",
       1588: "Spanish Armada", 1666: "Great Fire of London", 1776: "American Independence",
@@ -2235,14 +1942,13 @@ function parseHistory(topic, questionText, yearLevel) {
     }
   }
  
-  // Source analysis
-  if (/source [A-Z]|primary source|secondary source|reliability|bias|provenance|how useful|how reliable/i.test(questionText) ||
+  if (/source [A-Z]|primary source|secondary source|reliability|bias|provenance|how useful|how reliable/i.test(questionStr) ||
       t.includes("source") || t.includes("evidence")) {
-    const isPrimary = /primary|diary|letter|photograph|artefact|eyewitness/i.test(questionText);
+    const isPrimary = /primary|diary|letter|photograph|artefact|eyewitness/i.test(questionStr);
     const origins = ["letter", "diary", "photograph", "newspaper", "speech", "painting", "artefact", "document"];
     const origin = origins.find(o => q.includes(o)) || "document";
-    const dateMatch = (questionText || "").match(/\b(\d{4})\b/);
-    const authorMatch = (questionText || "").match(/(?:by|from|written by)\s+([A-Z][a-zA-Z\s]{2,20})/);
+    const dateMatch = (questionStr || "").match(/\b(\d{4})\b/);
+    const authorMatch = (questionStr || "").match(/(?:by|from|written by)\s+([A-Z][a-zA-Z\s]{2,20})/);
     return {
       type: "source_analysis",
       sourceType: isPrimary ? "primary" : "secondary",
@@ -2253,19 +1959,16 @@ function parseHistory(topic, questionText, yearLevel) {
     };
   }
  
-  // Map-based history questions (e.g. "Where did the Romans invade?")
-  if (/where.*happen|map|empire|invasion|location.*battle|route/i.test(questionText)) {
+  if (/where.*happen|map|empire|invasion|location.*battle|route/i.test(questionStr)) {
     return { type: "map_region", region: "europe", highlighted: "" };
   }
  
   return null;
 }
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN EXPORT
+// MAIN EXPORT — resolveVisual
 // ═══════════════════════════════════════════════════════════════════════════════
-// ── Exported parser — single source of truth ────────────────────────────────
-// Called by MathsVisualiser (rendering) and canVisualise (decision).
-// Returns a visual descriptor object or null.
 export function resolveVisual(question, subject, yearLevel) {
   if (!question) return null;
   const subj = (subject || "").toLowerCase();
@@ -2292,14 +1995,17 @@ export function resolveVisual(question, subject, yearLevel) {
       enrichedSubject = "chemistry";
   }
 
-  const topicStr    = question.topic || question._anchorTopic || "";
+  const topicStr    = (question.topic || question._anchorTopic || "").toLowerCase();
   const questionStr = question.q || question.question_text || "";
+  const qLower      = questionStr.toLowerCase();
+  const nums        = (questionStr.match(RX_NUM) || []).map(Number);
 
   const t4 = parseTier4(topicStr, questionStr, enrichedSubject, year);
   if (t4) return t4;
 
   const t3 = parseTier3(topicStr, questionStr, enrichedSubject, year);
   if (t3) return t3;
+
   if (isGeography || (isScience && /water cycle|rock cycle|soil|earth.*layer/i.test(questionStr + topicStr))) {
     const geo = parseGeography(topicStr, questionStr, year);
     if (geo) return geo;
@@ -2308,31 +2014,39 @@ export function resolveVisual(question, subject, yearLevel) {
     const hist = parseHistory(topicStr, questionStr, year);
     if (hist) return hist;
   }
+  if (isEnglish) {
+    const engVis = parseEnglish(topicStr, questionStr, year, question);
+    if (engVis) return engVis;
+  }
+  if (isNVR) {
+    const nvrExt = parseNVRExt(topicStr, questionStr, year);
+    if (nvrExt) return nvrExt;
+  }
+
   // Pie chart
-  if (subj.includes("math") && (t.includes("pie_chart") || t.includes("pie") || /pie chart|pie graph|sector|slice/i.test(questionText))) {
-    const labelValuePairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+  if (subj.includes("math") && (topicStr.includes("pie_chart") || topicStr.includes("pie") || /pie chart|pie graph|sector|slice/i.test(qLower))) {
+    const labelValuePairs = [...questionStr.matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
     if (labelValuePairs.length >= 2) {
       return { type: "pie_chart", slices: labelValuePairs.slice(0, 6).map(m => ({ label: m[1].trim(), value: parseInt(m[2]) })) };
     }
-    // Fallback with just numbers
     if (nums.length >= 2) {
       return { type: "pie_chart", slices: nums.slice(0, 4).map((n, i) => ({ label: `Part ${i + 1}`, value: n })) };
     }
   }
- 
+
   // Pictogram
-  if (subj.includes("math") && (t.includes("pictogram") || /pictogram|picture graph|key.*represents/i.test(questionText))) {
-    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+  if (subj.includes("math") && (topicStr.includes("pictogram") || /pictogram|picture graph|key.*represents/i.test(qLower))) {
+    const pairs = [...questionStr.matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
     if (pairs.length >= 2) {
       const items = pairs.slice(0, 5).map(m => ({ label: m[1].trim(), count: parseInt(m[2]) }));
-      const keyMatch = (questionText || "").match(/(?:key|represents?|stands? for|=)\s*(\d+)/i);
+      const keyMatch = questionStr.match(/(?:key|represents?|stands? for|&=)\s*(\d+)/i);
       return { type: "pictogram", items, keyValue: keyMatch ? parseInt(keyMatch[1]) : 2 };
     }
   }
- 
+
   // Line graph
-  if (subj.includes("math") && (t.includes("line_graph") || /line graph|plot.*points.*graph|trend.*graph/i.test(questionText))) {
-    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
+  if (subj.includes("math") && (topicStr.includes("line_graph") || /line graph|plot.*points.*graph|trend.*graph/i.test(qLower))) {
+    const pairs = [...questionStr.matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
     if (pairs.length >= 2) {
       return {
         type: "line_graph",
@@ -2341,35 +2055,35 @@ export function resolveVisual(question, subject, yearLevel) {
       };
     }
   }
- 
+
   // Thermometer / negative numbers
-  if (subj.includes("math") && (t.includes("temperature") || t.includes("thermometer") ||
-      /thermometer|degrees celsius|°C|temperature.*negative|below zero|below freezing/i.test(questionText))) {
-    const tempMatch = (questionText || "").match(/(-?\d+)\s*(?:°C|degrees)/i);
+  if (subj.includes("math") && (topicStr.includes("temperature") || topicStr.includes("thermometer") ||
+      /thermometer|degrees celsius|°C|temperature.*negative|below zero|below freezing/i.test(qLower))) {
+    const tempMatch = questionStr.match(/(-?\d+)\s*(?:°C|degrees)/i);
     const value = tempMatch ? parseInt(tempMatch[1]) : 0;
     return { type: "thermometer", value, min: Math.min(value - 10, -10), max: Math.max(value + 10, 30) };
   }
- 
+
   // Conversion ladder
-  if (subj.includes("math") && (t.includes("conversion") || t.includes("convert") ||
-      /convert|mm to cm|cm to m|m to km|g to kg|ml to l|kg to g|km to m|l to ml/i.test(questionText))) {
-    if (/mm|cm|m|km/i.test(questionText) && /convert|change|how many/i.test(questionText)) {
+  if (subj.includes("math") && (topicStr.includes("conversion") || topicStr.includes("convert") ||
+      /convert|mm to cm|cm to m|m to km|g to kg|ml to l|kg to g|km to m|l to ml/i.test(qLower))) {
+    if (/mm|cm|m|km/i.test(qLower) && /convert|change|how many/i.test(qLower)) {
       return { type: "conversion_ladder", units: ["km", "m", "cm", "mm"], factors: ["×1000", "×100", "×10"],
-        highlighted: ["mm","cm","m","km"].find(u => questionText.toLowerCase().includes(u)) || "" };
+        highlighted: ["mm","cm","m","km"].find(u => qLower.includes(u)) || "" };
     }
-    if (/g|kg/i.test(questionText)) {
+    if (/\bg\b|\bkg\b/i.test(qLower)) {
       return { type: "conversion_ladder", units: ["kg", "g"], factors: ["×1000"],
-        highlighted: ["kg","g"].find(u => questionText.toLowerCase().includes(u)) || "" };
+        highlighted: ["kg","g"].find(u => qLower.includes(u)) || "" };
     }
-    if (/ml|l/i.test(questionText)) {
+    if (/\bml\b|\bl\b/i.test(qLower)) {
       return { type: "conversion_ladder", units: ["l", "ml"], factors: ["×1000"],
-        highlighted: ["l","ml"].find(u => questionText.toLowerCase().includes(u)) || "" };
+        highlighted: ["l","ml"].find(u => qLower.includes(u)) || "" };
     }
   }
- 
+
   // Carroll diagram
-  if (subj.includes("math") && (t.includes("carroll") || /carroll diagram/i.test(questionText))) {
-    const c1Match = (questionText || "").match(/(?:is |are )?(\w+)\s*(?:and|\/)\s*(?:is |are )?(\w+)/i);
+  if (subj.includes("math") && (topicStr.includes("carroll") || /carroll diagram/i.test(qLower))) {
+    const c1Match = questionStr.match(/(?:is |are )?(\w+)\s*(?:and|\/)\s*(?:is |are )?(\w+)/i);
     return {
       type: "carroll_diagram",
       criteria1: c1Match?.[1] || "Even",
@@ -2377,40 +2091,39 @@ export function resolveVisual(question, subject, yearLevel) {
       items: [],
     };
   }
- 
-  // Symmetry (component already built)
-  if (subj.includes("math") && (t.includes("symmetr") || /line.*symmetry|lines? of symmetry|symmetrical/i.test(questionText))) {
+
+  // Symmetry
+  if (subj.includes("math") && (topicStr.includes("symmetr") || /line.*symmetry|lines? of symmetry|symmetrical/i.test(qLower))) {
     const SHAPES = ["square","rectangle","triangle","circle","pentagon","hexagon","octagon","kite","parallelogram"];
-    const shape = SHAPES.find(s => questionText.toLowerCase().includes(s)) || "square";
+    const shape = SHAPES.find(s => qLower.includes(s)) || "square";
     return { type: "symmetry", shape };
   }
- 
-  // Probability (component already built)
-  if (subj.includes("math") && (t.includes("probabil") || /chance|likely|unlikely|certain|impossible|spinner|dice|coin/i.test(questionText))) {
+
+  // Probability
+  if (subj.includes("math") && (topicStr.includes("probabil") || /chance|likely|unlikely|certain|impossible|spinner|dice|coin/i.test(qLower))) {
     const total = nums.find(n => n > 1 && n <= 20) || 6;
     const favourable = nums.find((n, i) => i > 0 && n >= 1 && n < total) || 1;
-    const context = /dice|die/i.test(questionText) ? "dice" : /coin/i.test(questionText) ? "coin" : "spinner";
+    const context = /dice|die/i.test(qLower) ? "dice" : /coin/i.test(qLower) ? "coin" : "spinner";
     return { type: "probability", total, favourable, context };
   }
- 
-  // Percentage bar (component already built)
-  if (subj.includes("math") && (t.includes("percent") || /%/.test(questionText))) {
+
+  // Percentage bar
+  if (subj.includes("math") && (topicStr.includes("percent") || /%/.test(questionStr))) {
     const pct = nums.find(n => n > 0 && n <= 100);
     if (pct) return { type: "percentage_bar", value: pct };
   }
- 
-  // Tally chart (component already built)
-  if (subj.includes("math") && /tally|tallies/i.test(questionText)) {
-    const pairs = [...(questionText || "").matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
+
+  // Tally chart
+  if (subj.includes("math") && /tally|tallies/i.test(qLower)) {
+    const pairs = [...questionStr.matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
     if (pairs.length >= 2) {
       return { type: "tally_chart", items: pairs.slice(0, 6).map(m => ({ label: m[1].trim(), count: parseInt(m[2]) })) };
     }
   }
 
-  return parseVisualExtended(topicStr, questionStr, enrichedSubject, year);
+  return parseVisual(topicStr, questionStr, enrichedSubject, year, question);
 }
 
-// ── canVisualise — single source of truth for panel decisions ────────────────
 export function canVisualise(question, subject, yearLevel) {
   return resolveVisual(question, subject, yearLevel) !== null;
 }
@@ -2423,7 +2136,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
 
   if (!visual) return null;
 
-  // Generate accessible description for screen readers
   const ariaLabel = (() => {
     switch (visual.type) {
       case "addition":         return `Addition visual: ${visual.a} plus ${visual.b}`;
@@ -2510,7 +2222,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
 
   const inner = (() => {
     switch (visual.type) {
-      // ── Tier 0 (original) ──────────────────────────────────────────────────
       case "addition":        return <AdditionVis       {...visual} />;
       case "subtraction":     return <SubtractionVis    {...visual} />;
       case "place_value":     return <PlaceValueVis     {...visual} />;
@@ -2528,12 +2239,10 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "forces":          return <ForcesVis         {...visual} />;
       case "velocity":        return <VelocityVis       {...visual} />;
       case "food_chain":      return <FoodChainVis      {...visual} />;
-      // ── Tier 1 (new) ───────────────────────────────────────────────────────
       case "coordinate":      return <CoordinateVis     {...visual} />;
       case "number_line":     return <NumberLineVis     {...visual} />;
       case "venn":            return <VennVis           {...visual} />;
       case "bar_chart":       return <BarChartVis       {...visual} />;
-      // ── Tier 2 (new) ───────────────────────────────────────────────────────
       case "angle":           return <AngleVis          {...visual} />;
       case "area":            return <AreaVis           {...visual} />;
       case "formula_triangle":return <FormulaTriangleVis {...visual} />;
@@ -2541,7 +2250,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "circuit":         return <CircuitVis        type={visual.circuitType} />;
       case "quadratic":       return <QuadraticVis      {...visual} />;
       case "element":         return <ElementVis        {...visual} />;
-      // ── Tier 3 (cross-subject expansion) ───────────────────────────────────
       case "clock":           return <ClockVis          {...visual} />;
       case "money":           return <MoneyVis          {...visual} />;
       case "division":        return <DivisionVis       {...visual} />;
@@ -2554,7 +2262,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "nvr_matrix":      return <NVRMatrixVis      {...visual} />;
       case "nvr_paper_fold":  return <NVRPaperFoldVis  foldType={visual.foldType} punchPositions={visual.punchPositions} />;
       case "grammar":         return <GrammarVis        {...visual} />;
-      // ── Tier 4 (new interactive + data) ───────────────────────────────────
       case "coordinate_graph": return <InteractiveGraph mode="equations" equations={visual.equations} points={visual.points} />;
       case "data_table":       return <DataTable headers={visual.headers} rows={visual.rows} title={visual.title} highlightCol={visual.highlightCol} highlightRow={visual.highlightRow} />;
       case "long_multiplication": return <LongMultiplication num1={visual.num1} num2={visual.num2} />;
@@ -2562,7 +2269,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "comparison":      return <ComparisonVis     a={visual.a} b={visual.b} />;
       case "synonym_ladder":  return <SynonymLadderVis  {...visual} />;
       case "word_builder":    return <WordBuilderVis    {...visual} />;
-      // ── Tier 4 (higher sciences + commerce) ────────────────────────────────
       case "atom":            return <AtomVis             {...visual} />;
       case "periodic_element":return <PeriodicTableVis   {...visual} />;
       case "state_changes":   return <StateChangesVis    highlighted={visual.highlighted} />;
@@ -2593,7 +2299,6 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return <MagnetVis scenario={visual.scenario} />;
       case "photosynthesis":      return <PhotosynthesisVis highlighted={visual.highlighted} />;
       case "respiration":         return <RespirationVis respType={visual.respType} />;
-      // ── New Maths ───────────────────────────────────────────────────────────
       case "pie_chart":           return <PieChartVis slices={visual.slices} />;
       case "pictogram":           return <PictogramVis items={visual.items} keyValue={visual.keyValue} />;
       case "line_graph":          return <LineGraphVis points={visual.points} xLabel={visual.xLabel} yLabel={visual.yLabel} title={visual.title} />;
@@ -2622,19 +2327,13 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TIER 1 & 2 — NEW VISUALS
+// TIER 1 & 2 — NEW VISUALS (placeholders for now; actual implementations imported)
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// ── COORDINATE GRID ───────────────────────────────────────────────────────────
-// Plots one or more points on a clean SVG axes grid with dashed projection lines
-
-// ─── CORE DATA VISUALS (kept — used across maths/science/english) ────────────
 function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps, jumpSize, fractionDenom }) {
   const W = 210, H = fractionDenom ? 82 : 72, PAD = 16, ARR = 10;
   const range = (max - min) || 1;
   const toX = n => PAD + ((n - min) / range) * (W - PAD*2 - ARR);
 
-  // ── Fraction marks mode (e.g. 0, 1/3, 2/3, 1) ────────────────────────────
   if (fractionDenom && fractionDenom > 0) {
     const den = fractionDenom;
     const fracTicks = [];
@@ -2652,8 +2351,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
         </g>
       );
     }
-
-    // Jump arcs if provided
     const jumpArcs = [];
     if (jumps && jumpSize) {
       let pos = start || 0;
@@ -2671,7 +2368,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
         );
         pos = to;
       }
-      // Highlight destination
       const destX = toX(pos);
       jumpArcs.push(
         <g key="dest">
@@ -2680,7 +2376,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
         </g>
       );
     }
-
     return (
       <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
@@ -2695,7 +2390,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     );
   }
 
-  // ── Repeated jumps mode (multiplication/division) ──────────────────────────
   if (jumps && jumpSize) {
     const jumpArcs = [];
     let pos = start || min;
@@ -2717,7 +2411,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
       );
       pos = to;
     }
-
     const ticks = [];
     const rawStep = range / 10;
     const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
@@ -2731,9 +2424,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
         </g>
       );
     }
-    // Highlight landing point
     const endX = toX(pos);
-
     return (
       <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
         ariaLabel={`Number line: ${jumps} jumps of ${jumpSize}`}>
@@ -2766,7 +2457,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     );
   }
 
-  // ── NEW mode: start dot + dashed arc + ? at destination (never reveals answer) ─────
   if (start != null && steps != null && direction != null) {
     const dest = direction === "right" ? start + steps : start - steps;
     const sx = toX(start);
@@ -2797,7 +2487,6 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     );
   }
 
-  // ── LEGACY mode: single marked point (rounding, missing value etc.) ──────────
   const mx = marked != null ? toX(marked) : null;
   return (
     <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
@@ -2818,11 +2507,9 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
   );
 }
 
-// ── VENN DIAGRAM ─────────────────────────────────────────────────────────────
 function VennVis({ labelA, labelB, itemsA, itemsB, itemsBoth }) {
   const W = 220, H = 148;
   const r = 52, cx1 = 82, cx2 = 138, cy = 82;
-  // Layout items in columns
   const col = (items, x, maxY = 4) => items.slice(0,maxY).map((it,i) => (
     <text key={i} x={x} y={68 + i*14} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.text}>{it}</text>
   ));
@@ -2831,21 +2518,16 @@ function VennVis({ labelA, labelB, itemsA, itemsB, itemsBoth }) {
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         <circle cx={cx1} cy={cy} r={r} fill={T.indigoBg} fillOpacity={0.7} stroke={T.indigo} strokeWidth={2}/>
         <circle cx={cx2} cy={cy} r={r} fill={T.emeraldBg} fillOpacity={0.7} stroke={T.emerald} strokeWidth={2}/>
-        {/* Labels */}
         <text x={cx1-18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{labelA}</text>
         <text x={cx2+18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.emerald}>{labelB}</text>
-        {/* Items only in A */}
         {col(itemsA, cx1 - 22)}
-        {/* Items only in B */}
         {col(itemsB, cx2 + 22)}
-        {/* Items in both */}
         {col(itemsBoth, (cx1+cx2)/2)}
       </svg>
     </Panel>
   );
 }
 
-// ── BAR CHART ─────────────────────────────────────────────────────────────────
 function BarChartVis({ bars, yLabel = "Frequency", title }) {
   const W = 210, H = 130, PAD_L = 28, PAD_B = 36, PAD_T = 14, PAD_R = 8;
   const chartW = W - PAD_L - PAD_R;
@@ -2854,14 +2536,12 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
   const barW = Math.min(28, (chartW / bars.length) - 6);
   const gap = (chartW - barW * bars.length) / (bars.length + 1);
   const toY = v => PAD_T + chartH - (v / maxVal) * chartH;
-  // Y-axis ticks: 0, max/2, max
   const yTicks = [0, Math.round(maxVal/2), maxVal];
 
   return (
     <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
       {title && <Chip color={T.indigo} bg={T.indigoBg}>{title}</Chip>}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Y ticks */}
         {yTicks.map(v => {
           const sy = toY(v);
           return (
@@ -2871,10 +2551,8 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
             </g>
           );
         })}
-        {/* Axes */}
         <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
         <line x1={PAD_L} y1={H-PAD_B} x2={W-PAD_R} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
-        {/* Bars */}
         {bars.map((b, i) => {
           const bx = PAD_L + gap + i * (barW + gap);
           const by = toY(b.value);
@@ -2888,7 +2566,6 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
             </g>
           );
         })}
-        {/* Y axis label */}
         <text x={7} y={H/2} textAnchor="middle" fontSize={7} fill={T.textMid}
           transform={`rotate(-90, 7, ${H/2})`}>{yLabel}</text>
       </svg>
@@ -2901,26 +2578,26 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXTENDED PARSER
 // ═══════════════════════════════════════════════════════════════════════════════
-function parseVisualExtended(topic, questionText, subject, yearLevel) {
+function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   const t    = (topic || "").toLowerCase();
-  const q    = (questionText || "").toLowerCase();
+  const q    = (questionStr || "").toLowerCase();
   const subj = (subject || "").toLowerCase();
-  const nums = ((questionText || "").match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+  const nums = ((questionStr || "").match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
 
   // ── SIMULTANEOUS EQUATIONS / COORDINATE GRAPH ────────────────────────────
   // Triggers: "simultaneous", "y = mx + c", "graph of", "plot the line"
-  if (t.includes("simultaneous") || t.includes("linear_graph") || t.includes("graphs_linear") ||
-      /simultaneous|solve.*graphically|plot.*(?:y\s*=)|graph.*(?:y\s*=)/i.test(questionText)) {
-    const eqMatches = [...(questionText || "").matchAll(/y\s*=\s*[+-]?\d*\.?\d*\s*x\s*[+-]?\s*\d+\.?\d*/gi)];
+  if (topicStr.includes("simultaneous") || topicStr.includes("linear_graph") || topicStr.includes("graphs_linear") ||
+      /simultaneous|solve.*graphically|plot.*(?:y\s*=)|graph.*(?:y\s*=)/i.test(questionStr)) {
+    const eqMatches = [...(questionStr || "").matchAll(/y\s*=\s*[+-]?\d*\.?\d*\s*x\s*[+-]?\s*\d+\.?\d*/gi)];
     if (eqMatches.length >= 1) {
       return { type: "coordinate_graph", equations: eqMatches.map(m => m[0].trim()) };
     }
   }
 
   // ── DATA TABLE — "the table shows", "use the table", "from the table" ──
-  if (/table.*shows|use.*table|from.*table|read.*table|following table/i.test(questionText)) {
+  if (/table.*shows|use.*table|from.*table|read.*table|following table/i.test(questionStr)) {
     // Try to extract tabular data from question text (e.g., "Day | Mon | Tue | Wed")
-    const lines = (questionText || "").split(/\n/).filter(l => l.includes('|'));
+    const lines = (questionStr || "").split(/\n/).filter(l => l.includes('|'));
     if (lines.length >= 2) {
       const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
       const rows = lines.slice(1).map(l => l.split('|').map(c => c.trim()).filter(Boolean));
@@ -2929,7 +2606,7 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
       }
     }
     // Fallback: detect common data patterns
-    const labelPattern = (questionText || "").match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|January|February|March|April|May|June|Week \d|Class \d|Group [A-Z])/gi);
+    const labelPattern = (questionStr || "").match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|January|February|March|April|May|June|Week \d|Class \d|Group [A-Z])/gi);
     if (labelPattern && labelPattern.length >= 2 && nums.length >= labelPattern.length) {
       return {
         type: "data_table",
@@ -2940,9 +2617,9 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── LONG MULTIPLICATION — "multiply 234 × 56", "long multiplication" ───
-  if (t.includes("long_multiplication") || t.includes("multiplication_2digit") || t.includes("multiplication_3digit") ||
-      /long multiplication|partial products|column multiplication/i.test(questionText)) {
-    const mulMatch = (questionText || "").match(/(\d{2,4})\s*[×x]\s*(\d{2,4})/i);
+  if (topicStr.includes("long_multiplication") || topicStr.includes("multiplication_2digit") || topicStr.includes("multiplication_3digit") ||
+      /long multiplication|partial products|column multiplication/i.test(questionStr)) {
+    const mulMatch = (questionStr || "").match(/(\d{2,4})\s*[×x]\s*(\d{2,4})/i);
     if (mulMatch) {
       return { type: "long_multiplication", num1: mulMatch[1], num2: mulMatch[2] };
     }
@@ -2952,13 +2629,13 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── INTERACTIVE PLOT — "plot the coordinates", "plot these points" ──────
-  if (/plot.*(?:point|coordinate)|place.*(?:point|coordinate).*grid|mark.*point.*grid/i.test(questionText)) {
+  if (/plot.*(?:point|coordinate)|place.*(?:point|coordinate).*grid|mark.*point.*grid/i.test(questionStr)) {
     return { type: "interactive_plot", equation: null };
   }
 
   // ── COORDINATES ────────────────────────────────────────────────────────────
-  if (t.includes("coord") || t.includes("plot") || /\(\s*-?\d+\s*,\s*-?\d+\s*\)/.test(questionText)) {
-    const ptMatches = [...(questionText||"").matchAll(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)];
+  if (topicStr.includes("coord") || topicStr.includes("plot") || /\(\s*-?\d+\s*,\s*-?\d+\s*\)/.test(questionStr)) {
+    const ptMatches = [...(questionStr||"").matchAll(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)];
     if (ptMatches.length) {
       const points = ptMatches.map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]) }));
       const xs = points.map(p=>p.x), ys = points.map(p=>p.y);
@@ -2970,8 +2647,8 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── NUMBER LINE ────────────────────────────────────────────────────────────
-  if (t.includes("number_line") || t.includes("rounding") || t.includes("round") ||
-      /round.*nearest|nearest.*\d+|number line/i.test(questionText)) {
+  if (topicStr.includes("number_line") || topicStr.includes("rounding") || topicStr.includes("round") ||
+      /round.*nearest|nearest.*\d+|number line/i.test(questionStr)) {
     const pos = nums.filter(n => n >= 0);
     if (pos.length >= 1) {
       const val  = pos[0];
@@ -2985,10 +2662,10 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── VENN DIAGRAM ──────────────────────────────────────────────────────────
-  if (t.includes("venn") || t.includes("set") || /factors? of|multiples? of|venn/i.test(questionText)) {
+  if (topicStr.includes("venn") || topicStr.includes("set") || /factors? of|multiples? of|venn/i.test(questionStr)) {
     // Multiples/factors Venn: "factors of 12 and factors of 18"
-    const factorMatch = (questionText||"").match(/factors? of (\d+) and factors? of (\d+)/i);
-    const multipleMatch = (questionText||"").match(/multiples? of (\d+) and multiples? of (\d+)/i);
+    const factorMatch = (questionStr||"").match(/factors? of (\d+) and factors? of (\d+)/i);
+    const multipleMatch = (questionStr||"").match(/multiples? of (\d+) and multiples? of (\d+)/i);
     if (factorMatch || multipleMatch) {
       const m = factorMatch || multipleMatch;
       const a = parseInt(m[1]), b = parseInt(m[2]);
@@ -3006,10 +2683,10 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── BAR CHART ──────────────────────────────────────────────────────────────
-  if (t.includes("bar_chart") || t.includes("pictogram") || t.includes("statistics") || t.includes("tally") ||
-      /bar chart|how many more|frequency/i.test(questionText)) {
+  if (topicStr.includes("bar_chart") || topicStr.includes("pictogram") || topicStr.includes("statistics") || topicStr.includes("tally") ||
+      /bar chart|how many more|frequency/i.test(questionStr)) {
     // Try to parse: "Mon: 5, Tue: 8, Wed: 3" or "apples: 6, bananas: 4"
-    const barMatch = [...(questionText||"").matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
+    const barMatch = [...(questionStr||"").matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
     if (barMatch.length >= 2) {
       const bars = barMatch.slice(0,6).map(m => ({ label: m[1].trim(), value: parseInt(m[2]) }));
       return { type: "bar_chart", bars };
@@ -3017,47 +2694,47 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── ANGLES ────────────────────────────────────────────────────────────────
-  if (t.includes("angle") || t.includes("geometry") ||
-      /acute|obtuse|reflex|right angle|\d+\s*°|\d+\s*degrees/i.test(questionText)) {
+  if (topicStr.includes("angle") || topicStr.includes("geometry") ||
+      /acute|obtuse|reflex|right angle|\d+\s*°|\d+\s*degrees/i.test(questionStr)) {
 
     // Multi-angle scenarios — "angles on a straight line"
-    if (/straight line|supplementary/i.test(questionText)) {
-      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    if (/straight line|supplementary/i.test(questionStr)) {
+      const allDegs = [...(questionStr||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
       if (allDegs.length >= 1) return { type: "angle", scenario: "straight_line", knownAngles: allDegs, unknownLabel: "?" };
     }
     // Angles in a triangle
-    if (/triangle|three angles/i.test(questionText)) {
-      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    if (/triangle|three angles/i.test(questionStr)) {
+      const allDegs = [...(questionStr||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
       if (allDegs.length >= 1 && allDegs.length <= 2) return { type: "angle", scenario: "triangle", knownAngles: allDegs, unknownLabel: "?" };
     }
     // Angles at a point
-    if (/at a point|around a point|full turn/i.test(questionText)) {
-      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    if (/at a point|around a point|full turn/i.test(questionStr)) {
+      const allDegs = [...(questionStr||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
       if (allDegs.length >= 1) return { type: "angle", scenario: "at_point", knownAngles: allDegs, unknownLabel: "?" };
     }
     // Vertically opposite
-    if (/vertically opposite|vert.*opp/i.test(questionText)) {
-      const allDegs = [...(questionText||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    if (/vertically opposite|vert.*opp/i.test(questionStr)) {
+      const allDegs = [...(questionStr||"").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
       if (allDegs.length >= 1) return { type: "angle", scenario: "vertically_opposite", knownAngles: allDegs, unknownLabel: "?" };
     }
 
     // Single angle (original behaviour)
-    const degMatch = (questionText||"").match(/(\d+)\s*(?:°|degrees?)/i);
+    const degMatch = (questionStr||"").match(/(\d+)\s*(?:°|degrees?)/i);
     if (degMatch) {
       const deg = parseInt(degMatch[1]);
       if (deg > 0 && deg < 360) return { type: "angle", degrees: deg };
     }
-    if (/right angle/i.test(questionText)) return { type:"angle", degrees: 90 };
-    if (/acute/i.test(questionText))       return { type:"angle", degrees: 55 };
-    if (/obtuse/i.test(questionText))      return { type:"angle", degrees: 120 };
-    if (/reflex/i.test(questionText))      return { type:"angle", degrees: 210 };
+    if (/right angle/i.test(questionStr)) return { type:"angle", degrees: 90 };
+    if (/acute/i.test(questionStr))       return { type:"angle", degrees: 55 };
+    if (/obtuse/i.test(questionStr))      return { type:"angle", degrees: 120 };
+    if (/reflex/i.test(questionStr))      return { type:"angle", degrees: 210 };
   }
 
   // ── PAPER FOLDS (NVR) ──────────────────────────────────────────────────────
-  if (/paper.*fold|fold.*paper|punch.*hole|hole.*punch|unfold/i.test(questionText)) {
-    const foldType = /diagonal/i.test(questionText) ? "diagonal"
-      : /quarter/i.test(questionText) ? "quarter"
-      : /horizontal/i.test(questionText) ? "half_horizontal"
+  if (/paper.*fold|fold.*paper|punch.*hole|hole.*punch|unfold/i.test(questionStr)) {
+    const foldType = /diagonal/i.test(questionStr) ? "diagonal"
+      : /quarter/i.test(questionStr) ? "quarter"
+      : /horizontal/i.test(questionStr) ? "half_horizontal"
       : "half_vertical";
 
       // NVR enhanced visuals
@@ -3067,85 +2744,85 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
  
     // Generate punch positions based on question content
-    const punches = /corner/i.test(questionText) ? [[0.8, 0.2]]
-      : /centre|center|middle/i.test(questionText) ? [[0.5, 0.5]]
-      : /edge|side/i.test(questionText) ? [[0.5, 0.2]]
+    const punches = /corner/i.test(questionStr) ? [[0.8, 0.2]]
+      : /centre|center|middle/i.test(questionStr) ? [[0.5, 0.5]]
+      : /edge|side/i.test(questionStr) ? [[0.5, 0.2]]
       : [[0.3, 0.4]];
     return { type: "nvr_paper_fold", foldType, punchPositions: punches };
   }
 
   // ── AREA / PERIMETER ──────────────────────────────────────────────────────
-  if ((t.includes("area") || t.includes("perimeter")) && subj.includes("math")) {
+  if ((topicStr.includes("area") || topicStr.includes("perimeter")) && subj.includes("math")) {
     // Match "5cm × 6cm", "5 by 6", "5x6", "3m × 4m" — allow optional unit suffix on first number
-    const byMatch = (questionText||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:by|×|x)\s*(\d+)/i);
-    const lwMatch = (questionText||"").match(/length[^\d]*(\d+)[^\d]*width[^\d]*(\d+)/i);
-    const wlMatch = (questionText||"").match(/width[^\d]*(\d+)[^\d]*height[^\d]*(\d+)/i);
+    const byMatch = (questionStr||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:by|×|x)\s*(\d+)/i);
+    const lwMatch = (questionStr||"").match(/length[^\d]*(\d+)[^\d]*width[^\d]*(\d+)/i);
+    const wlMatch = (questionStr||"").match(/width[^\d]*(\d+)[^\d]*height[^\d]*(\d+)/i);
     const m = byMatch || lwMatch || wlMatch;
     if (m) {
       const w = parseInt(m[1]), h = parseInt(m[2]);
       // Cap at 12×10 so the grid stays renderable
       if (w<=12 && h<=10 && w>0 && h>0)
-        return { type:"area", width:w, height:h, mode: t.includes("perim") ? "perimeter" : "area" };
+        return { type:"area", width:w, height:h, mode: topicStr.includes("perim") ? "perimeter" : "area" };
     }
   }
 
   // ── FORMULA TRIANGLE ──────────────────────────────────────────────────────
   if (subj.includes("physics") || subj.includes("science") || subj.includes("chemistry")) {
     // Speed/distance/time
-    if (/speed|distance|time|v\s*=|s\s*=|d\s*=|t\s*=/.test(q) && t.includes("speed") || t.includes("distance") || t.includes("velocity")) {
-      const unknown = /find.*speed|what.*speed|calculat.*speed/i.test(questionText) ? "top"
-        : /find.*distance|what.*distance/i.test(questionText) ? "left"
-        : /find.*time|what.*time/i.test(questionText) ? "right" : null;
+    if (/speed|distance|time|v\s*=|s\s*=|d\s*=|t\s*=/.test(q) && topicStr.includes("speed") || topicStr.includes("distance") || topicStr.includes("velocity")) {
+      const unknown = /find.*speed|what.*speed|calculat.*speed/i.test(questionStr) ? "top"
+        : /find.*distance|what.*distance/i.test(questionStr) ? "left"
+        : /find.*time|what.*time/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"v", left:"d", right:"t", unknown, title:"Speed = Distance ÷ Time" };
     }
     // Force = mass × acceleration
-    if (/force|mass|acceleration|f\s*=|m\s*=|a\s*=/.test(q) && (t.includes("f_ma") || t.includes("newton"))) {
-      const unknown = /find.*force/i.test(questionText) ? "top"
-        : /find.*mass/i.test(questionText) ? "left"
-        : /find.*accel/i.test(questionText) ? "right" : null;
+    if (/force|mass|acceleration|f\s*=|m\s*=|a\s*=/.test(q) && (topicStr.includes("f_ma") || topicStr.includes("newton"))) {
+      const unknown = /find.*force/i.test(questionStr) ? "top"
+        : /find.*mass/i.test(questionStr) ? "left"
+        : /find.*accel/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"F", left:"m", right:"a", unknown, title:"F = m × a" };
     }
     // Power = current × voltage
-    if (/power|current|voltage|p\s*=|i\s*=|v\s*=/.test(q) && t.includes("power")) {
-      const unknown = /find.*power/i.test(questionText) ? "top"
-        : /find.*current/i.test(questionText) ? "left"
-        : /find.*voltage/i.test(questionText) ? "right" : null;
+    if (/power|current|voltage|p\s*=|i\s*=|v\s*=/.test(q) && topicStr.includes("power")) {
+      const unknown = /find.*power/i.test(questionStr) ? "top"
+        : /find.*current/i.test(questionStr) ? "left"
+        : /find.*voltage/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"P", left:"I", right:"V", unknown, title:"P = I × V" };
     }
     // Density = mass / volume
-    if (/density|mass|volume/.test(q) && t.includes("density")) {
-      const unknown = /find.*density/i.test(questionText) ? "top"
-        : /find.*mass/i.test(questionText) ? "left"
-        : /find.*volume/i.test(questionText) ? "right" : null;
+    if (/density|mass|volume/.test(q) && topicStr.includes("density")) {
+      const unknown = /find.*density/i.test(questionStr) ? "top"
+        : /find.*mass/i.test(questionStr) ? "left"
+        : /find.*volume/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"ρ", left:"m", right:"V", unknown, title:"Density = mass ÷ volume" };
     }
   }
 
   // ── MOTION GRAPH ──────────────────────────────────────────────────────────
   if ((subj.includes("physics") || subj.includes("science")) &&
-      (t.includes("distance_time") || t.includes("velocity_time") || t.includes("motion_graph") ||
-       /distance.time graph|velocity.time graph|d-t graph|v-t graph/i.test(questionText))) {
-    const motionType = /velocity.time|v.t graph/i.test(questionText) ? "velocity_time" : "distance_time";
-    const curveType = /constant speed|uniform/i.test(questionText) ? "constant"
-      : /speed(ing)? up|accelerat|increasing/i.test(questionText) ? "accelerating"
-      : /slow(ing)? down|deceler/i.test(questionText) ? "decelerating"
-      : /stationary|not moving|at rest/i.test(questionText) ? "stationary"
+      (topicStr.includes("distance_time") || topicStr.includes("velocity_time") || topicStr.includes("motion_graph") ||
+       /distance.time graph|velocity.time graph|d-t graph|v-t graph/i.test(questionStr))) {
+    const motionType = /velocity.time|v.t graph/i.test(questionStr) ? "velocity_time" : "distance_time";
+    const curveType = /constant speed|uniform/i.test(questionStr) ? "constant"
+      : /speed(ing)? up|accelerat|increasing/i.test(questionStr) ? "accelerating"
+      : /slow(ing)? down|deceler/i.test(questionStr) ? "decelerating"
+      : /stationary|not moving|at rest/i.test(questionStr) ? "stationary"
       : "constant";
     return { type:"motion_graph", motionType, curveType };
   }
 
   // ── CIRCUIT ───────────────────────────────────────────────────────────────
   if ((subj.includes("physics") || subj.includes("science")) &&
-      (t.includes("circuit") || /series circuit|parallel circuit|bulb|battery/i.test(questionText))) {
-    const circType = /parallel/i.test(questionText) ? "parallel" : "series";
+      (topicStr.includes("circuit") || /series circuit|parallel circuit|bulb|battery/i.test(questionStr))) {
+    const circType = /parallel/i.test(questionStr) ? "parallel" : "series";
     return { type:"circuit", circuitType: circType };
   }
 
   // ── QUADRATIC ─────────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("quadratic") || t.includes("parabola") ||
-      /x²|x\^2|ax²|roots? of|discriminant/i.test(questionText))) {
+  if (subj.includes("math") && (topicStr.includes("quadratic") || topicStr.includes("parabola") ||
+      /x²|x\^2|ax²|roots? of|discriminant/i.test(questionStr))) {
     // Parse ax² + bx + c = 0
-    const coeffMatch = (questionText||"").match(/(-?\d*)\s*x[²\^2]\s*([+\-]\s*\d*)\s*x\s*([+\-]\s*\d+)/);
+    const coeffMatch = (questionStr||"").match(/(-?\d*)\s*x[²\^2]\s*([+\-]\s*\d*)\s*x\s*([+\-]\s*\d+)/);
     if (coeffMatch) {
       const a = parseInt(coeffMatch[1]||"1")||1;
       const b = parseInt(coeffMatch[2].replace(/\s/g,""))||0;
@@ -3165,7 +2842,7 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
 
   // ── PERIODIC TABLE ELEMENT ────────────────────────────────────────────────
   if ((subj.includes("chemistry") || subj.includes("science")) &&
-      (t.includes("periodic") || t.includes("element") || t.includes("atom"))) {
+      (topicStr.includes("periodic") || topicStr.includes("element") || topicStr.includes("atom"))) {
     const ELEMENTS = {
       H:  {name:"Hydrogen",  n:1,  mass:"1.008",  group:1,  period:1, groupType:"nonmetal"},
       He: {name:"Helium",    n:2,  mass:"4.003",  group:18, period:1, groupType:"noble"},
@@ -3192,8 +2869,8 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
     };
     // Try to find element symbol mentioned in question
     const symMatch = Object.keys(ELEMENTS).find(sym =>
-      new RegExp(`\\b${sym}\\b`).test(questionText) ||
-      new RegExp(ELEMENTS[sym].name,"i").test(questionText)
+      new RegExp(`\\b${sym}\\b`).test(questionStr) ||
+      new RegExp(ELEMENTS[sym].name,"i").test(questionStr)
     );
     if (symMatch) {
       const el = ELEMENTS[symMatch];
@@ -3203,9 +2880,9 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── PERCENTAGE BAR ─────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("percent") || /%/.test(questionText) || /percent/i.test(questionText))) {
-    const pctMatch = (questionText || "").match(/(\d+)\s*%\s*(?:of\s*)?(\d+)/i)
-      || (questionText || "").match(/(\d+)\s*percent(?:\s+of)?\s+(\d+)/i);
+  if (subj.includes("math") && (topicStr.includes("percent") || /%/.test(questionStr) || /percent/i.test(questionStr))) {
+    const pctMatch = (questionStr || "").match(/(\d+)\s*%\s*(?:of\s*)?(\d+)/i)
+      || (questionStr || "").match(/(\d+)\s*percent(?:\s+of)?\s+(\d+)/i);
     if (pctMatch) {
       const pct = parseInt(pctMatch[1]), whole = parseInt(pctMatch[2]);
       if (pct > 0 && pct <= 100 && whole > 0 && whole <= 200) {
@@ -3215,8 +2892,8 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── HCF / LCM ──────────────────────────────────────────────────────────────
-  if (subj.includes("math") && /hcf|lcm|highest common factor|lowest common multiple|common factor|common multiple/i.test(questionText)) {
-    const twoNums = (questionText || "").match(/(\d+)\s*and\s*(\d+)/i);
+  if (subj.includes("math") && /hcf|lcm|highest common factor|lowest common multiple|common factor|common multiple/i.test(questionStr)) {
+    const twoNums = (questionStr || "").match(/(\d+)\s*and\s*(\d+)/i);
     if (twoNums) {
       const a = parseInt(twoNums[1]), b = parseInt(twoNums[2]);
       if (a > 0 && b > 0 && a <= 100 && b <= 100) {
@@ -3233,8 +2910,8 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // ── MEAN / AVERAGE ─────────────────────────────────────────────────────────
-  if (subj.includes("math") && /\bmean\b|\baverage\b|\bmode\b|\bmedian\b/i.test(questionText)) {
-    const allNums = (questionText || "").match(/\d+/g);
+  if (subj.includes("math") && /\bmean\b|\baverage\b|\bmode\b|\bmedian\b/i.test(questionStr)) {
+    const allNums = (questionStr || "").match(/\d+/g);
     if (allNums && allNums.length >= 3) {
       const values = allNums.map(Number).filter(n=>n>0&&n<=100);
       if (values.length >= 3) {
@@ -3244,5 +2921,5 @@ function parseVisualExtended(topic, questionText, subject, yearLevel) {
   }
 
   // Fallback to original parser
-  return parseVisual(topic, questionText, subject, yearLevel);
+  return parseVisual(topic, questionStr, subject, yearLevel, question);
 }

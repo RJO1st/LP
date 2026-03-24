@@ -1269,21 +1269,23 @@ export default function AdaptiveDashboardLayout({
         topBarLeft={topBarLeft}
         topBarRight={topBarRight}
       />
-      {/* Nebula Trials modal (KS2 Y3+) */}
+      {/* Nebula Trials modal (KS2 Y3+) — dark underlay hides dashboard completely */}
       {showNebulaTrials && (
-        <Suspense fallback={null}>
-          <NebulaTrials
-            student={scholar}
-            onClose={() => setShowNebulaTrials(false)}
-            onXPEarned={async (xp) => {
-              if (scholar?.id && xp > 0 && supabase) {
-                await supabase.from("scholar_skill_levels").upsert({
-                  scholar_id: scholar.id, subject: "maths", skill: "times_tables", xp_total: xp,
-                }, { onConflict: "scholar_id,subject,skill", ignoreDuplicates: false });
-              }
-            }}
-          />
-        </Suspense>
+        <div className="fixed inset-0 z-[7999]" style={{ backgroundColor: "#0a0a1a" }}>
+          <Suspense fallback={null}>
+            <NebulaTrials
+              student={scholar}
+              onClose={() => setShowNebulaTrials(false)}
+              onXPEarned={async (xp) => {
+                if (scholar?.id && xp > 0 && supabase) {
+                  await supabase.from("scholar_skill_levels").upsert({
+                    scholar_id: scholar.id, subject: "maths", skill: "times_tables", xp_total: xp,
+                  }, { onConflict: "scholar_id,subject,skill", ignoreDuplicates: false });
+                }
+              }}
+            />
+          </Suspense>
+        </div>
       )}
     </>
   );

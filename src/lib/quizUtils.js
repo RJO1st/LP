@@ -129,7 +129,7 @@ export function dbRowToQuestion(row, fallbackSubject) {
     a:            finalIdx,
     correctAnswer,
     exp:          d.explanation    || '',
-    subject:      row.subject      || fallbackSubject || 'maths',
+    subject:      row.subject      || fallbackSubject || 'mathematics',
     topic:        d.topic          || 'general',
     passage:      d.passage        || null,
     hints:        parse(d.hints, []),

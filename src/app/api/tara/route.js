@@ -145,7 +145,7 @@ export async function POST(req) {
   }
 
   const {
-    text, subject = "maths", correctAnswer = "", scholarAnswer = "",
+    text, subject = "mathematics", correctAnswer = "", scholarAnswer = "",
     scholarName = "Scholar", scholarYear = 4, question = null,
     mode = "eib", context = "",
   } = body;

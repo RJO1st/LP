@@ -43,7 +43,7 @@ export const AVATAR_ITEMS = {
   accessory_stars:     { name: 'Star Aura',        category: 'accessory',  icon: '✨', coinCost: 100, rarity: 'epic'      },
   accessory_flame:     { name: 'Flame Trail',      category: 'accessory',  icon: '🔥', coinCost: 0,   badgeRequired: 'streak_7', rarity: 'rare' },
   accessory_lightning: { name: 'Lightning Bolt',   category: 'accessory',  icon: '⚡', coinCost: 120, rarity: 'epic'      },
-  accessory_rainbow:   { name: 'Rainbow Aura',     category: 'accessory',  icon: '🌈', coinCost: 80,  rarity: 'rare'      },
+  accessory_rainbow:   { name: 'Crystal Aura',     category: 'accessory',  icon: '💎', coinCost: 80,  rarity: 'rare'      },
   pet_cat:             { name: 'Space Cat',        category: 'pet',        icon: '🐱', coinCost: 200, rarity: 'common'    },
   pet_robot:           { name: 'Robot Buddy',      category: 'pet',        icon: '🤖', coinCost: 0,   badgeRequired: 'maths_gold', rarity: 'legendary' },
   pet_owl:             { name: 'Owl Companion',    category: 'pet',        icon: '🦉', coinCost: 0,   badgeRequired: 'english_gold', rarity: 'legendary' },
@@ -76,30 +76,30 @@ export const CURRICULA = {
   uk_11plus: {
     name: 'UK 11+', country: '🇬🇧', gradeLabel: 'Year',
     grades: [3, 4, 5, 6], currency: '£', spelling: 'british',
-    subjects: ['maths', 'english', 'verbal', 'nvr'],
+    subjects: ['mathematics', 'english', 'verbal_reasoning', 'nvr'],
   },
   // US
   us_common_core: {
     name: 'US Common Core', country: '🇺🇸', gradeLabel: 'Grade',
     grades: [1, 2, 3, 4, 5, 6, 7, 8], currency: '$', spelling: 'american',
-    subjects: ['maths', 'english', 'science'],
+    subjects: ['mathematics', 'english', 'science'],
   },
   // Australia
   aus_acara: {
     name: 'Australian Curriculum', country: '🇦🇺', gradeLabel: 'Year',
     grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], currency: 'A$', spelling: 'british',
-    subjects: ['maths', 'english', 'science'],
+    subjects: ['mathematics', 'english', 'science'],
   },
   // IB
   ib_pyp: {
     name: 'IB Primary Years (PYP)', country: '🌍', gradeLabel: 'Year',
     grades: [1, 2, 3, 4, 5, 6], currency: '$', spelling: 'american',
-    subjects: ['maths', 'english', 'science'],
+    subjects: ['mathematics', 'english', 'science'],
   },
   ib_myp: {
     name: 'IB Middle Years (MYP)', country: '🌍', gradeLabel: 'Year',
     grades: [1, 2, 3, 4, 5], currency: '$', spelling: 'american',
-    subjects: ['maths', 'english', 'science'],
+    subjects: ['mathematics', 'english', 'science'],
   },
   // Nigeria - Three stages
   ng_primary: {

@@ -30,7 +30,7 @@ export const DAILY_QUESTS = {
     target: 3,
     xpReward: 40,
     coinReward: 8,
-    subject: 'maths',
+    subject: 'mathematics',
     trackingField: 'questions_completed'
   },
   complete_3_english: {

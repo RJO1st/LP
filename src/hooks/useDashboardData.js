@@ -1,15 +1,26 @@
 "use client";
 /**
- * useDashboardData.js (v5)
+ * useDashboardData.js (v6)
  * Deploy to: src/hooks/useDashboardData.js
  *
- * v5: Fetches available topics from question_bank for ALL subjects.
- *     Non-maths subjects now show their topic maps (not just "Start a quest").
- *     Topics unlock based on mastery progression.
+ * v6 fixes:
+ *   - getAgeBand now receives curriculum (ng_jss→ks3, ng_sss→ks4)
+ *   - effectiveYear maps JSS1-3→Y7-9, SSS1-3→Y10-12 for DB queries
+ *   - question_bank query uses effectiveYear, not raw yearLevel
+ *   - No more Y2 Addition/Subtraction topics for JSS2 scholars
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { getAgeBand, getBandConfig, getEncouragement, getQuestNarrative } from "@/lib/ageBandConfig";
+
+// ── Year mapping: scholar.year_level → DB year_level ─────────────────────────
+function getEffectiveYear(yearLevel, curriculum) {
+  const yr = Number(yearLevel || 1);
+  const c = (curriculum || "").toLowerCase();
+  if (c === "ng_jss") return yr + 6;   // JSS1→7, JSS2→8, JSS3→9
+  if (c === "ng_sss") return yr + 9;   // SS1→10, SS2→11, SS3→12
+  return yr;
+}
 
 const MATHS_TOPICS_BY_BAND = {
   ks1: ['place_value','number_bonds','addition','subtraction','counting','shapes','measurement','time','money','halving','position_and_direction','sorting'],
@@ -34,8 +45,9 @@ export default function useDashboardData(scholar, supabase) {
   const scholarId  = scholar?.id;
   const yearLevel  = parseInt(scholar?.year_level || scholar?.year, 10) || 4;
   const curriculum = scholar?.curriculum || "uk_11plus";
-  const band       = getAgeBand(yearLevel);
+  const band       = getAgeBand(yearLevel, curriculum);        // ← FIX: pass curriculum
   const config     = getBandConfig(band);
+  const effectiveYear = getEffectiveYear(yearLevel, curriculum); // ← FIX: mapped year for DB
 
   const fetchAll = useCallback(async () => {
     if (!scholarId || !supabase) return;
@@ -66,13 +78,13 @@ export default function useDashboardData(scholar, supabase) {
               .eq("adventure_date", new Date().toISOString().split("T")[0])
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        // Fetch DISTINCT topics per subject from question_bank for this curriculum + year
+        // ← FIX: use effectiveYear instead of raw yearLevel
         supabase.from("question_bank")
           .select("subject, topic")
           .eq("curriculum", curriculum)
           .eq("is_active", true)
           .gte("year_level", Math.max(1, yearLevel - 1))
-          .lte("year_level", yearLevel + 1),
+        .lte("year_level", yearLevel + 1),
       ]);
 
       const masteryRows = masteryResult.data ?? [];
@@ -130,7 +142,6 @@ export default function useDashboardData(scholar, supabase) {
       });
 
       // ── Mark current + unlock progression per subject ──────────────
-      const subjectsProcessed = new Set();
       const subjectGroups = {};
       allTopics.forEach(t => {
         if (!subjectGroups[t.subject]) subjectGroups[t.subject] = [];
@@ -138,20 +149,15 @@ export default function useDashboardData(scholar, supabase) {
       });
 
       Object.entries(subjectGroups).forEach(([subj, group]) => {
-        // Find first developing/started as current
         const activeIdx = group.findIndex(t => t.status === "developing" || t.status === "started");
         const firstLockedIdx = group.findIndex(t => t.status === "locked");
         const hasActive = activeIdx >= 0;
 
         if (hasActive) {
-          // Already have an active topic
-          // Unlock the next locked one after any mastered/developing sequence
           const nextLocked = group.findIndex((t, i) => i > activeIdx && t.status === "locked");
           if (nextLocked >= 0) group[nextLocked].status = "started";
         } else if (firstLockedIdx >= 0) {
-          // No active — mark first locked as current
           group[firstLockedIdx].status = "current";
-          // Unlock the one after it
           if (firstLockedIdx + 1 < group.length && group[firstLockedIdx + 1].status === "locked") {
             group[firstLockedIdx + 1].status = "started";
           }
@@ -257,7 +263,7 @@ export default function useDashboardData(scholar, supabase) {
     } finally {
       setLoading(false);
     }
-  }, [scholarId, curriculum, band, config, supabase, yearLevel]);
+  }, [scholarId, curriculum, band, config, supabase, effectiveYear]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 

@@ -690,10 +690,13 @@ export default function ParentDashboard() {
             <DashIcon size={20} />
             Mission Control
           </Link>
-          <Link href="/dashboard/parent" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+          <button
+            onClick={() => { const el = document.getElementById("scholars-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors text-left"
+          >
             <StudentsIcon size={20} />
             Scholars
-          </Link>
+          </button>
           <Link href="/dashboard/parent/analytics" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
             <MilestoneIcon size={20} />
             Milestones
@@ -968,7 +971,7 @@ export default function ParentDashboard() {
             )}
 
             {/* Scholar grid + Add Scholar card */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="scholars-section" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
               {/* Scholar cards */}
               {scholars.length === 0 ? (

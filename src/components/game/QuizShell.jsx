@@ -62,7 +62,8 @@ const SUBJECT_LABELS = {
 };
 
 export function getSubjectLabels(subject) {
-  return SUBJECT_LABELS[subject?.toLowerCase()] || {
+  const key = typeof subject === "string" ? subject.toLowerCase() : String(subject || "").toLowerCase();
+return SUBJECT_LABELS[key] || {
     header: `${subject || "Study"} Mission`,
     scenario: "Study Material",
     loading: "Preparing your mission…",
@@ -173,7 +174,7 @@ export function EngineLoading({ Icon, accent, title, subtitle }) {
 // Image 8 inspired: subject chip | Q counter | timer pill | progress bar
 export function EngineHeader({
   Icon, bg, border, textColor, accent, btnClass,
-  label, qIdx = 0, totalQuestions = 10, timeLeft, onClose,
+  label, qIdx = 0, totalQuestions = 20, timeLeft, onClose,
   // new props (optional, falls back gracefully)
   subject, total, yearLevel, totalTime,
 }) {
@@ -364,7 +365,7 @@ export function FeedbackArea({
 //   Where you lost marks (expandable) | Difficulty rating | XP earned
 export function EngineFinished({
   Icon, accent, textColor, btnClass,
-  finalScore = 0, totalQuestions = 10,
+  finalScore = 0, totalQuestions = 20,
   title = "Mission Debrief",
   onClose,
   // new props (optional — won't break if not passed)

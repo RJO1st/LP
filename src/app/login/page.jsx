@@ -7,7 +7,7 @@
  * Forgot access code: sends email to parent with all their scholars' codes
  */
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
@@ -33,10 +33,22 @@ function LoginForm() {
   const [loginType, setLoginType] = useState(typeFromUrl === "scholar" ? "scholar" : "parent");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accessCode, setAccessCode] = useState("");
+  const [accessCode, setAccessCode] = useState("QUEST-");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [rememberEmail, setRememberEmail] = useState(false);
+  const [rememberCode, setRememberCode] = useState(false);
+
+  // Load remembered credentials on mount
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("lp_remember_email");
+      if (savedEmail) { setEmail(savedEmail); setRememberEmail(true); }
+      const savedCode = localStorage.getItem("lp_remember_code");
+      if (savedCode) { setAccessCode(savedCode); setRememberCode(true); }
+    } catch (_) { /* localStorage unavailable */ }
+  }, []);
 
   // Forgot password (parent)
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -61,6 +73,11 @@ function LoginForm() {
       });
 
       if (signInError) throw signInError;
+      // Remember email preference
+      try {
+        if (rememberEmail) localStorage.setItem("lp_remember_email", email.trim());
+        else localStorage.removeItem("lp_remember_email");
+      } catch (_) {}
       router.push("/dashboard/parent");
     } catch (err) {
       setError(err.message || "Invalid login credentials");
@@ -75,9 +92,11 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const code = accessCode.trim().toUpperCase();
+      let code = accessCode.trim().toUpperCase();
+      // Ensure QUEST- prefix is present
+      if (!code.startsWith("QUEST-")) code = "QUEST-" + code.replace(/^QUEST-?/i, "");
 
-      if (!code) throw new Error("Please enter your access code.");
+      if (!code || code === "QUEST-") throw new Error("Please enter your 4-digit code.");
 
       const { data: scholars, error: fetchError } = await supabase
         .from("scholars")
@@ -90,6 +109,12 @@ function LoginForm() {
 
       const scholar = scholars[0];
 
+      // Remember code preference
+      try {
+        if (rememberCode) localStorage.setItem("lp_remember_code", code);
+        else localStorage.removeItem("lp_remember_code");
+      } catch (_) {}
+
       localStorage.setItem("active_scholar", JSON.stringify(scholar));
       localStorage.setItem("scholar_login", "true");
       router.push("/dashboard/student");
@@ -99,19 +124,22 @@ function LoginForm() {
     }
   };
 
-  // ── Forgot password (parent) ──────────────────────────────────────
+  // ── Forgot password (parent) — sends via Brevo ───────────────────
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        resetEmail.trim(),
-        { redirectTo: `${window.location.origin}/reset-password` }
-      );
+      const res = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim() }),
+      });
 
-      if (resetError) throw resetError;
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to send reset email");
+
       setResetSent(true);
     } catch (err) {
       setError(err.message || "Failed to send reset email");
@@ -313,7 +341,12 @@ function LoginForm() {
                     className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
                 </div>
 
-                <div className="text-right">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={rememberEmail} onChange={(e) => setRememberEmail(e.target.checked)}
+                      className="w-4 h-4 rounded bg-slate-600 border-slate-500 text-indigo-500 focus:ring-indigo-500 accent-indigo-500" />
+                    <span className="text-sm text-slate-400">Remember email</span>
+                  </label>
                   <button type="button"
                     onClick={() => { setShowForgotPassword(true); setResetEmail(email); setError(null); }}
                     className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">
@@ -331,26 +364,38 @@ function LoginForm() {
               <form onSubmit={handleScholarLogin} className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-300 mb-1.5">Access Code</label>
-                  <input type="text" required placeholder="E.G. QUEST-1234" value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base tracking-wider text-center uppercase" />
+                  <div className="flex items-center gap-0 rounded-xl bg-slate-700 border border-slate-600 focus-within:ring-2 focus-within:ring-indigo-500 overflow-hidden">
+                    <span className="pl-4 pr-1 py-3 text-base font-bold text-indigo-400 tracking-wider select-none shrink-0">QUEST-</span>
+                    <input type="text" required placeholder="1234" maxLength={4}
+                      value={accessCode.startsWith("QUEST-") ? accessCode.slice(6) : accessCode}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+                        setAccessCode("QUEST-" + digits);
+                      }}
+                      className="flex-1 px-1 py-3 bg-transparent text-white placeholder:text-slate-400 outline-none text-base tracking-[0.3em] text-center font-bold" />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                    Your parent gave you this code when they added you
+                    Just type the 4 digits — your parent gave you this code
                   </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={rememberCode} onChange={(e) => setRememberCode(e.target.checked)}
+                      className="w-4 h-4 rounded bg-slate-600 border-slate-500 text-indigo-500 focus:ring-indigo-500 accent-indigo-500" />
+                    <span className="text-sm text-slate-400">Remember my code</span>
+                  </label>
+                  <button type="button"
+                    onClick={() => { setShowForgotCode(true); setError(null); }}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">
+                    Forgot code?
+                  </button>
                 </div>
 
                 <button type="submit" disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
                   {loading ? "Signing in..." : "Sign In"}
                 </button>
-
-                <div className="text-center">
-                  <button type="button"
-                    onClick={() => { setShowForgotCode(true); setError(null); }}
-                    className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">
-                    Forgot access code?
-                  </button>
-                </div>
               </form>
             )}
 

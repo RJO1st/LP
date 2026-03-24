@@ -37,7 +37,7 @@ export async function createJournalEntry(supabase, {
     // Try the DB function first (created by quest_journal_migration.sql)
     const { error } = await supabase.rpc('create_journal_entry', {
       p_scholar_id: scholarId,
-      p_subject:    subject || 'maths',
+      p_subject:    subject || 'mathematics',
       p_topic:      topic || 'general',
       p_score:      score ?? 0,
       p_total:      total ?? 10,
@@ -88,7 +88,7 @@ async function createJournalEntryClientSide(supabase, {
     scholar_id: scholarId,
     entry_text: entry,
     icon,
-    subject: subject || 'maths',
+    subject: subject || 'mathematics',
     topic:   topic || 'general',
     entry_type: 'quest_complete',
     metadata: { score, total, year_level: yearLevel },

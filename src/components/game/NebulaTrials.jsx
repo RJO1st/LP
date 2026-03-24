@@ -959,7 +959,11 @@ export default function NebulaTrials({ student, onClose, onXPEarned }) {
   return (
     <div
       className="fixed inset-0 z-[8000] flex items-center justify-center"
-      style={{ background: "radial-gradient(ellipse at 50% 0%, #1e1b4b 0%, #0f0e1a 60%, #000 100%)" }}
+      style={{
+        backgroundColor: "#000",
+        background: "radial-gradient(ellipse at 50% 0%, #1e1b4b 0%, #0f0e1a 60%, #000 100%)",
+        isolation: "isolate",
+      }}
     >
       {STARS_BG.map((s, i) => (
         <div key={i} className="absolute rounded-full bg-white pointer-events-none opacity-50"
@@ -968,7 +972,7 @@ export default function NebulaTrials({ student, onClose, onXPEarned }) {
 
       <div
         className="relative w-full h-full sm:max-w-sm sm:max-h-[760px] sm:rounded-3xl overflow-hidden flex flex-col"
-        style={{ background: "rgba(15,14,26,0.97)", border: "1.5px solid rgba(99,102,241,0.3)" }}
+        style={{ backgroundColor: "#0f0e1a", background: "#0f0e1a", border: "1.5px solid rgba(99,102,241,0.3)" }}
       >
         {screen === "menu" && (
           <ModeSelect student={student} onSelect={startMode} onClose={onClose} />

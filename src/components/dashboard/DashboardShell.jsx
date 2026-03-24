@@ -48,7 +48,7 @@ const NAV_CONFIG = {
     items: [
       { icon: "rocket_launch", emoji: "🚀", label: "Missions", key: "mission" },
       { icon: "public", emoji: "🪐", label: "Galaxy Map", key: "galaxy" },
-      { icon: "bolt", emoji: "⚡", label: "Nebula Trials", key: "nebula", action: "nebula-trials", minYear: 3 },
+      { icon: "grid_view", emoji: "✖️", label: "Nebula Trials", desc: "Times Tables", key: "nebula", action: "nebula-trials", minYear: 3 },
       { icon: "military_tech", emoji: "🏅", label: "Medals", key: "trophies" },
       { icon: "leaderboard", emoji: "📊", label: "Rankings", key: "stats" },
     ],
@@ -204,7 +204,12 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
               ) : (
                 <MIcon name={item.icon} filled={active} size={20} />
               )}
-              <span>{item.label}</span>
+              <div className="flex flex-col items-start">
+                <span>{item.label}</span>
+                {item.desc && (
+                  <span className="text-[10px] font-medium opacity-60 -mt-0.5">{item.desc}</span>
+                )}
+              </div>
             </button>
           );
         })}
@@ -265,6 +270,7 @@ function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
               )}
             </div>
             <span className="text-[9px] font-bold uppercase tracking-[0.06em] mt-1" style={{ lineHeight: 1 }}>{item.label}</span>
+            {item.desc && <span className="text-[7px] font-semibold opacity-50 mt-0.5" style={{ lineHeight: 1 }}>{item.desc}</span>}
           </button>
         );
       })}

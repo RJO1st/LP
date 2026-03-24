@@ -221,7 +221,7 @@ const processTemplateString = (str, vars) => {
 };
 
 const getExplanationForQuestion = (question) => {
-  if (!question?.vars || !question?.topic || question.subject !== 'maths') return null;
+  if (!question?.vars || !question?.topic || (question.subject !== 'mathematics' && question.subject !== 'maths')) return null;
   const { vars, topic } = question;
   const baseTopic = topic.split('_')[0];
   const availableTemplates = Object.keys(mathsTemplates)
@@ -258,7 +258,7 @@ const generateLocalMaths = (year) => {
   const w2 = typeof ans === 'number' ? Math.max(1, ans - rand(1, 3)) : ans;
   const w3 = typeof ans === 'number' ? ans + 10 : ans;
   const opts = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-  return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', hints: ["Think step by step."], vars: { a, b }, topic });
+  return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', hints: ["Think step by step."], vars: { a, b }, topic });
 };
 
 const generateLocalEnglish = (year) => {
@@ -292,9 +292,9 @@ const generateSessionQuestions = async (student, subject, tier, count) => {
   const qs = [];
   const year = student?.year_level || student?.year || 4;
   for (let i = 0; i < count; i++) {
-    if (subject === 'maths') qs.push(generateLocalMaths(year));
+    if (subject === 'mathematics' || subject === 'maths') qs.push(generateLocalMaths(year));
     else if (subject === 'english') qs.push(generateLocalEnglish(year));
-    else if (subject === 'verbal') qs.push(generateLocalVerbal(year));
+    else if (subject === 'verbal_reasoning' || subject === 'verbal') qs.push(generateLocalVerbal(year));
     else if (subject === 'nvr') qs.push(generateLocalNVR(year));
     else qs.push(generateLocalMaths(year)); // fallback
   }
@@ -431,7 +431,7 @@ const LOCAL_TARA_FEEDBACK = (text, subject, scholarName, scholarYear) => {
     history:   `Tara: Good thinking, ${name}! Try to mention specific historical evidence, dates, or cause-and-effect relationships. 📜`,
   };
 
-  const sub        = subject in keys ? subject : "maths";
+  const sub        = subject in keys ? subject : (subject === "mathematics" && "maths" in keys) ? "maths" : "maths";
   const hasKeyword = keys[sub].some(k => lower.includes(k));
   if (hasKeyword) { const arr = pos[sub]; return arr[Math.floor(Math.random() * arr.length)]; }
   return nudge[sub] || nudge.maths;
@@ -702,7 +702,7 @@ function dbRowToQuestion(row, fallbackSubject) {
     opts,
     a:             correctAnswer,
     exp:           data.explanation    ?? "",
-    subject:       row.subject        ?? fallbackSubject ?? "maths",
+    subject:       row.subject        ?? fallbackSubject ?? "mathematics",
     topic:         data.topic          ?? "general",
     hints,
     type:          qType,
@@ -761,7 +761,7 @@ const validateAndFixQuestion = (question, questionIndex) => {
 export default function QuizEngine({
   world = "test",
   student = { id: "123", name: "Test Cadet", year: 4, proficiency: 50 },
-  subject = "maths",
+  subject = "mathematics",
   curriculum: curriculumProp = "uk_national",
   onClose,
   onComplete,
@@ -842,7 +842,7 @@ export default function QuizEngine({
     
     const year = student?.year_level || student?.year ? parseInt(student.year_level || student.year, 10) : 4;
     const curriculum  = curriculumProp || student?.curriculum || "uk_national";
-    const safeSubject = subject || "maths";
+    const safeSubject = subject || "mathematics";
     
     let questions = [];
 
@@ -1060,7 +1060,7 @@ export default function QuizEngine({
     const currQ = sessionQuestions[qIdx];
     const fb = await fetchTaraFeedback({
       text: eibText,
-      subject: currQ?.subject || subject || "maths",
+      subject: currQ?.subject || subject || "mathematics",
       correctAnswer: currQ?.opts?.[currQ.a] ?? currQ?.answer ?? "",
       scholarName: student?.name,
       scholarYear: parseInt(student?.year || 4),

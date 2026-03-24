@@ -234,12 +234,12 @@ export async function generateSessionQuestions(scholar, subject, difficultyTier 
     // ── Tier 2: Procedural fallback when DB comes up short ───────────────────
     const needed = count - questions.length;
     if (needed > 0) {
-      const s  = subject?.toLowerCase() || 'maths';
+      const s  = subject?.toLowerCase() || 'mathematics';
       const y  = parseInt(yearLevel, 10) || 3;
       const sy = normaliseStemYear(y);
       for (let i = 0; i < needed; i++) {
         let q;
-        if      (s === 'maths')                q = Math.random() > 0.7 ? generateRealWorldMaths(y) : generateLocalMaths(y);
+        if      (s === 'mathematics' || s === 'maths') q = Math.random() > 0.7 ? generateRealWorldMaths(y) : generateLocalMaths(y);
         else if (s === 'english')              q = generateLocalEnglish(y);
         else if (s === 'verbal')               q = generateLocalVerbal(y);
         else if (s === 'nvr')                  q = generateLocalNVR(y);
@@ -311,9 +311,9 @@ export const generateSession = async ({
 }) => {
   const mix = subject === 'mock'
     ? [
-        { s: 'maths',   n: Math.ceil(count  * 0.35) },
-        { s: 'english', n: Math.ceil(count  * 0.35) },
-        { s: 'verbal',  n: Math.floor(count * 0.15) },
+        { s: 'mathematics', n: Math.ceil(count  * 0.35) },
+        { s: 'english',     n: Math.ceil(count  * 0.35) },
+        { s: 'verbal_reasoning', n: Math.floor(count * 0.15) },
         { s: 'nvr',     n: Math.floor(count * 0.15) },
       ]
     : [{ s: subject, n: count }];
@@ -365,9 +365,9 @@ export const generateSession = async ({
       const sy = normaliseStemYear(year); // normalise for STEM generators (use SS1/2/3 keys)
       for (let i = 0; i < afterTier1; i++) {
         let q;
-        if      (s === 'maths')   q = Math.random() > 0.7 ? generateRealWorldMaths(year) : generateLocalMaths(year);
+        if      (s === 'mathematics' || s === 'maths') q = Math.random() > 0.7 ? generateRealWorldMaths(year) : generateLocalMaths(year);
         else if (s === 'english') q = generateLocalEnglish(year);
-        else if (s === 'verbal')  q = generateLocalVerbal(year);
+        else if (s === 'verbal_reasoning' || s === 'verbal')  q = generateLocalVerbal(year);
         else if (s === 'nvr')     q = generateLocalNVR(year);
         else if (s === 'science')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalBiology(sy);
         else if (s === 'physics')   q = year <= 6 ? generatePrimaryScience(year) : generateLocalPhysics(sy);
@@ -485,7 +485,7 @@ export const mathsTemplates = {
 };
 
 export const getExplanationForQuestion = (question) => {
-  if (!question?.vars || !question?.topic || question.subject !== 'maths') return null;
+  if (!question?.vars || !question?.topic || (question.subject !== 'mathematics' && question.subject !== 'maths')) return null;
   const { vars, topic } = question;
   const baseTopic = topic.split('_')[0];
   const availableTemplates = Object.keys(mathsTemplates)
@@ -555,7 +555,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
 
     const w1 = ans + 1, w2 = Math.max(0, ans - 1), w3 = ans + 2;
     const options = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-    return safeQuestionBuilder(q, ans, options, { exp, subject: 'maths', visual, hints: ["Count carefully."], vars: { a: a || 0, b: b || 0 }, topic });
+    return safeQuestionBuilder(q, ans, options, { exp, subject: 'mathematics', visual, hints: ["Count carefully."], vars: { a: a || 0, b: b || 0 }, topic });
   }
 
   // ── YEAR 3 ──────────────────────────────────────────────────────────────────
@@ -583,18 +583,18 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
       q   = `What is 1/${den} of ${total}?`;
       exp = `Divide ${total} by ${den} to find 1/${den} of it. ${total} ÷ ${den} = ${ans}.`;
       const opts = shuffle([String(ans), String(ans + 1), String(ans * 2), String(Math.max(1, ans - 1))]);
-      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', topic, hints: ["Divide by the denominator."], vars: { a: total, b: den } });
+      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', topic, hints: ["Divide by the denominator."], vars: { a: total, b: den } });
     } else {
       const l = rand(3, 10), w = rand(2, 8); ans = 2 * (l + w); topic = 'perimeter';
       q   = `A rectangle is ${l}cm long and ${w}cm wide. What is its perimeter?`;
       exp = `Perimeter = 2 × (length + width) = 2 × (${l} + ${w}) = 2 × ${l + w} = ${ans}cm.`;
       const opts = shuffle([`${ans}cm`, `${ans + 2}cm`, `${l * w}cm`, `${ans - 4}cm`]);
-      return safeQuestionBuilder(q, `${ans}cm`, opts, { exp, subject: 'maths', topic, hints: ["Add all sides."], vars: { a: l, b: w } });
+      return safeQuestionBuilder(q, `${ans}cm`, opts, { exp, subject: 'mathematics', topic, hints: ["Add all sides."], vars: { a: l, b: w } });
     }
 
     const w1 = ans + rand(2, 5), w2 = Math.max(1, ans - rand(1, 3)), w3 = ans + 10;
     const opts = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', visual, hints: ["Think step by step."], vars: { a, b }, topic });
+    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', visual, hints: ["Think step by step."], vars: { a, b }, topic });
   }
 
   // ── YEAR 4 ──────────────────────────────────────────────────────────────────
@@ -613,13 +613,13 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
       exp = `${num}/${den} = ${dec}. Divide ${num} by ${den} to get the decimal.`;
       const fmt = (n) => parseFloat(n.toFixed(3));
       const opts = shuffle([String(dec), String(fmt(dec + 0.1)), String(fmt(dec + 0.25)), String(fmt(Math.max(0.05, dec - 0.1)))]);
-      return safeQuestionBuilder(q, dec, opts, { exp, subject: 'maths', topic, hints: ["Divide numerator by denominator."], vars: { a: num, b: den } });
+      return safeQuestionBuilder(q, dec, opts, { exp, subject: 'mathematics', topic, hints: ["Divide numerator by denominator."], vars: { a: num, b: den } });
     } else if (r < 0.65) {
       const l = rand(3, 12), w = rand(2, 9); ans = l * w; topic = 'area';
       q   = `What is the area of a rectangle ${l}cm × ${w}cm?`;
       exp = `Area = length × width = ${l} × ${w} = ${ans}cm².`;
       const opts = shuffle([`${ans}cm²`, `${2 * (l + w)}cm²`, `${ans + l}cm²`, `${ans - w}cm²`]);
-      return safeQuestionBuilder(q, `${ans}cm²`, opts, { exp, subject: 'maths', topic, hints: ["Area = length × width."], vars: { a: l, b: w } });
+      return safeQuestionBuilder(q, `${ans}cm²`, opts, { exp, subject: 'mathematics', topic, hints: ["Area = length × width."], vars: { a: l, b: w } });
     } else if (r < 0.8) {
       const neg = rand(-9, -1); ans = neg + 3; topic = 'negative_numbers';
       q   = `What number is 3 more than ${neg}?`;
@@ -638,7 +638,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
     const w2 = typeof ans === 'number' ? Math.max(1, ans - rand(1, 3)) : ans;
     const w3 = typeof ans === 'number' ? ans + 10                  : ans;
     const opts = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', hints: ["Think step by step."], vars: { a, b }, topic });
+    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', hints: ["Think step by step."], vars: { a, b }, topic });
   }
 
   // ── YEAR 5 ──────────────────────────────────────────────────────────────────
@@ -662,7 +662,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
       q = `${a} ÷ ${b} = ? (give quotient and remainder)`;
       exp = `${a} ÷ ${b} = ${Math.floor(a / b)} remainder ${rem}. Check: ${b}×${Math.floor(a / b)}=${b * Math.floor(a / b)}, ${b * Math.floor(a / b)}+${rem}=${a}. ✓`;
       const opts = shuffle([ans, `${Math.floor(a / b) + 1} r${rem}`, `${Math.floor(a / b)} r${rem + 1}`, `${Math.floor(a / b) - 1} r${rem}`]);
-      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', topic, hints: ["Divide, then check the remainder."], vars: { a, b } });
+      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', topic, hints: ["Divide, then check the remainder."], vars: { a, b } });
     } else if (r < 0.7) {
       const primes     = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
       const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25];
@@ -670,13 +670,13 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
       topic = 'prime_numbers'; ans = p2; a = p2; b = c1;
       q = `Which of these is a PRIME number?`;
       const opts = shuffle([String(p2), String(c1), String(c2), String(pick(composites.filter(x => x !== c1 && x !== c2)))]);
-      return safeQuestionBuilder(q, p2, opts, { exp: `A prime has exactly 2 factors: 1 and itself. ${p2} is prime.`, subject: 'maths', topic, hints: ["A prime has exactly 2 factors."], vars: { a, b } });
+      return safeQuestionBuilder(q, p2, opts, { exp: `A prime has exactly 2 factors: 1 and itself. ${p2} is prime.`, subject: 'mathematics', topic, hints: ["A prime has exactly 2 factors."], vars: { a, b } });
     } else if (r < 0.85) {
       const base = rand(4, 12), height = rand(3, 10); ans = (base * height) / 2; topic = 'area';
       q   = `A triangle has base ${base}cm and height ${height}cm. What is its area?`;
       exp = `Area of triangle = ½ × base × height = ½ × ${base} × ${height} = ${ans}cm².`;
       const opts = shuffle([`${ans}cm²`, `${base * height}cm²`, `${ans + base}cm²`, `${ans - height > 0 ? ans - height : ans + 3}cm²`]);
-      return safeQuestionBuilder(q, `${ans}cm²`, opts, { exp, subject: 'maths', topic, hints: ["Area of triangle = ½ × base × height."], vars: { a: base, b: height } });
+      return safeQuestionBuilder(q, `${ans}cm²`, opts, { exp, subject: 'mathematics', topic, hints: ["Area of triangle = ½ × base × height."], vars: { a: base, b: height } });
     } else {
       const dens2 = [[2,4],[3,6],[4,8],[2,6]]; const [d1, d2] = pick(dens2);
       const n1 = rand(1, d1 - 1), n2 = rand(1, d2 - 1);
@@ -690,14 +690,14 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
       q   = `${n1}/${d1} + ${n2}/${d2} = ?`;
       exp = `Convert to same denominator (${lcm}): ${n1}/${d1} = ${equiv1}/${lcm}. Then ${equiv1}/${lcm} + ${n2}/${lcm} = ${num_ans}/${lcm}${whole > 0 ? ` = ${ans}` : ""}`;
       const opts = shuffle([ans, `${n1 + n2}/${d1 + d2}`, `${num_ans + 1}/${lcm}`, `${Math.max(1, num_ans - 1)}/${lcm}`]);
-      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', topic, hints: ["Find a common denominator first."], vars: { a, b } });
+      return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', topic, hints: ["Find a common denominator first."], vars: { a, b } });
     }
 
     const w1 = typeof ans === 'number' ? ans + rand(3, 8)          : ans;
     const w2 = typeof ans === 'number' ? Math.max(1, ans - rand(2, 5)) : ans;
     const w3 = typeof ans === 'number' ? ans + 15                  : ans;
     const opts = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', hints: ["Think step by step."], vars: { a, b }, topic });
+    return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', hints: ["Think step by step."], vars: { a, b }, topic });
   }
 
   // ── YEAR 6 ──────────────────────────────────────────────────────────────────
@@ -720,7 +720,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
     q   = `Volume of cuboid ${l}cm × ${w}cm × ${h}cm = ?`;
     exp = `V = l × w × h = ${l} × ${w} × ${h} = ${vol}cm³.`;
     const opts = shuffle([`${vol}cm³`, `${l * w + h}cm³`, `${(l + w + h) * 2}cm³`, `${vol + 10}cm³`]);
-    return safeQuestionBuilder(q, `${vol}cm³`, opts, { exp, subject: 'maths', topic, hints: ["V = l × w × h."], vars: { a: l, b: w } });
+    return safeQuestionBuilder(q, `${vol}cm³`, opts, { exp, subject: 'mathematics', topic, hints: ["V = l × w × h."], vars: { a: l, b: w } });
   } else if (r < 0.68) {
     const nums = Array.from({ length: 4 }, () => rand(2, 15));
     const sum  = nums.reduce((a, b) => a + b, 0);
@@ -743,7 +743,7 @@ export const generateLocalMaths = (year, difficultyMultiplier = 1) => {
   const w2 = typeof ans === 'number' ? Math.max(1, ans - rand(2, 5)) : ans;
   const w3 = typeof ans === 'number' ? ans + 15                  : ans;
   const opts = shuffle([String(ans), String(w1), String(w2), String(w3)]);
-  return safeQuestionBuilder(q, ans, opts, { exp, subject: 'maths', hints: ["Think step by step."], vars: { a, b }, topic });
+  return safeQuestionBuilder(q, ans, opts, { exp, subject: 'mathematics', hints: ["Think step by step."], vars: { a, b }, topic });
 };
 
 // ─── REAL WORLD MATHS ─────────────────────────────────────────────────────────
@@ -760,7 +760,7 @@ export const generateRealWorldMaths = (year, difficultyMultiplier = 1) => {
   const exp = `You need £${cost}. After ${weeksNeeded} weeks you'd have £${savingsPerWeek * weeksNeeded}. (${cost} ÷ ${savingsPerWeek} = ${exact}, round up.) Answer: ${weeksNeeded} weeks.`;
   const w1 = weeksNeeded + 1, w2 = Math.max(1, weeksNeeded - 1), w3 = weeksNeeded + 2;
   const opts = shuffle([String(weeksNeeded), String(w1), String(w2), String(w3)]);
-  return safeQuestionBuilder(q, weeksNeeded, opts, { exp, hints: ["Use division.", "Round up if needed."], subject: 'maths', isRealWorld: true, vars: { a: cost, b: savingsPerWeek }, topic: 'division' });
+  return safeQuestionBuilder(q, weeksNeeded, opts, { exp, hints: ["Use division.", "Round up if needed."], subject: 'mathematics', isRealWorld: true, vars: { a: cost, b: savingsPerWeek }, topic: 'division' });
 };
 
 // ─── ENGLISH READING PASSAGES (Year 5–6) ─────────────────────────────────────

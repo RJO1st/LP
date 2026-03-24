@@ -16,7 +16,8 @@
  *
  * USAGE:
  *   <KeyboardShortcuts
- *     yearLevel={student.year_level}
+  yearLevel={student?.year_level}
+  curriculum={curriculum}
  *     onSelectOption={(idx) => setSelected(idx)}
  *     onCheck={handleCheck}
  *     onNext={handleNext}
@@ -43,7 +44,7 @@ export default function KeyboardShortcuts({
   disabled = false,
   children,
 }) {
-  const band = getAgeBand(yearLevel, scholar?.curriculum);
+  const band = getAgeBand(yearLevel);
   const active = band === "ks3" || band === "ks4";
 
   const handleKey = useCallback(
