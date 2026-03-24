@@ -153,9 +153,10 @@ function CosmicParticles({ band }) {
 }
 
 // ── Side Navigation ─────────────────────────────────────────────────────────
-function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest }) {
+function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAction, navItems }) {
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
   const isDark = cfg.dark;
+  const items = navItems || cfg.items;
 
   return (
     <aside
@@ -184,7 +185,7 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest }) {
 
       {/* Nav items */}
       <nav className="flex-1 space-y-1 px-1">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const active = activeTab === item.key;
           return (
             <button
@@ -228,9 +229,10 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest }) {
 }
 
 // ── Bottom Tab Bar (mobile) ─────────────────────────────────────────────────
-function BottomTabs({ band, activeTab, onTabChange }) {
+function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
   const isDark = cfg.dark;
+  const items = navItems || cfg.items;
 
   return (
     <nav
@@ -241,7 +243,7 @@ function BottomTabs({ band, activeTab, onTabChange }) {
         borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}`,
       }}
     >
-      {navItems.slice(0, 5).map((item) => {
+      {items.slice(0, 5).map((item) => {
         const active = activeTab === item.key;
         return (
           <button
@@ -342,7 +344,7 @@ export default function DashboardShell({
       <CosmicParticles band={band} />
 
       <SideNav band={band} activeTab={activeTab} onTabChange={onTabChange}
-        scholarName={scholarName} onStartQuest={onStartQuest} />
+        scholarName={scholarName} onStartQuest={onStartQuest} onAction={onAction} navItems={navItems} />
 
       {/* Top Bar */}
       <header
@@ -433,7 +435,7 @@ export default function DashboardShell({
         </div>
       </div>
 
-      <BottomTabs band={band} activeTab={activeTab} onTabChange={onTabChange} />
+      <BottomTabs band={band} activeTab={activeTab} onTabChange={onTabChange} onAction={onAction} navItems={navItems} />
 
       <style>{`
         @keyframes cosmic-drift {
