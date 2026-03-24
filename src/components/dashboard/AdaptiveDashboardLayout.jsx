@@ -40,7 +40,7 @@
  * DashboardShell v4 provides responsive chrome.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, lazy, Suspense } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import DashboardShell, { MIcon, NAV_CONFIG } from "./DashboardShell";
 
@@ -70,6 +70,7 @@ import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
 import StickerCollection from "./StickerCollection";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
+const NebulaTrials = lazy(() => import("@/components/game/NebulaTrials"));
 import { formatGradeLabel } from "@/lib/gamificationEngine";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -371,6 +372,12 @@ export default function AdaptiveDashboardLayout({
   const [activeTab, setActiveTab] = useState(
     band === "ks1" ? "adventure" : band === "ks2" ? "mission" : band === "ks4" ? "exams" : "mission"
   );
+  const [showNebulaTrials, setShowNebulaTrials] = useState(false);
+
+  // Handle nav actions (e.g. opening modals from nav buttons)
+  const handleNavAction = (action) => {
+    if (action === "nebula-trials") setShowNebulaTrials(true);
+  };
 
   const subjectMastery = useMemo(() => {
     const rows = masteryData.filter(r => (r.subject || "").toLowerCase() === (activeSubject || "").toLowerCase());
@@ -380,6 +387,8 @@ export default function AdaptiveDashboardLayout({
   }, [masteryData, activeSubject, stats]);
 
   const isFreeTier = effectiveTier === "free";
+  // Exam mode is only active when parent explicitly enrolled scholar in a valid exam mode (e.g. "eleven_plus")
+  const hasActiveExamMode = scholar.exam_mode && scholar.exam_mode !== "none" && scholar.exam_mode !== "general";
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
   const isDark = cfg.dark;
   const gradeLabel = formatGradeLabel?.(scholar.year_level, scholar.curriculum) || `Year ${scholar.year_level || "?"}`;
@@ -694,8 +703,8 @@ export default function AdaptiveDashboardLayout({
               </div>
             </BandCard>
 
-            {/* Exam Mode Switch */}
-            {scholar.exam_mode !== undefined && (
+            {/* Exam Mode Switch — only for scholars with active exam mode (e.g. 11+) */}
+            {hasActiveExamMode && (
               <BandCard band={band}>
                 <ExamModeSwitch
                   currentMode={scholar.exam_mode || "general"}
@@ -853,7 +862,7 @@ export default function AdaptiveDashboardLayout({
             {/* ── 3-column Status Metrics ───────────────────────────── */}
             <div data-section="stats" style={{ height: 0, margin: 0, padding: 0 }} />
             {(() => {
-              const isExamMode = scholar.exam_mode && scholar.exam_mode !== "none" && scholar.exam_mode !== "general";
+              const isExamMode = hasActiveExamMode;
               return (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                   <BandCard band={band} glow>
@@ -1015,8 +1024,8 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── Exam Panel (only for scholars in exam mode) ──────── */}
-            {examData && scholar.exam_mode && scholar.exam_mode !== "none" && (
+            {/* ── Exam Panel (only for scholars enrolled in exam mode e.g. 11+) ──────── */}
+            {examData && hasActiveExamMode && (
               <BandCard band={band}>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Grade Trajectory</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Exam Intelligence</div>
@@ -1150,8 +1159,8 @@ export default function AdaptiveDashboardLayout({
       {/* All bands: Common sidebar items */}
       {band !== "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
 
-      {/* Exam panel only for KS3+ when exam mode is explicitly set */}
-      {band !== "ks4" && band !== "ks1" && band !== "ks2" && examData && <ExamPanel
+      {/* Exam panel only for KS3+ when parent explicitly enrolled scholar in exam mode */}
+      {band !== "ks4" && band !== "ks1" && band !== "ks2" && examData && hasActiveExamMode && <ExamPanel
         predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
         examName={examData.examName} daysUntilExam={examData.daysUntilExam}
         topicsRemaining={examData.topicsRemaining} mocksCompleted={examData.mocksCompleted}
@@ -1253,11 +1262,29 @@ export default function AdaptiveDashboardLayout({
         onTabChange={setActiveTab}
         onSignOut={onSignOut}
         onStartQuest={() => onStartQuest?.(activeSubject)}
+        onAction={handleNavAction}
+        yearLevel={scholar.year_level || 3}
         mainContent={mainContent}
         rightSidebar={rightSidebar}
         topBarLeft={topBarLeft}
         topBarRight={topBarRight}
       />
+      {/* Nebula Trials modal (KS2 Y3+) */}
+      {showNebulaTrials && (
+        <Suspense fallback={null}>
+          <NebulaTrials
+            student={scholar}
+            onClose={() => setShowNebulaTrials(false)}
+            onXPEarned={async (xp) => {
+              if (scholar?.id && xp > 0 && supabase) {
+                await supabase.from("scholar_skill_levels").upsert({
+                  scholar_id: scholar.id, subject: "maths", skill: "times_tables", xp_total: xp,
+                }, { onConflict: "scholar_id,subject,skill", ignoreDuplicates: false });
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

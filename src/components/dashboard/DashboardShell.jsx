@@ -48,6 +48,7 @@ const NAV_CONFIG = {
     items: [
       { icon: "rocket_launch", emoji: "🚀", label: "Missions", key: "mission" },
       { icon: "public", emoji: "🪐", label: "Galaxy Map", key: "galaxy" },
+      { icon: "bolt", emoji: "⚡", label: "Nebula Trials", key: "nebula", action: "nebula-trials", minYear: 3 },
       { icon: "military_tech", emoji: "🏅", label: "Medals", key: "trophies" },
       { icon: "leaderboard", emoji: "📊", label: "Rankings", key: "stats" },
     ],
@@ -183,12 +184,12 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest }) {
 
       {/* Nav items */}
       <nav className="flex-1 space-y-1 px-1">
-        {cfg.items.map((item) => {
+        {navItems.map((item) => {
           const active = activeTab === item.key;
           return (
             <button
               key={item.key}
-              onClick={() => { onTabChange(item.key); scrollToSection(item.key); }}
+              onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
               className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200"
               style={{
                 background: active ? cfg.accentBg : "transparent",
@@ -240,12 +241,12 @@ function BottomTabs({ band, activeTab, onTabChange }) {
         borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}`,
       }}
     >
-      {cfg.items.slice(0, 4).map((item) => {
+      {navItems.slice(0, 5).map((item) => {
         const active = activeTab === item.key;
         return (
           <button
             key={item.key}
-            onClick={() => { onTabChange(item.key); scrollToSection(item.key); }}
+            onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
             className="flex flex-col items-center justify-center rounded-xl transition-all"
             style={{
               color: active ? cfg.accent : cfg.textMuted,
@@ -277,12 +278,16 @@ export default function DashboardShell({
   onTabChange,
   onSignOut,
   onStartQuest,
+  onAction,
+  yearLevel = 3,
   mainContent,
   rightSidebar,
   topBarLeft,
   topBarRight,
 }) {
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
+  // Filter nav items by yearLevel (minYear support)
+  const navItems = cfg.items.filter((item) => !item.minYear || yearLevel >= item.minYear);
   const isDark = cfg.dark;
   const [showRightPanel, setShowRightPanel] = useState(false);
 
