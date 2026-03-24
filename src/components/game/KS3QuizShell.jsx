@@ -37,7 +37,7 @@ const CAREER_MAP = {
 };
 
 export default function KS3QuizShell({
-  question, options = [], passage, questionIndex = 0, totalQuestions = 15,
+  question, options = [], passage, questionIndex = 0, totalQuestions = 20,
   selectedAnswer, onSelect, onSubmit, onSkip, onClose,
   subjectLabel = "Science", xp = 0, timeLeft, streak = 0,
   taraHint, isCorrect, showResult, explanation, missionTitle,
@@ -290,9 +290,6 @@ export default function KS3QuizShell({
               🎯 {showMentor ? "Hide Mentor" : "Ask Mentor"}
             </button>
             <div className="flex items-center gap-3">
-              <button onClick={onSkip} className="text-sm text-white/15 hover:text-white/30 transition-colors">
-                Skip
-              </button>
               <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
                 className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{

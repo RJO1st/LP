@@ -389,12 +389,7 @@ export default function KS2QuizShell({
             marginTop: 20, paddingTop: 14,
             borderTop: `1px solid ${CYAN}08`,
           }}>
-            <button onClick={onSkip} style={{
-              fontSize: 11, color: `${CYAN}20`, background: "none", border: "none",
-              cursor: "pointer", fontWeight: 700, ...NB,
-            }}>
-              SKIP ▸
-            </button>
+            <div />
             <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
               style={{
                 padding: "10px 28px", borderRadius: 2,

@@ -42,7 +42,7 @@ const NAV_CONFIG = {
     bodyBg: "linear-gradient(165deg, #fef7ed 0%, #fef3e2 30%, #fdf2d1 50%, #fef9f0 100%)",
     cardBg: "rgba(255,255,255,0.9)",
     textPrimary: "#1e1b4b",
-    textMuted: "rgba(30,27,75,0.4)",
+    textMuted: "#7c6fdb",
     dark: false,
     font: "'Nunito', sans-serif",
     items: [

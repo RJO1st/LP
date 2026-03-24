@@ -1283,7 +1283,7 @@ const UK_NATIONAL_SUBJECTS = {
         curriculum={curriculum}
         onClose={() => setActiveSubject(null)}
         onComplete={handleQuestComplete}
-        questionCount={effectiveTier === "free" ? Math.min(10, 10 - todayQCount) : 20}
+        questionCount={effectiveTier === "free" ? Math.min(10, 10 - todayQCount) : undefined}
         previousQuestionIds={prevQuestionIds}
         taraEnabled={featureAccess.taraAI}
       />

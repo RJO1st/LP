@@ -510,17 +510,20 @@ export default function AdaptiveDashboardLayout({
               <div style={{ marginTop: 20 }}>
                 {/* Commander Stats Row */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                  <div style={{ textAlign: "center", padding: "14px 0", borderRadius: 12, background: "rgba(99,102,241,0.06)" }}>
+                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))", border: "1px solid rgba(99,102,241,0.15)" }}>
+                    <div style={{ fontSize: 12, marginBottom: 4 }}>✨</div>
                     <div style={{ fontSize: 28, fontWeight: 900, color: "#4f46e5" }}>{(stats.xp ?? 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6366f1", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: "14px 0", borderRadius: 12, background: "rgba(168,85,247,0.06)" }}>
+                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(217,70,239,0.06))", border: "1px solid rgba(168,85,247,0.15)" }}>
+                    <div style={{ fontSize: 12, marginBottom: 4 }}>🚀</div>
                     <div style={{ fontSize: 28, fontWeight: 900, color: "#7c3aed" }}>{stats.questsCompleted ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#8b5cf6", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: "14px 0", borderRadius: 12, background: "rgba(79,70,229,0.06)" }}>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#4338ca" }}>{stats.streak ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
+                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.06))", border: "1px solid rgba(245,158,11,0.15)" }}>
+                    <div style={{ fontSize: 12, marginBottom: 4 }}>🔥</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#d97706" }}>{stats.streak ?? 0}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#b45309", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
                   </div>
                 </div>
               </div>
@@ -602,7 +605,7 @@ export default function AdaptiveDashboardLayout({
                 <div style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: "#64748b",
+                  color: "#7c3aed",
                   marginTop: 8,
                   textTransform: "uppercase",
                 }}>
@@ -643,21 +646,21 @@ export default function AdaptiveDashboardLayout({
             <BandCard band={band} data-section="stats">
               <SectionHeader band={band} icon="📊" title="Key Stats" subtitle="mission intel" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(79,70,229,0.07)", border: "1px solid rgba(79,70,229,0.14)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accuracy</div>
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(79,70,229,0.1), rgba(99,102,241,0.04))", border: "1px solid rgba(79,70,229,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>🎯 Accuracy</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: "#4f46e5" }}>{stats.bestAccuracy ?? stats.accuracy ?? 0}%</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(124,58,237,0.07)", border: "1px solid rgba(124,58,237,0.14)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Mastery</div>
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(124,58,237,0.1), rgba(168,85,247,0.04))", border: "1px solid rgba(124,58,237,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>⭐ Mastery</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: "#7c3aed" }}>{subjectMastery.pct}%</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.14)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Topics</div>
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(37,99,235,0.1), rgba(59,130,246,0.04))", border: "1px solid rgba(37,99,235,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>🪐 Topics</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb" }}>{subjectMastery.count}</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.14)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Coins</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#d97706" }}>{coins}</div>
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.04))", border: "1px solid rgba(245,158,11,0.18)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>💰 Coins</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#b45309" }}>{coins}</div>
                 </div>
               </div>
             </BandCard>

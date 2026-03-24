@@ -45,26 +45,30 @@ export default function KS4QuizShell({
           <span className="text-lg font-bold tracking-tight text-white/90">KS4 Exam Studio</span>
           <div className="hidden md:flex items-center gap-4 text-xs">
             <span className="text-cyan-400 font-semibold underline underline-offset-4 decoration-cyan-400/50">Exam Mode</span>
-            <span className="text-white/30 hover:text-white/50 cursor-pointer">Mark Scheme</span>
-            <span className="text-white/30 hover:text-white/50 cursor-pointer">AI Tutor</span>
+            <button
+              onClick={() => {
+                // Scroll to mark scheme note if visible in left panel, otherwise toggle Tara panel
+                const msEl = document.getElementById("ks4-mark-scheme");
+                if (msEl) { msEl.scrollIntoView({ behavior: "smooth" }); msEl.style.outline = "2px solid rgba(0,229,195,0.5)"; setTimeout(() => { msEl.style.outline = "none"; }, 2000); }
+                else { setShowTaraPanel((p) => !p); }
+              }}
+              className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
+              title="View mark scheme notes & AI guidance"
+            >Mark Scheme</button>
+            <button
+              onClick={() => setShowTaraPanel((p) => !p)}
+              className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
+            >AI Tutor</button>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-[9px] text-white/30 uppercase tracking-wider">Grade Impact:</div>
-            <div className="text-sm font-bold text-amber-400">{gradeImpact}</div>
-          </div>
-          <div className="text-[10px] text-white/30 uppercase tracking-wider">PROJECTION BASED ON CURRENT PACE</div>
           {timeLeft != null && (
             <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               <span className="text-sm font-bold text-white tabular-nums">{formatTime(timeLeft)}</span>
             </div>
           )}
-          <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-xs text-white/40">
-            👤
-          </div>
           <button onClick={onClose} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors text-violet-400"
             style={{ fontSize: 14 }} title="Exit exam">
             ✕
@@ -72,17 +76,7 @@ export default function KS4QuizShell({
         </div>
       </header>
 
-      {/* ═══ SIDE ICON BAR (desktop) ════════════════════════════════ */}
       <div className="flex-1 flex overflow-hidden">
-        <aside className="hidden md:flex flex-col items-center gap-4 py-6 px-2 w-14 shrink-0"
-          style={{ background: "rgba(13,17,23,0.8)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
-          {["edit_note", "description", "view_list", "person", "help"].map((icon, i) => (
-            <button key={i} className="w-9 h-9 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/5 transition-colors"
-              style={i === 2 ? { background: "rgba(167,139,250,0.15)", color: "#a78bfa" } : {}}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{icon}</span>
-            </button>
-          ))}
-        </aside>
 
         {/* ─── LEFT: Case Study ────────────────────────────────── */}
         <div className="lg:w-1/2 overflow-y-auto p-6 md:p-10 flex-1 max-h-[38vh] lg:max-h-none" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
@@ -109,7 +103,7 @@ export default function KS4QuizShell({
 
               {/* Mark scheme note */}
               {markSchemeNote && (
-                <div className="rounded-lg p-4 mb-6" style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.12)" }}>
+                <div id="ks4-mark-scheme" className="rounded-lg p-4 mb-6" style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.12)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs">💎</span>
                     <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">MARK SCHEME NOTE:</span>
@@ -191,9 +185,6 @@ export default function KS4QuizShell({
               🤖 {showTaraPanel ? "Hide Tara" : "Ask Tara"}
             </button>
             <div className="flex items-center gap-3">
-              <button onClick={onSkip} className="p-2 rounded-lg text-white/15 hover:text-white/30 hover:bg-white/5">
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>flag</span>
-              </button>
               <button onClick={onSubmit} disabled={selectedAnswer == null && !showResult}
                 className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{ background: showResult ? "#a78bfa" : "linear-gradient(135deg, #a78bfa, #7c87f3)", color: "#0d1117" }}>
@@ -214,11 +205,13 @@ export default function KS4QuizShell({
                 </span>
               </div>
               <p className="text-sm text-violet-200/60 leading-relaxed">
-                {taraHint || "Consider the relationship between the variables. Which option is consistent with the underlying principle?"}
+                {taraHint || `Think carefully about this question. What key concept does it test?`}
               </p>
-              <button className="mt-3 text-xs text-violet-300 border border-violet-500/20 px-3 py-1.5 rounded-lg hover:bg-violet-500/10 transition-colors">
-                Explain the derivation?
-              </button>
+              {taraHint && (
+                <button className="mt-3 text-xs text-violet-300 border border-violet-500/20 px-3 py-1.5 rounded-lg hover:bg-violet-500/10 transition-colors">
+                  Tell me more about this
+                </button>
+              )}
             </div>
           )}
         </div>

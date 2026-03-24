@@ -452,7 +452,6 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
             fontWeight={800}
             fontFamily="'DM Sans', sans-serif"
             letterSpacing="0.15em"
-            textTransform="uppercase"
             style={{ pointerEvents: "none", userSelect: "none", textTransform: "uppercase" }}
           >
             {meta.label} CONSTELLATION
