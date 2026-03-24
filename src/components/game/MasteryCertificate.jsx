@@ -22,6 +22,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { X, Download, Share2, Star, Rocket, Award, CheckCircle, Trophy, Sparkles } from "lucide-react";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ── STAGE CONFIG ──────────────────────────────────────────────────────────────
 const MASTERY_STAGES = {
@@ -316,7 +317,7 @@ export default function MasteryCertificate({
               margin:"0 0 2px", letterSpacing:"-0.01em",
             }}>{topic}</p>
             <p style={{ color:"#64748b", fontSize:12, fontWeight:600, margin:0, textTransform:"capitalize" }}>
-              {subject.replace(/_/g," ")}
+              {getSubjectLabel(subject)}
             </p>
           </div>
 

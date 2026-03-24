@@ -26,6 +26,7 @@ import {
   REALMS,
 } from "@/lib/narrativeEngine";
 import { masteryToTier, masteryToPercent, masteryColour } from "@/lib/masteryEngine";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 export default function NarrativeIntro({
   scholar,
@@ -49,7 +50,7 @@ export default function NarrativeIntro({
 
   const tier         = masteryToTier(masteryScore);
   const masteryPct   = masteryToPercent(masteryScore);
-  const topicDisplay = topic?.replace(/_/g, " ") ?? subject;
+  const topicDisplay = topic ? topic.replace(/_/g, " ") : getSubjectLabel(subject);
 
   // Mission brief — tailored to mastery level
   const missionBrief = getMissionBrief(
@@ -79,11 +80,7 @@ export default function NarrativeIntro({
 
   if (!realm) {
     // No narrative realm for this subject yet — show a clean launch screen
-    const subjectLabel = {
-      verbal: "Verbal Reasoning", verbal_reasoning: "Verbal Reasoning",
-      nvr: "Non-Verbal Reasoning", non_verbal_reasoning: "Non-Verbal Reasoning",
-      computing: "Computing",
-    }[subject] || subject?.replace(/_/g, " ") || "Mission";
+    const subjectLabel = getSubjectLabel(subject) || "Mission";
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0e27] p-6">

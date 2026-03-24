@@ -17,6 +17,7 @@ import {
 } from "@/lib/analyticsEngine";
 import { estimateExamReadiness } from "@/lib/learningPathEngine";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 export default function ParentInsights({ parentId }) {
   const [supabase]    = useState(() => createBrowserClient(
@@ -74,7 +75,7 @@ export default function ParentInsights({ parentId }) {
   }
   const readiness = Object.entries(subjectGroups).map(([subject, records]) => ({
     subject,
-    displayName: subject.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    displayName: getSubjectLabel(subject),
     ...estimateExamReadiness(records, subject),
   }));
 

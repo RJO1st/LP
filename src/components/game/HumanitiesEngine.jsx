@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Globe, Scroll, Landmark, ArrowRight, CheckCircle, XCircle, Zap, MapPin, BookOpen, FileSearch } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import ContextPanel from "./ContextPanel";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 export default function HumanitiesEngine({
   student,
@@ -177,7 +178,7 @@ export default function HumanitiesEngine({
             </div>
             <div>
               <h2 className={`font-black leading-none uppercase tracking-wide ${theme.text}`}>
-                {subject.replace('_', ' ')} Source Analysis
+                {getSubjectLabel(subject)} Source Analysis
               </h2>
               <span className={`text-xs font-bold uppercase tracking-widest ${theme.accent}`}>
                 Question {qIdx + 1} of {normalizedQuestions.length}

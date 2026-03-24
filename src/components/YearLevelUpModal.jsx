@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { getSubjectLabel } from '@/lib/subjectDisplay';
 
 // Year-level flavour text — keeps it fresh across years
 const YEAR_FLAVOUR = {
@@ -140,7 +141,7 @@ export default function YearLevelUpModal({ scholar, subjectMastery = [], onDismi
               {topSubjects.map((s, i) => (
                 <MasteryBar
                   key={s.subject}
-                  label={s.label || s.subject.replace(/_/g, ' ')}
+                  label={s.label || getSubjectLabel(s.subject)}
                   score={s.avg_mastery}
                   colour={barColours[i % barColours.length]}
                 />

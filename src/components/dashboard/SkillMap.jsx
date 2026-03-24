@@ -8,6 +8,7 @@
 
 import React, { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { getSubjectLabel, getSubjectIcon, getSubjectColor } from "@/lib/subjectDisplay";
 
 const SUBJECT_META = {
   mathematics:        { label: "Maths",    icon: "🔢", color: "#6366f1" },
@@ -69,7 +70,7 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
         </span>
         {subjects.length <= 1 && (
           <span style={{ fontSize: 10, color: t.colours.textMuted, fontWeight: 500, fontFamily: t.fonts.body }}>
-            {SUBJECT_META[activeSubject]?.label || activeSubject}
+            {getSubjectLabel(activeSubject)}
           </span>
         )}
       </div>
@@ -81,7 +82,7 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
           paddingBottom: 2,
         }}>
           {subjects.map(subj => {
-            const meta = SUBJECT_META[subj] || { label: subj.replace(/_/g, " "), icon: "📚", color: "#6366f1" };
+            const meta = SUBJECT_META[subj] || { label: getSubjectLabel(subj), icon: "📚", color: "#6366f1" };
             const isActive = subj === activeSubject;
             return (
               <button
@@ -119,11 +120,38 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
           ))}
         </div>
       ) : (
-        <div style={{ textAlign: "center", padding: "20px 0" }}>
-          <span style={{ fontSize: 24 }}>🚀</span>
-          <p style={{ fontSize: 12, color: t.colours.textMuted, fontFamily: t.fonts.body, marginTop: 6 }}>
-            Start a quest in {SUBJECT_META[activeSubject]?.label || activeSubject} to see your progress
+        <div style={{ textAlign: "center", padding: "28px 16px" }}>
+          <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>
+            {band === "ks1" ? "🌟" : band === "ks2" ? "🚀" : band === "ks3" ? "💼" : "🎯"}
+          </span>
+          <p style={{ fontSize: band === "ks1" ? 14 : 13, fontWeight: 700, color: t.colours.text, fontFamily: t.fonts.display, marginBottom: 4 }}>
+            {band === "ks1" ? "Ready for an adventure?" : band === "ks2" ? "Mission awaits, Commander!" : band === "ks3" ? "Start your career challenge" : "Begin revision session"}
           </p>
+          <p style={{ fontSize: 12, color: t.colours.textMuted, fontFamily: t.fonts.body, marginBottom: 16 }}>
+            Launch a {band === "ks1" ? "quest" : band === "ks2" ? "mission" : band === "ks3" ? "challenge" : "session"} in {getSubjectLabel(activeSubject)} to build your progress
+          </p>
+          <button
+            onClick={() => onTopicClick?.({ subject: activeSubject, slug: activeSubject, label: getSubjectLabel(activeSubject), status: "current", mastery: 0 })}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: band === "ks1" ? "14px 28px" : "12px 24px",
+              borderRadius: band === "ks1" ? 999 : t.radius.button || 12,
+              background: t.colours.accent,
+              color: "#fff",
+              fontSize: band === "ks1" ? 15 : 14,
+              fontWeight: 800,
+              fontFamily: t.fonts.display,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: `0 4px 16px ${t.colours.accent}40`,
+              transition: "all 0.2s",
+            }}
+          >
+            <span style={{ fontSize: band === "ks1" ? 18 : 16 }}>
+              {band === "ks1" ? "✨" : band === "ks2" ? "🚀" : band === "ks3" ? "⚡" : "▶"}
+            </span>
+            {band === "ks1" ? "Start Adventure" : band === "ks2" ? "Launch Mission" : band === "ks3" ? "Start Challenge" : "Start Revision"}
+          </button>
         </div>
       )}
 
@@ -144,15 +172,15 @@ function TopicNode({ topic, band, theme: t, isDark, onClick }) {
     const heat = intensity > 0 ? `rgba(167,139,250,${intensity})` : "rgba(255,255,255,0.02)";
     return (
       <div onClick={() => !isLocked && onClick?.(topic)} style={{
-        width: "calc(20% - 4px)", background: heat,
+        width: "calc(16.66% - 3px)", background: heat,
         border: `1px solid ${topic.mastery > 0.7 ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.06)"}`,
-        borderRadius: 6, padding: "8px 6px", cursor: isLocked ? "default" : "pointer",
+        borderRadius: 5, padding: "5px 4px", cursor: isLocked ? "default" : "pointer",
         textAlign: "center", transition: "all 0.2s",
       }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: topic.mastery > 0 ? t.colours.text : t.colours.textMuted, fontFamily: t.fonts.body, lineHeight: 1.2 }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: topic.mastery > 0 ? t.colours.text : t.colours.textMuted, fontFamily: t.fonts.body, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {topic.label}
         </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: t.colours.accent, fontFamily: t.fonts.display, marginTop: 4 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: t.colours.accent, fontFamily: t.fonts.display, marginTop: 2 }}>
           {topic.mastery > 0 ? `${Math.round(topic.mastery * 100)}%` : "—"}
         </div>
       </div>

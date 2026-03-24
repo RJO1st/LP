@@ -18,6 +18,7 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 const MOCK_CONFIGS = {
   gcse: {
@@ -70,7 +71,7 @@ export default function MockTestLauncher({
   if (band === "ks1" || band === "ks2") return null;
 
   const config = MOCK_CONFIGS[examMode] || MOCK_CONFIGS.general;
-  const subjectLabel = (subject || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const subjectLabel = getSubjectLabel(subject);
   const lastMock = pastMocks.length > 0 ? pastMocks[0] : null;
 
   return (

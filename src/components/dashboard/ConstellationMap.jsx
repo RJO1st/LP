@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 /* ── Subject palette ────────────────────────────────────── */
 const SUBJECT_META = {
@@ -27,10 +28,10 @@ const SUBJECT_META = {
   chemistry: { label: "Chemistry", icon: "⚗️", color: "#f87171", glow: "#dc2626" },
   biology: { label: "Biology", icon: "🧬", color: "#4ade80", glow: "#16a34a" },
   social_studies: { label: "Social", icon: "🌍", color: "#22d3ee", glow: "#0891b2" },
-  civic_education: { label: "Civic Ed", icon: "🏛️", color: "#60a5fa", glow: "#2563eb" },
-  religious_studies: { label: "RE", icon: "📿", color: "#c084fc", glow: "#a855f7" },
-  religious_education: { label: "RE", icon: "📿", color: "#c084fc", glow: "#a855f7" },
-  design_and_technology: { label: "D&T", icon: "🔧", color: "#fbbf24", glow: "#b45309" },
+  civic_education: { label: "Civic Education", icon: "🏛️", color: "#60a5fa", glow: "#2563eb" },
+  religious_studies: { label: "Religious Studies", icon: "📿", color: "#c084fc", glow: "#a855f7" },
+  religious_education: { label: "Religious Education", icon: "📿", color: "#c084fc", glow: "#a855f7" },
+  design_and_technology: { label: "Design & Technology", icon: "🔧", color: "#fbbf24", glow: "#b45309" },
 };
 
 /* ── Constellation layout helpers ───────────────────────── */
@@ -38,7 +39,7 @@ const SUBJECT_META = {
 function layoutNodes(count, w, h) {
   if (count === 0) return [];
   const nodes = [];
-  const padX = 50, padY = 40;
+  const padX = 35, padY = 30;
   const usableW = w - padX * 2;
   const usableH = h - padY * 2;
 
@@ -50,12 +51,12 @@ function layoutNodes(count, w, h) {
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count - 1, 1);
-    // Spiral distribution — wider spread to avoid overlaps
-    const radius = (0.3 + t * 0.6) * Math.min(usableW, usableH) / 2;
+    // Spiral distribution — wide spread to fill the constellation area
+    const radius = (0.2 + t * 0.75) * Math.min(usableW, usableH) / 2;
     const angle = i * goldenAngle + (i % 3) * 0.35;
-    // Seed-based deterministic "randomness" for organic feel — more spacing
-    const jitterX = Math.sin(i * 7.3) * 22;
-    const jitterY = Math.cos(i * 11.7) * 18;
+    // Seed-based deterministic "randomness" for organic feel — generous spacing
+    const jitterX = Math.sin(i * 7.3) * 28;
+    const jitterY = Math.cos(i * 11.7) * 24;
     const x = centerX + Math.cos(angle) * radius + jitterX;
     const y = centerY + Math.sin(angle) * radius * 0.7 + jitterY;
     nodes.push({
@@ -64,8 +65,8 @@ function layoutNodes(count, w, h) {
     });
   }
 
-  // Push apart overlapping nodes (minimum 55px distance)
-  const MIN_DIST = 55;
+  // Push apart overlapping nodes (minimum 65px distance for readability)
+  const MIN_DIST = 65;
   for (let pass = 0; pass < 5; pass++) {
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -310,7 +311,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
     if (!containerRef.current) return;
     const obs = new ResizeObserver(entries => {
       for (const e of entries) {
-        setDims({ w: e.contentRect.width, h: Math.max(360, Math.min(480, e.contentRect.width * 0.8)) });
+        setDims({ w: e.contentRect.width, h: Math.max(400, Math.min(540, e.contentRect.width * 0.85)) });
       }
     });
     obs.observe(containerRef.current);
@@ -322,7 +323,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
     (!t.subject && activeSubject === (subject || subjects[0] || "mathematics"))
   );
 
-  const meta = SUBJECT_META[activeSubject] || { label: activeSubject, icon: "📚", color: "#a78bfa", glow: "#7c3aed" };
+  const meta = SUBJECT_META[activeSubject] || { label: getSubjectLabel(activeSubject), icon: "📚", color: "#a78bfa", glow: "#7c3aed" };
   const positions = useMemo(() => layoutNodes(filteredTopics.length, dims.w, dims.h), [filteredTopics.length, dims.w, dims.h]);
   const edges = useMemo(() => buildEdges(positions, filteredTopics.length), [positions, filteredTopics.length]);
 
@@ -345,7 +346,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
           paddingBottom: 2,
         }}>
           {subjects.map(subj => {
-            const m = SUBJECT_META[subj] || { label: subj.replace(/_/g, " "), icon: "📚", color: "#a78bfa" };
+            const m = SUBJECT_META[subj] || { label: getSubjectLabel(subj), icon: "📚", color: "#a78bfa" };
             const isActive = subj === activeSubject;
             return (
               <button

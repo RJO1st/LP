@@ -8,22 +8,12 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-
-const SUBJECT_LABELS = {
-  mathematics: "Maths", maths: "Maths", english: "English",
-  english_studies: "English", science: "Science", basic_science: "Science",
-  verbal_reasoning: "Verbal", non_verbal_reasoning: "Non-Verbal Reasoning",
-  history: "History", geography: "Geography", computing: "Computing",
-  physics: "Physics", chemistry: "Chemistry", biology: "Biology",
-  religious_studies: "Religious Studies",
-religious_education: "Religious Education",
-design_and_technology: "Design & Technology",
-};
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 export default function AdaptiveStartButton({ onClick, label, disabled = false, subject }) {
   const { band, theme: t } = useTheme();
 
-  const subjectLabel = SUBJECT_LABELS[subject] || (subject || "").replace(/_/g, " ");
+  const subjectLabel = getSubjectLabel(subject);
 
   const defaults = {
     ks1: subjectLabel ? `Start ${subjectLabel} adventure! ✨` : "Start today's adventure! ✨",

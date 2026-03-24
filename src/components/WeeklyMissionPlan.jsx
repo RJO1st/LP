@@ -11,6 +11,7 @@
 //   onStartSubject(subject) — called when scholar taps a subject card
 
 import React, { useMemo } from "react";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ const SUBJECT_META = {
 };
 
 const fallbackMeta = (subject) => ({
-  label: subject.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  label: getSubjectLabel(subject),
   emoji: "📚",
   color: "bg-indigo-500",
   light: "bg-indigo-50 border-indigo-200",

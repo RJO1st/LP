@@ -19,6 +19,7 @@
 
 import React, { useMemo } from "react";
 import { getRealmForSubject, getGalaxyStatusText } from "@/lib/narrativeEngine";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ─── Tier config ──────────────────────────────────────────────────
 const TIER = {
@@ -119,7 +120,7 @@ function PlanetCard({ subject, realm, tier, avgScore, isNext, orbSize, onClick }
   const t      = tier ? TIER[tier] : null;
   const pal    = realmPalette(realm);
   const icon   = realm?.icon || "🪐";
-  const label  = subject.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const label  = getSubjectLabel(subject);
   const rName  = realm?.name || "";
   const hasData = tier !== null;
 

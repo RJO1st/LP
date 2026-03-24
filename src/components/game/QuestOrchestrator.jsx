@@ -19,7 +19,7 @@ import {
   validateAndFixQuestion, dbRowToQuestion,
   buildCompletionPayload, saveQuizResult, getPerQuestionTimer,
 } from "../../lib/quizUtils";
-import { useTaraGate }          from "./TaraEIB";
+import TaraEIB, { useTaraGate } from "./TaraEIB";
 import ImageDisplay             from "./ImageDisplay";
 import MathsVisualiser, { canVisualise } from "./MathsVisualiser";
 import ReadingComprehensionEngine from "./ReadingComprehensionEngine";
@@ -37,7 +37,13 @@ import { getQuestFrame, getTimerConfig, getSubmitLabel,
          getNextLabel, getRewardLabel, getTaraFeedback } from '@/lib/questOrchestratorAdapter';
 import KeyboardShortcuts from '@/components/game/KeyboardShortcuts';
 import AdaptiveTimer from './AdaptiveTimer';
-
+import { getAgeBand } from "@/lib/ageBandConfig";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
+import KS1QuizShell from "./KS1QuizShell";
+import KS2QuizShell from "./KS2QuizShell";
+import KS3QuizShell from "./KS3QuizShell";
+import KS4QuizShell from "./KS4QuizShell";
+console.log({ KS1QuizShell, KS2QuizShell, KS3QuizShell, KS4QuizShell });
 const XP_PER_QUESTION = 10;
 
 // ─── TOPIC LABEL FORMATTER ────────────────────────────────────────────────────
@@ -192,12 +198,16 @@ function MilestoneCelebration({ milestones, onDismiss }) {
 }
 
 // ─── SUBJECT ACCENT THEMES ───────────────────────────────────────────────────
+const _mathsTheme   = { bg: "bg-indigo-50",  border: "border-indigo-100",  text: "text-indigo-900",  accent: "text-indigo-600",  btn: "bg-indigo-600 hover:bg-indigo-700",  Icon: () => <span className="text-base">🔢</span>, panelBg: "#eef2ff", accentHex: "#4f46e5" };
+const _verbalTheme  = { bg: "bg-violet-50",  border: "border-violet-100",  text: "text-violet-900",  accent: "text-violet-600",  btn: "bg-violet-600 hover:bg-violet-700",  Icon: () => <span className="text-base">🧩</span>, panelBg: "#f5f3ff", accentHex: "#6d28d9" };
 const MAIN_THEMES = {
-  maths:     { bg: "bg-indigo-50",  border: "border-indigo-100",  text: "text-indigo-900",  accent: "text-indigo-600",  btn: "bg-indigo-600 hover:bg-indigo-700",  Icon: () => <span className="text-base">🔢</span>, panelBg: "#eef2ff", accentHex: "#4f46e5" },
-  english:   { bg: "bg-purple-50",  border: "border-purple-100",  text: "text-purple-900",  accent: "text-purple-600",  btn: "bg-purple-600 hover:bg-purple-700",  Icon: () => <span className="text-base">📖</span>, panelBg: "#f5f3ff", accentHex: "#7c3aed" },
-  verbal:    { bg: "bg-violet-50",  border: "border-violet-100",  text: "text-violet-900",  accent: "text-violet-600",  btn: "bg-violet-600 hover:bg-violet-700",  Icon: () => <span className="text-base">🧩</span>, panelBg: "#f5f3ff", accentHex: "#6d28d9" },
-  nvr:       { bg: "bg-cyan-50",    border: "border-cyan-100",    text: "text-cyan-900",    accent: "text-cyan-600",    btn: "bg-cyan-600 hover:bg-cyan-700",      Icon: () => <span className="text-base">🔷</span>, panelBg: "#ecfeff", accentHex: "#0891b2" },
-  computing: { bg: "bg-slate-50",   border: "border-slate-100",   text: "text-slate-900",   accent: "text-slate-600",   btn: "bg-slate-700 hover:bg-slate-800",    Icon: () => <span className="text-base">💻</span>, panelBg: "#f8fafc", accentHex: "#475569" },
+  mathematics:      _mathsTheme,
+  maths:            _mathsTheme,   // legacy alias
+  english:          { bg: "bg-purple-50",  border: "border-purple-100",  text: "text-purple-900",  accent: "text-purple-600",  btn: "bg-purple-600 hover:bg-purple-700",  Icon: () => <span className="text-base">📖</span>, panelBg: "#f5f3ff", accentHex: "#7c3aed" },
+  verbal_reasoning: _verbalTheme,
+  verbal:           _verbalTheme,  // legacy alias
+  nvr:              { bg: "bg-cyan-50",    border: "border-cyan-100",    text: "text-cyan-900",    accent: "text-cyan-600",    btn: "bg-cyan-600 hover:bg-cyan-700",      Icon: () => <span className="text-base">🔷</span>, panelBg: "#ecfeff", accentHex: "#0891b2" },
+  computing:        { bg: "bg-slate-50",   border: "border-slate-100",   text: "text-slate-900",   accent: "text-slate-600",   btn: "bg-slate-700 hover:bg-slate-800",    Icon: () => <span className="text-base">💻</span>, panelBg: "#f8fafc", accentHex: "#475569" },
 };
 const DEFAULT_MAIN_THEME = {
   bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-900",
@@ -208,7 +218,7 @@ const DEFAULT_MAIN_THEME = {
 
 // ─── LOADING CARD ─────────────────────────────────────────────────────────────
 function LoadingCard({ subject }) {
-  const subj  = subject?.toLowerCase() || "maths";
+  const subj  = subject?.toLowerCase() || "mathematics";
   const theme = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
   const labels = getSubjectLabels(subject);
   return (
@@ -224,9 +234,9 @@ function LoadingCard({ subject }) {
 
 // ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
 
-function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic }) {
+function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic, BandQuizShell, band, friendlySubject }) {
   const perQTimer   = useMemo(() => getPerQuestionTimer(student), [student]);
-  const subj        = subject?.toLowerCase() || "maths";
+  const subj        = subject?.toLowerCase() || "mathematics";
   const theme       = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
   const labels      = useMemo(() => getSubjectLabels(subject), [subject]);
   const questFrame = useMemo(() => getQuestFrame(student?.year_level, subject, null, curriculum), [student?.year_level, subject]);
@@ -270,8 +280,13 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
     setGenerating(true);
     let qs = [];
     const rawYear = parseInt(student?.year_level || student?.year || 4, 10);
-    const CURRICULUM_MIN_YEAR = { uk_11plus: 3 }; // uk_national has real Y1/Y2 content — no clamp needed
-    const year = Math.max(rawYear, CURRICULUM_MIN_YEAR[curriculum] ?? 1);
+    function getEffectiveYear(yr, cur) {
+  const c = (cur || "").toLowerCase();
+  if (c === "ng_jss") return yr + 6;
+  if (c === "ng_sss") return yr + 9;
+  return yr;
+}
+const year = rawYear;
     try {
       const dbRows = await getSmartQuestions(
         supabase, student?.id, subject, curriculum, year, questionCount, previousQuestionIds,
@@ -516,7 +531,27 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
 
   // ── Left-panel content ─────────────────────────────────────────────────────
   // Priority: passage text → maths/science visual → generic subject context panel
-  const hasVisual  = q.image_url || canVisualise(q, subject, q.year_level ?? student?.year_level ?? 6);
+  // Smart visual check: don't show basic arithmetic grids for multi-step word problems
+  const yearLvl = q.year_level ?? student?.year_level ?? 6;
+  const rawCanVisualise = q.image_url || canVisualise(q, subject, yearLvl);
+  const hasVisual = (() => {
+    if (q.image_url) return true; // explicit images always show
+    if (!rawCanVisualise) return false;
+    // For word problems with multiple operations, basic dot grids don't help
+    const qText = (q.q || q.question_text || "").toLowerCase();
+    const nums = (q.q || "").match(/\d+/g) || [];
+    const multiStep = nums.length >= 3; // 3+ numbers = likely multi-step
+    const hasMultiOps = /(\bthen\b|\band\b.*\bthen\b|removed|left|remaining|gave away|eaten|taken|after)/i.test(qText)
+      && /(\bshelves?\b|\brows?\b|\bboxes?\b|\bbags?\b|\bgroups?\b|\bpacks?\b|\bsets?\b)/i.test(qText);
+    // Questions like "look at the diagram" should always try to visualise
+    const explicitlyAsksForVisual = /look at|diagram|drawing|picture|image|chart|graph|table|map/i.test(qText);
+    if (explicitlyAsksForVisual) return true;
+    // Filter out multi-step word problems where simple grids won't help
+    if (multiStep && hasMultiOps) return false;
+    // Filter out large number arithmetic (grids of 100+ dots aren't helpful)
+    if (nums.some(n => parseInt(n) > 50)) return false;
+    return true;
+  })();
 
   // ── Passage persistence: keep passage in left panel across all linked questions
   // When current question has a _passageId, use the session passage.
@@ -616,7 +651,51 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
       </div>
     </div>
   );
+  // ── Band-specific quiz shell (KS1-KS4 split-screen layouts) ──────────────
+  if (BandQuizShell && !finished) {
+    // Build TaraEIB widget for wrong answers
+    const taraEIBWidget = (selected !== null && !isCorrectAnswer && taraEnabled !== false) ? (
+      <TaraEIB
+        student={student}
+        subject={subject}
+        currentQ={q}
+        correctAnswer={q.opts?.[q.a]}
+        scholarAnswer={typeof q.opts?.[selected] === "string" ? q.opts[selected] : q.opts?.[selected]?.text}
+        onFeedbackReceived={onFeedbackReceived}
+      />
+    ) : null;
 
+    return (
+      <BandQuizShell
+        question={q.q}
+        options={q.opts || []}
+        passage={activePassage?.body || q.passage}
+        questionIndex={qIdx}
+        totalQuestions={sessionQuestions.length}
+        selectedAnswer={selected}
+        onSelect={(i) => { if (selected === null) handlePick(i); }}
+        onSubmit={() => { if (canProceed) next(); }}
+        onSkip={() => next()}
+        onClose={onClose}
+        subjectLabel={friendlySubject || labels.header}
+        xp={student?.total_xp || 0}
+        streak={student?.streak || 0}
+        timeLeft={timeLeft}
+        taraHint={q.hints?.[0] || null}
+        isCorrect={isCorrectAnswer}
+        showResult={selected !== null}
+        explanation={selected !== null ? (q.exp || q.explanation) : null}
+        missionTitle={friendlySubject || topicLabel}
+        marks={q.marks || 1}
+        masteryPercent={student?.mastery_percent || 0}
+        gradeImpact={student?.predicted_grade || ""}
+        markSchemeNote={q.mark_scheme_note}
+        leftPanelContent={leftPanelContent}
+        taraEIBWidget={taraEIBWidget}
+        canProceed={canProceed}
+      />
+    );
+  }
   return (
     <KeyboardShortcuts
       yearLevel={student?.year_level}
@@ -937,7 +1016,7 @@ function getTopicDescription(topicLabel, subject) {
     "rounding numbers":            "Estimating to the nearest 10, 100, or 1000.",
   };
   return descs[label] ||
-    `Exploring ${topicLabel} — building skills in ${(subject || "maths").replace(/_/g, " ")}.`;
+    `Exploring ${topicLabel} — building skills in ${(subject || "mathematics").replace(/_/g, " ")}.`;
 }
 
 // ─── QUEST ORCHESTRATOR ───────────────────────────────────────────────────────
@@ -946,7 +1025,17 @@ export default function QuestOrchestrator({
   questionCount: questionCountProp, previousQuestionIds = [],
   questData = {}, onClose, onComplete, taraEnabled = true,
 }) {
-  const subj = subject?.toLowerCase() || "maths";
+  const subj = (typeof subject === "string" ? subject : subject?.subject || subject?.name || "mathematics").toLowerCase();
+  const band = getAgeBand(student?.year_level || student?.year, student?.curriculum);
+const friendlySubject = getSubjectLabel(subject, band);
+ 
+const QuizShellMap = {
+  ks1: KS1QuizShell,
+  ks2: KS2QuizShell,
+  ks3: KS3QuizShell,
+  ks4: KS4QuizShell,
+};
+const BandQuizShell = QuizShellMap[band] || KS2QuizShell;
 
   // Age-appropriate question count:
   // Year/Grade/Primary 1: 10 questions (short attention span, age 5-6)
@@ -1125,11 +1214,11 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
   if (subj === "english" && (questData.isComprehension || questData.passageText)) {
     return (
       <ReadingComprehensionEngine
-        student={student}
-        passageTitle={questData.passageTitle}
-        passageText={questData.passageText}
+          student={student} subject={subject}
+        scenario={questData.scenario}
         questions={questData.questions || []}
         onClose={onClose} onComplete={onComplete}
+        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
       />
     );
   }
@@ -1143,10 +1232,11 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
   ].includes(subj) && questData.scenario) {
     return (
       <STEMEngine
-        student={student} subject={subject}
+         student={student} subject={subject}
         scenario={questData.scenario}
         questions={questData.questions || []}
         onClose={onClose} onComplete={onComplete}
+        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
       />
     );
   }
@@ -1157,10 +1247,11 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
   ].includes(subj) && questData.sourceMaterial) {
     return (
       <HumanitiesEngine
-        student={student} subject={subject}
-        sourceMaterial={questData.sourceMaterial}
+         student={student} subject={subject}
+        scenario={questData.scenario}
         questions={questData.questions || []}
         onClose={onClose} onComplete={onComplete}
+        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
       />
     );
   }
@@ -1172,6 +1263,9 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
       onClose={onClose} onComplete={onComplete}
       taraEnabled={taraEnabled}
       focusedTopic={algorithmTopic}
+      BandQuizShell={BandQuizShell}
+      band={band}
+      friendlySubject={friendlySubject}
     />
   );
 }

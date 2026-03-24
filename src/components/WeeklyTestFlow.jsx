@@ -19,6 +19,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -99,11 +100,11 @@ export function getWeeklyTestConfig(scholar, weeklyStats = []) {
   weeklyStats.forEach(d => {
     if (d?.subject) subjectCounts[d.subject] = (subjectCounts[d.subject] ?? 0) + (d.count ?? 1);
   });
-  const topSubject = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "maths";
+  const topSubject = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "mathematics";
 
   return {
     id:            `weekly_${topSubject}_${getWeekKey()}`,
-    label:         `Weekly Challenge · ${topSubject.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}`,
+    label:         `Weekly Challenge · ${getSubjectLabel(topSubject)}`,
     subject:       topSubject,
     curriculum,
     paperSize:     "standard",   // 20 questions, 25 min
@@ -145,7 +146,7 @@ const NARRATIVE_TEMPLATES = {
  */
 export function generateWeeklyNarrative(scholar, weeklyStats, testResult) {
   const name    = scholar?.name ?? "Commander";
-  const subject = testResult?.subject ?? "maths";
+  const subject = testResult?.subject ?? "mathematics";
   const realm   = getRealm(subject);
   const score   = testResult?.score ?? 0;
 
@@ -175,7 +176,7 @@ function getMedals(score, weeklyStats) {
 }
 
 function getTaraComment(score, subject) {
-  if (score >= 90) return `Brilliant work. Your ${subject.replace(/_/g, " ")} fundamentals are strong. I'm pushing your next missions to a higher tier.`;
+  if (score >= 90) return `Brilliant work. Your ${getSubjectLabel(subject)} fundamentals are strong. I'm pushing your next missions to a higher tier.`;
   if (score >= 70) return `Good results. A few areas to tighten — I've flagged them in your next training sequence.`;
   if (score >= 50) return `You're building the foundation. The gaps are clear now, which means we can fix them. I'll focus your next missions there.`;
   return `A tough week. That's okay — it happens. I've restructured your training to reinforce the areas that caused difficulty. Let's go again.`;

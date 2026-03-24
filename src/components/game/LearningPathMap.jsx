@@ -19,6 +19,7 @@ import { useState } from "react";
 import { masteryColour, masteryToPercent, masteryToTier } from "@/lib/masteryEngine";
 import { getRealmForSubject } from "@/lib/narrativeEngine";
 import { estimateExamReadiness } from "@/lib/learningPathEngine";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 const BAND_ICONS  = { foundation: "🧱", intermediate: "⚙️", advanced: "🚀", enrichment: "🌟" };
 const BAND_LABELS = { foundation: "Foundation", intermediate: "Intermediate", advanced: "Advanced", enrichment: "Enrichment" };
@@ -74,7 +75,7 @@ export default function LearningPathMap({ path, mastery = [], subject, onStartTo
           <span className="text-3xl">{realm?.icon ?? "📚"}</span>
           <div>
             <h1 className="text-xl font-black capitalize">
-              {subject.replace(/_/g, " ")} Path
+              {getSubjectLabel(subject)} Path
             </h1>
             <p className="text-sm opacity-70">
               {realm?.name ?? "Learning Path"} · {topicOrder.length} topics

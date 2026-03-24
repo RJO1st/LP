@@ -20,6 +20,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { scoreDiagnostic } from "@/lib/masteryEngine";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 const TARA_MESSAGES = {
   start:    "No pressure — just answer what you know. I use this to build your perfect learning path! 🗺️",
@@ -111,7 +112,7 @@ export default function DiagnosticQuiz({
           <h1 className="text-3xl font-black text-white mb-3">Quick Assessment</h1>
           <p className="text-slate-400 mb-6 leading-relaxed">
             Before we build your personalised learning path for{" "}
-            <span className="text-indigo-400 font-bold capitalize">{subject.replace(/_/g, " ")}</span>,
+            <span className="text-indigo-400 font-bold capitalize">{getSubjectLabel(subject)}</span>,
             Tara will ask you {total} quick questions to see where you're starting from.
           </p>
 

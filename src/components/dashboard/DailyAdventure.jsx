@@ -9,6 +9,7 @@
 
 import React, { useMemo } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ─── Subject-specific config ─────────────────────────────────────────────────
 const CONFIGS = {
@@ -180,7 +181,7 @@ export default function DailyAdventure({
   if (band !== "ks1") return null;
 
   const config = resolveConfig(subject);
-  const topicLabel = (topic || subject || "").replace(/_/g, " ");
+  const topicLabel = topic || getSubjectLabel(subject);
 
   // Stable story selection: changes daily, not per render
   const story = useMemo(() => {

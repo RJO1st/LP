@@ -11,6 +11,7 @@
 //   daysBack    — number (default 30, how far back to look)
 
 import React, { useEffect, useState, useMemo } from "react";
+import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // Mastery tier thresholds
 function getMasteryTier(pct) {
@@ -31,38 +32,33 @@ async function fetchTopicStats(supabase, scholarId, subject, daysBack) {
 
   const { data, error } = await supabase
     .from("quiz_results")
-    .select("answers, topic_summary")
+    .select("topic_summary")
     .eq("scholar_id", scholarId)
     .eq("subject", subject)
     .gte("created_at", since.toISOString());
 
-  // Supabase can return an empty object {} as error — only treat as real error if it has a message
-  if (error && (error.message || error.code)) {
-    console.error("[TopicBreakdown]", error);
-    return [];
+  // Supabase sometimes returns an empty {} or falsy-looking error object.
+  // Only treat as a real error if it has meaningful content.
+  if (error) {
+    const hasContent = error.message || error.code || (typeof error === "object" && Object.keys(error).length > 0 && JSON.stringify(error) !== "{}");
+    if (hasContent && JSON.stringify(error) !== "{}") {
+      console.error("[TopicBreakdown] real error:", error);
+      return [];
+    }
+    // Empty error object — ignore it and continue with data
   }
 
-  // Aggregate across sessions
+  // Aggregate across sessions using topic_summary JSONB
   const agg = {}; // { topic: { correct, total } }
 
   (data || []).forEach((row) => {
-    // Prefer topic_summary if available (set by QuestOrchestrator)
     if (row.topic_summary && typeof row.topic_summary === "object") {
       Object.entries(row.topic_summary).forEach(([topic, stats]) => {
         if (!agg[topic]) agg[topic] = { correct: 0, total: 0 };
         agg[topic].correct += stats.correct || 0;
         agg[topic].total   += stats.total   || 0;
       });
-      return;
     }
-    // Fall back to answers array
-    const answers = Array.isArray(row.answers) ? row.answers : [];
-    answers.forEach(({ topic, isCorrect }) => {
-      if (!topic) return;
-      if (!agg[topic]) agg[topic] = { correct: 0, total: 0 };
-      agg[topic].correct += isCorrect ? 1 : 0;
-      agg[topic].total   += 1;
-    });
   });
 
   return Object.entries(agg)
@@ -110,7 +106,7 @@ export default function TopicPerformanceBreakdown({
     mastered:   topics.filter((t) => t.pct >= 85).length,
   }), [topics]);
 
-  const subjectLabel = subject?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "";
+  const subjectLabel = getSubjectLabel(subject) || "";
 
   if (loading) {
     return (
