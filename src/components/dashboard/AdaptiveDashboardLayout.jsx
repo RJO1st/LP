@@ -1,15 +1,50 @@
 "use client";
 /**
- * AdaptiveDashboardLayout.jsx (v7)
+ * AdaptiveDashboardLayout.jsx (v10 — Band-Specific Visual & Layout Overhaul)
  * Deploy to: src/components/dashboard/AdaptiveDashboardLayout.jsx
  *
- * v7: Dynamic mastery per active subject. Free tier counter hidden for trial/pro.
- *     Clean 2-column CSS grid via <style> tag. No Tailwind arbitrary values.
+ * v10: COMPLETE REDESIGN with true band-specific layouts.
+ *      Each band has unique section ordering, visual hierarchy, and component emphasis.
+ *
+ *      KS1 (Celestial Nursery):
+ *        - Warm amber nebula background with floating particles
+ *        - Large rounded StoryCards with treasure-map aesthetic
+ *        - Digital Pet + Story Journal as primary content
+ *        - Daily Adventure with narrative wrapper
+ *        - Caterpillar progress indicators
+ *
+ *      KS2 (Orbital Command):
+ *        - Dark space radar sweep animation
+ *        - Commander Stats as primary metric row (Stardust/Missions/Streak)
+ *        - Galaxy Map with orbital rings
+ *        - Mission Log (styled Quest Journal)
+ *        - Achievement medals prominent
+ *
+ *      KS3 (Career Simulator):
+ *        - Light professional theme, no ambient animations
+ *        - Skill Map with subject tabs as central focus
+ *        - Mastery donut ring visualization
+ *        - Weekly Goals checklist visible
+ *        - Peer standings & career match %
+ *
+ *      KS4 (Exam Command):
+ *        - Dark precision with cyan scan-line grid
+ *        - Status bar: predicted grade + exam countdown + mastery index
+ *        - Revision Planner as PRIMARY massive section
+ *        - Exam Panel with grade comparison
+ *        - Topic Heatmap + Flashcards + Mock Test Launcher
+ *        - "AI READY" / "FOCUS" badges
+ *
+ * Props signature IDENTICAL to v9 — drop-in replacement.
+ * ALL 17 data-connected components preserved.
+ * DashboardShell v4 provides responsive chrome.
  */
 
 import React, { useState, useMemo } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import AdaptiveNavbar from "./AdaptiveNavbar";
+import DashboardShell, { MIcon, NAV_CONFIG } from "./DashboardShell";
+
+// ── Data-connected components ────────────────────────────────────────────────
 import AdaptiveGreeting from "./AdaptiveGreeting";
 import AdaptiveStats from "./AdaptiveStats";
 import DailyAdventure from "./DailyAdventure";
@@ -22,198 +57,905 @@ import ExamModeSwitch from "./ExamModeSwitch";
 import RevisionPlanner from "./RevisionPlanner";
 import PeerComparison from "./PeerComparison";
 import MockTestLauncher from "./MockTestLauncher";
-import AdaptiveStartButton from "./AdaptiveStartButton";
 import AdaptiveLeaderboard from "./AdaptiveLeaderboard";
 import DigitalPet from "./DigitalPet";
 import GoalSetting from "./GoalSetting";
 import DashboardTour from "@/components/DashboardTour";
+import Flashcards from "./Flashcards";
+import CertificatesPanel from "./CertificatesPanel";
+import SubjectProgressChart from "./SubjectProgressChart";
+import TaraFloatingBlurb from "./TaraFloatingBlurb";
+import StickerCollection from "./StickerCollection";
+import { formatGradeLabel } from "@/lib/gamificationEngine";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BAND-SPECIFIC AMBIENT LAYERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function KS1Nebula() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+      <div style={{ position: "absolute", width: 320, height: 320, borderRadius: "50%", top: "-5%", right: "-8%", opacity: 0.4,
+        background: "radial-gradient(circle, #fde68a 0%, transparent 70%)", animation: "ks1Float 28s ease-in-out infinite" }} />
+      <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", bottom: "10%", left: "-5%", opacity: 0.3,
+        background: "radial-gradient(circle, #e9d5ff 0%, transparent 70%)", animation: "ks1Float 32s ease-in-out infinite reverse" }} />
+      <div style={{ position: "absolute", width: 200, height: 200, borderRadius: "50%", top: "40%", right: "20%", opacity: 0.25,
+        background: "radial-gradient(circle, #fed7aa 0%, transparent 70%)", animation: "ks1Float 24s ease-in-out infinite 4s" }} />
+      {Array.from({ length: 15 }, (_, i) => (
+        <div key={i} style={{
+          position: "absolute", width: 3, height: 3, borderRadius: "50%", background: "#fbbf24",
+          left: `${(i * 7.3 + 5) % 100}%`, top: `${(i * 11.7 + 3) % 100}%`,
+          opacity: 0.4, animation: `ks1Twinkle ${2 + (i % 3)}s ease-in-out infinite ${i * 0.4}s`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function KS2Radar() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+      {/* Outer orbital rings */}
+      <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", opacity: 0.04,
+        border: "1px solid rgba(124,131,245,0.3)", animation: "ks2Radar 28s linear infinite" }} />
+      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", opacity: 0.035, border: "1px solid rgba(124,131,245,0.25)",
+        animation: "ks2Radar 22s linear infinite reverse" }} />
+      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", opacity: 0.03, border: "1px dashed rgba(124,131,245,0.15)" }} />
+      {/* Orbital sweep gradient */}
+      <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", opacity: 0.06,
+        background: "conic-gradient(from 0deg, transparent 0deg, rgba(124,131,245,0.3) 30deg, transparent 60deg)",
+        animation: "ks2Radar 20s linear infinite" }} />
+      {/* Planet/star dots */}
+      {Array.from({ length: 14 }, (_, i) => (
+        <div key={i} style={{
+          position: "absolute",
+          width: 2 + (i % 4), height: 2 + (i % 4), borderRadius: "50%",
+          background: i % 3 === 0 ? "#818cf8" : i % 3 === 1 ? "#c084fc" : "#60a5fa",
+          left: `${(i * 7.3 + 8) % 90}%`, top: `${(i * 11.7 + 5) % 90}%`,
+          opacity: 0.12 + (i % 4) * 0.06,
+          animation: `ks2PlanetGlow ${3 + i * 0.5}s ease-in-out infinite ${i * 0.5}s`,
+          boxShadow: `0 0 ${4 + i % 3}px ${i % 3 === 0 ? "#818cf8" : "#c084fc"}40`,
+        }} />
+      ))}
+      {/* Nebula glow */}
+      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", top: "30%", right: "-10%",
+        background: "radial-gradient(circle, rgba(124,131,245,0.06) 0%, transparent 70%)",
+        animation: "ks2PlanetGlow 12s ease-in-out infinite" }} />
+      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", bottom: "20%", left: "-5%",
+        background: "radial-gradient(circle, rgba(192,132,252,0.04) 0%, transparent 70%)",
+        animation: "ks2PlanetGlow 16s ease-in-out infinite 4s" }} />
+    </div>
+  );
+}
+
+function KS4ScanGrid() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: 0, opacity: 0.015,
+        backgroundImage: "linear-gradient(rgba(0,229,195,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,195,0.3) 1px, transparent 1px)",
+        backgroundSize: "60px 60px" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%", opacity: 0.03,
+        background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.15), transparent)",
+        backgroundSize: "100% 200%", animation: "ks4Scan 4s linear infinite" }} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BAND-SPECIFIC CARD WRAPPERS & TYPOGRAPHY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function BandCard({ band, children, glow, accent, className = "", style = {} }) {
+  // "Liquid glass" aesthetic: translucent, heavy blur, subtle inner highlight
+  const styles = {
+    ks1: {
+      background: "rgba(255,255,255,0.55)", borderRadius: 24,
+      border: glow ? "1.5px solid rgba(212,160,23,0.2)" : "1px solid rgba(255,255,255,0.5)",
+      boxShadow: glow
+        ? "0 8px 32px rgba(212,160,23,0.1), inset 0 1px 0 rgba(255,255,255,0.6)"
+        : "0 2px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.5)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
+    },
+    ks2: {
+      background: "rgba(22,28,56,0.45)", borderRadius: 16,
+      border: `1px solid rgba(124,131,245,${glow ? "0.18" : "0.08"})`,
+      boxShadow: glow
+        ? "0 0 24px rgba(124,131,245,0.06), inset 0 1px 0 rgba(255,255,255,0.04)"
+        : "0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.02)",
+      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 18,
+    },
+    ks3: {
+      background: "rgba(255,255,255,0.6)", borderRadius: 16,
+      border: `1px solid ${glow ? "rgba(91,106,191,0.15)" : "rgba(255,255,255,0.7)"}`,
+      boxShadow: glow
+        ? "0 4px 20px rgba(91,106,191,0.06), inset 0 1px 0 rgba(255,255,255,0.7)"
+        : "0 1px 8px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.6)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 18,
+    },
+    ks4: {
+      background: "rgba(18,24,44,0.5)", borderRadius: 12,
+      border: `1px solid rgba(0,229,195,${glow ? "0.12" : "0.05"})`,
+      boxShadow: glow
+        ? "0 0 20px rgba(0,229,195,0.04), inset 0 1px 0 rgba(255,255,255,0.03)"
+        : "inset 0 1px 0 rgba(255,255,255,0.02)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 18,
+      position: "relative", overflow: "hidden",
+    },
+  };
+  return (
+    <div style={{ ...styles[band] || styles.ks3, ...style }} className={className}>
+      {band === "ks4" && glow && (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "200%",
+            background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.04), transparent)",
+            animation: "ks4Scan 3s linear infinite" }} />
+        </div>
+      )}
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ band, icon, title, subtitle, accent, size = "md" }) {
+  const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
+  const isDark = cfg.dark;
+  const fontSizes = {
+    sm: { title: 13, subtitle: 10, icon: 14 },
+    md: { title: 15, subtitle: 10, icon: 16 },
+    lg: { title: 18, subtitle: 11, icon: 20 },
+    xl: { title: 22, subtitle: 12, icon: 24 },
+  };
+  const fs = fontSizes[size] || fontSizes.md;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      {icon && (
+        <div style={{
+          width: fs.icon + 8, height: fs.icon + 8, borderRadius: band === "ks1" ? 12 : band === "ks4" ? 8 : 10,
+          background: `${cfg.accent}15`, display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${cfg.accent}20`,
+        }}>
+          <span style={{ fontSize: fs.icon }}>{icon}</span>
+        </div>
+      )}
+      <div>
+        <div style={{
+          fontSize: fs.title, fontWeight: 800,
+          color: isDark ? "#fff" : cfg.textPrimary, fontFamily: cfg.font,
+          letterSpacing: band === "ks4" ? "0.04em" : 0,
+        }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: fs.subtitle, fontWeight: 600, color: cfg.textMuted,
+            textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>
+            {subtitle}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GLOBAL KEYFRAMES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function BandKeyframes({ band }) {
+  const keyframes = {
+    ks1: `
+      @keyframes ks1Float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
+      @keyframes ks1Twinkle { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:0.7;transform:scale(1.2)} }
+      @keyframes ks1Bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    `,
+    ks2: `
+      @keyframes ks2Radar { 0%{transform:translate(-50%,-50%) rotate(0deg)} 100%{transform:translate(-50%,-50%) rotate(360deg)} }
+      @keyframes ks2PlanetGlow { 0%,100%{opacity:0.15;transform:scale(1)} 50%{opacity:0.35;transform:scale(1.3)} }
+      @keyframes ks2OrbitPulse { 0%,100%{opacity:0.08} 50%{opacity:0.15} }
+    `,
+    ks3: ``,
+    ks4: `
+      @keyframes ks4Scan { 0%{backgroundPosition:0 0} 100%{backgroundPosition:0 100%} }
+      @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(0,229,195,0.15)} 50%{box-shadow:0 0 30px rgba(0,229,195,0.25)} }
+      @keyframes ks4Badge { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+    `,
+  };
+  return <style>{keyframes[band] || ""}</style>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function AdaptiveDashboardLayout({
-  scholar = {},
-  stats = {},
-  topics = [],
-  subjects = [],
-  subject = "mathematics",
-  journalEntries = [],
-  dailyAdventure,
-  encouragement,
-  careerTopic,
-  examData,
-  masteryData = [],
-  peerComparisons = [],
-  pastMocks = [],
-  leaderboard = [],
-  scholarId,
-  supabase,
-  coins = 0,
-  todayQCount = 0,
-  effectiveTier = "pro",
-  onSignOut,
-  onAvatar,
-  onStartQuest,
-  onTopicClick,
-  onDismissEncourage,
-  onDismissCareer,
-  onStartAdventure,
-  onStartMock,
-  onExamModeSwitch,
-  onStartRevisionTopic,
+  scholar = {}, stats = {}, topics = [], subjects = [], subject = "mathematics",
+  journalEntries = [], dailyAdventure, encouragement, careerTopic, examData,
+  masteryData = [], peerComparisons = [], pastMocks = [], leaderboard = [],
+  scholarId, supabase, coins = 0, todayQCount = 0, effectiveTier = "pro",
+  earnedBadgeIds = [],
+  onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
+  onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic,
 }) {
   const { band, theme: t } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
+  const [activeTab, setActiveTab] = useState(
+    band === "ks1" ? "adventure" : band === "ks2" ? "mission" : band === "ks4" ? "exams" : "mission"
+  );
 
-  // ── Dynamic mastery per active subject ──────────────────────────────────
   const subjectMastery = useMemo(() => {
-    const subjectRows = masteryData.filter(r =>
-      (r.subject || "").toLowerCase() === (activeSubject || "").toLowerCase()
-    );
-    if (subjectRows.length === 0) {
-      return { pct: stats.masteryPct ?? 0, count: stats.topicCount ?? 0 };
-    }
-    const avg = subjectRows.reduce((sum, r) => sum + (r.mastery_score ?? r.p_know ?? 0), 0) / subjectRows.length;
-    return { pct: Math.round(avg * 100), count: subjectRows.length };
+    const rows = masteryData.filter(r => (r.subject || "").toLowerCase() === (activeSubject || "").toLowerCase());
+    if (rows.length === 0) return { pct: stats.masteryPct ?? 0, count: stats.topicCount ?? 0 };
+    const avg = rows.reduce((s, r) => s + (r.mastery_score ?? r.p_know ?? 0), 0) / rows.length;
+    return { pct: Math.round(avg * 100), count: rows.length };
   }, [masteryData, activeSubject, stats]);
 
-  // ── Only show free tier counter when actually on free plan ──────────────
   const isFreeTier = effectiveTier === "free";
+  const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
+  const isDark = cfg.dark;
+  const gradeLabel = formatGradeLabel?.(scholar.year_level, scholar.curriculum) || `Year ${scholar.year_level || "?"}`;
 
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: t.colours.bg,
-      fontFamily: t.fonts.body,
-      color: t.colours.text,
-      transition: "background 0.5s",
-    }}>
-      <DashboardTour type="scholar" userId={scholarId} band={band} />
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Nunito:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-        .lp-grid{display:grid;grid-template-columns:1fr;gap:16px}
-        .lp-grid>*{min-width:0;overflow:hidden}
-        @media(min-width:768px){.lp-grid{grid-template-columns:3fr 2fr}}
-      `}</style>
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BAND-SPECIFIC MAIN CONTENT LAYOUTS
+  // ═══════════════════════════════════════════════════════════════════════════
 
-      <AdaptiveNavbar
-        xp={stats.xp ?? 0}
-        coins={coins}
-        todayQCount={todayQCount}
-        effectiveTier={isFreeTier ? "free" : "pro"}
-        onAvatar={onAvatar}
-        onSignOut={onSignOut}
-      />
+  const mainContent = (
+    <>
+      <BandKeyframes band={band} />
+      {band === "ks1" && <KS1Nebula />}
+      {band === "ks2" && <KS2Radar />}
+      {band === "ks4" && <KS4ScanGrid />}
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px 40px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: band === "ks1" ? 16 : 14, position: "relative", zIndex: 1 }}>
 
-        <div style={{ marginBottom: 16 }}>
-          <AdaptiveGreeting
-            scholarName={scholar.name}
-            streak={stats.streak ?? 0}
-            xp={stats.xp ?? 0}
-            yearLevel={scholar.year_level}
-            examName={examData?.examName}
-            daysUntilExam={examData?.daysUntilExam}
-          />
-        </div>
+        {/* ── Section anchors for DashboardTour ──────────────────────────────── */}
+        <div id="section-adventure" style={{ height: 0, margin: 0 }} />
+        <div id="section-mission" style={{ height: 0, margin: 0 }} />
+        <div id="section-dashboard" style={{ height: 0, margin: 0 }} />
+        <div id="section-galaxy" style={{ height: 0, margin: 0 }} />
+        <div id="section-skills" style={{ height: 0, margin: 0 }} />
+        <div id="section-journal" style={{ height: 0, margin: 0 }} />
+        <div id="section-exams" style={{ height: 0, margin: 0 }} />
+        <div id="section-heatmap" style={{ height: 0, margin: 0 }} />
+        <div id="section-tutor" style={{ height: 0, margin: 0 }} />
+        <div id="section-careers" style={{ height: 0, margin: 0 }} />
+        <div id="section-stats" style={{ height: 0, margin: 0 }} />
+        <div id="section-trophies" style={{ height: 0, margin: 0 }} />
+        <div id="section-comms" style={{ height: 0, margin: 0 }} />
+        <div id="section-settings" style={{ height: 0, margin: 0 }} />
 
-        <div style={{ marginBottom: 16 }}>
-          <AdaptiveStats stats={{
-            ...stats,
-            masteryPct: subjectMastery.pct,
-            topicCount: subjectMastery.count,
-          }} />
-        </div>
+        {/* ══════════════════════════════════════════════════════════════════════
+            KS1: CELESTIAL NURSERY (Warm, Playful, Story-Focused)
+            ══════════════════════════════════════════════════════════════════════ */}
+        {band === "ks1" && (
+          <>
+            {/* Hero Greeting + Stats */}
+            <BandCard band={band} glow>
+              <AdaptiveGreeting
+                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                yearLevel={scholar.year_level} examName={examData?.examName}
+                daysUntilExam={examData?.daysUntilExam}
+                avatar={scholar.avatar} onAvatarClick={onAvatar}
+              />
+              <div style={{ marginTop: 16 }}>
+                <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
+              </div>
+            </BandCard>
 
-        {encouragement && (
-          <div style={{ marginBottom: 16 }}>
-            <TaraEncouragement
-              message={encouragement.text}
-              visible={encouragement.visible !== false}
-              onDismiss={onDismissEncourage}
+            {/* Encouragement */}
+            {encouragement && (
+              <BandCard band={band}>
+                <TaraEncouragement
+                  message={encouragement.text}
+                  visible={encouragement.visible !== false}
+                  onDismiss={onDismissEncourage}
+                />
+              </BandCard>
+            )}
+
+            {/* Daily Adventure with Narrative */}
+            {dailyAdventure && (
+              <BandCard band={band} glow>
+                <SectionHeader band={band} icon="🗺️" title="Today's Adventure" subtitle="narrative quest" />
+                <DailyAdventure
+                  totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
+                  subject={activeSubject}
+                  topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
+                  onStart={() => onStartAdventure?.(activeSubject)}
+                />
+              </BandCard>
+            )}
+
+            {/* Treasure Map (Skill Map) */}
+            <BandCard band={band} glow>
+              <SectionHeader band={band} icon="🗺️" title="Treasure Map" subtitle="explore subjects" size="lg" />
+              <SkillMap
+                topics={topics} subjects={subjects} subject={activeSubject}
+                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+              />
+            </BandCard>
+
+            {/* Subject Year Progression */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📊" title="My Progress" subtitle="subject mastery" />
+                <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
+            {/* Story Journal */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📖" title="Story Journal" subtitle="your quest log" />
+              <QuestJournal entries={journalEntries} />
+            </BandCard>
+
+            {/* Sticker Collection */}
+            <StickerCollection
+              band="ks1"
+              earnedBadgeIds={earnedBadgeIds}
+              milestones={{
+                questsCompleted: stats.questsCompleted ?? stats.quests ?? 0,
+                streak: stats.streak ?? 0,
+                accuracy: stats.bestAccuracy ?? stats.accuracy ?? 0,
+                totalXP: stats.xp ?? stats.totalXP ?? 0,
+              }}
             />
-          </div>
+          </>
         )}
 
-        {/* ── MAIN GRID ─────────────────────────────────────────────── */}
-        <div className="lp-grid">
+        {/* ══════════════════════════════════════════════════════════════════════
+            KS2: ORBITAL COMMAND (Dark, Space Commander, Mission-Driven)
+            ══════════════════════════════════════════════════════════════════════ */}
+        {band === "ks2" && (
+          <>
+            {/* Hero Greeting + Commander Stats */}
+            <BandCard band={band} glow>
+              <AdaptiveGreeting
+                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                yearLevel={scholar.year_level} examName={examData?.examName}
+                daysUntilExam={examData?.daysUntilExam}
+                avatar={scholar.avatar} onAvatarClick={onAvatar}
+              />
+              <div style={{ marginTop: 20 }}>
+                {/* Commander Stats Row — custom spacing for dark theme */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#7c83f5" }}>{(stats.xp ?? 0).toLocaleString()}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
+                  </div>
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#c084fc" }}>{stats.questsCompleted ?? 0}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
+                  </div>
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#818cf8" }}>{stats.streak ?? 0}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
+                  </div>
+                </div>
+              </div>
+            </BandCard>
 
-          {/* ═══ LEFT COLUMN ═══ */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            {dailyAdventure && (
-              <DailyAdventure
-                totalQuestions={dailyAdventure.totalQuestions}
-                completed={dailyAdventure.completed}
-                subject={activeSubject}
-                topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
-                onStart={() => onStartAdventure?.(activeSubject)}
-              />
+            {/* Encouragement */}
+            {encouragement && (
+              <BandCard band={band}>
+                <TaraEncouragement
+                  message={encouragement.text}
+                  visible={encouragement.visible !== false}
+                  onDismiss={onDismissEncourage}
+                />
+              </BandCard>
             )}
-            {(band === "ks3" || band === "ks4") && (
-              <ExamModeSwitch
-                currentMode={scholar.exam_mode || "general"}
-                curriculum={scholar.curriculum}
-                onSwitch={onExamModeSwitch}
+
+            {/* Galaxy Map (Skill Map) */}
+            <BandCard band={band} glow>
+              <SectionHeader band={band} icon="🌌" title="Galaxy Map" subtitle="orbital rings" />
+              <SkillMap
+                topics={topics} subjects={subjects} subject={activeSubject}
+                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
               />
+            </BandCard>
+
+            {/* Mission Log (Quest Journal) */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📡" title="Mission Log" subtitle="comms history" />
+              <QuestJournal entries={journalEntries} />
+            </BandCard>
+
+            {/* Current Objective / Status Bar */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="🎯" title="Current Objective" />
+              <div style={{
+                marginTop: 12,
+                padding: "16px",
+                borderRadius: 12,
+                background: "rgba(124,131,245,0.08)",
+                border: "1px solid rgba(124,131,245,0.15)",
+              }}>
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#7c83f5",
+                  marginBottom: 8,
+                }}>
+                  Mastery Progress: {subjectMastery.pct}%
+                </div>
+                <div style={{
+                  width: "100%",
+                  height: 8,
+                  borderRadius: 4,
+                  background: "rgba(124,131,245,0.1)",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${subjectMastery.pct}%`,
+                    background: "linear-gradient(90deg, #7c83f5, #c084fc)",
+                    borderRadius: 4,
+                    transition: "width 0.3s ease",
+                  }} />
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.4)",
+                  marginTop: 8,
+                  textTransform: "uppercase",
+                }}>
+                  {subjectMastery.count} topics remaining
+                </div>
+              </div>
+            </BandCard>
+
+            {/* Subject Year Progression */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📡" title="Mission Progress" subtitle="subject mastery" />
+                <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
             )}
-            <SkillMap
-              topics={topics}
-              subjects={subjects}
-              subject={activeSubject}
-              onTopicClick={onTopicClick}
-              onSubjectChange={setActiveSubject}
+
+            {/* Achievement Medals */}
+            <StickerCollection
+              band="ks2"
+              earnedBadgeIds={earnedBadgeIds}
+              milestones={{
+                questsCompleted: stats.questsCompleted ?? stats.quests ?? 0,
+                streak: stats.streak ?? 0,
+                accuracy: stats.bestAccuracy ?? stats.accuracy ?? 0,
+                totalXP: stats.xp ?? stats.totalXP ?? 0,
+              }}
             />
-            <QuestJournal entries={journalEntries} />
-            {masteryData.length > 0 && (band === "ks3" || band === "ks4") && (
-              <RevisionPlanner
-                masteryData={masteryData}
-                examDate={examData?.examDate}
-                examName={examData?.examName}
-                onStartTopic={onStartRevisionTopic}
-              />
-            )}
-          </div>
+          </>
+        )}
 
-          {/* ═══ RIGHT COLUMN ═══ */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
+        {/* ══════════════════════════════════════════════════════════════════════
+            KS3: CAREER SIMULATOR (Light, Professional, Data-Focused)
+            ══════════════════════════════════════════════════════════════════════ */}
+        {band === "ks3" && (
+          <>
+            {/* Hero Greeting + Stats */}
+            <BandCard band={band} glow>
+              <AdaptiveGreeting
+                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                yearLevel={scholar.year_level} examName={examData?.examName}
+                daysUntilExam={examData?.daysUntilExam}
+                avatar={scholar.avatar} onAvatarClick={onAvatar}
+              />
+              <div style={{ marginTop: 16 }}>
+                <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
+              </div>
+            </BandCard>
+
+            {/* Exam Mode Switch */}
+            {scholar.exam_mode !== undefined && (
+              <BandCard band={band}>
+                <ExamModeSwitch
+                  currentMode={scholar.exam_mode || "general"}
+                  curriculum={scholar.curriculum}
+                  onSwitch={onExamModeSwitch}
+                />
+              </BandCard>
+            )}
+
+            {/* Encouragement */}
+            {encouragement && (
+              <BandCard band={band}>
+                <TaraEncouragement
+                  message={encouragement.text}
+                  visible={encouragement.visible !== false}
+                  onDismiss={onDismissEncourage}
+                />
+              </BandCard>
+            )}
+
+            {/* PRIMARY: Skill Map with Tabs */}
+            <BandCard band={band} glow>
+              <SectionHeader band={band} icon="📈" title="Skill Map" subtitle="subject progress" size="lg" />
+              <SkillMap
+                topics={topics} subjects={subjects} subject={activeSubject}
+                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+              />
+            </BandCard>
+
+            {/* Mastery Visualization */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="🎯" title="Mastery Progress" />
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 32,
+                padding: "20px 0",
+              }}>
+                {/* Donut Ring SVG */}
+                <svg width={120} height={120} style={{ filter: "drop-shadow(0 4px 12px rgba(91,106,191,0.1))" }}>
+                  <circle cx={60} cy={60} r={50} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={8} />
+                  <circle
+                    cx={60} cy={60} r={50} fill="none" stroke="#5b6abf"
+                    strokeWidth={8} strokeDasharray={`${(subjectMastery.pct / 100) * 314.159} 314.159`}
+                    strokeLinecap="round" style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dasharray 0.3s ease" }}
+                  />
+                  <text x={60} y={65} textAnchor="middle" fontSize={32} fontWeight={900} fill="#5b6abf">
+                    {subjectMastery.pct}%
+                  </text>
+                </svg>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1d2e", marginBottom: 8 }}>
+                    {subjectMastery.count} Topics
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(26,29,46,0.5)", lineHeight: 1.5 }}>
+                    Continue learning to improve mastery across all subjects.
+                  </div>
+                </div>
+              </div>
+            </BandCard>
+
+            {/* Weekly Goals */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="✓" title="Weekly Goals" subtitle="track progress" />
+              <GoalSetting scholarId={scholarId} stats={stats} />
+            </BandCard>
+
+            {/* Subject Year Progression */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📈" title="Year Progression" subtitle="all subjects" />
+                <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
+            {/* Quest Journal */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📋" title="Quest Journal" />
+              <QuestJournal entries={journalEntries} />
+            </BandCard>
+
+            {/* Mock Test Launcher (mobile) */}
+            <div className="xl:hidden">
+              <BandCard band={band}>
+                <MockTestLauncher
+                  subject={activeSubject?.toLowerCase() || "mathematics"}
+                  curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
+                  pastMocks={pastMocks} onStartMock={onStartMock}
+                />
+              </BandCard>
+            </div>
+
+            {/* Skill Badges */}
+            <StickerCollection
+              band="ks3"
+              earnedBadgeIds={earnedBadgeIds}
+              milestones={{
+                questsCompleted: stats.questsCompleted ?? stats.quests ?? 0,
+                streak: stats.streak ?? 0,
+                accuracy: stats.bestAccuracy ?? stats.accuracy ?? 0,
+                totalXP: stats.xp ?? stats.totalXP ?? 0,
+                masteryPct: subjectMastery.pct ?? 0,
+              }}
+            />
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            KS4: EXAM COMMAND (Dark Precision, Revision-Focused)
+            ══════════════════════════════════════════════════════════════════════ */}
+        {band === "ks4" && (
+          <>
+            {/* Hero Greeting */}
+            <BandCard band={band} glow>
+              <AdaptiveGreeting
+                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                yearLevel={scholar.year_level} examName={examData?.examName}
+                daysUntilExam={examData?.daysUntilExam}
+                avatar={scholar.avatar} onAvatarClick={onAvatar}
+              />
+            </BandCard>
+
+            {/* STATUS BAR: Predicted Grade + Exam Countdown + Mastery Index */}
+            <BandCard band={band} glow>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                {/* Predicted Grade */}
+                <div style={{ textAlign: "center", padding: "12px 0", position: "relative" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                    Predicted
+                  </div>
+                  <div style={{
+                    fontSize: 32, fontWeight: 900, color: "#00e5c3",
+                    textShadow: "0 0 20px rgba(0,229,195,0.3)",
+                  }}>
+                    {examData?.predictedGrade || "—"}
+                  </div>
+                  {examData?.previousGrade && (
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+                      prev: {examData.previousGrade}
+                    </div>
+                  )}
+                </div>
+
+                {/* Exam Countdown */}
+                <div style={{ textAlign: "center", padding: "12px 0", borderLeft: "1px solid rgba(0,229,195,0.1)", borderRight: "1px solid rgba(0,229,195,0.1)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                    Exam In
+                  </div>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: "#00e5c3" }}>
+                    {examData?.daysUntilExam ?? "—"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>days</div>
+                </div>
+
+                {/* Mastery Index */}
+                <div style={{ textAlign: "center", padding: "12px 0" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                    Mastery
+                  </div>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: "#00e5c3" }}>
+                    {subjectMastery.pct}%
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+                    {subjectMastery.pct >= 80 ? "READY" : subjectMastery.pct >= 50 ? "FOCUS" : "PREP"}
+                  </div>
+                </div>
+              </div>
+            </BandCard>
+
+            {/* Encouragement */}
+            {encouragement && (
+              <BandCard band={band}>
+                <TaraEncouragement
+                  message={encouragement.text}
+                  visible={encouragement.visible !== false}
+                  onDismiss={onDismissEncourage}
+                />
+              </BandCard>
+            )}
+
+            {/* PRIMARY: Revision Planner (HUGE) */}
+            {masteryData.length > 0 && (
+              <BandCard band={band} glow>
+                <SectionHeader band={band} icon="🎯" title="AI Revision Strategy" subtitle="targeting grade boundaries" size="lg" />
+                <RevisionPlanner
+                  masteryData={masteryData} examDate={examData?.examDate}
+                  examName={examData?.examName} onStartTopic={onStartRevisionTopic}
+                />
+              </BandCard>
+            )}
+
+            {/* Exam Panel with Grade Comparison */}
             {examData && (
-              <ExamPanel
-                predictedGrade={examData.predictedGrade}
-                previousGrade={examData.previousGrade}
-                examName={examData.examName}
-                daysUntilExam={examData.daysUntilExam}
-                topicsRemaining={examData.topicsRemaining}
-                mocksCompleted={examData.mocksCompleted}
-                revisionPlan={examData.revisionPlan ?? []}
-              />
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📊" title="Exam Status" />
+                <ExamPanel
+                  predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
+                  examName={examData.examName} daysUntilExam={examData.daysUntilExam}
+                  topicsRemaining={examData.topicsRemaining} mocksCompleted={examData.mocksCompleted}
+                  revisionPlan={examData.revisionPlan ?? []}
+                />
+              </BandCard>
             )}
-            <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
-            {peerComparisons.length > 0 && (
-              <PeerComparison comparisons={peerComparisons} />
-            )}
-            <GoalSetting scholarId={scholarId} stats={stats} />
-            {careerTopic && (
-              <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
-            )}
-            {(band === "ks3" || band === "ks4") && (
-              <MockTestLauncher
-                subject={activeSubject?.toLowerCase() || "mathematics"}
-                curriculum={scholar.curriculum}
-                examMode={scholar.exam_mode || "general"}
-                pastMocks={pastMocks}
-                onStartMock={onStartMock}
-              />
-            )}
-          </div>
 
-        </div>
+            {/* Topic Heatmap (Skill Map as Heatmap) */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📊" title="Topic Heatmap" subtitle="coverage analysis" />
+              <SkillMap
+                topics={topics} subjects={subjects} subject={activeSubject}
+                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+              />
+            </BandCard>
 
-        <div style={{ marginTop: 16 }}>
-          <AdaptiveStartButton
-            onClick={() => onStartQuest?.(activeSubject)}
-            subject={activeSubject}
+            {/* Mock Test Launcher (mobile) */}
+            <div className="xl:hidden">
+              <BandCard band={band} glow>
+                <MockTestLauncher
+                  subject={activeSubject?.toLowerCase() || "mathematics"}
+                  curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
+                  pastMocks={pastMocks} onStartMock={onStartMock}
+                />
+              </BandCard>
+            </div>
+
+            {/* Certifications */}
+            <StickerCollection
+              band="ks4"
+              earnedBadgeIds={earnedBadgeIds}
+              milestones={{
+                questsCompleted: stats.questsCompleted ?? stats.quests ?? 0,
+                streak: stats.streak ?? 0,
+                accuracy: stats.bestAccuracy ?? stats.accuracy ?? 0,
+                totalXP: stats.xp ?? stats.totalXP ?? 0,
+                masteryPct: subjectMastery.pct ?? 0,
+                mocksCompleted: examData?.mocksCompleted ?? 0,
+              }}
+            />
+          </>
+        )}
+
+        {/* ── Certificates — all bands (self-gates: returns null if no certs) ── */}
+        {masteryData.length > 0 && (
+          <BandCard band={band}>
+            <CertificatesPanel records={masteryData} scholarName={scholar.name || "Scholar"} />
+          </BandCard>
+        )}
+      </div>
+    </>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RIGHT SIDEBAR — Band-Adaptive Components
+  // ═══════════════════════════════════════════════════════════════════════════
+  const rightSidebar = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "relative", zIndex: 1 }}>
+
+      {/* KS1: Digital Pet Prominent */}
+      {band === "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
+
+      {/* KS2: Leaderboard + Career Mini-Cards */}
+      {band === "ks2" && (
+        <>
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
+        </>
+      )}
+
+      {/* KS3: Peer Comparison + Leaderboard + Career */}
+      {band === "ks3" && (
+        <>
+          {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
+        </>
+      )}
+
+      {/* KS4: Flashcards + Exam Panel + Leaderboard */}
+      {band === "ks4" && (
+        <>
+          <Flashcards scholarId={scholarId} subject={activeSubject}
+            curriculum={scholar.curriculum} supabase={supabase} />
+          {examData && <ExamPanel
+            predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
+            examName={examData.examName} daysUntilExam={examData.daysUntilExam}
+            topicsRemaining={examData.topicsRemaining} mocksCompleted={examData.mocksCompleted}
+            revisionPlan={examData.revisionPlan ?? []}
+          />}
+          {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+        </>
+      )}
+
+      {/* All bands: Common sidebar items */}
+      {band !== "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
+
+      {/* Exam panel only for KS3+ when exam mode is explicitly set */}
+      {band !== "ks4" && band !== "ks1" && band !== "ks2" && examData && <ExamPanel
+        predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
+        examName={examData.examName} daysUntilExam={examData.daysUntilExam}
+        topicsRemaining={examData.topicsRemaining} mocksCompleted={examData.mocksCompleted}
+        revisionPlan={examData.revisionPlan ?? []}
+      />}
+
+      {band !== "ks2" && band !== "ks3" && <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />}
+
+      {band === "ks1" && peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
+
+      {band !== "ks3" && band !== "ks4" && <GoalSetting scholarId={scholarId} stats={stats} />}
+
+      {band !== "ks4" && <Flashcards scholarId={scholarId} subject={activeSubject}
+        curriculum={scholar.curriculum} supabase={supabase} />}
+
+      {band !== "ks2" && band !== "ks4" && careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
+
+      {/* Mock Test Launcher (desktop only, KS3/4) */}
+      <div className="hidden xl:block">
+        {(band === "ks3" || band === "ks4") && (
+          <MockTestLauncher
+            subject={activeSubject?.toLowerCase() || "mathematics"}
+            curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
+            pastMocks={pastMocks} onStartMock={onStartMock}
           />
-        </div>
+        )}
       </div>
     </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOP BAR BADGES
+  // ═══════════════════════════════════════════════════════════════════════════
+  const topBarLeft = (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 14px", borderRadius: 999,
+        background: cfg.accentBg, border: `1px solid ${cfg.accentGlow || cfg.accentBg}` }}>
+        <span style={{ fontSize: 12 }}>⚡</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: cfg.accent }}>
+          {(stats.xp ?? 0).toLocaleString()} XP
+        </span>
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color: cfg.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+        {gradeLabel}
+      </span>
+      {(stats.streak ?? 0) > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 999,
+          background: isDark ? "rgba(249,115,22,0.08)" : "rgba(249,115,22,0.06)",
+          border: `1px solid ${isDark ? "rgba(249,115,22,0.12)" : "rgba(249,115,22,0.1)"}` }}>
+          <span style={{ fontSize: 12 }}>🔥</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "#fb923c" : "#ea580c" }}>{stats.streak}d</span>
+        </div>
+      )}
+      {coins > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 999,
+          background: isDark ? "rgba(234,179,8,0.08)" : "rgba(234,179,8,0.06)",
+          border: `1px solid ${isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)"}` }}>
+          <span style={{ fontSize: 12 }}>🪙</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "#facc15" : "#ca8a04" }}>{coins}</span>
+        </div>
+      )}
+      {isFreeTier && <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>{todayQCount}/10 today</span>}
+
+      {/* KS4: Status badges */}
+      {band === "ks4" && subjectMastery.pct >= 80 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 999,
+          background: "rgba(0,229,195,0.12)", border: "1px solid rgba(0,229,195,0.2)", animation: "ks4Badge 2s ease-in-out infinite" }}>
+          <span style={{ fontSize: 10 }}>✓</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#00e5c3", textTransform: "uppercase", letterSpacing: "0.06em" }}>AI READY</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const topBarRight = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {onAvatar && (
+        <button onClick={onAvatar} style={{
+          padding: 6, borderRadius: 8,
+          background: "transparent", border: "none",
+          cursor: "pointer", color: cfg.textMuted,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} title="Avatar Shop">
+          <MIcon name="face" size={20} />
+        </button>
+      )}
+      <button style={{ padding: 6, borderRadius: 8, cursor: "pointer", background: "transparent", border: "none", color: cfg.textMuted }}>
+        <MIcon name="notifications" size={20} />
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      <DashboardTour type="scholar" userId={scholarId} band={band} />
+      <TaraFloatingBlurb scholarName={scholar.name} />
+      <DashboardShell
+        band={band}
+        scholarName={scholar.name || scholar.codename || "Scholar"}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onSignOut={onSignOut}
+        onStartQuest={() => onStartQuest?.(activeSubject)}
+        mainContent={mainContent}
+        rightSidebar={rightSidebar}
+        topBarLeft={topBarLeft}
+        topBarRight={topBarRight}
+      />
+    </>
   );
 }

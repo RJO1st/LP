@@ -28,6 +28,15 @@ body {
   color: var(--slate-900);
 }
 
+/* Dashboard pages: let band-specific backgrounds take precedence */
+body:has(.dashboard-shell) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html:has(.dashboard-shell) {
+  background: transparent !important;
+}
+
 /* Custom Animation */
 .animate-in { 
   animation: enter 0.4s ease-out; 

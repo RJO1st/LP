@@ -1111,7 +1111,7 @@ export default function StudentDashboard() {
 
   // ── Weekly test complete ─────────────────────────────────────────
   const handleWeeklyTestComplete = useCallback((result) => {
-    setWeeklyTestResult({ ...result, subject: weeklyTestConfig?.subject ?? "maths" });
+    setWeeklyTestResult({ ...result, subject: weeklyTestConfig?.subject ?? "mathematics" });
     setView("debrief");
   }, [weeklyTestConfig]);
 
@@ -1207,7 +1207,7 @@ const UK_NATIONAL_SUBJECTS = {
     }
   };
 
-  const subjects = [...new Set([...getSubjectsForScholar(scholar), ...examExtras])];
+  const subjects = [...new Set([...getSubjectsForScholar(scholar.curriculum, Number(scholar.year_level || scholar.year || 1)), ...examExtras])];
   const levelInfo    = getLevelInfo(scholar.total_xp || 0);
 
   // ── Test Centre ──────────────────────────────────────────────────
@@ -1410,6 +1410,7 @@ const UK_NATIONAL_SUBJECTS = {
             coins={scholar.coins || 0}
             todayQCount={todayQCount}
             effectiveTier={effectiveTier}
+            earnedBadgeIds={earnedBadges}
             onSignOut={handleSignOut}
             onAvatar={() => setShowAvatarShop(true)}
           />
