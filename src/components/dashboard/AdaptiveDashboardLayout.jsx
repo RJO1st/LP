@@ -50,6 +50,7 @@ import AdaptiveStats from "./AdaptiveStats";
 import DailyAdventure from "./DailyAdventure";
 import TaraEncouragement from "./TaraEncouragement";
 import SkillMap from "./SkillMap";
+import ConstellationMap from "./ConstellationMap";
 import QuestJournal from "./QuestJournal";
 import CareerPopup from "./CareerPopup";
 import ExamPanel from "./ExamPanel";
@@ -845,11 +846,11 @@ export default function AdaptiveDashboardLayout({
 
             {/* ── 2-column: Constellation + Deep Space / Efficiency ──── */}
             <div data-section="heatmap" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {/* Left: Constellation Growth Map (SkillMap) */}
+              {/* Left: Constellation Growth Map (Genshin-style) */}
               <BandCard band={band} glow>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Growth Map</div>
-                <SkillMap
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
+                <ConstellationMap
                   topics={topics} subjects={subjects} subject={activeSubject}
                   onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
                 />
