@@ -9,7 +9,7 @@
  * Mobile: No side nav + Main stacked + Bottom tab bar
  */
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react";
 
 // ── Band-specific nav config ────────────────────────────────────────────────
 const NAV_CONFIG = {
@@ -54,7 +54,7 @@ const NAV_CONFIG = {
     cta: { icon: "rocket_launch", label: "Launch Mission" },
   },
   ks3: {
-    label: "LaunchPad",
+    label: "LaunchPard",
     sublabel: "Career Simulator",
     accent: "#5b6abf",
     accentGlow: "rgba(91,106,191,0.1)",
@@ -74,24 +74,25 @@ const NAV_CONFIG = {
     cta: { icon: "bolt", label: "Start Challenge" },
   },
   ks4: {
-    label: "KS4 Exam Studio",
-    sublabel: "Precision Command",
-    accent: "#00e5c3",
-    accentGlow: "rgba(0,229,195,0.08)",
-    accentBg: "rgba(0,229,195,0.06)",
-    navBg: "rgba(10,14,28,0.98)",
-    bodyBg: "linear-gradient(160deg, #0a0e1c 0%, #111628 40%, #0d1120 100%)",
-    cardBg: "rgba(18,24,44,0.8)",
-    textPrimary: "#e0e6f0",
-    textMuted: "rgba(255,255,255,0.28)",
-    dark: true,
-    font: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+    label: "Zenith Station",
+    sublabel: "Peak Operations",
+    accent: "#7c3aed",
+    accentGlow: "rgba(124,58,237,0.10)",
+    accentBg: "rgba(124,58,237,0.06)",
+    navBg: "rgba(255,255,255,0.97)",
+    bodyBg: "linear-gradient(165deg, #f8f7ff 0%, #f3f0ff 30%, #ede9fe 60%, #f5f3ff 100%)",
+    cardBg: "rgba(255,255,255,0.85)",
+    textPrimary: "#1e1b4b",
+    textMuted: "rgba(30,27,75,0.38)",
+    dark: false,
+    font: "'DM Sans', 'Inter', sans-serif",
     items: [
-      { icon: "quiz", emoji: "📝", label: "Revision", key: "exams" },
-      { icon: "analytics", emoji: "🎯", label: "Grade Tracker", key: "heatmap" },
-      { icon: "smart_toy", emoji: "🤖", label: "Tara AI", key: "tutor" },
+      { icon: "school", emoji: "🎓", label: "Exam Mastery", key: "exams" },
+      { icon: "psychology", emoji: "🧠", label: "Deep Space", key: "heatmap" },
+      { icon: "assignment", emoji: "📋", label: "Simulation Bay", key: "tutor" },
+      { icon: "insights", emoji: "📈", label: "Telemetry", key: "stats" },
     ],
-    cta: { icon: "play_arrow", label: "Start Revision" },
+    cta: { icon: "play_arrow", label: "Launch Deep Space" },
   },
 };
 
@@ -117,8 +118,13 @@ export { MIcon, NAV_CONFIG };
 
 // ── Scroll to section helper ────────────────────────────────────────────────
 function scrollToSection(key) {
-  const el = document.getElementById(`section-${key}`);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Try exact anchor first, then data-section attribute, then scroll to top
+  const el = document.getElementById(`section-${key}`)
+    || document.querySelector(`[data-section="${key}"]`);
+  if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  // Fallback: scroll main content to top
+  const main = document.querySelector(".dashboard-shell main");
+  if (main) main.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // ── Cosmic particle field (subtle ambient effect) ───────────────────────────
@@ -166,7 +172,7 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest }) {
           {band === "ks1" && <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="auto_awesome" filled size={18} style={{ color: cfg.accent }} /></div>}
           {band === "ks2" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(124,131,245,0.15)" }}><MIcon name="rocket_launch" filled size={16} style={{ color: cfg.accent }} /></div>}
           {band === "ks3" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="terminal" size={16} style={{ color: cfg.accent }} /></div>}
-          {band === "ks4" && <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="precision_manufacturing" size={16} style={{ color: cfg.accent }} /></div>}
+          {band === "ks4" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="diamond" filled size={16} style={{ color: cfg.accent }} /></div>}
           <h1 className="text-base font-bold tracking-tight" style={{ color: isDark ? "#fff" : cfg.textPrimary }}>
             {cfg.label}
           </h1>
@@ -280,11 +286,53 @@ export default function DashboardShell({
   const isDark = cfg.dark;
   const [showRightPanel, setShowRightPanel] = useState(false);
 
+  // ── Imperatively override html/body backgrounds to prevent white bleed ──
+  // This is far more reliable than CSS :has() selectors which have browser quirks
+  useEffect(() => {
+    const baseBg = cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc");
+    const html = document.documentElement;
+    const body = document.body;
+    // Save originals
+    const origHtmlBg = html.style.background;
+    const origBodyBg = body.style.background;
+    const origBodyBgColor = body.style.backgroundColor;
+    // Set overrides
+    html.style.background = baseBg;
+    html.style.margin = "0";
+    html.style.padding = "0";
+    html.style.minHeight = "100vh";
+    body.style.background = typeof cfg.bodyBg === "string" && cfg.bodyBg.includes("gradient") ? cfg.bodyBg : baseBg;
+    body.style.backgroundColor = baseBg;
+    body.style.margin = "0";
+    body.style.padding = "0";
+    body.style.minHeight = "100vh";
+    // Also make #__next transparent
+    const nextEl = document.getElementById("__next");
+    const origNextBg = nextEl?.style.background;
+    if (nextEl) { nextEl.style.background = "transparent"; nextEl.style.backgroundColor = "transparent"; }
+    // Walk up from __next and clear backgrounds on wrapper divs
+    let el = nextEl?.firstElementChild;
+    const cleared = [];
+    while (el && cleared.length < 5) {
+      cleared.push({ el, bg: el.style.background, bgc: el.style.backgroundColor });
+      el.style.background = "transparent";
+      el.style.backgroundColor = "transparent";
+      el = el.firstElementChild;
+    }
+    return () => {
+      html.style.background = origHtmlBg;
+      body.style.background = origBodyBg;
+      body.style.backgroundColor = origBodyBgColor;
+      if (nextEl) nextEl.style.background = origNextBg || "";
+      cleared.forEach(({ el: e, bg, bgc }) => { e.style.background = bg; e.style.backgroundColor = bgc; });
+    };
+  }, [band, cfg]);
+
   return (
     <div className="dashboard-shell min-h-screen relative" style={{ background: cfg.bodyBg, fontFamily: cfg.font }}>
       {/* Google Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-      <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       <CosmicParticles band={band} />
 
@@ -360,22 +408,19 @@ export default function DashboardShell({
       </header>
 
       {/* Content Area */}
-      <div className="pt-[3.75rem] pb-20 lg:pb-0 lg:ml-[260px] relative z-10" style={{ minHeight: "100vh", background: "transparent" }}>
-        <div className="flex min-h-[calc(100vh-3.75rem)]">
-          <main className="flex-1 px-3 pt-0 pb-0 lg:px-5 lg:pt-0 lg:pb-0 overflow-y-auto">{mainContent}</main>
+      <div className="pt-14 pb-20 lg:pb-0 lg:ml-[260px] relative z-10" style={{ minHeight: "100vh", background: "transparent" }}>
+        <div className="flex min-h-[calc(100vh-3.5rem)]">
+          <main className="flex-1 px-3 pt-1 pb-0 lg:px-5 lg:pt-1 lg:pb-0 overflow-y-auto">{mainContent}</main>
 
           {rightSidebar && (
             <aside className={`
-              fixed xl:static right-0 top-14 bottom-0 w-[300px] xl:w-[300px] z-30
-              border-l overflow-y-auto transition-transform duration-300
-              ${showRightPanel ? "translate-x-0" : "translate-x-full xl:translate-x-0"}
+              hidden xl:block right-0 top-14 bottom-0 w-[300px] xl:w-[300px] z-30
+              border-l overflow-y-auto transition-transform duration-300 shrink-0
+              ${showRightPanel ? "fixed translate-x-0 !block" : "translate-x-full xl:translate-x-0"}
             `}
             style={{
-              background: isDark ? "rgba(10,14,28,0.96)" : "rgba(248,250,255,0.96)",
+              background: "transparent",
               borderColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)",
-              backdropFilter: "blur(20px)",
-              borderTopLeftRadius: 20,
-              borderBottomLeftRadius: 20,
             }}>
               <div className="p-5 space-y-5">{rightSidebar}</div>
             </aside>
@@ -393,8 +438,8 @@ export default function DashboardShell({
         }
         /* Prevent white bleed at bottom/edges of dashboards */
         html, body, #__next { min-height: 100vh; margin: 0 !important; padding: 0 !important; }
-        html { background: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : "#f5f7fc")} !important; }
-        body { background: ${cfg.bodyBg} !important; min-height: 100vh !important; background-attachment: fixed !important; background-color: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : "#f5f7fc")} !important; }
+        html { background: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
+        body { background: ${cfg.bodyBg} !important; min-height: 100vh !important; background-attachment: fixed !important; background-color: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
         #__next, #__next > div, #__next > div > div, #__next > main, main { background: transparent !important; background-color: transparent !important; }
         /* Kill any stray white backgrounds from layout wrappers */
         body > div, body > div > div, body > div > div > div { background-color: transparent !important; }

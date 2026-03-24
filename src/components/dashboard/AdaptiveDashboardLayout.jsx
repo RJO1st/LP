@@ -133,23 +133,22 @@ function KS2Radar() {
   );
 }
 
-function KS4ScanGrid() {
+function KS4AtelierAmbient() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {/* Grid lines */}
+      {/* Vivid purple orb — top right */}
+      <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", top: "-12%", right: "-18%", opacity: 0.2,
+        background: "radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)" }} />
+      {/* Secondary violet orb — bottom left */}
+      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", bottom: "0%", left: "-12%", opacity: 0.15,
+        background: "radial-gradient(circle, rgba(167,139,250,0.3) 0%, transparent 70%)" }} />
+      {/* Small accent orb — center left */}
+      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", top: "40%", left: "20%", opacity: 0.08,
+        background: "radial-gradient(circle, rgba(109,40,217,0.25) 0%, transparent 70%)" }} />
+      {/* Subtle grid pattern */}
       <div style={{ position: "absolute", inset: 0, opacity: 0.02,
-        backgroundImage: "linear-gradient(rgba(0,229,195,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,195,0.3) 1px, transparent 1px)",
-        backgroundSize: "60px 60px" }} />
-      {/* Scan line sweep */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%", opacity: 0.04,
-        background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.2), transparent)",
-        backgroundSize: "100% 200%", animation: "ks4Scan 4s linear infinite" }} />
-      {/* Corner accent glow — top right */}
-      <div style={{ position: "absolute", width: 300, height: 300, top: "-5%", right: "-5%", opacity: 0.06,
-        background: "radial-gradient(circle, rgba(0,229,195,0.4) 0%, transparent 70%)" }} />
-      {/* Bottom left subtle glow */}
-      <div style={{ position: "absolute", width: 400, height: 400, bottom: "-10%", left: "-10%", opacity: 0.04,
-        background: "radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)" }} />
+        backgroundImage: "linear-gradient(rgba(124,58,237,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.2) 1px, transparent 1px)",
+        backgroundSize: "80px 80px" }} />
     </div>
   );
 }
@@ -158,7 +157,7 @@ function KS4ScanGrid() {
 // BAND-SPECIFIC CARD WRAPPERS & TYPOGRAPHY
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function BandCard({ band, children, glow, accent, className = "", style = {} }) {
+function BandCard({ band, children, glow, accent, className = "", style = {}, id, "data-section": dataSection }) {
   // "Liquid glass" aesthetic: translucent, heavy blur, subtle inner highlight
   const styles = {
     ks1: {
@@ -186,22 +185,22 @@ function BandCard({ band, children, glow, accent, className = "", style = {} }) 
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 18,
     },
     ks4: {
-      background: "rgba(18,24,44,0.5)", borderRadius: 12,
-      border: `1px solid rgba(0,229,195,${glow ? "0.12" : "0.05"})`,
+      background: "rgba(255,255,255,0.82)", borderRadius: 16,
+      border: `1px solid ${glow ? "rgba(124,58,237,0.2)" : "rgba(124,58,237,0.08)"}`,
       boxShadow: glow
-        ? "0 0 20px rgba(0,229,195,0.04), inset 0 1px 0 rgba(255,255,255,0.03)"
-        : "inset 0 1px 0 rgba(255,255,255,0.02)",
-      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 18,
+        ? "0 4px 24px rgba(124,58,237,0.08), inset 0 1px 0 rgba(255,255,255,0.9)"
+        : "0 2px 10px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)",
+      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 20,
       position: "relative", overflow: "hidden",
     },
   };
   return (
-    <div style={{ ...styles[band] || styles.ks3, ...style }} className={className}>
+    <div id={id} data-section={dataSection} style={{ ...styles[band] || styles.ks3, ...style }} className={className}>
       {band === "ks4" && glow && (
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "200%",
-            background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.04), transparent)",
-            animation: "ks4Scan 3s linear infinite" }} />
+            background: "linear-gradient(180deg, transparent, rgba(124,58,237,0.03), transparent)",
+            animation: "ks4Scan 5s linear infinite" }} />
         </div>
       )}
       <div style={{ position: "relative", zIndex: 1 }}>
@@ -271,8 +270,10 @@ function BandKeyframes({ band }) {
     ks3: ``,
     ks4: `
       @keyframes ks4Scan { 0%{backgroundPosition:0 0} 100%{backgroundPosition:0 100%} }
-      @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(0,229,195,0.15)} 50%{box-shadow:0 0 30px rgba(0,229,195,0.25)} }
-      @keyframes ks4Badge { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+      @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.1)} 50%{box-shadow:0 0 30px rgba(124,58,237,0.18)} }
+      @keyframes ks4Badge { 0%,100%{opacity:0.8;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
+      @keyframes ks4NodePulse { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.15)} }
+      @keyframes ks4DonutFill { from{stroke-dashoffset:251} to{stroke-dashoffset:var(--target)} }
     `,
   };
   return <style>{keyframes[band] || ""}</style>;
@@ -318,25 +319,11 @@ export default function AdaptiveDashboardLayout({
       <BandKeyframes band={band} />
       {band === "ks1" && <KS1Nebula />}
       {band === "ks2" && <KS2Radar />}
-      {band === "ks4" && <KS4ScanGrid />}
+      {band === "ks4" && <KS4AtelierAmbient />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: band === "ks1" ? 16 : 14, position: "relative", zIndex: 1 }}>
 
-        {/* ── Section anchors for DashboardTour ──────────────────────────────── */}
-        <div id="section-adventure" style={{ height: 0, margin: 0 }} />
-        <div id="section-mission" style={{ height: 0, margin: 0 }} />
-        <div id="section-dashboard" style={{ height: 0, margin: 0 }} />
-        <div id="section-galaxy" style={{ height: 0, margin: 0 }} />
-        <div id="section-skills" style={{ height: 0, margin: 0 }} />
-        <div id="section-journal" style={{ height: 0, margin: 0 }} />
-        <div id="section-exams" style={{ height: 0, margin: 0 }} />
-        <div id="section-heatmap" style={{ height: 0, margin: 0 }} />
-        <div id="section-tutor" style={{ height: 0, margin: 0 }} />
-        <div id="section-careers" style={{ height: 0, margin: 0 }} />
-        <div id="section-stats" style={{ height: 0, margin: 0 }} />
-        <div id="section-trophies" style={{ height: 0, margin: 0 }} />
-        <div id="section-comms" style={{ height: 0, margin: 0 }} />
-        <div id="section-settings" style={{ height: 0, margin: 0 }} />
+        {/* Section anchors removed — scroll handled by DashboardShell scrollToSection */}
 
         {/* ══════════════════════════════════════════════════════════════════════
             KS1: CELESTIAL NURSERY (Warm, Playful, Story-Focused)
@@ -369,7 +356,7 @@ export default function AdaptiveDashboardLayout({
 
             {/* Daily Adventure with Narrative */}
             {dailyAdventure && (
-              <BandCard band={band} glow>
+              <BandCard band={band} glow data-section="adventure">
                 <SectionHeader band={band} icon="🗺️" title="Today's Adventure" subtitle="narrative quest" />
                 <DailyAdventure
                   totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
@@ -381,7 +368,7 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* Treasure Map (Skill Map) */}
-            <BandCard band={band} glow>
+            <BandCard band={band} glow data-section="galaxy">
               <SectionHeader band={band} icon="🗺️" title="Treasure Map" subtitle="explore subjects" size="lg" />
               <SkillMap
                 topics={topics} subjects={subjects} subject={activeSubject}
@@ -418,6 +405,7 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* Sticker Collection */}
+            <div data-section="trophies">
             <StickerCollection
               band="ks1"
               earnedBadgeIds={earnedBadgeIds}
@@ -428,6 +416,7 @@ export default function AdaptiveDashboardLayout({
                 totalXP: stats.xp ?? stats.totalXP ?? 0,
               }}
             />
+            </div>
           </>
         )}
 
@@ -476,7 +465,7 @@ export default function AdaptiveDashboardLayout({
 
             {/* Daily Mission */}
             {dailyAdventure && (
-              <BandCard band={band} glow>
+              <BandCard band={band} glow data-section="mission">
                 <SectionHeader band={band} icon="🚀" title="Daily Mission" subtitle="today's objective" />
                 <DailyAdventure
                   totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
@@ -488,7 +477,7 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* Galaxy Map (Skill Map) */}
-            <BandCard band={band} glow>
+            <BandCard band={band} glow data-section="galaxy">
               <SectionHeader band={band} icon="🌌" title="Galaxy Map" subtitle="orbital rings" />
               <SkillMap
                 topics={topics} subjects={subjects} subject={activeSubject}
@@ -556,6 +545,7 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* Achievement Medals */}
+            <div data-section="trophies">
             <StickerCollection
               band="ks2"
               earnedBadgeIds={earnedBadgeIds}
@@ -566,6 +556,7 @@ export default function AdaptiveDashboardLayout({
                 totalXP: stats.xp ?? stats.totalXP ?? 0,
               }}
             />
+            </div>
 
             {/* Space Pet (after achievements) */}
             <BandCard band={band} glow>
@@ -574,7 +565,7 @@ export default function AdaptiveDashboardLayout({
             </BandCard>
 
             {/* Key Stats Panel */}
-            <BandCard band={band}>
+            <BandCard band={band} data-section="stats">
               <SectionHeader band={band} icon="📊" title="Key Stats" subtitle="mission intel" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(124,131,245,0.08)", border: "1px solid rgba(124,131,245,0.12)" }}>
@@ -648,7 +639,7 @@ export default function AdaptiveDashboardLayout({
 
             {/* Daily Challenge */}
             {dailyAdventure && (
-              <BandCard band={band} glow>
+              <BandCard band={band} glow data-section="mission">
                 <SectionHeader band={band} icon="🎯" title="Daily Challenge" subtitle="career skill builder" />
                 <DailyAdventure
                   totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
@@ -660,7 +651,7 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* PRIMARY: Skill Map with Tabs */}
-            <BandCard band={band} glow>
+            <BandCard band={band} glow data-section="galaxy">
               <SectionHeader band={band} icon="📈" title="Skill Map" subtitle="subject progress" size="lg" />
               <SkillMap
                 topics={topics} subjects={subjects} subject={activeSubject}
@@ -669,7 +660,7 @@ export default function AdaptiveDashboardLayout({
             </BandCard>
 
             {/* Mastery Visualization */}
-            <BandCard band={band}>
+            <BandCard band={band} data-section="stats">
               <SectionHeader band={band} icon="🎯" title="Mastery Progress" />
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 32,
@@ -753,145 +744,68 @@ export default function AdaptiveDashboardLayout({
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            KS4: EXAM COMMAND (Dark Precision, Revision-Focused)
+            KS4: ZENITH STATION (Light, Elegant, Precision-Focused)
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks4" && (
           <>
-            {/* ── HERO: Greeting + Inline Command Status ── */}
-            <BandCard band={band} glow>
-              <AdaptiveGreeting
-                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
-                yearLevel={scholar.year_level} examName={examData?.examName}
-                daysUntilExam={examData?.daysUntilExam}
-                avatar={scholar.avatar} onAvatarClick={onAvatar}
-              />
-            </BandCard>
-
-            {/* ── COMMAND STATUS: 4-metric bar with glow indicators ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
-              {/* Predicted Grade */}
-              <div style={{
-                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
-                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
-                position: "relative", overflow: "hidden",
-              }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #00e5c3, transparent)", opacity: 0.4 }} />
-                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Predicted</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: "#00e5c3", fontFamily: "'JetBrains Mono', monospace", textShadow: "0 0 24px rgba(0,229,195,0.25)" }}>
-                  {examData?.predictedGrade || "—"}
-                </div>
-                {examData?.previousGrade && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>was {examData.previousGrade}</div>}
+            {/* ── Mission Telemetry Header ─────────────────────────── */}
+            <div data-section="exams" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: -4 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 4 }}>Mission Telemetry</div>
+                <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b4b", margin: 0 }}>Knowledge Frontier</h2>
               </div>
-
-              {/* Exam Countdown */}
-              <div style={{
-                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
-                border: `1px solid rgba(${(examData?.daysUntilExam ?? 999) <= 30 ? "239,68,68" : "0,229,195"},0.12)`,
-                backdropFilter: "blur(20px)", position: "relative", overflow: "hidden",
-              }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: (examData?.daysUntilExam ?? 999) <= 30 ? "linear-gradient(90deg, transparent, #ef4444, transparent)" : "linear-gradient(90deg, transparent, #00e5c3, transparent)", opacity: 0.4 }} />
-                <div style={{ fontSize: 9, fontWeight: 800, color: (examData?.daysUntilExam ?? 999) <= 30 ? "rgba(239,68,68,0.6)" : "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Exam In</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#00e5c3", fontFamily: "'JetBrains Mono', monospace" }}>
-                  {examData?.daysUntilExam ?? "—"}
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>days</div>
-              </div>
-
-              {/* Mastery Index */}
-              <div style={{
-                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
-                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
-                position: "relative", overflow: "hidden",
-              }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3 }}>
-                  <div style={{ height: "100%", width: `${subjectMastery.pct}%`, background: "#00e5c3", opacity: 0.5, transition: "width 1s ease" }} />
-                </div>
-                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Mastery</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: "#00e5c3", fontFamily: "'JetBrains Mono', monospace" }}>
-                  {subjectMastery.pct}%
-                </div>
-                <div style={{ fontSize: 9, fontWeight: 800, color: subjectMastery.pct >= 80 ? "rgba(0,229,195,0.5)" : subjectMastery.pct >= 50 ? "rgba(251,191,36,0.5)" : "rgba(239,68,68,0.5)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                  {subjectMastery.pct >= 80 ? "READY" : subjectMastery.pct >= 50 ? "FOCUS" : "PREP"}
-                </div>
-              </div>
-
-              {/* Accuracy */}
-              <div style={{
-                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
-                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
-                position: "relative", overflow: "hidden",
-              }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #6366f1, transparent)", opacity: 0.4 }} />
-                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(99,102,241,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Accuracy</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: "#818cf8", fontFamily: "'JetBrains Mono', monospace" }}>
-                  {stats.bestAccuracy ?? stats.accuracy ?? 0}%
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>best score</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ padding: "8px 16px", borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.18)", color: "#7c3aed", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
+                <button onClick={() => onStartQuest?.(activeSubject)} style={{ padding: "8px 16px", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>Launch Deep Space</button>
               </div>
             </div>
 
-            {/* ── TODAY'S FOCUS: Quick action card ── */}
-            <BandCard band={band} glow>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: "linear-gradient(135deg, rgba(0,229,195,0.15), rgba(0,229,195,0.05))",
-                    border: "1px solid rgba(0,229,195,0.15)",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-                  }}>
-                    {(examData?.daysUntilExam ?? 999) <= 14 ? "🔴" : (examData?.daysUntilExam ?? 999) <= 60 ? "🟡" : "🟢"}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: "#e0e6f0", letterSpacing: "0.02em" }}>
-                      Today&apos;s Focus
+            {/* ── 3-column Status Metrics ───────────────────────────── */}
+            <div data-section="stats" style={{ height: 0, margin: 0, padding: 0 }} />
+            {(() => {
+              const isExamMode = scholar.exam_mode && scholar.exam_mode !== "none" && scholar.exam_mode !== "general";
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  <BandCard band={band} glow>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>
+                        {isExamMode ? "Predicted Grade" : "Total XP"}
+                      </div>
+                      <div style={{ fontSize: 34, fontWeight: 900, color: "#7c3aed", fontFamily: "'DM Sans', sans-serif" }}>
+                        {isExamMode ? (examData?.predictedGrade || "—") : (stats.xp ?? 0).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.4)", marginTop: 2 }}>
+                        {isExamMode ? "Target: A*" : "Experience points"}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                      {(examData?.daysUntilExam ?? 999) <= 14 ? "FINAL PUSH" : (examData?.daysUntilExam ?? 999) <= 60 ? "BUILDING MOMENTUM" : "STEADY PROGRESS"}
+                  </BandCard>
+                  <BandCard band={band}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Mastery Index</div>
+                      <div style={{ fontSize: 34, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>{subjectMastery.pct}<span style={{ fontSize: 16, color: "rgba(30,27,75,0.3)" }}>%</span></div>
+                      <div style={{ height: 5, borderRadius: 3, background: "rgba(124,58,237,0.1)", marginTop: 8, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 3, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.8s ease" }} />
+                      </div>
                     </div>
-                  </div>
+                  </BandCard>
+                  <BandCard band={band}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>
+                        {isExamMode ? "Countdown" : "Streak"}
+                      </div>
+                      <div style={{ fontSize: 34, fontWeight: 900, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>
+                        {isExamMode ? (examData?.daysUntilExam ?? "—") : (stats.streak ?? 0)}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.4)", marginTop: 2 }}>
+                        {isExamMode ? "days to exam" : "day streak"}
+                      </div>
+                    </div>
+                  </BandCard>
                 </div>
-                {subjectMastery.pct >= 80 && (
-                  <div style={{
-                    padding: "5px 12px", borderRadius: 8,
-                    background: "rgba(0,229,195,0.1)", border: "1px solid rgba(0,229,195,0.2)",
-                    fontSize: 10, fontWeight: 900, color: "#00e5c3",
-                    textTransform: "uppercase", letterSpacing: "0.06em",
-                  }}>
-                    EXAM READY
-                  </div>
-                )}
-              </div>
-              {/* Quick action buttons */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <button onClick={() => onStartMock?.(activeSubject?.toLowerCase() || "mathematics")} style={{
-                  padding: "12px 16px", borderRadius: 10,
-                  background: "linear-gradient(135deg, rgba(0,229,195,0.12), rgba(0,229,195,0.04))",
-                  border: "1px solid rgba(0,229,195,0.15)", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s",
-                }}>
-                  <span style={{ fontSize: 16 }}>📝</span>
-                  <div style={{ textAlign: "left" }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#00e5c3" }}>Mock Exam</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{examData?.mocksCompleted ?? 0} completed</div>
-                  </div>
-                </button>
-                <button onClick={() => onStartRevisionTopic?.("weakest")} style={{
-                  padding: "12px 16px", borderRadius: 10,
-                  background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.04))",
-                  border: "1px solid rgba(99,102,241,0.15)", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s",
-                }}>
-                  <span style={{ fontSize: 16 }}>🎯</span>
-                  <div style={{ textAlign: "left" }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#818cf8" }}>Weak Topics</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{examData?.topicsRemaining ?? "—"} remaining</div>
-                  </div>
-                </button>
-              </div>
-            </BandCard>
+              );
+            })()}
 
-            {/* ── Encouragement ── */}
+            {/* Encouragement */}
             {encouragement && (
               <BandCard band={band}>
                 <TaraEncouragement
@@ -902,21 +816,109 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── SUBJECT YEAR PROGRESSION ── */}
-            {subjects.length > 0 && (
-              <BandCard band={band}>
-                <SectionHeader band={band} icon="📈" title="Subject Progress" subtitle="year overview" />
-                <SubjectProgressChart
-                  subjects={subjects} stats={stats} scholar={scholar}
-                  activeSubject={activeSubject} onSubjectChange={setActiveSubject}
+            {/* ── Sub-Topic Proficiency Card ────────────────────────── */}
+            <BandCard band={band} glow>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Sub-Topic Proficiency</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b4b", marginTop: 2 }}>Mastery by Subject</div>
+                </div>
+                {/* Subject tabs */}
+                <div style={{ display: "flex", gap: 6 }}>
+                  {subjects.slice(0, 4).map((s) => {
+                    const active = (activeSubject || "").toLowerCase() === s.toLowerCase();
+                    return (
+                      <button key={s} onClick={() => setActiveSubject(s)}
+                        style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1px solid", transition: "all 0.2s",
+                          background: active ? "#7c3aed" : "rgba(124,58,237,0.04)",
+                          color: active ? "#fff" : "#7c3aed",
+                          borderColor: active ? "#7c3aed" : "rgba(124,58,237,0.12)",
+                        }}>
+                        {s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()).split(" ")[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
+            </BandCard>
+
+            {/* ── 2-column: Constellation + Deep Space / Efficiency ──── */}
+            <div data-section="heatmap" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {/* Left: Constellation Growth Map (SkillMap) */}
+              <BandCard band={band} glow>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Growth Map</div>
+                <SkillMap
+                  topics={topics} subjects={subjects} subject={activeSubject}
+                  onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
                 />
               </BandCard>
-            )}
 
-            {/* ── PRIMARY: AI Revision Strategy ── */}
+              {/* Right: Deep Space Threshold + Orbital Efficiency stacked */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Deep Space Threshold — donut */}
+                <BandCard band={band}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Deep Space Threshold</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 8 }}>
+                    <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
+                      <svg viewBox="0 0 90 90" style={{ width: 90, height: 90 }}>
+                        <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(124,58,237,0.08)" strokeWidth="8" />
+                        <circle cx="45" cy="45" r="38" fill="none" stroke="#7c3aed" strokeWidth="8" strokeLinecap="round"
+                          strokeDasharray="238.76" strokeDashoffset={238.76 * (1 - Math.min((stats.streak ?? 0) / 30, 1))}
+                          transform="rotate(-90 45 45)" style={{ transition: "stroke-dashoffset 1s ease" }} />
+                      </svg>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: "#1e1b4b" }}>{stats.streak ?? 0}</span>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>days</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b4b" }}>Weekly Goal</div>
+                      <div style={{ fontSize: 11, color: "rgba(30,27,75,0.45)", marginTop: 2 }}>
+                        {Math.round(Math.min((stats.streak ?? 0) / 7, 1) * 100)}% reached
+                      </div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.08)", marginTop: 8, width: 120, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 2, width: `${Math.min((stats.streak ?? 0) / 7, 1) * 100}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)" }} />
+                      </div>
+                    </div>
+                  </div>
+                </BandCard>
+
+                {/* Orbital Efficiency */}
+                <BandCard band={band}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Efficiency</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
+                    <span style={{ fontSize: 36, fontWeight: 900, color: "#1e1b4b" }}>{((subjectMastery.pct / 10) || 0).toFixed(1)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(30,27,75,0.3)" }}>/10</span>
+                  </div>
+                  <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, marginTop: 4,
+                    background: subjectMastery.pct >= 80 ? "rgba(16,185,129,0.08)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)",
+                    color: subjectMastery.pct >= 80 ? "#059669" : subjectMastery.pct >= 50 ? "#d97706" : "#dc2626",
+                    border: `1px solid ${subjectMastery.pct >= 80 ? "rgba(16,185,129,0.15)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)"}`,
+                  }}>
+                    {subjectMastery.pct >= 80 ? "OPTIMAL FLOW" : subjectMastery.pct >= 50 ? "DEVELOPING" : "WARMING UP"}
+                  </div>
+                  {/* Mini bar chart */}
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 3, marginTop: 12, height: 32 }}>
+                    {[65, 72, 58, 80, 91, 85, subjectMastery.pct].map((v, i) => (
+                      <div key={i} style={{ flex: 1, height: `${v * 0.32}px`, borderRadius: 3, background: i === 6 ? "#7c3aed" : "rgba(124,58,237,0.12)", transition: "height 0.5s ease" }} />
+                    ))}
+                  </div>
+                </BandCard>
+              </div>
+            </div>
+
+            {/* ── Active Research Modules (Revision Planner) ─────────── */}
             {masteryData.length > 0 && (
               <BandCard band={band} glow>
-                <SectionHeader band={band} icon="🎯" title="AI Revision Strategy" subtitle="targeting grade boundaries" size="lg" />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Active Research Modules</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginTop: 2 }}>Revision Planner</div>
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b5cf6", textTransform: "uppercase" }}>Targeting Grade Boundaries</div>
+                </div>
                 <RevisionPlanner
                   masteryData={masteryData} examDate={examData?.examDate}
                   examName={examData?.examName} onStartTopic={onStartRevisionTopic}
@@ -924,10 +926,11 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── Exam Status Panel ── */}
-            {examData && (
+            {/* ── Exam Panel (only for scholars in exam mode) ──────── */}
+            {examData && scholar.exam_mode && scholar.exam_mode !== "none" && (
               <BandCard band={band}>
-                <SectionHeader band={band} icon="📊" title="Exam Intel" subtitle="grade trajectory" />
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Grade Trajectory</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Exam Intelligence</div>
                 <ExamPanel
                   predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
                   examName={examData.examName} daysUntilExam={examData.daysUntilExam}
@@ -937,35 +940,10 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── Topic Heatmap ── */}
-            <BandCard band={band}>
-              <SectionHeader band={band} icon="🗺️" title="Topic Heatmap" subtitle="coverage analysis" />
-              <SkillMap
-                topics={topics} subjects={subjects} subject={activeSubject}
-                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
-              />
-            </BandCard>
-
-            {/* ── Topic Performance Breakdown ── */}
-            {scholarId && supabase && (
-              <BandCard band={band}>
-                <SectionHeader band={band} icon="📋" title="Topic Analysis" subtitle="performance by topic" />
-                <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
-              </BandCard>
-            )}
-
-            {/* ── Flashcard Deck (mobile only — desktop in sidebar) ── */}
-            <div className="xl:hidden">
+            {/* ── Simulation Bay (main content anchor for nav linking) ─── */}
+            <div data-section="tutor">
               <BandCard band={band} glow>
-                <SectionHeader band={band} icon="🧠" title="Flashcard Deck" subtitle="active recall" />
-                <Flashcards scholarId={scholarId} subject={activeSubject}
-                  curriculum={scholar.curriculum} supabase={supabase} />
-              </BandCard>
-            </div>
-
-            {/* ── Mock Test Launcher (mobile only) ── */}
-            <div className="xl:hidden">
-              <BandCard band={band} glow>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
                 <MockTestLauncher
                   subject={activeSubject?.toLowerCase() || "mathematics"}
                   curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
@@ -974,7 +952,40 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             </div>
 
-            {/* ── Achievement Certifications ── */}
+            {/* ── Discovery Feed (mobile: Flashcards) ────────── */}
+            <div className="xl:hidden">
+              <BandCard band={band} glow>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Active Recall</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Flashcard Deck</div>
+                <Flashcards scholarId={scholarId} subject={activeSubject}
+                  curriculum={scholar.curriculum} supabase={supabase} />
+              </BandCard>
+            </div>
+
+            {/* ── Year Progression Chart (from KS3 data viz) ──── */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Trajectory</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Year Progression</div>
+                <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
+            {/* ── Weekly Goals ──── */}
+            <BandCard band={band}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Mission Objectives</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Weekly Goals</div>
+              <GoalSetting scholarId={scholarId} stats={stats} />
+            </BandCard>
+
+            {/* ── Quest Journal ──── */}
+            <BandCard band={band}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Flight Log</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Recent Activity</div>
+              <QuestJournal entries={journalEntries} />
+            </BandCard>
+
+            {/* Sticker Collection */}
             <StickerCollection
               band="ks4"
               earnedBadgeIds={earnedBadgeIds}
@@ -987,14 +998,6 @@ export default function AdaptiveDashboardLayout({
                 mocksCompleted: examData?.mocksCompleted ?? 0,
               }}
             />
-
-            {/* ── Leaderboard ── */}
-            {leaderboard.length > 0 && (
-              <BandCard band={band}>
-                <SectionHeader band={band} icon="🏆" title="Rankings" subtitle="top performers" />
-                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
-              </BandCard>
-            )}
           </>
         )}
 
@@ -1030,21 +1033,28 @@ export default function AdaptiveDashboardLayout({
         <>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
           <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          <div data-section="careers">
           {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
+          </div>
         </>
       )}
 
-      {/* KS4: Flashcards + Exam Panel + Leaderboard */}
+      {/* KS4: Flashcards + Mock Test + Leaderboard */}
       {band === "ks4" && (
         <>
-          <Flashcards scholarId={scholarId} subject={activeSubject}
-            curriculum={scholar.curriculum} supabase={supabase} />
-          {examData && <ExamPanel
-            predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
-            examName={examData.examName} daysUntilExam={examData.daysUntilExam}
-            topicsRemaining={examData.topicsRemaining} mocksCompleted={examData.mocksCompleted}
-            revisionPlan={examData.revisionPlan ?? []}
-          />}
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Active Recall</div>
+            <Flashcards scholarId={scholarId} subject={activeSubject}
+              curriculum={scholar.curriculum} supabase={supabase} />
+          </div>
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
+            <MockTestLauncher
+              subject={activeSubject?.toLowerCase() || "mathematics"}
+              curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
+              pastMocks={pastMocks} onStartMock={onStartMock}
+            />
+          </div>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
           <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
         </>
@@ -1121,9 +1131,9 @@ export default function AdaptiveDashboardLayout({
       {/* KS4: Status badges */}
       {band === "ks4" && subjectMastery.pct >= 80 && (
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 999,
-          background: "rgba(0,229,195,0.12)", border: "1px solid rgba(0,229,195,0.2)", animation: "ks4Badge 2s ease-in-out infinite" }}>
+          background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.15)", animation: "ks4Badge 2s ease-in-out infinite" }}>
           <span style={{ fontSize: 10 }}>✓</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#00e5c3", textTransform: "uppercase", letterSpacing: "0.06em" }}>AI READY</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em" }}>OPTIMAL</span>
         </div>
       )}
     </div>

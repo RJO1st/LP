@@ -11,20 +11,21 @@
  *   const theme = getBandConfig(band);
  */
 
-export function getAgeBand(yearLevel, curriculum = '') {
-  const yr = parseInt(yearLevel, 10) || 4;
+export function getAgeBand(yearLevel, curriculum) {
   const c = (curriculum || '').toLowerCase();
-
-  // Nigerian curricula — year_level 1-3 means different ages
-  if (c === 'ng_jss')     return 'ks3';
-  if (c === 'ng_sss')     return 'ks4';
-  if (c === 'ng_primary') return yr <= 2 ? 'ks1' : 'ks2';
-  if (c === 'ca_secondary') return yr <= 10 ? 'ks3' : 'ks4';
-
-  // Default
-  if (yr <= 2)  return 'ks1';
-  if (yr <= 6)  return 'ks2';
-  if (yr <= 9)  return 'ks3';
+  
+  // Nigerian JSS is always KS3 (ages 12-14)
+  if (c === 'ng_jss') return 'ks3';
+  // Nigerian SSS is always KS4 (ages 15-17)  
+  if (c === 'ng_sss') return 'ks4';
+  // Nigerian Primary is KS1/KS2 based on year
+  if (c === 'ng_primary') return yearLevel <= 2 ? 'ks1' : 'ks2';
+  
+  // Default year-based mapping
+  const yr = Number(yearLevel || 4);
+  if (yr <= 2) return 'ks1';
+  if (yr <= 6) return 'ks2';
+  if (yr <= 9) return 'ks3';
   return 'ks4';
 }
 
@@ -186,15 +187,15 @@ export const BAND_CONFIGS = {
   },
 
   ks4: {
-    id:'ks4', label:'KS4', ages:'15–17', years:[10,11,12,13], metaphor:'Exam Studio',
-    fonts: { display:"'Plus Jakarta Sans',sans-serif", body:"'Plus Jakarta Sans',sans-serif", mono:"'DM Mono',monospace" },
-    fontWeight: { normal:500, bold:600, black:700 },
+    id:'ks4', label:'KS4', ages:'15–17', years:[10,11,12,13], metaphor:'Zenith Station',
+    fonts: { display:"'DM Sans','Inter',sans-serif", body:"'DM Sans','Inter',sans-serif", mono:"'DM Mono',monospace" },
+    fontWeight: { normal:500, bold:700, black:800 },
     colours: {
-      bg:"linear-gradient(160deg,#0c0a1a 0%,#1a1333 50%,#0f172a 100%)", bgSolid:"#0c0a1a",
-      card:"rgba(255,255,255,.04)", cardBorder:"rgba(255,255,255,.08)",
-      accent:"#a78bfa", accentDark:"#7c3aed", accentLight:"rgba(167,139,250,.12)",
-      success:"#34d399", successBg:"rgba(52,211,153,.1)", error:"#fb7185", errorBg:"rgba(251,113,133,.1)",
-      text:"#e2e8f0", textMuted:"#94a3b8", textOnAccent:"#ffffff",
+      bg:"linear-gradient(165deg,#f8f7ff 0%,#f3f0ff 30%,#ede9fe 60%,#f5f3ff 100%)", bgSolid:"#f8f7ff",
+      card:"rgba(255,255,255,0.82)", cardBorder:"rgba(124,58,237,0.12)",
+      accent:"#7c3aed", accentDark:"#6d28d9", accentLight:"rgba(124,58,237,0.06)",
+      success:"#10b981", successBg:"rgba(16,185,129,0.08)", error:"#ef4444", errorBg:"rgba(239,68,68,0.08)",
+      text:"#1e1b4b", textMuted:"rgba(30,27,75,0.45)", textOnAccent:"#ffffff",
     },
     radius: { card:16, button:12, input:10, chip:20 },
     spacing: { cardPad:22, optionGap:6, sectionGap:16 },
