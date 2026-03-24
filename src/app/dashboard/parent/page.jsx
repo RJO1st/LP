@@ -34,6 +34,13 @@ const StarIcon    = ({ size = 16 }) => (
   </svg>
 );
 
+// Dashboard nav icons
+const DashIcon = ({ size = 20 }) => <Icon size={size} d={["M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2M3 9h18","M9 21v-7h6v7"]} />;
+const StudentsIcon = ({ size = 20 }) => <Icon size={size} d={["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2","M16 3.13a4 4 0 0 1 0 7.75M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
+const MilestoneIcon = ({ size = 20 }) => <Icon size={size} d={["M6 9l6-3 6 3m0 11l-6 3-6-3M6 9v6m0 6v-6m6-3v6m6-6v6"]} />;
+const CreditCardIcon = ({ size = 20 }) => <Icon size={size} d={["M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z","M2 12h20"]} />;
+const SettingsIcon = ({ size = 20 }) => <Icon size={size} d={["M12 1v6m0 6v6M1 12h6m6 0h6M4.22 4.22l4.24 4.24m3.08 3.08l4.24 4.24M4.22 19.78l4.24-4.24m3.08-3.08l4.24-4.24"]} />;
+
 // ═══════════════════════════════════════════════════════════════════
 // CURRICULA / SUBJECT DATA (unchanged from production)
 // ═══════════════════════════════════════════════════════════════════
@@ -161,6 +168,14 @@ const CANADIAN_PROVINCES = [
   { code: "NU", name: "Nunavut",                 note: "Northern Canada" },
 ];
 
+// Band colors for scholar cards
+const BAND_COLORS = {
+  ks1: { border: "border-amber-300", bg: "bg-amber-50", badge: "bg-amber-100 text-amber-700" },
+  ks2: { border: "border-indigo-300", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-700" },
+  ks3: { border: "border-sky-300", bg: "bg-sky-50", badge: "bg-sky-100 text-sky-700" },
+  ks4: { border: "border-cyan-300", bg: "bg-cyan-50", badge: "bg-cyan-100 text-cyan-700" },
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // MASTERY TIER HELPER
 // ═══════════════════════════════════════════════════════════════════
@@ -278,11 +293,10 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
   }, [scholarId]);
 
   if (loading) return (
-    <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-100 p-4 text-center">
-      <div className="w-6 h-6 border-2 border-indigo-400/40 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+    <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-center">
+      <div className="w-6 h-6 border-2 border-amber-400/40 border-t-amber-500 rounded-full animate-spin mx-auto" />
     </div>
   );
-  <DashboardTour type="parent" userId={parent?.id || user?.id} />
 
   if (!data) return null;
 
@@ -307,7 +321,7 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
   // No activity this week
   if (totalQ === 0 && subjectsWithTopics.length === 0) {
     return (
-      <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-100 p-4 text-center text-sm text-slate-400 font-semibold">
+      <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-center text-sm text-slate-400 font-semibold">
         No sessions recorded yet this week.
       </div>
     );
@@ -319,19 +333,19 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
       {/* ── Week-at-a-glance stat strip ────────────────────────── */}
       <div className="grid grid-cols-3 gap-2">
         {/* Time */}
-        <div className="bg-indigo-50 rounded-2xl p-3 border border-indigo-100 text-center">
+        <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-200 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">This week</p>
           <p className="text-xl font-black text-indigo-700">{timeStr}</p>
           <p className="text-[10px] text-indigo-400 font-semibold mt-0.5">study time</p>
         </div>
         {/* Accuracy */}
-        <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 text-center">
+        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Accuracy</p>
           <p className="text-xl font-black text-emerald-700">{accuracy !== null ? `${accuracy}%` : "—"}</p>
           <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">{totalQ} questions</p>
         </div>
         {/* Streak */}
-        <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100 text-center">
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">Streak</p>
           <p className="text-xl font-black text-amber-700">{streak} 🔥</p>
           <p className="text-[10px] text-amber-400 font-semibold mt-0.5">day{streak !== 1 ? "s" : ""}</p>
@@ -350,253 +364,34 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
         </div>
       )}
 
-      {/* ── Top subject this week ─────────────────────────────── */}
-      {topSubject && topSubject.minutes > 0 && (
-        <div className="bg-white border border-slate-100 rounded-2xl p-3 flex items-center gap-3">
-          <span className="text-2xl">{subjectEmoji(topSubject.subject)}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-0.5">Most time this week</p>
-            <p className="font-black text-slate-800 text-sm truncate">{subjectLabel(topSubject.subject)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-black text-indigo-600">{topSubject.minutes} min</p>
-            {topSubject.questions_total > 0 && (
-              <p className="text-[10px] text-slate-400 font-semibold">
-                {Math.round((topSubject.questions_correct / topSubject.questions_total) * 100)}% acc
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Per-subject mastery bars (30-day topics) ─────────── */}
+      {/* ── Per-subject mastery bars ────────────────────────────── */}
       {subjectsWithTopics.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Topic Mastery · 30 days</p>
-          </div>
-
-          {subjectsWithTopics.map((subject) => {
-            const isExpanded = expandedSubject === subject;
-            const topicsRaw  = topicAgg[subject];
-            const topics     = Object.entries(topicsRaw)
-              .map(([topic, { correct, total }]) => ({
-                topic,
-                pct: total > 0 ? Math.round((correct / total) * 100) : 0,
-                correct,
-                total,
-              }))
-              .sort((a, b) => a.pct - b.pct);
-
-            const avgMastery = topics.length > 0
-              ? Math.round(topics.reduce((a, t) => a + t.pct, 0) / topics.length)
-              : 0;
-            const tier = getMasteryTier(avgMastery);
-
-            const filtered = topics.filter(t => {
-              if (topicFilter === "needs_work") return t.pct < 50;
-              if (topicFilter === "mastered")   return t.pct >= 85;
-              return true;
-            });
-
+        <div className="mt-3 space-y-2">
+          {subjectsWithTopics.map(subject => {
+            const topicStats = topicAgg[subject] || {};
+            const topics = Object.keys(topicStats);
+            const totalTopics = topics.length;
+            const masteredTopics = topics.filter(t => {
+              const s = topicStats[t];
+              return s.total > 0 && (s.correct / s.total) >= 0.8;
+            }).length;
             return (
-              <div key={subject} className="border-b border-slate-50 last:border-0">
-                {/* Subject row — click to expand */}
-                <button
-                  onClick={() => {
-                    setExpanded(isExpanded ? null : subject);
-                    setFilter("all");
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
-                >
-                  <span className="text-lg">{subjectEmoji(subject)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-bold text-slate-700 truncate">{subjectLabel(subject)}</span>
-                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                          style={{ color: tier.color, background: tier.bg, borderColor: tier.border }}
-                        >
-                          avg {avgMastery}%
-                        </span>
-                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </div>
-                    </div>
-                    {/* Mini mastery bar */}
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${avgMastery}%`, background: tier.color }}
-                      />
-                    </div>
-                  </div>
-                </button>
-
-                {/* Expanded topic list */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 bg-slate-50/50">
-                    {/* Filter tabs */}
-                    <div className="flex gap-1.5 mb-3 flex-wrap pt-1">
-                      {[
-                        { key: "all",        label: `All (${topics.length})` },
-                        { key: "needs_work", label: `Needs work (${topics.filter(t => t.pct < 50).length})` },
-                        { key: "mastered",   label: `Mastered (${topics.filter(t => t.pct >= 85).length})` },
-                      ].map(({ key, label }) => (
-                        <button
-                          key={key}
-                          onClick={() => setFilter(key)}
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                            topicFilter === key
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "bg-white border-slate-200 text-slate-500 hover:border-indigo-300"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {filtered.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-2">No topics match this filter.</p>
-                    ) : (
-                      <div className="space-y-2.5">
-                        {filtered.map(({ topic, pct, correct, total }) => {
-                          const t = getMasteryTier(pct);
-                          return (
-                            <div key={topic}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-semibold text-slate-600 capitalize">
-                                  {topic.replace(/_/g, " ")}
-                                </span>
-                                <div className="flex items-center gap-1.5 ml-2">
-                                  <span
-                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border"
-                                    style={{ color: t.color, background: t.bg, borderColor: t.border }}
-                                  >
-                                    {t.label}
-                                  </span>
-                                  <span className="text-[10px] font-black text-slate-400 tabular-nums w-8 text-right">
-                                    {pct}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="h-2 bg-white rounded-full overflow-hidden border border-slate-100">
-                                <div
-                                  className="h-full rounded-full transition-all duration-500"
-                                  style={{ width: `${pct}%`, background: t.color }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-slate-400 mt-0.5">{correct} of {total} correct</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Mastery legend */}
-                    <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-slate-100">
-                      {[
-                        { label: "Mastered",   color: "#10b981" },
-                        { label: "Strong",     color: "#6366f1" },
-                        { label: "Developing", color: "#f59e0b" },
-                        { label: "Needs work", color: "#ef4444" },
-                      ].map(({ label, color }) => (
-                        <div key={label} className="flex items-center gap-1 text-[10px] text-slate-400">
-                          <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-                          {label}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div key={subject} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700 flex items-center gap-1">
+                    {subjectEmoji(subject)} {subjectLabel(subject)}
+                  </span>
+                  <span className="font-bold text-slate-500">{masteredTopics}/{totalTopics}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-orange-400"
+                    style={{ width: `${totalTopics > 0 ? (masteredTopics / totalTopics) * 100 : 0}%` }}
+                  />
+                </div>
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* ── Weekly digest ─────────────────────────────────────── */}
-      <WeeklyDigest
-        scholarName={scholarName}
-        weeklyStats={weeklyStats}
-        lastWeekStats={lastWeekStats}
-        topicAgg={topicAgg}
-        streak={streak}
-        accuracy={accuracy}
-        totalMins={totalMins}
-        totalQ={totalQ}
-      />
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// WEEKLY DIGEST — upgraded with Tier 1 insights
-// ═══════════════════════════════════════════════════════════════════
-function WeeklyDigest({ scholarName, weeklyStats, lastWeekStats, topicAgg, streak, accuracy, totalMins, totalQ }) {
-  const [open, setOpen] = useState(false);
-  if (totalQ === 0 && totalMins === 0) return null;
-
-  const name = scholarName?.split(" ")[0] || "Your scholar";
-
-  // Find weakest subject by accuracy
-  const subjectsWithQ = weeklyStats.filter(s => s.questions_total > 0);
-  const weakest = subjectsWithQ.length > 0
-    ? [...subjectsWithQ].sort((a, b) =>
-        (a.questions_correct / a.questions_total) - (b.questions_correct / b.questions_total)
-      )[0]
-    : null;
-
-  // Find most improved topic this week (highest pct but < 85 previously)
-  let needsWorkTopics = [];
-  Object.entries(topicAgg).forEach(([subject, topics]) => {
-    Object.entries(topics).forEach(([topic, { correct, total }]) => {
-      const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-      if (pct < 50) needsWorkTopics.push({ subject, topic, pct });
-    });
-  });
-  needsWorkTopics.sort((a, b) => a.pct - b.pct);
-  const topNeedsWork = needsWorkTopics[0];
-
-  const hrs  = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins} min`;
-
-  const highlights = [];
-
-  if (streak >= 3) highlights.push({ icon: "🔥", text: `${streak}-day streak — ${name} is building a real habit.` });
-  if (totalMins >= 60) highlights.push({ icon: "⏱️", text: `${timeStr} of study time logged this week.` });
-  if (accuracy !== null && accuracy >= 75) highlights.push({ icon: "🎯", text: `${accuracy}% accuracy across ${totalQ} questions — excellent.` });
-  if (accuracy !== null && accuracy < 55 && totalQ >= 10) highlights.push({ icon: "💡", text: `${accuracy}% accuracy this week. Consider reviewing topics before the next session.` });
-  if (weakest && weakest.questions_total >= 5) {
-    const acc = Math.round((weakest.questions_correct / weakest.questions_total) * 100);
-    highlights.push({ icon: subjectEmoji(weakest.subject), text: `${subjectLabel(weakest.subject)} needs attention — ${acc}% accuracy this week.` });
-  }
-  if (topNeedsWork) highlights.push({ icon: "📌", text: `"${topNeedsWork.topic.replace(/_/g, " ")}" in ${subjectLabel(topNeedsWork.subject)} is below 50% mastery. Worth focusing on.` });
-  if (highlights.length === 0) highlights.push({ icon: "✅", text: `${name} has been active this week. Keep the momentum going!` });
-
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-base">📋</span>
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Weekly Digest</p>
-        </div>
-        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </button>
-
-      {open && (
-        <div className="px-4 pb-4 space-y-2 border-t border-slate-50">
-          {highlights.map((h, i) => (
-            <div key={i} className="flex items-start gap-2.5 pt-2">
-              <span className="text-base flex-shrink-0 mt-0.5">{h.icon}</span>
-              <p className="text-sm text-slate-600 font-semibold leading-relaxed">{h.text}</p>
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -610,14 +405,14 @@ const CurriculumCard = ({ currKey, curr, selected, onSelect }) => (
   <button
     type="button"
     onClick={() => onSelect(currKey)}
-    className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-center transition-all cursor-pointer
+    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all cursor-pointer
       ${selected
-        ? "border-indigo-500 bg-indigo-600 text-white shadow-lg scale-105"
-        : "border-indigo-100 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
+        ? "border-amber-400 bg-amber-50 text-amber-900 shadow-md scale-105"
+        : "border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50"
       }`}
   >
     <span className="text-3xl">{curr.country}</span>
-    <span className={`text-[11px] font-black leading-tight ${selected ? "text-indigo-100" : "text-slate-500"}`}>
+    <span className={`text-[11px] font-black leading-tight ${selected ? "text-amber-700" : "text-slate-500"}`}>
       {curr.name}
     </span>
   </button>
@@ -641,6 +436,7 @@ export default function ParentDashboard() {
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError]       = useState(null);
   const [expandedInsights, setExpandedInsights] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Form state
   const [newName,     setNewName]     = useState("");
@@ -652,6 +448,9 @@ export default function ParentDashboard() {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [graduatingScholar, setGraduatingScholar] = useState(null);
   const [newExamMode, setNewExamMode] = useState(null);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSent, setContactSent] = useState(false);
 
   const currDef    = CURRICULA[newCurriculum];
   const isCanadian = !!currDef?.hasProvinces;
@@ -766,16 +565,6 @@ export default function ParentDashboard() {
           });
         } catch (emailError) { console.error("Email send failed:", emailError); }
 
-        setNewScholarGuide({ name: scholar.name, codename: scholar.codename, pin: scholar.pin });
-        {newScholarGuide && (
-          <ScholarStartGuide
-            scholarName={newScholarGuide.name}
-            codename={newScholarGuide.codename}
-            pin={newScholarGuide.pin}
-            onDismiss={() => setNewScholarGuide(null)}
-          />
-        )}
-
         // Sync curriculum to Brevo contact list (non-blocking)
         fetch('/api/brevo/sync-contact', {
           method: 'POST',
@@ -795,7 +584,8 @@ export default function ParentDashboard() {
         setSelectedSubjects([]); setNewExamMode(null); setError(null);
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      console.error("[ParentDashboard] Scholar creation error:", err);
+      setError(`Something went wrong: ${err?.message || "Please check your connection and try again."}`);
     } finally {
       setIsAdding(false);
     }
@@ -815,6 +605,12 @@ export default function ParentDashboard() {
   const getSubjects = (s) => getScholarSubjects(s.curriculum, s.stream, s.trade_subject, s.selected_subjects, s.year_level || s.year || 1, s.exam_mode);
   const toggleInsights = (id) => setExpandedInsights(prev => ({ ...prev, [id]: !prev[id] }));
 
+  const getKSBandColor = (curriculum, year) => {
+    if (curriculum !== "uk_national") return BAND_COLORS.ks1;
+    const ks = getUkNationalKeyStage(year);
+    return BAND_COLORS[ks] || BAND_COLORS.ks1;
+  };
+
   // ═══════════════════════════════════════════════════════════════
   // LOADING
   // ═══════════════════════════════════════════════════════════════
@@ -822,7 +618,7 @@ export default function ParentDashboard() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-16 h-16 border-4 border-amber-400/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-600 font-bold">Loading dashboard...</p>
         </div>
       </div>
@@ -830,421 +626,510 @@ export default function ParentDashboard() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // RENDER
+  // RENDER — BRIGHT & AIRY DESIGN
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col pb-24">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col lg:flex-row">
 
-      {/* Nav */}
-      <nav className="bg-white border-b-4 border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-3 font-black text-xl">
-          <img src="/logo.svg" alt="LaunchPard" width={40} height={40} style={{ objectFit: "contain" }} />
-          <span className="hidden sm:inline">Parent Portal</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/parent/analytics" className="text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors">Analytics</Link>
-          <Link href="/dashboard/parent/billing"   className="text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors">Billing</Link>
-          <Link href="/dashboard/parent/account"   className="text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors">Account</Link>
-          <span className="hidden sm:block text-sm font-bold text-slate-400 max-w-[220px] truncate">{user?.email}</span>
-          <button onClick={handleSignOut} className="flex items-center gap-2 text-slate-500 font-bold hover:text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-xl transition-all">
-            <LogOutIcon /> <span className="hidden sm:inline">Sign Out</span>
+      {/* SIDEBAR — Fixed, white with subtle border */}
+      <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-40 transform transition-transform lg:transform-none ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } flex flex-col`}>
+
+        {/* Logo area */}
+        <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
+            <span className="font-black text-lg text-slate-900">LaunchPard</span>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-600">
+            <Icon size={20} d="M18 6l-12 12M6 6l12 12" />
           </button>
         </div>
-      </nav>
 
-      <main className="max-w-6xl mx-auto px-6 pt-12 w-full">
+        {/* Navigation menu */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          <Link href="/dashboard/parent" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-50 text-amber-900 font-bold text-sm transition-colors">
+            <DashIcon size={20} />
+            Mission Control
+          </Link>
+          <Link href="/dashboard/parent" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+            <StudentsIcon size={20} />
+            Scholars
+          </Link>
+          <Link href="/dashboard/parent/analytics" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+            <MilestoneIcon size={20} />
+            Milestones
+          </Link>
+          <Link href="/dashboard/parent/billing" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+            <CreditCardIcon size={20} />
+            Subscriptions
+          </Link>
+          <Link href="/dashboard/parent/account" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+            <SettingsIcon size={20} />
+            Settings
+          </Link>
+        </nav>
 
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-black mb-3">Your Scholars</h1>
-          <p className="text-xl text-slate-500 font-semibold">Manage profiles, share access codes, and track progress.</p>
+        {/* Spacer at bottom */}
+        <div className="px-4 py-4" />
+      </aside>
 
-<div className="mt-4 space-y-2">
-            {parent?.subscription_status === "trial" && parent?.trial_end && (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-start gap-3">
-                <span className="text-2xl">🎉</span>
-                <div className="flex-1">
-                  <p className="font-black text-blue-900 mb-1">Pro Trial Active</p>
-                  <p className="text-sm text-blue-700">
-                    {(() => {
-                      const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
-                      return daysLeft > 0
-                        ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — all Pro features unlocked`
-                        : "Your trial has ended — you're on the Free plan";
-                    })()}
-                  </p>
-                </div>
-                <Link href="/subscribe" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-                  Upgrade to Pro
-                </Link>
-              </div>
-            )}
-            <ReferralBanner parentId={user?.id} parentName={parent?.full_name} supabase={supabase} />
+      {/* MAIN CONTENT */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Top bar - Mobile hamburger + right-aligned controls */}
+        <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center sticky top-0 z-30">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-600 hover:text-slate-900 mr-3">
+            <Icon size={24} d={["M5 12h14","M5 6h14","M5 18h14"]} />
+          </button>
+          <h2 className="text-sm font-black text-slate-900 hidden lg:block">Mission Control</h2>
+          <div className="flex items-center gap-3 ml-auto">
+            <Link href="/dashboard/parent/analytics" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Analytics</Link>
+            <Link href="/dashboard/parent/billing" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Billing</Link>
+            <button onClick={handleSignOut} className="flex items-center gap-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
+              <LogOutIcon size={18} /> <span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
-          
-        </div>
+        </header>
 
-        {error && (
-          <div className="mb-6 bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 text-rose-700 font-bold">{error}</div>
-        )}
+        {/* SCROLLABLE CONTENT AREA */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-6 py-8 pb-24">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Scholar cards */}
-          {scholars.length === 0 ? (
-            <div className="md:col-span-2 bg-white border-4 border-dashed border-slate-200 rounded-[32px] p-16 text-center">
-              <p className="text-5xl mb-4">🚀</p>
-              <p className="font-black text-2xl text-slate-700 mb-2">No scholars yet</p>
-              <p className="text-slate-400 font-bold">Add your first scholar using the form →</p>
-            </div>
-          ) : (
-            scholars.map(scholar => {
-              const curr       = getCurr(scholar);
-              const subjects   = getSubjects(scholar);
-              const isCopied   = copied === scholar.id;
-              const yearLevel  = scholar.year_level || scholar.year || 1;
-              const isInsightsOpen = !!expandedInsights[scholar.id];
+            {/* Welcome banner — warm gradient */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-8 mb-8">
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+                Welcome back, {parent?.full_name?.split(' ')[0] || 'Parent'}! 👋
+              </h1>
+              <p className="text-slate-600 font-bold mb-4">
+                You have {scholars.length} scholar{scholars.length !== 1 ? 's' : ''} {scholars.length === 1 ? 'studying' : 'studying together'} on LaunchPard
+              </p>
 
-              return (
-                <div
-                  key={scholar.id}
-                  className="bg-white border-2 border-slate-100 rounded-[20px] p-4 hover:border-indigo-200 transition-all flex flex-col gap-3"
-                >
-                  {/* Name + XP */}
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0">
-                      <h3 className="text-base font-black text-slate-800 mb-1 truncate">{scholar.name}</h3>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-lg text-xs">
-                          {curr.country} {curr.name}
-                        </span>
-                        <span className="bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-lg text-xs">
-                          {curr.gradeLabel} {yearLevel}
-                        </span>
-                        {scholar.province && (
-                          <span className="bg-red-50 text-red-700 border border-red-100 font-bold px-2 py-0.5 rounded-lg text-xs">
-                            🍁 {CANADIAN_PROVINCES.find(p => p.code === scholar.province)?.name || scholar.province}
-                          </span>
-                        )}
-                        {scholar.stream && (
-                          <span className="bg-green-50 text-green-700 border border-green-100 font-bold px-2 py-0.5 rounded-lg text-xs">
-                            {NG_SSS_STREAMS[scholar.stream]?.emoji} {NG_SSS_STREAMS[scholar.stream]?.label}
-                          </span>
-                        )}
-                        {scholar.selected_subjects?.length > 0 && (
-                          <span className="bg-blue-50 text-blue-700 border border-blue-100 font-bold px-2 py-0.5 rounded-lg text-xs">
-                            📚 {scholar.selected_subjects.length} GCSE options
-                          </span>
-                        )}
-                        {scholar.exam_mode && (
-                          <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 font-bold px-2 py-0.5 rounded-lg text-xs">
-                            {EXAM_MODES[scholar.exam_mode]?.emoji} {EXAM_MODES[scholar.exam_mode]?.label}
-                          </span>
-                        )}
-                        {(() => {
-                          const prog = getProgressionState(scholar.curriculum, scholar.year_level);
-                          if (!prog.isAtStageEnd) return null;
-                          return (
-                            <button
-                              onClick={() => setGraduatingScholar(scholar)}
-                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 font-black px-2 py-0.5 rounded-lg text-xs animate-pulse hover:bg-amber-100 transition-colors"
-                            >
-                              🎓 Ready to Graduate!
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <div className="bg-amber-100 text-amber-700 font-black px-2.5 py-1 rounded-xl flex items-center gap-1 flex-shrink-0">
-                      <StarIcon size={12} />
-                      <span className="text-xs">{(scholar.total_xp || 0).toLocaleString()}</span>
-                    </div>
+              {/* Quick stats */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-white rounded-lg p-3 border border-amber-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Total Scholars</p>
+                  <p className="text-2xl font-black text-slate-900">{scholars.length}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-orange-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Active Today</p>
+                  <p className="text-2xl font-black text-slate-900">—</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-amber-100 hidden md:block">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Quizzes This Week</p>
+                  <p className="text-2xl font-black text-slate-900">{scholars.reduce((a, s) => a + (s.quizzes_this_week || s.weekly_quizzes || 0), 0)}</p>
+                </div>
+              </div>
+
+              {/* Trial badge */}
+              {parent?.subscription_status === "trial" && parent?.trial_end && (
+                <div className="mt-4 bg-white rounded-lg p-3 border border-blue-200 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black text-blue-900 text-sm mb-0.5">🎉 Pro Trial Active</p>
+                    <p className="text-xs text-blue-700 font-semibold">
+                      {(() => {
+                        const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
+                        return daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining` : "Trial ended";
+                      })()}
+                    </p>
                   </div>
-
-                  {/* Subjects */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {subjects.map(s => (
-                      <span key={s} className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-lg">
-                        {subjectEmoji(s)} {subjectLabel(s)}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Access code */}
-                  <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Access Code</div>
-                      <div className="text-sm font-black text-indigo-600 tracking-widest">{scholar.access_code}</div>
-                    </div>
-                    <button
-                      onClick={() => copyCode(scholar)}
-                      className={`p-2 rounded-lg border transition-all ${
-                        isCopied
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                          : "bg-white border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300"
-                      }`}
-                      title={isCopied ? "Copied!" : "Copy code"}
-                    >
-                      {isCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-                    </button>
-                  </div>
-                  {/* Exam date — KS3/KS4 only */}
-                  {parseInt(scholar.year_level || scholar.year || 0) >= 7 && (
-                    <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-                      <div className="flex-1">
-                        <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Exam Date</div>
-                        <input
-                          type="date"
-                          value={scholar.exam_date || ""}
-                          onChange={async (e) => {
-                            await supabase.from("scholars").update({ exam_date: e.target.value }).eq("id", scholar.id);
-                            fetchScholars();
-                          }}
-                          className="text-sm font-bold text-slate-700 bg-transparent border-none outline-none w-full"
-                        />
-                      </div>
-                      {scholar.exam_date && (
-                        <span className="text-xs font-bold text-indigo-600 whitespace-nowrap">
-                          {Math.max(0, Math.ceil((new Date(scholar.exam_date) - new Date()) / 86400000))}d left
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {/* Progress insights — expandable */}
-                  <div className="rounded-xl border border-indigo-100 overflow-hidden">
-                    <button
-                      onClick={() => toggleInsights(scholar.id)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">📊</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Progress Insights</span>
-                      </div>
-                      {isInsightsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    </button>
-                    {isInsightsOpen && (
-                      <div className="px-4 pt-4 pb-4 flex flex-col gap-4">
-                        {(scholar.exam_mode === 'eleven_plus' ||
-                          (scholar.curriculum === 'uk_national' &&
-                          Number(scholar.year_level || scholar.year || 0) >= 3 &&
-                          Number(scholar.year_level || scholar.year || 0) <= 6)) && (
-                          <div className="w-full flex justify-center">
-                            <div className="w-full max-w-sm">
-                              <ReadinessScore scholarId={scholar.id} supabase={supabase} />
-                            </div>
-                          </div>
-                        )}
-                        <ScholarInsightPanel
-                          scholarId={scholar.id}
-                          scholarName={scholar.name}
-                          supabase={supabase}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* View Analytics Button */}
-                  <Link
-                    href={`/dashboard/parent/analytics?scholar=${scholar.id}`}
-                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-3 rounded-xl text-center text-sm transition-colors border border-indigo-100 hover:border-indigo-200"
-                  >
-                    📈 View Full Analytics
+                  <Link href="/subscribe" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors whitespace-nowrap">
+                    Upgrade
                   </Link>
                 </div>
-              );
-            })
-          )}
+              )}
+            </div>
 
-          {/* Add Scholar Form */}
-          <div className="bg-indigo-50 border-2 border-indigo-100 rounded-[20px] p-4 flex flex-col">
-            <h3 className="text-sm font-black text-indigo-900 mb-0.5 flex items-center gap-1.5">
-              <PlusIcon size={18} /> Add New Scholar
-            </h3>
-            <p className="text-indigo-700/70 font-semibold mb-3 text-xs">Generate a profile and unique access code.</p>
+            {error && (
+              <div className="mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700 font-bold text-sm">{error}</div>
+            )}
 
-            {scholars.length >= MAX_SCHOLARS ? (
-              <div className="flex flex-col items-center justify-center flex-grow gap-3 py-4 text-center">
-                <div className="text-4xl">🚀</div>
-                <p className="text-indigo-900 font-black text-base">Full crew aboard!</p>
-                <p className="text-indigo-700/70 font-semibold text-xs leading-relaxed">
-                  You've added {MAX_SCHOLARS} scholars — the maximum on your current plan.<br />
-                  Need more? Get in touch.
-                </p>
-                <a href="mailto:hello@launchpard.com?subject=Scholar%20Limit"
-                  className="mt-1 px-5 py-2 bg-indigo-600 text-white font-black rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 transition-all text-xs">
-                  Contact us ✦
-                </a>
-              </div>
-            ) : (
-              <form onSubmit={handleAddScholar} className="flex flex-col gap-3 flex-grow">
-                <input
-                  type="text" required placeholder="Scholar's First Name" value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 placeholder:text-slate-300 transition-colors"
-                />
-                
-                <div>
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1.5 ml-1">Curriculum</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {Object.entries(CURRICULA).map(([key, c]) => (
-                      <CurriculumCard key={key} currKey={key} curr={c} selected={newCurriculum === key} onSelect={handleCurriculumChange} />
-                    ))}
-                  </div>
-                </div>
+            {/* Referral banner */}
+            <div className="mb-8">
+              <ReferralBanner parentId={user?.id} parentName={parent?.full_name} supabase={supabase} />
+            </div>
 
-                {isCanadian && (
-                  <div>
-                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">🍁 Province / Territory</label>
-                    <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
-                      <option value="">Select province or territory…</option>
-                      {CANADIAN_PROVINCES.map(p => (
-                        <option key={p.code} value={p.code}>{p.name}</option>
-                      ))}
-                    </select>
-                    {provInfo && (
-                      <div className="mt-1.5 bg-white/80 border border-indigo-100 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-700 flex items-start gap-1.5">
-                        <span>📌</span><span>{provInfo.note}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+            {/* ── Flash Update + Growth Metrics + Parent Action Tip ─── */}
+            {scholars.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 
-                {isUkKs4 && (
-                  <div className="flex flex-col gap-3">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">🇬🇧 GCSE Subjects</label>
-                    <p className="text-xs text-indigo-700/60 font-semibold ml-1">Core subjects are included automatically. Tick the optional subjects your scholar is studying.</p>
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 mb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Compulsory (all scholars)</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {UK_KS4_COMPULSORY.map(s => (
-                          <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
-                            ✓ {s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-                          </span>
-                        ))}
-                      </div>
+                {/* Flash Update */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-sm">⚡</div>
+                    <div>
+                      <p className="text-xs font-black text-slate-900">Flash Update</p>
+                      <p className="text-[10px] text-slate-400 font-semibold">latest activity</p>
                     </div>
-                    {UK_KS4_OPTIONS.map(group => (
-                      <div key={group.group} className="mb-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{group.emoji} {group.group}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {group.subjects.map(s => {
-                            const checked = selectedSubjects.includes(s.value);
-                            return (
-                              <button key={s.value} type="button" onClick={() => toggleSubject(s.value)}
-                                className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border-2 transition-all ${
-                                  checked ? "bg-indigo-600 text-white border-indigo-700" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
-                                }`}>
-                                {checked ? "✓" : "+"} {s.label}
-                              </button>
-                            );
-                          })}
+                  </div>
+                  <div className="space-y-2">
+                    {scholars.slice(0, 3).map(s => (
+                      <div key={s.id} className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-[10px] font-bold shrink-0">
+                          {s.name?.[0]?.toUpperCase() || "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-slate-700 truncate">{s.name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {(s.streak || 0) > 0 ? `🔥 ${s.streak}d streak` : "No activity yet"}
+                            {s.total_xp ? ` · ${s.total_xp} XP` : ""}
+                          </p>
                         </div>
                       </div>
                     ))}
-                    {selectedSubjects.length > 0 && (
-                      <p className="text-xs text-indigo-600 font-bold ml-1">{selectedSubjects.length} optional subject{selectedSubjects.length !== 1 ? "s" : ""} selected</p>
-                    )}
                   </div>
-                )}
+                </div>
 
-                {isUkKs2 && (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">🎓 Exam Prep Mode</label>
-                    <p className="text-[10px] text-indigo-700/60 font-semibold ml-1">Optional — adds exam-specific subjects alongside the National Curriculum</p>
-                    <button type="button" onClick={() => setNewExamMode(null)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-bold text-xs transition-all text-left ${
-                        !newExamMode ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-indigo-200"
-                      }`}>
-                      <span className="text-base">📚</span>
-                      <div><p className="font-black">National Curriculum only</p><p className="text-[10px] font-semibold opacity-70">No exam prep added</p></div>
-                    </button>
-                    {Object.entries(EXAM_MODES).map(([key, mode]) => {
-                      if (!mode.eligibleYears.includes(Number(newGrade))) return null;
-                      return (
-                        <button key={key} type="button" onClick={() => setNewExamMode(key)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-bold text-xs transition-all text-left ${
-                            newExamMode === key ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-600 hover:border-indigo-200"
-                          }`}>
-                          <span className="text-base">{mode.emoji}</span>
-                          <div><p className="font-black">{mode.label}</p><p className="text-[10px] font-semibold opacity-70">{mode.desc}</p></div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {isNgSss && (
-                  <>
-                    <div className="flex flex-col gap-2">
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 ml-1">🇳🇬 Select Stream</label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {Object.entries(NG_SSS_STREAMS).map(([key, s]) => (
-                          <button key={key} type="button" onClick={() => setNewStream(key)}
-                            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl border font-bold text-xs transition-all ${
-                              newStream === key ? "border-indigo-500 bg-indigo-50 text-indigo-900" : "border-indigo-100 bg-white text-slate-500 hover:border-indigo-300"
-                            }`}>
-                            <span className="text-base">{s.emoji}</span><span>{s.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {!newStream && <p className="text-[10px] text-amber-600 font-semibold ml-1">⚠ Please select a stream</p>}
-                    </div>
+                {/* Growth Metrics */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-sm">📈</div>
                     <div>
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">🛠 Trade Subject</label>
-                      <select value={newTrade} onChange={e => setNewTrade(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
-                        <option value="">Select a trade subject…</option>
-                        {NG_SSS_TRADES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
+                      <p className="text-xs font-black text-slate-900">Growth Metrics</p>
+                      <p className="text-[10px] text-slate-400 font-semibold">family overview</p>
                     </div>
-                  </>
-                )}
+                  </div>
+                  <div className="space-y-3">
+                    {/* Total XP across scholars */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Family XP</span>
+                        <span className="text-xs font-black text-emerald-600">{scholars.reduce((a, s) => a + (s.total_xp || 0), 0).toLocaleString()}</span>
+                      </div>
+                      <div className="w-full h-2 bg-emerald-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
+                          style={{ width: `${Math.min(100, (scholars.reduce((a, s) => a + (s.total_xp || 0), 0) / 5000) * 100)}%` }} />
+                      </div>
+                    </div>
+                    {/* Average streak */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Streak</span>
+                        <span className="text-xs font-black text-amber-600">
+                          {scholars.length > 0 ? Math.round(scholars.reduce((a, s) => a + (s.streak || 0), 0) / scholars.length) : 0} days
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
+                          style={{ width: `${Math.min(100, (scholars.reduce((a, s) => a + (s.streak || 0), 0) / scholars.length / 30) * 100)}%` }} />
+                      </div>
+                    </div>
+                    {/* Active scholars */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Active Scholars</span>
+                      <span className="text-xs font-black text-blue-600">{scholars.filter(s => (s.streak || 0) > 0).length}/{scholars.length}</span>
+                    </div>
+                  </div>
+                </div>
 
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="block text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1 ml-1">{currDef.gradeLabel}</label>
+                {/* Parent Action Tip */}
+                <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center text-sm">💡</div>
+                    <div>
+                      <p className="text-xs font-black text-violet-900">Parent Action Tip</p>
+                      <p className="text-[10px] text-violet-400 font-semibold">this week's focus</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-violet-800 font-semibold leading-relaxed mb-3">
+                    {(() => {
+                      const lowStreakScholars = scholars.filter(s => (s.streak || 0) < 3);
+                      if (lowStreakScholars.length > 0) return `Encourage ${lowStreakScholars[0].name} to build a study streak — even 10 minutes daily makes a big difference.`;
+                      const topScholar = [...scholars].sort((a, b) => (b.total_xp || 0) - (a.total_xp || 0))[0];
+                      if (topScholar) return `${topScholar.name} is on a roll with ${topScholar.total_xp || 0} XP! Ask them what they learned this week to reinforce retention.`;
+                      return "Set a weekly family learning goal — scholars with parental engagement improve 40% faster.";
+                    })()}
+                  </p>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-violet-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    Personalised based on your family's progress
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Subscription & Billing Quick Card */}
+            {parent?.subscription_status && (
+              <div className="mb-8 bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-lg">💳</div>
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      {parent.subscription_status === "trial" ? "Pro Trial" : parent.subscription_status === "pro" ? "Pro Plan" : "Free Plan"}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-semibold">
+                      {parent.subscription_status === "trial" && parent.trial_end
+                        ? `${Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5))} days remaining`
+                        : `${scholars.length}/${MAX_SCHOLARS} scholars`}
+                    </p>
+                  </div>
+                </div>
+                <Link href="/dashboard/parent/billing"
+                  className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs rounded-lg transition-colors">
+                  Manage Plan
+                </Link>
+              </div>
+            )}
+
+            {/* Scholar grid + Add Scholar card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              {/* Scholar cards */}
+              {scholars.length === 0 ? (
+                <div className="md:col-span-2 lg:col-span-3 bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
+                  <p className="text-5xl mb-4">🚀</p>
+                  <p className="font-black text-2xl text-slate-700 mb-2">No scholars yet</p>
+                  <p className="text-slate-400 font-bold">Add your first scholar to get started</p>
+                </div>
+              ) : (
+                scholars.map(scholar => {
+                  const curr       = getCurr(scholar);
+                  const subjects   = getSubjects(scholar);
+                  const isCopied   = copied === scholar.id;
+                  const yearLevel  = scholar.year_level || scholar.year || 1;
+                  const isInsightsOpen = !!expandedInsights[scholar.id];
+                  const bandColor = getKSBandColor(scholar.curriculum, yearLevel);
+
+                  return (
+                    <div
+                      key={scholar.id}
+                      className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all hover:shadow-md ${bandColor.border}`}
+                    >
+                      {/* Clickable header → scholar insights */}
+                      <Link
+                        href={`/dashboard/parent/scholar/${scholar.id}`}
+                        className="flex items-center gap-3 mb-3 group"
+                      >
+                        <div className={`w-10 h-10 rounded-full ${bandColor.bg} border-2 ${bandColor.border} flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-lg">{scholar.name?.[0]?.toUpperCase() || '?'}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-black text-sm text-slate-900 group-hover:text-amber-700 transition-colors truncate">{scholar.name}</h3>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${bandColor.badge}`}>
+                            {curr.country} {curr.gradeLabel} {yearLevel}
+                          </span>
+                        </div>
+                        <Icon size={16} d="m9 18 6-6-6-6" />
+                      </Link>
+
+                      {/* Compact stats row */}
+                      <div className="grid grid-cols-3 gap-1.5 mb-3">
+                        <div className="bg-amber-50 rounded-lg p-2 border border-amber-100 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Streak</p>
+                          <p className="text-sm font-black text-amber-700">{scholar.streak || 0}d</p>
+                        </div>
+                        <div className="bg-indigo-50 rounded-lg p-2 border border-indigo-100 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Level</p>
+                          <p className="text-sm font-black text-indigo-700">{Math.floor((scholar.total_xp || 0) / 100) + 1}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Subjects</p>
+                          <p className="text-sm font-black text-emerald-700">{subjects.length}</p>
+                        </div>
+                      </div>
+
+                      {/* Subject pills */}
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {subjects.slice(0, 4).map(s => (
+                          <span key={s} className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            {subjectEmoji(s)} {subjectLabel(s).slice(0, 12)}
+                          </span>
+                        ))}
+                        {subjects.length > 4 && (
+                          <span className="inline-flex items-center bg-slate-50 text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            +{subjects.length - 4}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Access code — compact */}
+                      <div className="mb-3 bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 flex justify-between items-center">
+                        <div>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-indigo-500">Code</p>
+                          <p className="text-xs font-black text-indigo-700 tracking-wide">{scholar.access_code}</p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.preventDefault(); copyCode(scholar); }}
+                          className={`p-1.5 rounded border transition-all ${
+                            isCopied
+                              ? "bg-emerald-50 border-emerald-300 text-emerald-600"
+                              : "bg-white border-indigo-200 text-indigo-500 hover:text-indigo-700"
+                          }`}
+                          title={isCopied ? "Copied!" : "Copy code"}
+                        >
+                          {isCopied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
+                        </button>
+                      </div>
+
+                      {/* Expandable insights — compact */}
+                      <div className="mb-3 border border-slate-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleInsights(scholar.id)}
+                          className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50 hover:bg-slate-100 transition-colors"
+                        >
+                          <span className="text-xs font-bold text-slate-600">Quick Progress</span>
+                          {isInsightsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                        {isInsightsOpen && (
+                          <div className="px-3 pt-2 pb-3 bg-white">
+                            {(scholar.exam_mode === 'eleven_plus' ||
+                              (scholar.curriculum === 'uk_national' &&
+                              Number(scholar.year_level || scholar.year || 0) >= 3 &&
+                              Number(scholar.year_level || scholar.year || 0) <= 6)) && (
+                              <div className="w-full flex justify-center mb-2">
+                                <div className="w-full max-w-sm">
+                                  <ReadinessScore scholarId={scholar.id} supabase={supabase} />
+                                </div>
+                              </div>
+                            )}
+                            <ScholarInsightPanel scholarId={scholar.id} scholarName={scholar.name} supabase={supabase} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* View full insights */}
+                      <Link
+                        href={`/dashboard/parent/scholar/${scholar.id}`}
+                        className="w-full block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
+                      >
+                        View Full Insights
+                      </Link>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Add Scholar Card */}
+              {scholars.length < MAX_SCHOLARS && (
+                <div className="bg-white rounded-2xl border-2 border-dashed border-amber-300 p-6 flex flex-col justify-center items-center text-center">
+                  <div className="bg-amber-50 w-16 h-16 rounded-full flex items-center justify-center mb-4 border-2 border-amber-200">
+                    <PlusIcon size={28} className="text-amber-600" />
+                  </div>
+                  <h3 className="font-black text-lg text-slate-900 mb-1">Add Scholar</h3>
+                  <p className="text-sm text-slate-500 font-semibold mb-6">Create a new profile and access code</p>
+
+                  {/* Mini form in card */}
+                  <form onSubmit={handleAddScholar} className="w-full space-y-3">
+                    <input
+                      type="text" required placeholder="Scholar's name" value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400 transition-colors"
+                    />
+                    <select value={newCurriculum} onChange={e => handleCurriculumChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                      {Object.entries(CURRICULA).map(([key, c]) => <option key={key} value={key}>{c.country} {c.name}</option>)}
+                    </select>
                     <select value={newGrade} onChange={e => handleGradeChange(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-xl font-bold text-sm outline-none focus:border-indigo-400 cursor-pointer transition-colors">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                       {currDef.grades.map(g => <option key={g} value={g}>{currDef.gradeLabel} {g}</option>)}
                     </select>
-                  </div>
-                  <button type="submit" disabled={isAdding || !newName.trim()}
-                    className="px-5 py-2 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all whitespace-nowrap">
-                    {isAdding ? "Creating…" : "Create ✓"}
+                    <button type="submit" disabled={isAdding || !newName.trim()}
+                      className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
+                      {isAdding ? "Creating…" : "Create Scholar"}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Max scholars reached — contact card */}
+              {scholars.length >= MAX_SCHOLARS && (
+                <div className="bg-indigo-50 rounded-2xl border-2 border-indigo-200 p-6 flex flex-col justify-center items-center text-center">
+                  <div className="text-4xl mb-3">🚀</div>
+                  <h3 className="font-black text-lg text-indigo-900 mb-1">Full crew aboard!</h3>
+                  <p className="text-sm text-indigo-700/70 font-semibold mb-4 leading-relaxed">
+                    You've added {MAX_SCHOLARS} scholars — the maximum on your current plan. Need more? Let us know!
+                  </p>
+                  <button
+                    onClick={() => setShowContactForm(true)}
+                    className="px-6 py-2.5 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 active:translate-y-0.5 active:border-b-0 transition-all"
+                  >
+                    Request more scholars ✦
                   </button>
                 </div>
+              )}
 
-                <div className="bg-white/70 rounded-xl p-2.5 border border-indigo-100 mt-auto">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1.5">Subjects included</p>
-                  <div className="flex flex-wrap gap-1">
-                    {getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode).map(s => (
-                      <span key={s} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                        {subjectEmoji(s)} {subjectLabel(s)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </form>
-            )}
+            </div>
+
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-20 border-t border-slate-200 bg-white py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
-          <div className="flex items-center gap-2 font-bold">
-            <img src="/logo.svg" alt="LaunchPard" width={24} height={24} style={{ objectFit: "contain" }} />
-            <span>© 2026 LaunchPard Technologies</span>
-          </div>
-          <div className="flex gap-6 font-semibold">
-            <Link href="/privacy-policy" className="hover:text-indigo-600 transition-colors">Privacy Policy</Link>
-            <Link href="/terms"          className="hover:text-indigo-600 transition-colors">Terms & Conditions</Link>
-            <Link href="/cookie-policy"  className="hover:text-indigo-600 transition-colors">Cookie Policy</Link>
-            <a href="mailto:hello@launchpard.com" className="hover:text-indigo-600 transition-colors">Contact</a>
+      {/* Contact Form Popup — scholar limit */}
+      {showContactForm && (
+        <div className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h2 className="font-black text-lg text-slate-900">Request More Scholars</h2>
+              <p className="text-sm text-slate-500 font-semibold mt-1">
+                Tell us how many scholars you need and we'll get back to you within 24 hours.
+              </p>
+            </div>
+            {contactSent ? (
+              <div className="px-6 py-8 text-center">
+                <div className="text-4xl mb-3">✅</div>
+                <p className="font-black text-slate-900 text-lg mb-2">Request sent!</p>
+                <p className="text-sm text-slate-500 font-semibold mb-4">We'll email you at {user?.email} within 24 hours.</p>
+                <button onClick={() => { setShowContactForm(false); setContactSent(false); setContactMessage(""); }}
+                  className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-colors">
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Your email</label>
+                  <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">
+                    {user?.email || "—"}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">How many additional scholars do you need?</label>
+                  <textarea
+                    value={contactMessage}
+                    onChange={e => setContactMessage(e.target.value)}
+                    placeholder="e.g. I need 2 more scholars for my children..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-400 transition-colors resize-none"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowContactForm(false); setContactMessage(""); }}
+                    className="flex-1 px-4 py-2.5 text-slate-600 border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!contactMessage.trim()}
+                    onClick={async () => {
+                      try {
+                        await fetch("/api/emails/contact", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            email: user?.email,
+                            name: parent?.full_name || user?.email,
+                            subject: "Scholar Limit Increase Request",
+                            message: contactMessage,
+                            currentScholars: scholars.length,
+                          }),
+                        });
+                      } catch {}
+                      // Also send via mailto as fallback
+                      const mailtoBody = encodeURIComponent(
+                        `From: ${user?.email}\nCurrent scholars: ${scholars.length}\n\n${contactMessage}`
+                      );
+                      window.open(`mailto:hello@launchpard.com?subject=${encodeURIComponent("Scholar Limit Increase")}&body=${mailtoBody}`, "_blank");
+                      setContactSent(true);
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-black text-sm rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    Send Request
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </footer>
+      )}
 
       {/* Graduation Modal */}
       {graduatingScholar && (

@@ -66,6 +66,7 @@ import CertificatesPanel from "./CertificatesPanel";
 import SubjectProgressChart from "./SubjectProgressChart";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
 import StickerCollection from "./StickerCollection";
+import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
 import { formatGradeLabel } from "@/lib/gamificationEngine";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -388,11 +389,25 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
+            {/* Digital Pet (main content — prominent for KS1) */}
+            <BandCard band={band} glow>
+              <SectionHeader band={band} icon="🐾" title="My Space Pet" subtitle="feed me stars!" size="lg" />
+              <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
+            </BandCard>
+
             {/* Story Journal */}
             <BandCard band={band}>
               <SectionHeader band={band} icon="📖" title="Story Journal" subtitle="your quest log" />
               <QuestJournal entries={journalEntries} />
             </BandCard>
+
+            {/* Star Collectors (Leaderboard) */}
+            {leaderboard.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="🌟" title="Star Collectors" subtitle="top explorers" />
+                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+              </BandCard>
+            )}
 
             {/* Sticker Collection */}
             <StickerCollection
@@ -447,6 +462,19 @@ export default function AdaptiveDashboardLayout({
                   message={encouragement.text}
                   visible={encouragement.visible !== false}
                   onDismiss={onDismissEncourage}
+                />
+              </BandCard>
+            )}
+
+            {/* Daily Mission */}
+            {dailyAdventure && (
+              <BandCard band={band} glow>
+                <SectionHeader band={band} icon="🚀" title="Daily Mission" subtitle="today's objective" />
+                <DailyAdventure
+                  totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
+                  subject={activeSubject}
+                  topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
+                  onStart={() => onStartAdventure?.(activeSubject)}
                 />
               </BandCard>
             )}
@@ -573,6 +601,19 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
+            {/* Daily Challenge */}
+            {dailyAdventure && (
+              <BandCard band={band} glow>
+                <SectionHeader band={band} icon="🎯" title="Daily Challenge" subtitle="career skill builder" />
+                <DailyAdventure
+                  totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
+                  subject={activeSubject}
+                  topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
+                  onStart={() => onStartAdventure?.(activeSubject)}
+                />
+              </BandCard>
+            )}
+
             {/* PRIMARY: Skill Map with Tabs */}
             <BandCard band={band} glow>
               <SectionHeader band={band} icon="📈" title="Skill Map" subtitle="subject progress" size="lg" />
@@ -623,6 +664,14 @@ export default function AdaptiveDashboardLayout({
               <BandCard band={band}>
                 <SectionHeader band={band} icon="📈" title="Year Progression" subtitle="all subjects" />
                 <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
+            {/* Topic Performance Breakdown */}
+            {scholarId && supabase && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📊" title="Topic Breakdown" subtitle="per-topic performance" />
+                <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
               </BandCard>
             )}
 
@@ -763,6 +812,23 @@ export default function AdaptiveDashboardLayout({
                 onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
               />
             </BandCard>
+
+            {/* Topic Performance Breakdown */}
+            {scholarId && supabase && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📊" title="Topic Analysis" subtitle="performance by topic" />
+                <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
+              </BandCard>
+            )}
+
+            {/* Flashcard Deck (also in sidebar but primary here for mobile) */}
+            <div className="xl:hidden">
+              <BandCard band={band} glow>
+                <SectionHeader band={band} icon="🧠" title="Flashcard Deck" subtitle="active recall" />
+                <Flashcards scholarId={scholarId} subject={activeSubject}
+                  curriculum={scholar.curriculum} supabase={supabase} />
+              </BandCard>
+            </div>
 
             {/* Mock Test Launcher (mobile) */}
             <div className="xl:hidden">
@@ -923,20 +989,18 @@ export default function AdaptiveDashboardLayout({
   );
 
   const topBarRight = (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       {onAvatar && (
         <button onClick={onAvatar} style={{
-          padding: 6, borderRadius: 8,
+          padding: "4px 10px", borderRadius: 8,
           background: "transparent", border: "none",
           cursor: "pointer", color: cfg.textMuted,
-          display: "flex", alignItems: "center", justifyContent: "center",
+          display: "flex", alignItems: "center", gap: 4,
         }} title="Avatar Shop">
-          <MIcon name="face" size={20} />
+          <MIcon name="face" size={18} />
+          <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Avatar</span>
         </button>
       )}
-      <button style={{ padding: 6, borderRadius: 8, cursor: "pointer", background: "transparent", border: "none", color: cfg.textMuted }}>
-        <MIcon name="notifications" size={20} />
-      </button>
     </div>
   );
 
