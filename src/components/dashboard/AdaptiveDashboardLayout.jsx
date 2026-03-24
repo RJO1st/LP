@@ -53,6 +53,7 @@ import SkillMap from "./SkillMap";
 import ConstellationMap from "./ConstellationMap";
 import QuestJournal from "./QuestJournal";
 import CareerPopup from "./CareerPopup";
+import CareerExplorer from "./CareerExplorer";
 import ExamPanel from "./ExamPanel";
 import ExamModeSwitch from "./ExamModeSwitch";
 import RevisionPlanner from "./RevisionPlanner";
@@ -718,6 +719,17 @@ export default function AdaptiveDashboardLayout({
               <QuestJournal entries={journalEntries} />
             </BandCard>
 
+            {/* Career Explorer (nav anchor for "Careers" tab) */}
+            <BandCard band={band} data-section="careers">
+              <SectionHeader band={band} icon="💼" title="Career Explorer" subtitle="how topics connect to real careers" />
+              <CareerExplorer topics={topics} activeSubject={activeSubject} />
+              {careerTopic && (
+                <div style={{ marginTop: 12 }}>
+                  <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
+                </div>
+              )}
+            </BandCard>
+
             {/* Mock Test Launcher (mobile) */}
             <div className="xl:hidden">
               <BandCard band={band}>
@@ -1034,9 +1046,7 @@ export default function AdaptiveDashboardLayout({
         <>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
           <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
-          <div data-section="careers">
           {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
-          </div>
         </>
       )}
 
