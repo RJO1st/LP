@@ -96,41 +96,34 @@ function KS1Nebula() {
 }
 
 function KS2Radar() {
+  // Light warm ambient with subtle orbital rings and pastel accents
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {/* Outer orbital rings */}
-      <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)", opacity: 0.04,
-        border: "1px solid rgba(124,131,245,0.3)", animation: "ks2Radar 28s linear infinite" }} />
-      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)", opacity: 0.035, border: "1px solid rgba(124,131,245,0.25)",
-        animation: "ks2Radar 22s linear infinite reverse" }} />
-      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)", opacity: 0.03, border: "1px dashed rgba(124,131,245,0.15)" }} />
-      {/* Orbital sweep gradient */}
+      {/* Soft warm gradient blobs */}
+      <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", top: "-15%", right: "-10%", opacity: 0.15,
+        background: "radial-gradient(circle, rgba(253,186,116,0.4) 0%, transparent 70%)" }} />
+      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", bottom: "-5%", left: "-8%", opacity: 0.12,
+        background: "radial-gradient(circle, rgba(196,181,253,0.35) 0%, transparent 70%)" }} />
+      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", top: "40%", left: "60%", opacity: 0.08,
+        background: "radial-gradient(circle, rgba(110,231,183,0.3) 0%, transparent 70%)" }} />
+      {/* Orbital rings (lighter for bright theme) */}
       <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)", opacity: 0.06,
-        background: "conic-gradient(from 0deg, transparent 0deg, rgba(124,131,245,0.3) 30deg, transparent 60deg)",
-        animation: "ks2Radar 20s linear infinite" }} />
-      {/* Planet/star dots */}
-      {Array.from({ length: 14 }, (_, i) => (
+        transform: "translate(-50%, -50%)", opacity: 0.04,
+        border: "1px solid rgba(99,102,241,0.2)", animation: "ks2Radar 28s linear infinite" }} />
+      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", opacity: 0.03,
+        border: "1px dashed rgba(99,102,241,0.12)" }} />
+      {/* Subtle floating dots */}
+      {Array.from({ length: 10 }, (_, i) => (
         <div key={i} style={{
           position: "absolute",
-          width: 2 + (i % 4), height: 2 + (i % 4), borderRadius: "50%",
-          background: i % 3 === 0 ? "#818cf8" : i % 3 === 1 ? "#c084fc" : "#60a5fa",
-          left: `${(i * 7.3 + 8) % 90}%`, top: `${(i * 11.7 + 5) % 90}%`,
-          opacity: 0.12 + (i % 4) * 0.06,
-          animation: `ks2PlanetGlow ${3 + i * 0.5}s ease-in-out infinite ${i * 0.5}s`,
-          boxShadow: `0 0 ${4 + i % 3}px ${i % 3 === 0 ? "#818cf8" : "#c084fc"}40`,
+          width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%",
+          background: i % 3 === 0 ? "#818cf8" : i % 3 === 1 ? "#fbbf24" : "#34d399",
+          left: `${(i * 9.3 + 8) % 85}%`, top: `${(i * 11.7 + 5) % 85}%`,
+          opacity: 0.12 + (i % 3) * 0.05,
+          animation: `ks2PlanetGlow ${3 + i * 0.7}s ease-in-out infinite ${i * 0.5}s`,
         }} />
       ))}
-      {/* Nebula glow */}
-      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", top: "30%", right: "-10%",
-        background: "radial-gradient(circle, rgba(124,131,245,0.06) 0%, transparent 70%)",
-        animation: "ks2PlanetGlow 12s ease-in-out infinite" }} />
-      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", bottom: "20%", left: "-5%",
-        background: "radial-gradient(circle, rgba(192,132,252,0.04) 0%, transparent 70%)",
-        animation: "ks2PlanetGlow 16s ease-in-out infinite 4s" }} />
     </div>
   );
 }
@@ -191,12 +184,12 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
     },
     ks2: {
-      background: "rgba(22,28,56,0.45)", borderRadius: 16,
-      border: `1px solid rgba(124,131,245,${glow ? "0.18" : "0.08"})`,
+      background: "rgba(255,255,255,0.75)", borderRadius: 20,
+      border: `1px solid ${glow ? "rgba(99,102,241,0.15)" : "rgba(0,0,0,0.04)"}`,
       boxShadow: glow
-        ? "0 0 24px rgba(124,131,245,0.06), inset 0 1px 0 rgba(255,255,255,0.04)"
-        : "0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.02)",
-      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 18,
+        ? "0 4px 24px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.9)"
+        : "0 2px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
     },
     ks3: {
       background: "rgba(255,255,255,0.65)", borderRadius: 14,
@@ -502,7 +495,7 @@ export default function AdaptiveDashboardLayout({
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            KS2: ORBITAL COMMAND (Dark, Space Commander, Mission-Driven)
+            KS2: ORBITAL COMMAND (Bright, Space Commander, Mission-Driven)
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks2" && (
           <>
@@ -515,19 +508,19 @@ export default function AdaptiveDashboardLayout({
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
               />
               <div style={{ marginTop: 20 }}>
-                {/* Commander Stats Row — custom spacing for dark theme */}
+                {/* Commander Stats Row */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                   <div style={{ textAlign: "center", padding: "12px 0" }}>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#7c83f5" }}>{(stats.xp ?? 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#6366f1" }}>{(stats.xp ?? 0).toLocaleString()}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(30,27,75,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
                   </div>
                   <div style={{ textAlign: "center", padding: "12px 0" }}>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#c084fc" }}>{stats.questsCompleted ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: "#a855f7" }}>{stats.questsCompleted ?? 0}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(30,27,75,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
                   </div>
                   <div style={{ textAlign: "center", padding: "12px 0" }}>
                     <div style={{ fontSize: 28, fontWeight: 900, color: "#818cf8" }}>{stats.streak ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(30,27,75,0.4)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
                   </div>
                 </div>
               </div>
@@ -579,13 +572,13 @@ export default function AdaptiveDashboardLayout({
                 marginTop: 12,
                 padding: "16px",
                 borderRadius: 12,
-                background: "rgba(124,131,245,0.08)",
-                border: "1px solid rgba(124,131,245,0.15)",
+                background: "rgba(99,102,241,0.06)",
+                border: "1px solid rgba(99,102,241,0.12)",
               }}>
                 <div style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#7c83f5",
+                  color: "#6366f1",
                   marginBottom: 8,
                 }}>
                   Mastery Progress: {subjectMastery.pct}%
@@ -594,13 +587,13 @@ export default function AdaptiveDashboardLayout({
                   width: "100%",
                   height: 8,
                   borderRadius: 4,
-                  background: "rgba(124,131,245,0.1)",
+                  background: "rgba(99,102,241,0.1)",
                   overflow: "hidden",
                 }}>
                   <div style={{
                     height: "100%",
                     width: `${subjectMastery.pct}%`,
-                    background: "linear-gradient(90deg, #7c83f5, #c084fc)",
+                    background: "linear-gradient(90deg, #6366f1, #a855f7)",
                     borderRadius: 4,
                     transition: "width 0.3s ease",
                   }} />
@@ -608,7 +601,7 @@ export default function AdaptiveDashboardLayout({
                 <div style={{
                   fontSize: 11,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.4)",
+                  color: "rgba(30,27,75,0.4)",
                   marginTop: 8,
                   textTransform: "uppercase",
                 }}>
@@ -649,21 +642,21 @@ export default function AdaptiveDashboardLayout({
             <BandCard band={band} data-section="stats">
               <SectionHeader band={band} icon="📊" title="Key Stats" subtitle="mission intel" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(124,131,245,0.08)", border: "1px solid rgba(124,131,245,0.12)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accuracy</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#7c83f5" }}>{stats.bestAccuracy ?? stats.accuracy ?? 0}%</div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.10)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(30,27,75,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accuracy</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#6366f1" }}>{stats.bestAccuracy ?? stats.accuracy ?? 0}%</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.12)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Mastery</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#c084fc" }}>{subjectMastery.pct}%</div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.10)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(30,27,75,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Mastery</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#a855f7" }}>{subjectMastery.pct}%</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.12)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Topics</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>{subjectMastery.count}</div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.10)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(30,27,75,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Topics</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#3b82f6" }}>{subjectMastery.count}</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.12)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Coins</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#fbbf24" }}>{coins}</div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.10)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(30,27,75,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Coins</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#f59e0b" }}>{coins}</div>
                 </div>
               </div>
             </BandCard>
@@ -935,9 +928,8 @@ export default function AdaptiveDashboardLayout({
               <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
             </BandCard>
 
-            {/* ── 2-column: Constellation + Deep Space / Efficiency ──── */}
-            <div data-section="heatmap" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {/* Left: Constellation Growth Map (Genshin-style) */}
+            {/* ── Constellation Star Chart (full-width for visibility) ──── */}
+            <div data-section="heatmap">
               <BandCard band={band} glow>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
@@ -946,59 +938,59 @@ export default function AdaptiveDashboardLayout({
                   onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
                 />
               </BandCard>
+            </div>
 
-              {/* Right: Deep Space Threshold + Orbital Efficiency stacked */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* Deep Space Threshold — donut */}
-                <BandCard band={band}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Deep Space Threshold</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 8 }}>
-                    <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
-                      <svg viewBox="0 0 90 90" style={{ width: 90, height: 90 }}>
-                        <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(124,58,237,0.08)" strokeWidth="8" />
-                        <circle cx="45" cy="45" r="38" fill="none" stroke="#7c3aed" strokeWidth="8" strokeLinecap="round"
-                          strokeDasharray="238.76" strokeDashoffset={238.76 * (1 - Math.min((stats.streak ?? 0) / 30, 1))}
-                          transform="rotate(-90 45 45)" style={{ transition: "stroke-dashoffset 1s ease" }} />
-                      </svg>
-                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: 18, fontWeight: 900, color: "#1e1b4b" }}>{stats.streak ?? 0}</span>
-                        <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>days</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b4b" }}>Weekly Goal</div>
-                      <div style={{ fontSize: 11, color: "rgba(30,27,75,0.45)", marginTop: 2 }}>
-                        {Math.round(Math.min((stats.streak ?? 0) / 7, 1) * 100)}% reached
-                      </div>
-                      <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.08)", marginTop: 8, width: 120, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 2, width: `${Math.min((stats.streak ?? 0) / 7, 1) * 100}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)" }} />
-                      </div>
+            {/* ── Deep Space Threshold + Orbital Efficiency (2-col below constellation) ──── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {/* Deep Space Threshold — donut */}
+              <BandCard band={band}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Deep Space Threshold</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 8 }}>
+                  <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
+                    <svg viewBox="0 0 90 90" style={{ width: 90, height: 90 }}>
+                      <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(124,58,237,0.08)" strokeWidth="8" />
+                      <circle cx="45" cy="45" r="38" fill="none" stroke="#7c3aed" strokeWidth="8" strokeLinecap="round"
+                        strokeDasharray="238.76" strokeDashoffset={238.76 * (1 - Math.min((stats.streak ?? 0) / 30, 1))}
+                        transform="rotate(-90 45 45)" style={{ transition: "stroke-dashoffset 1s ease" }} />
+                    </svg>
+                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: "#1e1b4b" }}>{stats.streak ?? 0}</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>days</span>
                     </div>
                   </div>
-                </BandCard>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b4b" }}>Weekly Goal</div>
+                    <div style={{ fontSize: 11, color: "rgba(30,27,75,0.45)", marginTop: 2 }}>
+                      {Math.round(Math.min((stats.streak ?? 0) / 7, 1) * 100)}% reached
+                    </div>
+                    <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.08)", marginTop: 8, width: 120, overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: 2, width: `${Math.min((stats.streak ?? 0) / 7, 1) * 100}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)" }} />
+                    </div>
+                  </div>
+                </div>
+              </BandCard>
 
-                {/* Orbital Efficiency */}
-                <BandCard band={band}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Efficiency</div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
-                    <span style={{ fontSize: 36, fontWeight: 900, color: "#1e1b4b" }}>{((subjectMastery.pct / 10) || 0).toFixed(1)}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(30,27,75,0.3)" }}>/10</span>
-                  </div>
-                  <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, marginTop: 4,
-                    background: subjectMastery.pct >= 80 ? "rgba(16,185,129,0.08)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)",
-                    color: subjectMastery.pct >= 80 ? "#059669" : subjectMastery.pct >= 50 ? "#d97706" : "#dc2626",
-                    border: `1px solid ${subjectMastery.pct >= 80 ? "rgba(16,185,129,0.15)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)"}`,
-                  }}>
-                    {subjectMastery.pct >= 80 ? "OPTIMAL FLOW" : subjectMastery.pct >= 50 ? "DEVELOPING" : "WARMING UP"}
-                  </div>
-                  {/* Mini bar chart */}
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 3, marginTop: 12, height: 32 }}>
-                    {[65, 72, 58, 80, 91, 85, subjectMastery.pct].map((v, i) => (
-                      <div key={i} style={{ flex: 1, height: `${v * 0.32}px`, borderRadius: 3, background: i === 6 ? "#7c3aed" : "rgba(124,58,237,0.12)", transition: "height 0.5s ease" }} />
-                    ))}
-                  </div>
-                </BandCard>
-              </div>
+              {/* Orbital Efficiency */}
+              <BandCard band={band}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Efficiency</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
+                  <span style={{ fontSize: 36, fontWeight: 900, color: "#1e1b4b" }}>{((subjectMastery.pct / 10) || 0).toFixed(1)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(30,27,75,0.3)" }}>/10</span>
+                </div>
+                <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, marginTop: 4,
+                  background: subjectMastery.pct >= 80 ? "rgba(16,185,129,0.08)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)",
+                  color: subjectMastery.pct >= 80 ? "#059669" : subjectMastery.pct >= 50 ? "#d97706" : "#dc2626",
+                  border: `1px solid ${subjectMastery.pct >= 80 ? "rgba(16,185,129,0.15)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)"}`,
+                }}>
+                  {subjectMastery.pct >= 80 ? "OPTIMAL FLOW" : subjectMastery.pct >= 50 ? "DEVELOPING" : "WARMING UP"}
+                </div>
+                {/* Mini bar chart */}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, marginTop: 12, height: 32 }}>
+                  {[65, 72, 58, 80, 91, 85, subjectMastery.pct].map((v, i) => (
+                    <div key={i} style={{ flex: 1, height: `${v * 0.32}px`, borderRadius: 3, background: i === 6 ? "#7c3aed" : "rgba(124,58,237,0.12)", transition: "height 0.5s ease" }} />
+                  ))}
+                </div>
+              </BandCard>
             </div>
 
             {/* ── Active Research Modules (Revision Planner) ─────────── */}

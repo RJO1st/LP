@@ -1395,7 +1395,7 @@ const UK_NATIONAL_SUBJECTS = {
             onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics")}
             onDismissEncourage={() => {}}
             onDismissCareer={() => {}}
-            onStartAdventure={() => launchQuest(subjects[0] || "mathematics")}
+            onStartAdventure={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
             onStartMock={(config) => setView("tests")}
             onExamModeSwitch={(mode) => {
               supabase.from("scholars").update({ exam_mode: mode }).eq("id", scholar.id);

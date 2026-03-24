@@ -50,18 +50,39 @@ function layoutNodes(count, w, h) {
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count - 1, 1);
-    // Spiral distribution
-    const radius = (0.25 + t * 0.65) * Math.min(usableW, usableH) / 2;
-    const angle = i * goldenAngle + (i % 3) * 0.3;
-    // Seed-based deterministic "randomness" for organic feel
-    const jitterX = Math.sin(i * 7.3) * 18;
-    const jitterY = Math.cos(i * 11.7) * 14;
+    // Spiral distribution — wider spread to avoid overlaps
+    const radius = (0.3 + t * 0.6) * Math.min(usableW, usableH) / 2;
+    const angle = i * goldenAngle + (i % 3) * 0.35;
+    // Seed-based deterministic "randomness" for organic feel — more spacing
+    const jitterX = Math.sin(i * 7.3) * 22;
+    const jitterY = Math.cos(i * 11.7) * 18;
     const x = centerX + Math.cos(angle) * radius + jitterX;
-    const y = centerY + Math.sin(angle) * radius * 0.75 + jitterY;
+    const y = centerY + Math.sin(angle) * radius * 0.7 + jitterY;
     nodes.push({
-      x: Math.max(padX, Math.min(w - padX, x)),
-      y: Math.max(padY, Math.min(h - padY, y)),
+      x: Math.max(padX + 10, Math.min(w - padX - 10, x)),
+      y: Math.max(padY + 10, Math.min(h - padY - 10, y)),
     });
+  }
+
+  // Push apart overlapping nodes (minimum 55px distance)
+  const MIN_DIST = 55;
+  for (let pass = 0; pass < 5; pass++) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[j].x - nodes[i].x;
+        const dy = nodes[j].y - nodes[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MIN_DIST && dist > 0) {
+          const push = (MIN_DIST - dist) / 2;
+          const nx = (dx / dist) * push;
+          const ny = (dy / dist) * push;
+          nodes[i].x = Math.max(padX + 10, Math.min(w - padX - 10, nodes[i].x - nx));
+          nodes[i].y = Math.max(padY + 10, Math.min(h - padY - 10, nodes[i].y - ny));
+          nodes[j].x = Math.max(padX + 10, Math.min(w - padX - 10, nodes[j].x + nx));
+          nodes[j].y = Math.max(padY + 10, Math.min(h - padY - 10, nodes[j].y + ny));
+        }
+      }
+    }
   }
   return nodes;
 }
@@ -120,6 +141,46 @@ function BackgroundStars({ w, h }) {
           style={{ animation: `constellation-twinkle ${2.5 + s.delay}s ease-in-out infinite`, animationDelay: `${s.delay}s` }}
         />
       ))}
+    </>
+  );
+}
+
+/* ── Shooting stars (animated meteors) ─────────────────── */
+function ShootingStars({ w, h }) {
+  // 4 shooting stars with staggered animations and different paths
+  const meteors = useMemo(() => [
+    { x1: w * 0.15, y1: h * 0.05, x2: w * 0.45, y2: h * 0.35, dur: 3.2, delay: 0 },
+    { x1: w * 0.7, y1: h * 0.02, x2: w * 0.9, y2: h * 0.25, dur: 2.5, delay: 4.5 },
+    { x1: w * 0.5, y1: h * 0.08, x2: w * 0.75, y2: h * 0.45, dur: 3.8, delay: 8 },
+    { x1: w * 0.85, y1: h * 0.1, x2: w * 0.55, y2: h * 0.5, dur: 2.8, delay: 12 },
+  ], [w, h]);
+
+  return (
+    <>
+      <defs>
+        <linearGradient id="meteor-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.9" />
+          <stop offset="40%" stopColor="#e2e8f0" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#e2e8f0" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {meteors.map((m, i) => {
+        const angle = Math.atan2(m.y2 - m.y1, m.x2 - m.x1) * (180 / Math.PI);
+        const length = Math.sqrt((m.x2 - m.x1) ** 2 + (m.y2 - m.y1) ** 2);
+        return (
+          <g key={i} style={{ animation: `meteor-fly ${m.dur}s linear ${m.delay}s infinite` }}>
+            <line
+              x1={m.x1} y1={m.y1}
+              x2={m.x1 + Math.cos(angle * Math.PI / 180) * Math.min(length * 0.3, 60)}
+              y2={m.y1 + Math.sin(angle * Math.PI / 180) * Math.min(length * 0.3, 60)}
+              stroke="url(#meteor-grad)" strokeWidth={1.5} strokeLinecap="round"
+            />
+            <circle cx={m.x1} cy={m.y1} r={1.5} fill="#fff" opacity={0.9}>
+              <animate attributeName="opacity" values="0;0.9;0.9;0" dur={`${m.dur}s`} begin={`${m.delay}s`} repeatCount="indefinite" />
+            </circle>
+          </g>
+        );
+      })}
     </>
   );
 }
@@ -249,7 +310,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
     if (!containerRef.current) return;
     const obs = new ResizeObserver(entries => {
       for (const e of entries) {
-        setDims({ w: e.contentRect.width, h: Math.max(320, Math.min(420, e.contentRect.width * 0.72)) });
+        setDims({ w: e.contentRect.width, h: Math.max(360, Math.min(480, e.contentRect.width * 0.8)) });
       }
     });
     obs.observe(containerRef.current);
@@ -333,6 +394,8 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         >
           {/* Background stars */}
           <BackgroundStars w={dims.w} h={dims.h} />
+          {/* Shooting stars */}
+          <ShootingStars w={dims.w} h={dims.h} />
 
           {/* Constellation edges */}
           {edges.map(({ from, to, key }) => {
@@ -464,6 +527,13 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         @keyframes constellation-pulse {
           0%, 100% { opacity: 0.4; transform: scale(1); }
           50% { opacity: 0.8; transform: scale(1.08); }
+        }
+        @keyframes meteor-fly {
+          0% { opacity: 0; transform: translate(0, 0); }
+          5% { opacity: 1; }
+          30% { opacity: 0.8; }
+          50% { opacity: 0; transform: translate(120px, 80px); }
+          100% { opacity: 0; transform: translate(120px, 80px); }
         }
       `}</style>
     </div>
