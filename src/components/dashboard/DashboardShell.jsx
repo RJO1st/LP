@@ -307,25 +307,62 @@ export default function DashboardShell({
           <span className="text-base font-bold tracking-tight" style={{ color: cfg.accent }}>{cfg.label}</span>
         </div>
         <div className="hidden lg:flex items-center" style={{ marginLeft: "260px" }}>{topBarLeft}</div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 lg:gap-2">
           {topBarRight}
+          <button
+            style={{
+              padding: "4px 10px", borderRadius: 8,
+              background: "transparent", border: "none",
+              cursor: "pointer", color: cfg.textMuted,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+            title="Settings"
+          >
+            <MIcon name="settings" size={18} />
+            <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Settings</span>
+          </button>
+          <button
+            style={{
+              padding: "4px 10px", borderRadius: 8,
+              background: "transparent", border: "none",
+              cursor: "pointer", color: cfg.textMuted,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+            title="Notifications"
+          >
+            <MIcon name="notifications" size={18} />
+            <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Alerts</span>
+          </button>
           <button onClick={onSignOut}
-            className="p-1.5 rounded-lg transition-colors hover:bg-white/10"
-            style={{ color: cfg.textMuted }} title="Sign out">
-            <MIcon name="logout" size={20} />
+            style={{
+              padding: "4px 10px", borderRadius: 8,
+              background: "transparent", border: "none",
+              cursor: "pointer", color: cfg.textMuted,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+            title="Sign out"
+          >
+            <MIcon name="logout" size={18} />
+            <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Sign Out</span>
           </button>
           <button onClick={() => setShowRightPanel(!showRightPanel)}
-            className="xl:hidden p-2 rounded-lg transition-colors"
-            style={{ color: cfg.textMuted }}>
+            className="xl:hidden"
+            style={{
+              padding: "4px 8px", borderRadius: 8,
+              background: "transparent", border: "none",
+              cursor: "pointer", color: cfg.textMuted,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
             <MIcon name={showRightPanel ? "close" : "smart_toy"} size={20} />
           </button>
         </div>
       </header>
 
       {/* Content Area */}
-      <div className="pt-14 pb-20 lg:pb-0 lg:ml-[260px] relative z-10" style={{ minHeight: "100vh", background: "transparent" }}>
-        <div className="flex min-h-[calc(100vh-3.5rem)]">
-          <main className="flex-1 px-3 py-1 lg:px-5 lg:py-1.5 overflow-y-auto">{mainContent}</main>
+      <div className="pt-[3.75rem] pb-20 lg:pb-0 lg:ml-[260px] relative z-10" style={{ minHeight: "100vh", background: "transparent" }}>
+        <div className="flex min-h-[calc(100vh-3.75rem)]">
+          <main className="flex-1 px-3 pt-0 pb-0 lg:px-5 lg:pt-0 lg:pb-0 overflow-y-auto">{mainContent}</main>
 
           {rightSidebar && (
             <aside className={`
@@ -355,10 +392,12 @@ export default function DashboardShell({
           100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
         }
         /* Prevent white bleed at bottom/edges of dashboards */
-        html, body, #__next { min-height: 100vh; margin: 0; padding: 0; }
-        html { background: ${cfg.dark ? "#0a0e1c" : "#fef9e7"} !important; }
-        body { background: ${cfg.bodyBg} !important; min-height: 100vh; background-attachment: fixed; background-color: ${cfg.dark ? "#0a0e1c" : "#fef9e7"} !important; }
-        #__next { min-height: 100vh; background: transparent !important; }
+        html, body, #__next { min-height: 100vh; margin: 0 !important; padding: 0 !important; }
+        html { background: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : "#f5f7fc")} !important; }
+        body { background: ${cfg.bodyBg} !important; min-height: 100vh !important; background-attachment: fixed !important; background-color: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : "#f5f7fc")} !important; }
+        #__next, #__next > div, #__next > div > div, #__next > main, main { background: transparent !important; background-color: transparent !important; }
+        /* Kill any stray white backgrounds from layout wrappers */
+        body > div, body > div > div, body > div > div > div { background-color: transparent !important; }
       `}</style>
     </div>
   );

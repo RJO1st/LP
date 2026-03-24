@@ -7,6 +7,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
 import { CURRICULA, SUBJECTS_BY_CURRICULUM, getLevelInfo } from "@/lib/constants";
 import SkillHeatmap from "@/components/parent/SkillHeatmap";
+import ReadinessScore from "@/components/ReadinessScore";
 import TimeChart from "./TimeChart";
 import Goals from "./Goals";
 
@@ -161,7 +162,7 @@ export default function ScholarInsights({ params }) {
       {/* NAV */}
       <nav className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-50 shadow-sm">
         <Link href="/dashboard/parent" className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-colors">
-          <ArrowLeftIcon /> <span className="hidden sm:inline">Parent Portal</span>
+          <ArrowLeftIcon /> <span className="hidden sm:inline">Mission Control</span>
         </Link>
         <div className="w-px h-5 bg-slate-200" />
         <span className="font-black text-slate-800 text-lg truncate">{scholar?.name}</span>
@@ -254,6 +255,14 @@ export default function ScholarInsights({ params }) {
 
         {/* TAB: OVERVIEW */}
         {activeTab === "Overview" && (
+          <div className="space-y-6">
+
+            {/* Exam Readiness (visible for all scholars) */}
+            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+              <h3 className="font-black text-lg text-slate-800 mb-4">🎯 Exam Readiness</h3>
+              <ReadinessScore scholarId={id} supabase={supabase} />
+            </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Subject bars */}
@@ -338,6 +347,7 @@ export default function ScholarInsights({ params }) {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         )}
 

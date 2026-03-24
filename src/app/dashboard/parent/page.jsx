@@ -149,7 +149,44 @@ const SUBJECT_META = {
   food_technology:"🍳",data_processing:"🖥️",physical_education:"🏃",
   sport_science:"⚽",canadian_history:"🍁",computing:"💻",
 };
-const subjectLabel = (s) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+const SUBJECT_DISPLAY_OVERRIDES = {
+  mathematics: "📚 Mathematics",
+  english: "📖 English",
+  science: "🔬 Science",
+  history: "📜 History",
+  geography: "🌍 Geography",
+  computing: "💻 Computing",
+  design_and_technology: "⚙️ Design & Technology",
+  design_technology: "⚙️ Design & Technology",
+  religious_education: "✝️ Religious Education",
+  physical_education: "🏃 Physical Education",
+  maths: "📚 Mathematics",
+  physics: "⚛️ Physics",
+  chemistry: "🧪 Chemistry",
+  biology: "🧬 Biology",
+  further_mathematics: "📐 Further Mathematics",
+  business_studies: "💼 Business Studies",
+  computer_science: "💻 Computer Science",
+  basic_technology: "🔧 Basic Technology",
+  basic_science: "🧪 Basic Science",
+  financial_accounting: "📒 Financial Accounting",
+  basic_digital_literacy: "💻 Basic Digital Literacy",
+  food_technology: "🍳 Food Technology",
+  sport_science: "⚽ Sport Science",
+  data_processing: "🖥️ Data Processing",
+  media_studies: "📺 Media Studies",
+  business_education: "💼 Business Education",
+};
+const subjectLabel = (s) => {
+  // Check override map first (strips emoji prefix for pure label usage)
+  const override = SUBJECT_DISPLAY_OVERRIDES[s];
+  if (override) {
+    // Return label WITHOUT emoji (emoji handled by subjectEmoji)
+    return override.replace(/^[^\w]+/, "").trim();
+  }
+  // Fallback: title-case with & for "and"
+  return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()).replace(/\bAnd\b/g, "&");
+};
 const subjectEmoji = (s) => SUBJECT_META[s] || "📚";
 
 const CANADIAN_PROVINCES = [
@@ -870,6 +907,64 @@ export default function ParentDashboard() {
                   Manage Plan
                 </Link>
               </div>
+            )}
+
+            {/* ── How-To Guide: collapsible getting-started card ── */}
+            {scholars.length <= 2 && (
+              <details className="mb-6 group">
+                <summary className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-4 cursor-pointer list-none flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-lg">📘</div>
+                    <div>
+                      <p className="text-sm font-black text-indigo-900">Getting Started Guide</p>
+                      <p className="text-[11px] text-indigo-400 font-semibold">How to add a scholar, sign them in, and start their first quest</p>
+                    </div>
+                  </div>
+                  <ChevronDown size={18} />
+                </summary>
+                <div className="mt-2 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+                  {/* Step 1 */}
+                  <div className="flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">Add a scholar</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        Click the <span className="font-bold text-indigo-600">&quot;+ Add Scholar&quot;</span> card below. Fill in their name, choose their curriculum, year level, and subjects. A unique <span className="font-bold">codename</span> and <span className="font-bold">PIN</span> will be created automatically.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Step 2 */}
+                  <div className="flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">Get them signed in</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        Go to <span className="font-bold text-indigo-600">launchpard.com</span> on their device. On the login page, tap <span className="font-bold">&quot;Scholar&quot;</span>, then enter their codename and PIN. No email required — it&apos;s that simple.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Step 3 */}
+                  <div className="flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">3</span>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">Start their first quest</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        They&apos;ll see a personalised dashboard based on their age. Tap <span className="font-bold">&quot;Start Adventure&quot;</span> (or &quot;Start Mission&quot; for older kids) to begin their first AI-powered lesson. Tara the tutor will guide them through each question.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Tips */}
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                    <p className="text-xs font-black text-amber-800 mb-1.5">Tips for parents</p>
+                    <div className="text-xs text-amber-700 space-y-1">
+                      <p className="flex items-start gap-1.5"><span className="shrink-0">📱</span><span>Works on phone, tablet, or laptop — no app download needed</span></p>
+                      <p className="flex items-start gap-1.5"><span className="shrink-0">⏰</span><span>10-15 minutes daily is enough — consistency beats long sessions</span></p>
+                      <p className="flex items-start gap-1.5"><span className="shrink-0">📊</span><span>Check this dashboard for progress reports and weekly summaries</span></p>
+                      <p className="flex items-start gap-1.5"><span className="shrink-0">🎯</span><span>The AI adapts to their level — no need to choose difficulty</span></p>
+                    </div>
+                  </div>
+                </div>
+              </details>
             )}
 
             {/* Scholar grid + Add Scholar card */}

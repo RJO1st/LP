@@ -125,6 +125,38 @@ export const EMAIL_TEMPLATES = {
         <p>📋 Share this code with ${scholarName} — they'll use it to log in and start quests on any device.</p>
       </div>
 
+      <h3 style="color:#1e293b;font-size:16px;font-weight:900;margin:28px 0 16px;">📘 Getting Started Guide</h3>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr>
+          <td style="padding:12px 16px;background:#eef2ff;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#4f46e5;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">1</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Share the quest code above</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">Give ${scholarName} their codename and PIN shown above. They'll need this to sign in.</p>
+          </td>
+        </tr>
+        <tr><td style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px 16px;background:#f5f3ff;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#7c3aed;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">2</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Sign them in</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">Go to <a href="${BASE_URL}/login" style="color:#4f46e5;font-weight:700;">launchpard.com</a> → tap <strong>Scholar</strong> → enter their codename and PIN. Works on phone, tablet, or laptop.</p>
+          </td>
+        </tr>
+        <tr><td style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px 16px;background:#ecfdf5;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#059669;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">3</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Start their first quest</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">They'll see a personalised dashboard. Tap <strong>Start Adventure</strong> to begin. Tara the AI tutor guides them through every question.</p>
+          </td>
+        </tr>
+      </table>
+
+      <div class="tip">
+        <p>💡 <strong>Tip:</strong> 10-15 minutes of daily practice builds lasting knowledge. Check your parent dashboard anytime for progress reports.</p>
+      </div>
+
       <a href="${BASE_URL}/dashboard/parent" class="cta">View ${scholarName}'s Dashboard →</a>
       <p style="font-size:13px;color:#94a3b8;">Keep this code safe. Parents can always find it in Mission Control.</p>
     `;

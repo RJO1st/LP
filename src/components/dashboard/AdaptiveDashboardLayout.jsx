@@ -136,12 +136,20 @@ function KS2Radar() {
 function KS4ScanGrid() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      <div style={{ position: "absolute", inset: 0, opacity: 0.015,
+      {/* Grid lines */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.02,
         backgroundImage: "linear-gradient(rgba(0,229,195,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,195,0.3) 1px, transparent 1px)",
         backgroundSize: "60px 60px" }} />
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%", opacity: 0.03,
-        background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.15), transparent)",
+      {/* Scan line sweep */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%", opacity: 0.04,
+        background: "linear-gradient(180deg, transparent, rgba(0,229,195,0.2), transparent)",
         backgroundSize: "100% 200%", animation: "ks4Scan 4s linear infinite" }} />
+      {/* Corner accent glow — top right */}
+      <div style={{ position: "absolute", width: 300, height: 300, top: "-5%", right: "-5%", opacity: 0.06,
+        background: "radial-gradient(circle, rgba(0,229,195,0.4) 0%, transparent 70%)" }} />
+      {/* Bottom left subtle glow */}
+      <div style={{ position: "absolute", width: 400, height: 400, bottom: "-10%", left: "-10%", opacity: 0.04,
+        background: "radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)" }} />
     </div>
   );
 }
@@ -558,6 +566,43 @@ export default function AdaptiveDashboardLayout({
                 totalXP: stats.xp ?? stats.totalXP ?? 0,
               }}
             />
+
+            {/* Space Pet (after achievements) */}
+            <BandCard band={band} glow>
+              <SectionHeader band={band} icon="🐾" title="Space Pet" subtitle="your cosmic companion" size="lg" />
+              <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
+            </BandCard>
+
+            {/* Key Stats Panel */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📊" title="Key Stats" subtitle="mission intel" />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(124,131,245,0.08)", border: "1px solid rgba(124,131,245,0.12)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Accuracy</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#7c83f5" }}>{stats.bestAccuracy ?? stats.accuracy ?? 0}%</div>
+                </div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.12)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Mastery</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#c084fc" }}>{subjectMastery.pct}%</div>
+                </div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.12)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Topics</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>{subjectMastery.count}</div>
+                </div>
+                <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.12)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Coins</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#fbbf24" }}>{coins}</div>
+                </div>
+              </div>
+            </BandCard>
+
+            {/* Leaderboard */}
+            {leaderboard.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="🏅" title="Rankings" subtitle="top commanders" />
+                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+              </BandCard>
+            )}
           </>
         )}
 
@@ -712,7 +757,7 @@ export default function AdaptiveDashboardLayout({
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks4" && (
           <>
-            {/* Hero Greeting */}
+            {/* ── HERO: Greeting + Inline Command Status ── */}
             <BandCard band={band} glow>
               <AdaptiveGreeting
                 scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
@@ -722,54 +767,131 @@ export default function AdaptiveDashboardLayout({
               />
             </BandCard>
 
-            {/* STATUS BAR: Predicted Grade + Exam Countdown + Mastery Index */}
+            {/* ── COMMAND STATUS: 4-metric bar with glow indicators ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              {/* Predicted Grade */}
+              <div style={{
+                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
+                position: "relative", overflow: "hidden",
+              }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #00e5c3, transparent)", opacity: 0.4 }} />
+                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Predicted</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "#00e5c3", fontFamily: "'JetBrains Mono', monospace", textShadow: "0 0 24px rgba(0,229,195,0.25)" }}>
+                  {examData?.predictedGrade || "—"}
+                </div>
+                {examData?.previousGrade && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>was {examData.previousGrade}</div>}
+              </div>
+
+              {/* Exam Countdown */}
+              <div style={{
+                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                border: `1px solid rgba(${(examData?.daysUntilExam ?? 999) <= 30 ? "239,68,68" : "0,229,195"},0.12)`,
+                backdropFilter: "blur(20px)", position: "relative", overflow: "hidden",
+              }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: (examData?.daysUntilExam ?? 999) <= 30 ? "linear-gradient(90deg, transparent, #ef4444, transparent)" : "linear-gradient(90deg, transparent, #00e5c3, transparent)", opacity: 0.4 }} />
+                <div style={{ fontSize: 9, fontWeight: 800, color: (examData?.daysUntilExam ?? 999) <= 30 ? "rgba(239,68,68,0.6)" : "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Exam In</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#00e5c3", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {examData?.daysUntilExam ?? "—"}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>days</div>
+              </div>
+
+              {/* Mastery Index */}
+              <div style={{
+                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
+                position: "relative", overflow: "hidden",
+              }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3 }}>
+                  <div style={{ height: "100%", width: `${subjectMastery.pct}%`, background: "#00e5c3", opacity: 0.5, transition: "width 1s ease" }} />
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(0,229,195,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Mastery</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "#00e5c3", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {subjectMastery.pct}%
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: subjectMastery.pct >= 80 ? "rgba(0,229,195,0.5)" : subjectMastery.pct >= 50 ? "rgba(251,191,36,0.5)" : "rgba(239,68,68,0.5)", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  {subjectMastery.pct >= 80 ? "READY" : subjectMastery.pct >= 50 ? "FOCUS" : "PREP"}
+                </div>
+              </div>
+
+              {/* Accuracy */}
+              <div style={{
+                background: "rgba(18,24,44,0.6)", borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                border: "1px solid rgba(0,229,195,0.08)", backdropFilter: "blur(20px)",
+                position: "relative", overflow: "hidden",
+              }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #6366f1, transparent)", opacity: 0.4 }} />
+                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(99,102,241,0.5)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Accuracy</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "#818cf8", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {stats.bestAccuracy ?? stats.accuracy ?? 0}%
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>best score</div>
+              </div>
+            </div>
+
+            {/* ── TODAY'S FOCUS: Quick action card ── */}
             <BandCard band={band} glow>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                {/* Predicted Grade */}
-                <div style={{ textAlign: "center", padding: "12px 0", position: "relative" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                    Predicted
-                  </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{
-                    fontSize: 32, fontWeight: 900, color: "#00e5c3",
-                    textShadow: "0 0 20px rgba(0,229,195,0.3)",
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "linear-gradient(135deg, rgba(0,229,195,0.15), rgba(0,229,195,0.05))",
+                    border: "1px solid rgba(0,229,195,0.15)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
                   }}>
-                    {examData?.predictedGrade || "—"}
+                    {(examData?.daysUntilExam ?? 999) <= 14 ? "🔴" : (examData?.daysUntilExam ?? 999) <= 60 ? "🟡" : "🟢"}
                   </div>
-                  {examData?.previousGrade && (
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
-                      prev: {examData.previousGrade}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#e0e6f0", letterSpacing: "0.02em" }}>
+                      Today&apos;s Focus
                     </div>
-                  )}
-                </div>
-
-                {/* Exam Countdown */}
-                <div style={{ textAlign: "center", padding: "12px 0", borderLeft: "1px solid rgba(0,229,195,0.1)", borderRight: "1px solid rgba(0,229,195,0.1)" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                    Exam In
-                  </div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#00e5c3" }}>
-                    {examData?.daysUntilExam ?? "—"}
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>days</div>
-                </div>
-
-                {/* Mastery Index */}
-                <div style={{ textAlign: "center", padding: "12px 0" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                    Mastery
-                  </div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#00e5c3" }}>
-                    {subjectMastery.pct}%
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
-                    {subjectMastery.pct >= 80 ? "READY" : subjectMastery.pct >= 50 ? "FOCUS" : "PREP"}
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      {(examData?.daysUntilExam ?? 999) <= 14 ? "FINAL PUSH" : (examData?.daysUntilExam ?? 999) <= 60 ? "BUILDING MOMENTUM" : "STEADY PROGRESS"}
+                    </div>
                   </div>
                 </div>
+                {subjectMastery.pct >= 80 && (
+                  <div style={{
+                    padding: "5px 12px", borderRadius: 8,
+                    background: "rgba(0,229,195,0.1)", border: "1px solid rgba(0,229,195,0.2)",
+                    fontSize: 10, fontWeight: 900, color: "#00e5c3",
+                    textTransform: "uppercase", letterSpacing: "0.06em",
+                  }}>
+                    EXAM READY
+                  </div>
+                )}
+              </div>
+              {/* Quick action buttons */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button onClick={() => onStartMock?.(activeSubject?.toLowerCase() || "mathematics")} style={{
+                  padding: "12px 16px", borderRadius: 10,
+                  background: "linear-gradient(135deg, rgba(0,229,195,0.12), rgba(0,229,195,0.04))",
+                  border: "1px solid rgba(0,229,195,0.15)", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s",
+                }}>
+                  <span style={{ fontSize: 16 }}>📝</span>
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#00e5c3" }}>Mock Exam</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{examData?.mocksCompleted ?? 0} completed</div>
+                  </div>
+                </button>
+                <button onClick={() => onStartRevisionTopic?.("weakest")} style={{
+                  padding: "12px 16px", borderRadius: 10,
+                  background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.04))",
+                  border: "1px solid rgba(99,102,241,0.15)", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s",
+                }}>
+                  <span style={{ fontSize: 16 }}>🎯</span>
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#818cf8" }}>Weak Topics</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{examData?.topicsRemaining ?? "—"} remaining</div>
+                  </div>
+                </button>
               </div>
             </BandCard>
 
-            {/* Encouragement */}
+            {/* ── Encouragement ── */}
             {encouragement && (
               <BandCard band={band}>
                 <TaraEncouragement
@@ -780,7 +902,18 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* PRIMARY: Revision Planner (HUGE) */}
+            {/* ── SUBJECT YEAR PROGRESSION ── */}
+            {subjects.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="📈" title="Subject Progress" subtitle="year overview" />
+                <SubjectProgressChart
+                  subjects={subjects} stats={stats} scholar={scholar}
+                  activeSubject={activeSubject} onSubjectChange={setActiveSubject}
+                />
+              </BandCard>
+            )}
+
+            {/* ── PRIMARY: AI Revision Strategy ── */}
             {masteryData.length > 0 && (
               <BandCard band={band} glow>
                 <SectionHeader band={band} icon="🎯" title="AI Revision Strategy" subtitle="targeting grade boundaries" size="lg" />
@@ -791,10 +924,10 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* Exam Panel with Grade Comparison */}
+            {/* ── Exam Status Panel ── */}
             {examData && (
               <BandCard band={band}>
-                <SectionHeader band={band} icon="📊" title="Exam Status" />
+                <SectionHeader band={band} icon="📊" title="Exam Intel" subtitle="grade trajectory" />
                 <ExamPanel
                   predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
                   examName={examData.examName} daysUntilExam={examData.daysUntilExam}
@@ -804,24 +937,24 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* Topic Heatmap (Skill Map as Heatmap) */}
+            {/* ── Topic Heatmap ── */}
             <BandCard band={band}>
-              <SectionHeader band={band} icon="📊" title="Topic Heatmap" subtitle="coverage analysis" />
+              <SectionHeader band={band} icon="🗺️" title="Topic Heatmap" subtitle="coverage analysis" />
               <SkillMap
                 topics={topics} subjects={subjects} subject={activeSubject}
                 onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
               />
             </BandCard>
 
-            {/* Topic Performance Breakdown */}
+            {/* ── Topic Performance Breakdown ── */}
             {scholarId && supabase && (
               <BandCard band={band}>
-                <SectionHeader band={band} icon="📊" title="Topic Analysis" subtitle="performance by topic" />
+                <SectionHeader band={band} icon="📋" title="Topic Analysis" subtitle="performance by topic" />
                 <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
               </BandCard>
             )}
 
-            {/* Flashcard Deck (also in sidebar but primary here for mobile) */}
+            {/* ── Flashcard Deck (mobile only — desktop in sidebar) ── */}
             <div className="xl:hidden">
               <BandCard band={band} glow>
                 <SectionHeader band={band} icon="🧠" title="Flashcard Deck" subtitle="active recall" />
@@ -830,7 +963,7 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             </div>
 
-            {/* Mock Test Launcher (mobile) */}
+            {/* ── Mock Test Launcher (mobile only) ── */}
             <div className="xl:hidden">
               <BandCard band={band} glow>
                 <MockTestLauncher
@@ -841,7 +974,7 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             </div>
 
-            {/* Certifications */}
+            {/* ── Achievement Certifications ── */}
             <StickerCollection
               band="ks4"
               earnedBadgeIds={earnedBadgeIds}
@@ -854,6 +987,14 @@ export default function AdaptiveDashboardLayout({
                 mocksCompleted: examData?.mocksCompleted ?? 0,
               }}
             />
+
+            {/* ── Leaderboard ── */}
+            {leaderboard.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="🏆" title="Rankings" subtitle="top performers" />
+                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+              </BandCard>
+            )}
           </>
         )}
 

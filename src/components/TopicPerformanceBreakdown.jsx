@@ -36,7 +36,11 @@ async function fetchTopicStats(supabase, scholarId, subject, daysBack) {
     .eq("subject", subject)
     .gte("created_at", since.toISOString());
 
-  if (error) { console.error("[TopicBreakdown]", error); return []; }
+  // Supabase can return an empty object {} as error — only treat as real error if it has a message
+  if (error && (error.message || error.code)) {
+    console.error("[TopicBreakdown]", error);
+    return [];
+  }
 
   // Aggregate across sessions
   const agg = {}; // { topic: { correct, total } }

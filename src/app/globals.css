@@ -28,13 +28,30 @@ body {
   color: var(--slate-900);
 }
 
-/* Dashboard pages: let band-specific backgrounds take precedence */
+/* Dashboard pages: let band-specific backgrounds take precedence.
+   The .dashboard-shell element sets its own background via inline style,
+   so every wrapper above it must be fully transparent. */
+html:has(.dashboard-shell),
+html:has(.dashboard-shell) body,
 body:has(.dashboard-shell) {
-  background: transparent !important;
+  background: none !important;
   background-color: transparent !important;
+  background-image: none !important;
 }
-html:has(.dashboard-shell) {
-  background: transparent !important;
+html:has(.dashboard-shell) #__next,
+html:has(.dashboard-shell) body > div,
+html:has(.dashboard-shell) body > div > div,
+html:has(.dashboard-shell) body > main,
+html:has(.dashboard-shell) main {
+  background: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+.dashboard-shell {
+  min-height: 100vh;
+  position: relative;
+  /* Isolate: no outer white can bleed through */
+  isolation: isolate;
 }
 
 /* Custom Animation */
