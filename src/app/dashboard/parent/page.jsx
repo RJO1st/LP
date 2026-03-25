@@ -82,12 +82,11 @@ const UK_KS4_OPTIONS = [
   { group: "Arts & Humanities", emoji: "🎨", subjects: [
     { value: "history", label: "History" }, { value: "geography", label: "Geography" },
     { value: "religious_education", label: "Religious Education" }, { value: "media_studies", label: "Media Studies" },
-    { value: "physical_education", label: "Physical Education" },
   ]},
   { group: "Vocational & Technical", emoji: "🛠", subjects: [
     { value: "business_studies", label: "Business Studies" }, { value: "ict", label: "ICT" },
     { value: "design_technology", label: "Design & Technology" }, { value: "food_technology", label: "Food Technology" },
-    { value: "health_social_care", label: "Health & Social Care" }, { value: "sport_science", label: "Sport Science" },
+    { value: "health_social_care", label: "Health & Social Care" },
   ]},
 ];
 const UK_KS4_YEARS = [10, 11];
@@ -105,7 +104,7 @@ const getUkNationalKeyStage = (year) => {
   if (y <= 9) return "ks3";
   return "ks4";
 };
-const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, year, examMode) => {
+const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, year, examMode, province) => {
   if (curriculum === "ng_sss") {
     const streamSubjects = stream ? (NG_SSS_STREAMS[stream]?.subjects || []) : [];
     return [...NG_SSS_COMPULSORY, ...streamSubjects, ...(tradeSubject ? [tradeSubject] : [])];
@@ -118,36 +117,127 @@ const getScholarSubjects = (curriculum, stream, tradeSubject, selectedSubjects, 
     if (ks === "ks4") return [...base, ...(selectedSubjects || []), ...examExtras];
     return [...base, ...examExtras];
   }
+  // US Common Core — grade-banded
+  if (curriculum === "us_common_core") {
+    const band = getUsGradeBand(year);
+    return US_COMMON_CORE_SUBJECTS[band] || SUBJECTS_BY_CURRICULUM.us_common_core;
+  }
+  // Canadian Primary — grade-banded + province extras
+  if (curriculum === "ca_primary") {
+    const band = getCaPrimaryBand(year);
+    const base = CA_PRIMARY_SUBJECTS[band] || SUBJECTS_BY_CURRICULUM.ca_primary;
+    const provinceExtras = province && CA_PROVINCE_EXTRAS[province] ? CA_PROVINCE_EXTRAS[province].subjects : [];
+    // Merge without duplicates
+    return [...new Set([...base, ...provinceExtras])];
+  }
+  // Canadian Secondary — grade-banded + province extras
+  if (curriculum === "ca_secondary") {
+    const band = getCaSecondaryBand(year);
+    const base = CA_SECONDARY_SUBJECTS[band] || SUBJECTS_BY_CURRICULUM.ca_secondary;
+    const provinceExtras = province && CA_PROVINCE_EXTRAS[province] ? CA_PROVINCE_EXTRAS[province].subjects : [];
+    return [...new Set([...base, ...provinceExtras])];
+  }
   return SUBJECTS_BY_CURRICULUM[curriculum] || [];
 };
+// ── US Common Core: grade-banded subjects ──────────────────────────
+const US_COMMON_CORE_SUBJECTS = {
+  // K-2 equivalent (Grades 1-2)
+  lower_elementary: ["mathematics","english","science","social_studies"],
+  // Grades 3-5
+  upper_elementary: ["mathematics","english","science","social_studies","health"],
+  // Grades 6-8 (Middle School)
+  middle_school: ["mathematics","english_language_arts","earth_science","life_science","physical_science","us_history","world_geography","civics","health","computer_science"],
+};
+const getUsGradeBand = (year) => {
+  const y = Number(year);
+  if (y <= 2) return "lower_elementary";
+  if (y <= 5) return "upper_elementary";
+  return "middle_school";
+};
+
+// ── Canadian Primary: grade-banded subjects ────────────────────────
+const CA_PRIMARY_SUBJECTS = {
+  // Grades 1-3
+  early: ["mathematics","english","science","social_studies","health"],
+  // Grades 4-6
+  intermediate: ["mathematics","english","science","social_studies","health","computing"],
+  // Grades 7-8
+  senior: ["mathematics","english","science","social_studies","geography","history","health","computer_studies"],
+};
+const getCaPrimaryBand = (year) => {
+  const y = Number(year);
+  if (y <= 3) return "early";
+  if (y <= 6) return "intermediate";
+  return "senior";
+};
+
+// ── Canadian Secondary: grade-banded subjects ──────────────────────
+const CA_SECONDARY_SUBJECTS = {
+  // Grade 9
+  grade_9: ["mathematics","english","science","canadian_geography","career_studies","civics"],
+  // Grade 10
+  grade_10: ["mathematics","english","science","canadian_history","civics","career_studies","computer_science"],
+  // Grade 11
+  grade_11: ["mathematics","english","biology","chemistry","physics","world_history","computer_science","environmental_science"],
+  // Grade 12
+  grade_12: ["mathematics","english","biology","chemistry","physics","computer_science","economics","world_issues","philosophy"],
+};
+const getCaSecondaryBand = (year) => `grade_${Number(year)}`;
+
+// ── Canadian province-specific additional subjects ─────────────────
+const CA_PROVINCE_EXTRAS = {
+  ON: { subjects: [], note: "Ontario curriculum" },
+  BC: { subjects: ["environmental_studies"], note: "BC inquiry-based curriculum" },
+  AB: { subjects: ["social_studies_alberta"], note: "Alberta: strong STEM focus with unique social studies framework" },
+  MB: { subjects: [], note: "Manitoba curriculum" },
+  NB: { subjects: ["community_studies"], note: "New Brunswick curriculum" },
+  NS: { subjects: [], note: "Nova Scotia curriculum" },
+  NL: { subjects: ["newfoundland_studies"], note: "Newfoundland: local history and geography" },
+  PE: { subjects: ["island_studies"], note: "PEI: strong community focus" },
+  SK: { subjects: [], note: "Saskatchewan curriculum" },
+  NT: { subjects: ["northern_studies"], note: "NWT: Northern studies focus" },
+  YT: { subjects: [], note: "Yukon follows BC curriculum framework" },
+  NU: { subjects: [], note: "Nunavut curriculum" },
+};
+
 const SUBJECTS_BY_CURRICULUM = {
   uk_national:    ["mathematics","english","science"],
-  us_common_core: ["maths","english","science"],
+  us_common_core: ["mathematics","english","science"],
   aus_acara:      ["maths","english","science"],
   ib_pyp:         ["maths","english","science"],
   ib_myp:         ["maths","english","science"],
   ng_primary:     ["mathematics","english","basic_science","social_studies"],
   ng_jss:         NG_JSS_SUBJECTS,
   ng_sss:         NG_SSS_COMPULSORY,
-  ca_primary: ["maths","english","science","social_studies"],
-  ca_secondary: ["maths","english","science","canadian_history","geography","physics","chemistry","biology","computer_science"],
+  ca_primary:     ["mathematics","english","science","social_studies"],
+  ca_secondary:   ["mathematics","english","science","canadian_history","geography"],
 };
 const SUBJECT_META = {
   maths:"🔢",mathematics:"🔢",further_mathematics:"📐",statistics:"📊",
   english:"📖",english_language:"📖",english_literature:"📖",english_studies:"📖",
-  literature_in_english:"📖",verbal:"🧩",verbal_reasoning:"🧩",nvr:"🔷",
+  english_language_arts:"📖",literature_in_english:"📖",verbal:"🧩",verbal_reasoning:"🧩",nvr:"🔷",
   science:"🔬",biology:"🧬",chemistry:"🧪",physics:"⚛️",combined_science:"🔬",
-  basic_science:"🔬",basic_technology:"🔧",health_education:"🏥",
-  agricultural_science:"🌱",history:"🏛️",nigerian_history:"🏛️",geography:"🗺️",
-  social_studies:"🌍",religious_education:"✝️",religious_studies:"✝️",
+  earth_science:"🌎",life_science:"🧬",physical_science:"⚛️",environmental_science:"🌿",
+  environmental_studies:"🌿",basic_science:"🔬",basic_technology:"🔧",health_education:"🏥",
+  health:"🏥",agricultural_science:"🌱",
+  history:"🏛️",nigerian_history:"🏛️",us_history:"🇺🇸",world_history:"🌎",world_geography:"🗺️",
+  canadian_geography:"🍁",canadian_history:"🍁",histoire_du_quebec:"🏛️",
+  geography:"🗺️",social_studies:"🌍",social_studies_alberta:"🌍",civics:"⚖️",world_issues:"🌎",
+  religious_education:"✝️",religious_studies:"✝️",ethique_culture_religieuse:"🙏",
   government:"🏛️",civic_education:"⚖️",citizenship:"⚖️",
   cultural_and_creative_arts:"🎨",home_management:"🏠",pre_vocational_studies:"🛠",
   digital_technologies:"💻",media_studies:"📺",economics:"📈",business_studies:"💼",
   business_education:"💼",commerce:"💰",accounting:"📒",financial_accounting:"📒",
-  marketing:"📣",computer_science:"💻",ict:"💻",digital_technologies:"💻",
-  basic_digital_literacy:"💻",basic_technology:"🔧",design_technology:"⚙️",
+  marketing:"📣",computer_science:"💻",computer_studies:"💻",ict:"💻",
+  basic_digital_literacy:"💻",design_technology:"⚙️",
   food_technology:"🍳",data_processing:"🖥️",physical_education:"🏃",
-  sport_science:"⚽",canadian_history:"🍁",computing:"💻",
+  sport_science:"⚽",computing:"💻",
+  // Canadian province-specific
+  french:"🇫🇷",french_language:"🇫🇷",french_immersion:"🇫🇷",
+  first_peoples_english:"🪶",first_nations_studies:"🪶",indigenous_studies:"🪶",
+  indigenous_languages:"🪶",inuktitut:"🪶",inuit_studies:"🪶",mi_kmaw_studies:"🪶",
+  northern_studies:"❄️",newfoundland_studies:"🏔️",island_studies:"🏝️",community_studies:"🏘️",
+  philosophy:"🤔",career_studies:"🎯",arts:"🎨",art:"🎨",music:"🎵",
 };
 const SUBJECT_DISPLAY_OVERRIDES = {
   mathematics: "📚 Mathematics",
@@ -167,6 +257,7 @@ const SUBJECT_DISPLAY_OVERRIDES = {
   further_mathematics: "📐 Further Mathematics",
   business_studies: "💼 Business Studies",
   computer_science: "💻 Computer Science",
+  computer_studies: "💻 Computer Studies",
   basic_technology: "🔧 Basic Technology",
   basic_science: "🧪 Basic Science",
   financial_accounting: "📒 Financial Accounting",
@@ -176,6 +267,47 @@ const SUBJECT_DISPLAY_OVERRIDES = {
   data_processing: "🖥️ Data Processing",
   media_studies: "📺 Media Studies",
   business_education: "💼 Business Education",
+  // US subjects
+  english_language_arts: "📖 English Language Arts",
+  earth_science: "🌎 Earth Science",
+  life_science: "🧬 Life Science",
+  physical_science: "⚛️ Physical Science",
+  us_history: "🇺🇸 US History",
+  world_geography: "🗺️ World Geography",
+  world_history: "🌎 World History",
+  world_issues: "🌎 World Issues",
+  environmental_science: "🌿 Environmental Science",
+  environmental_studies: "🌿 Environmental Studies",
+  // Canadian subjects
+  social_studies: "🌍 Social Studies",
+  social_studies_alberta: "🌍 Social Studies (Alberta)",
+  canadian_history: "🍁 Canadian History",
+  canadian_geography: "🍁 Canadian Geography",
+  french: "🇫🇷 French",
+  french_language: "🇫🇷 French Language",
+  french_immersion: "🇫🇷 French Immersion",
+  civics: "⚖️ Civics",
+  career_studies: "🎯 Career Studies",
+  arts: "🎨 Arts",
+  art: "🎨 Art",
+  music: "🎵 Music",
+  health: "🏥 Health",
+  // Province-specific
+  histoire_du_quebec: "🏛️ Histoire du Québec",
+  ethique_culture_religieuse: "🙏 Éthique & Culture Religieuse",
+  first_peoples_english: "🪶 First Peoples English",
+  first_nations_studies: "🪶 First Nations Studies",
+  indigenous_studies: "🪶 Indigenous Studies",
+  indigenous_languages: "🪶 Indigenous Languages",
+  inuktitut: "🪶 Inuktitut",
+  inuit_studies: "🪶 Inuit Studies",
+  mi_kmaw_studies: "🪶 Mi'kmaw Studies",
+  northern_studies: "❄️ Northern Studies",
+  newfoundland_studies: "🏔️ Newfoundland Studies",
+  island_studies: "🏝️ Island Studies",
+  community_studies: "🏘️ Community Studies",
+  philosophy: "🤔 Philosophy",
+  economics: "📈 Economics",
 };
 const subjectLabel = (s) => {
   // Check override map first (strips emoji prefix for pure label usage)
@@ -193,7 +325,6 @@ const CANADIAN_PROVINCES = [
   { code: "ON", name: "Ontario",                note: "Largest province; Ontario curriculum" },
   { code: "BC", name: "British Columbia",        note: "Inquiry-based curriculum" },
   { code: "AB", name: "Alberta",                 note: "Strong STEM focus" },
-  { code: "QC", name: "Québec",                  note: "Québec Education Programme" },
   { code: "MB", name: "Manitoba",                note: "Central Canada" },
   { code: "SK", name: "Saskatchewan",            note: "Prairie province" },
   { code: "NS", name: "Nova Scotia",             note: "Atlantic Canada" },
@@ -708,7 +839,7 @@ export default function ParentDashboard() {
   };
 
   const getCurr       = (s) => CURRICULA[s.curriculum] || CURRICULA.uk_national;
-  const getSubjects = (s) => getScholarSubjects(s.curriculum, s.stream, s.trade_subject, s.selected_subjects, s.year_level || s.year || 1, s.exam_mode);
+  const getSubjects = (s) => getScholarSubjects(s.curriculum, s.stream, s.trade_subject, s.selected_subjects, s.year_level || s.year || 1, s.exam_mode, s.province);
   const toggleInsights = (id) => setExpandedInsights(prev => ({ ...prev, [id]: !prev[id] }));
 
   const getKSBandColor = (curriculum, year) => {
@@ -1187,11 +1318,18 @@ export default function ParentDashboard() {
 
                     {/* Canadian province selector */}
                     {isCanadian && (
-                      <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
-                        <option value="">Select province</option>
-                        {CANADIAN_PROVINCES.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
-                      </select>
+                      <>
+                        <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                          <option value="">Select province</option>
+                          {CANADIAN_PROVINCES.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
+                        </select>
+                        {newProvince && CA_PROVINCE_EXTRAS[newProvince] && (
+                          <p className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 rounded-md px-2 py-1 border border-indigo-100">
+                            ℹ️ {CA_PROVINCE_EXTRAS[newProvince].note}
+                          </p>
+                        )}
+                      </>
                     )}
 
                     {/* NG_SSS stream selector */}
@@ -1271,7 +1409,7 @@ export default function ParentDashboard() {
 
                     {/* Preview: subjects this scholar will study */}
                     {(() => {
-                      const previewSubjects = getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode);
+                      const previewSubjects = getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode, newProvince);
                       if (previewSubjects.length === 0) return null;
                       return (
                         <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
