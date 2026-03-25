@@ -115,7 +115,7 @@ export default function KS3QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ─── LEFT: Scenario Brief ───────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-5 md:p-8 max-h-[38vh] lg:max-h-none"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
           style={{ borderRight: "1px solid rgba(16,185,129,0.06)" }}>
 
           {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
@@ -203,10 +203,10 @@ export default function KS3QuizShell({
         </div>
 
         {/* ─── RIGHT: MCQ ─────────────────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-4 md:p-6 flex flex-col"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
           style={{ background: "rgba(12,18,34,0.5)" }}>
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
             <span className="px-3 py-1 rounded-full text-[10px] font-bold"
               style={{ background: "rgba(16,185,129,0.12)", color: "#34d399", border: "1px solid rgba(16,185,129,0.2)" }}>
               Task {questionIndex + 1} of {totalQuestions}
@@ -218,11 +218,11 @@ export default function KS3QuizShell({
             </div>
           </div>
 
-          <h2 className="text-lg md:text-xl font-bold text-white mb-6 leading-snug">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-white mb-3 sm:mb-6 leading-snug">
             {question}
           </h2>
 
-          <div className="space-y-2 flex-1">
+          <div className="space-y-1.5 sm:space-y-2 flex-1">
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -230,23 +230,23 @@ export default function KS3QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="w-full text-left px-3 py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-3"
+                  className="w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
                   style={{
                     background: correct ? "rgba(34,197,94,0.1)" : wrong ? "rgba(239,68,68,0.1)" : selected ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.02)",
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#10b981" : "rgba(255,255,255,0.06)",
                     transform: selected ? "scale(1.01)" : "scale(1)",
                   }}>
-                  <div className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0"
                     style={{
                       background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#10b981" : "rgba(255,255,255,0.05)",
                       color: selected || correct || wrong ? "#fff" : "rgba(255,255,255,0.35)",
                     }}>
                     {correct ? "✓" : wrong ? "✗" : OPTION_LETTERS[i]}
                   </div>
-                  <span className="text-sm md:text-base text-white/70 font-medium">
+                  <span className="text-xs sm:text-sm md:text-base text-white/70 font-medium">
                     {typeof opt === "string" ? opt : opt?.text || opt}
                   </span>
-                  {correct && <span className="ml-auto text-green-400 text-sm font-bold">Correct</span>}
+                  {correct && <span className="ml-auto text-green-400 text-xs sm:text-sm font-bold">Correct</span>}
                 </button>
               );
             })}
@@ -283,15 +283,15 @@ export default function KS3QuizShell({
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-6 pt-4"
+          <div className="flex items-center justify-between mt-4 sm:mt-6 pt-3 sm:pt-4"
             style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
             <button onClick={() => setShowMentor(!showMentor)}
-              className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+              className="text-[10px] sm:text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-emerald-500/10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-emerald-500/20">
               🎯 {showMentor ? "Hide Mentor" : "Ask Mentor"}
             </button>
             <div className="flex items-center gap-3">
               <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
-                className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
+                className="px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{
                   background: showResult ? "#10b981" : "linear-gradient(135deg, #10b981, #059669)",
                   color: showResult ? "#0c1222" : "#fff",

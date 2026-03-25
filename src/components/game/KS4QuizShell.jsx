@@ -63,7 +63,7 @@ export default function KS4QuizShell({
       <div className="flex-1 flex overflow-hidden">
 
         {/* ─── LEFT: Case Study ────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-6 md:p-10 flex-1 max-h-[38vh] lg:max-h-none" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-6 md:p-10 flex-1 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
           {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
           {leftPanelContent ? (
             <div className="h-full">{leftPanelContent}</div>
@@ -107,9 +107,9 @@ export default function KS4QuizShell({
         </div>
 
         {/* ─── RIGHT: MCQ ────────────────────────────────────── */}
-        <div className="lg:w-[45%] overflow-y-auto p-4 md:p-6 flex flex-col" style={{ background: "rgba(13,17,23,0.4)" }}>
+        <div className="lg:w-[45%] overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col" style={{ background: "rgba(13,17,23,0.4)" }}>
           {/* Question header */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
             <span className="px-3 py-1 rounded-full text-[10px] font-bold"
               style={{ background: "rgba(20,184,166,0.15)", color: "#2dd4bf", border: "1px solid rgba(20,184,166,0.2)" }}>
               Question {questionIndex + 1} of {totalQuestions}
@@ -117,11 +117,11 @@ export default function KS4QuizShell({
             <span className="text-sm font-bold text-white/40">{marks} MARK{marks > 1 ? "S" : ""}</span>
           </div>
 
-          <h2 className="text-lg md:text-xl font-bold text-white mb-8 leading-snug">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-white mb-3 sm:mb-8 leading-snug">
             {question}
           </h2>
 
-          <div className="space-y-2 flex-1">
+          <div className="space-y-1.5 sm:space-y-2 flex-1">
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -129,20 +129,20 @@ export default function KS4QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="w-full text-left px-3 py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-3"
+                  className="w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
                   style={{
                     background: correct ? "rgba(34,197,94,0.08)" : wrong ? "rgba(239,68,68,0.08)" : selected ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.02)",
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#a78bfa" : "rgba(255,255,255,0.06)",
                     transform: selected ? "scale(1.01)" : "scale(1)",
                   }}>
-                  <div className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0"
                     style={{
                       background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#a78bfa" : "rgba(255,255,255,0.05)",
                       color: selected || correct || wrong ? "#fff" : "rgba(255,255,255,0.3)",
                     }}>
                     {correct ? "✓" : wrong ? "✗" : OPTION_LETTERS[i]}
                   </div>
-                  <span className="text-sm md:text-base text-white/70 font-medium">
+                  <span className="text-xs sm:text-sm md:text-base text-white/70 font-medium">
                     {typeof opt === "string" ? opt : opt?.text || opt}
                   </span>
                 </button>
@@ -163,14 +163,14 @@ export default function KS4QuizShell({
           {taraEIBWidget}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="flex items-center justify-between mt-4 sm:mt-6 pt-3 sm:pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
             <button onClick={() => setShowTaraPanel(!showTaraPanel)}
-              className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1.5 bg-violet-500/10 px-3 py-1.5 rounded-lg border border-violet-500/20">
+              className="text-[10px] sm:text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1.5 bg-violet-500/10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-violet-500/20">
               🤖 {showTaraPanel ? "Hide Tara" : "Ask Tara"}
             </button>
             <div className="flex items-center gap-3">
               <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
-                className="px-8 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
+                className="px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95 disabled:opacity-30"
                 style={{ background: showResult ? "#a78bfa" : "linear-gradient(135deg, #a78bfa, #7c87f3)", color: "#0d1117" }}>
                 {showResult && !canProceed ? "Explain to Tara first ↓" : showResult ? "Next →" : "Submit Answer"}
               </button>
@@ -202,7 +202,7 @@ export default function KS4QuizShell({
       </div>
 
       {/* Bottom status */}
-      <footer className="px-4 md:px-8 py-2 flex items-center justify-between text-[9px] uppercase tracking-wider shrink-0"
+      <footer className="hidden sm:flex px-4 md:px-8 py-2 items-center justify-between text-[9px] uppercase tracking-wider shrink-0"
         style={{ background: "rgba(13,17,23,0.95)", borderTop: "1px solid rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.15)" }}>
         <div className="flex items-center gap-3">
           <span>SYSTEM STATUS: NOMINAL</span>

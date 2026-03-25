@@ -178,7 +178,7 @@ export default function KS2QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Mission Narrative ──────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-5 md:p-8 max-h-[38vh] lg:max-h-none"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
           style={{ borderRight: `1px solid ${CYAN}08` }}>
 
           {leftPanelContent ? (
@@ -263,11 +263,11 @@ export default function KS2QuizShell({
         </div>
 
         {/* ─── RIGHT: MCQ Panel ──────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-4 md:p-6 flex flex-col"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
           style={{ background: "rgba(2,11,26,0.6)" }}>
 
           {/* Task badge */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-2 sm:mb-3">
             <span style={{
               padding: "3px 12px", borderRadius: 2,
               fontSize: 10, fontWeight: 900, letterSpacing: "0.15em", ...N,
@@ -280,14 +280,14 @@ export default function KS2QuizShell({
 
           {/* Question */}
           <h2 style={{
-            fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 800, color: "#e2e8f0",
-            marginBottom: 24, lineHeight: 1.4, ...NB,
+            fontSize: "clamp(14px, 3.5vw, 22px)", fontWeight: 800, color: "#e2e8f0",
+            marginBottom: 16, lineHeight: 1.4, ...NB,
           }}>
             {question}
           </h2>
 
           {/* Option buttons with HUD styling */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+          <div className="ks2-options-grid" style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -319,28 +319,28 @@ export default function KS2QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
+                  className="ks2-answer-btn"
                   style={{
                     width: "100%", textAlign: "left",
-                    padding: "10px 14px",
                     borderRadius: 2,
                     background: bgCol,
                     border: `1px solid ${borderCol}`,
-                    display: "flex", alignItems: "center", gap: 12,
+                    display: "flex", alignItems: "center",
                     cursor: showResult ? "default" : "pointer",
                     transition: "all 0.15s ease",
                     boxShadow: selected && !showResult ? `0 0 12px ${CYAN}15, inset 0 0 12px ${CYAN}05` : correct ? "0 0 12px rgba(34,197,94,0.15)" : "none",
                   }}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: 2,
+                  <div className="ks2-answer-letter" style={{
+                    borderRadius: 2,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 12, fontWeight: 900,
+                    fontWeight: 900,
                     background: letterBg, color: letterCol,
                     border: `1px solid ${borderCol}`,
                     flexShrink: 0, ...N,
                   }}>
                     {correct ? "✓" : wrong ? "✗" : OPTION_LETTERS[i]}
                   </div>
-                  <span style={{ fontSize: 13, color: "rgba(226,232,240,0.8)", fontWeight: 600, ...NB }}>
+                  <span className="ks2-answer-text" style={{ color: "rgba(226,232,240,0.8)", fontWeight: 600, ...NB }}>
                     {typeof opt === "string" ? opt : opt?.text || opt}
                   </span>
                   {correct && <span style={{ marginLeft: "auto", color: "#22c55e", fontSize: 14 }}>✓</span>}
@@ -386,14 +386,15 @@ export default function KS2QuizShell({
           {/* Actions */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginTop: 20, paddingTop: 14,
+            marginTop: 14, paddingTop: 10,
             borderTop: `1px solid ${CYAN}08`,
           }}>
             <div />
             <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
+              className="ks2-submit-btn"
               style={{
-                padding: "10px 28px", borderRadius: 2,
-                fontSize: 12, fontWeight: 900, letterSpacing: "0.1em",
+                borderRadius: 2,
+                fontWeight: 900, letterSpacing: "0.1em",
                 display: "flex", alignItems: "center", gap: 8,
                 cursor: (selectedAnswer != null || showResult) && !(showResult && !canProceed) ? "pointer" : "default",
                 opacity: (selectedAnswer == null && !showResult) || (showResult && !canProceed) ? 0.3 : 1,
@@ -428,6 +429,16 @@ export default function KS2QuizShell({
     {/* ── Fonts ── */}
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+      .ks2-answer-btn { padding: 8px 10px; gap: 8px; }
+      .ks2-answer-letter { width: 26px; height: 26px; font-size: 11px; }
+      .ks2-answer-text { font-size: 12px; }
+      .ks2-submit-btn { padding: 8px 20px; font-size: 11px; }
+      @media (min-width: 640px) {
+        .ks2-answer-btn { padding: 10px 14px; gap: 12px; }
+        .ks2-answer-letter { width: 30px; height: 30px; font-size: 12px; }
+        .ks2-answer-text { font-size: 13px; }
+        .ks2-submit-btn { padding: 10px 28px; font-size: 12px; }
+      }
     `}</style>
     </div>
   );

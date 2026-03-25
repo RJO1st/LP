@@ -239,11 +239,19 @@ export default function DashboardTour({ type = "scholar", userId, band = "ks2" }
   const isFirst = step === 0;
 
   return (
-    <div className="fixed inset-0 z-[8000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-[8000] flex items-center justify-center p-4"
+      style={{ background: "rgba(15,10,40,0.7)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
 
-      <div className="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden"
-        style={{ animation: "lp-tour-in 0.3s ease" }}>
+      <div className="rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden"
+        style={{
+          animation: "lp-tour-in 0.3s ease",
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)",
+        }}>
         <style>{`
           @keyframes lp-tour-in {
             from { opacity: 0; transform: translateY(16px) scale(0.97); }
@@ -252,7 +260,7 @@ export default function DashboardTour({ type = "scholar", userId, band = "ks2" }
         `}</style>
 
         {/* Progress bar */}
-        <div className="h-1 bg-slate-100">
+        <div className="h-1.5 bg-slate-100/50">
           <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
             style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
         </div>

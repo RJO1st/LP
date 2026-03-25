@@ -93,31 +93,32 @@ export default function KS1QuizShell({
       <Sparkles />
 
       {/* ═══ TOP NAV — warm & magical ═══════════════════════════════ */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 shrink-0" style={{
+      <header className="flex items-center justify-between px-3 md:px-6 py-2 shrink-0" style={{
         background: `linear-gradient(90deg, ${GOLD}06, rgba(26,16,80,0.9), ${GOLD}06)`,
         borderBottom: `1px solid ${GOLD}12`,
         position: "relative", zIndex: 3,
       }}>
-        {/* Brand */}
-        <div className="flex items-center gap-2">
-          <div style={{
-            width: 34, height: 34, borderRadius: 12,
+        {/* Brand + progress inline */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="shrink-0" style={{
+            width: 30, height: 30, borderRadius: 10,
             background: `${GOLD}12`, border: `1.5px solid ${GOLD}20`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, boxShadow: `0 0 12px ${GOLD}15`,
+            fontSize: 15, boxShadow: `0 0 12px ${GOLD}15`,
           }}>✨</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: GOLD, ...N }}>Celestial Nursery</div>
-            <div style={{ fontSize: 9, color: `${GOLD}35`, fontWeight: 700, ...N }}>Space Mission {questionIndex + 1}</div>
+          <div className="min-w-0">
+            <div className="truncate" style={{ fontSize: 12, fontWeight: 900, color: GOLD, ...N }}>Celestial Nursery</div>
+            <div style={{ fontSize: 9, color: `${GOLD}35`, fontWeight: 700, ...N }}>
+              Mission {questionIndex + 1} of {totalQuestions}
+            </div>
           </div>
         </div>
 
-        {/* Star trail progress */}
-        <div className="flex-1 max-w-[180px] mx-4">
+        {/* Compact progress bar — hidden on very small screens, shown on md+ */}
+        <div className="hidden sm:block flex-1 max-w-[140px] mx-3">
           <div style={{
-            height: 8, borderRadius: 10, overflow: "hidden",
+            height: 6, borderRadius: 10, overflow: "hidden",
             background: `${GOLD}08`, border: `1px solid ${GOLD}10`,
-            position: "relative",
           }}>
             <div style={{
               height: "100%", borderRadius: 10,
@@ -126,49 +127,38 @@ export default function KS1QuizShell({
               boxShadow: `0 0 10px ${GOLD}40`,
               transition: "width 0.7s ease",
             }} />
-            {/* Star marker at progress point */}
-            <div style={{
-              position: "absolute", top: -6, left: `calc(${progress}% - 10px)`,
-              fontSize: 16, transition: "left 0.7s ease",
-              filter: `drop-shadow(0 0 4px ${GOLD})`,
-            }}>⭐</div>
-          </div>
-          <div style={{ textAlign: "center", marginTop: 2 }}>
-            <span style={{ fontSize: 11, fontWeight: 900, color: `${GOLD}80`, ...N }}>
-              {questionIndex + 1} / {totalQuestions}
-            </span>
           </div>
         </div>
 
-        {/* Right: Stats */}
-        <div className="flex items-center gap-3">
+        {/* Right: Stats — compact */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {streak > 0 && (
             <div style={{
-              padding: "4px 10px", borderRadius: 10,
+              padding: "3px 7px", borderRadius: 8,
               background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)",
             }}>
-              <span style={{ fontSize: 12, fontWeight: 900, color: "#fbbf24", ...N }}>🔥 {streak}</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: "#fbbf24", ...N }}>🔥{streak}</span>
             </div>
           )}
           <div style={{
-            padding: "4px 10px", borderRadius: 10,
+            padding: "3px 7px", borderRadius: 8,
             background: `${GOLD}08`, border: `1px solid ${GOLD}12`,
           }}>
-            <span style={{ fontSize: 12, fontWeight: 900, color: GOLD, ...N }}>⭐ {xp}</span>
+            <span style={{ fontSize: 11, fontWeight: 900, color: GOLD, ...N }}>⭐{xp}</span>
           </div>
           {timeLeft != null && (
-            <div style={{
-              padding: "4px 10px", borderRadius: 10,
+            <div className="hidden sm:block" style={{
+              padding: "3px 7px", borderRadius: 8,
               background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
             }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.5)", ...N }}>⏱ {formatTime(timeLeft)}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", ...N }}>⏱{formatTime(timeLeft)}</span>
             </div>
           )}
           <button onClick={onClose} style={{
-            width: 30, height: 30, borderRadius: 10,
+            width: 28, height: 28, borderRadius: 8,
             background: "rgba(255,255,255,0.03)", border: `1px solid ${GOLD}12`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: `${GOLD}60`, fontSize: 14, cursor: "pointer",
+            color: `${GOLD}60`, fontSize: 13, cursor: "pointer",
           }} title="Exit quest">✕</button>
         </div>
       </header>
@@ -177,7 +167,7 @@ export default function KS1QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Story Panel ────────────────────────────── */}
-        <div className="lg:w-[45%] overflow-y-auto p-5 md:p-7 max-h-[40vh] lg:max-h-none"
+        <div className="lg:w-[45%] overflow-y-auto p-3 sm:p-5 md:p-7 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
           style={{ borderRight: `1px solid ${GOLD}06` }}>
 
           {leftPanelContent ? (
@@ -274,7 +264,7 @@ export default function KS1QuizShell({
         </div>
 
         {/* ─── RIGHT: Answer Buttons ────────────────────────── */}
-        <div className="lg:w-[55%] overflow-y-auto p-4 md:p-6 flex flex-col"
+        <div className="lg:w-[55%] overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
           style={{ background: "rgba(30,18,96,0.4)" }}>
 
           {/* Question badge */}
@@ -289,14 +279,14 @@ export default function KS1QuizShell({
           </div>
 
           <h2 style={{
-            fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 900, color: "#fff",
-            marginBottom: 20, lineHeight: 1.35, ...N,
+            fontSize: "clamp(15px, 3.5vw, 24px)", fontWeight: 900, color: "#fff",
+            marginBottom: 12, lineHeight: 1.3, ...N,
           }}>
             {question}
           </h2>
 
           {/* Big, friendly answer buttons with glow */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -325,32 +315,32 @@ export default function KS1QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
+                  className="ks1-answer-btn"
                   style={{
                     width: "100%", textAlign: "left",
-                    padding: "12px 16px",
-                    borderRadius: 16,
+                    borderRadius: 14,
                     background: bgCol,
                     border: `2px solid ${borderCol}`,
-                    display: "flex", alignItems: "center", gap: 12,
+                    display: "flex", alignItems: "center",
                     cursor: showResult ? "default" : "pointer",
                     transition: "all 0.2s ease",
                     boxShadow: glowShadow,
                     transform: selected ? "scale(1.02)" : "scale(1)",
                   }}>
-                  <div style={{
-                    width: 42, height: 42, borderRadius: 12,
+                  <div className="ks1-answer-icon" style={{
+                    borderRadius: 10,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 20, flexShrink: 0,
+                    flexShrink: 0,
                     background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? `${col.border}20` : "rgba(255,255,255,0.04)",
                     border: `1.5px solid ${correct ? "#22c55e" : wrong ? "#ef4444" : selected ? `${col.border}40` : "rgba(255,255,255,0.06)"}`,
                     boxShadow: selected ? `0 0 8px ${col.glow}` : "none",
                   }}>
                     {correct ? "✅" : wrong ? "❌" : OPTION_ICONS[i]}
                   </div>
-                  <span style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800, ...N }}>
+                  <span className="ks1-answer-text" style={{ color: "rgba(255,255,255,0.8)", fontWeight: 800, ...N }}>
                     {typeof opt === "string" ? opt : opt?.text || opt}
                   </span>
-                  {correct && <span style={{ marginLeft: "auto", fontSize: 22 }}>🎉</span>}
+                  {correct && <span style={{ marginLeft: "auto", fontSize: 18 }}>🎉</span>}
                 </button>
               );
             })}
@@ -393,14 +383,15 @@ export default function KS1QuizShell({
           {/* Actions */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "flex-end",
-            marginTop: 20, paddingTop: 14,
+            marginTop: 12, paddingTop: 10,
             borderTop: `1px solid ${GOLD}06`,
           }}>
             <button onClick={onSubmit} disabled={(selectedAnswer == null && !showResult) || (showResult && !canProceed)}
+              className="ks1-submit-btn"
               style={{
-                padding: "14px 32px", borderRadius: 16,
-                fontSize: 16, fontWeight: 900,
-                display: "flex", alignItems: "center", gap: 8,
+                borderRadius: 14,
+                fontWeight: 900,
+                display: "flex", alignItems: "center", gap: 6,
                 cursor: (selectedAnswer != null || showResult) && !(showResult && !canProceed) ? "pointer" : "default",
                 opacity: (selectedAnswer == null && !showResult) || (showResult && !canProceed) ? 0.3 : 1,
                 transition: "all 0.2s",
@@ -414,8 +405,8 @@ export default function KS1QuizShell({
             </button>
           </div>
 
-          <p style={{
-            fontSize: 9, color: `${GOLD}10`, textAlign: "center", marginTop: 8,
+          <p className="hidden sm:block" style={{
+            fontSize: 9, color: `${GOLD}10`, textAlign: "center", marginTop: 6,
             fontWeight: 900, ...N,
           }}>
             ✨ BELIEVE IN YOURSELF, EXPLORER ✨
@@ -424,11 +415,21 @@ export default function KS1QuizShell({
       </div>
     </div>
 
-    {/* ── Animations ── */}
+    {/* ── Animations + Responsive ── */}
     <style>{`
       @keyframes ks1-sparkle {
         0%, 100% { opacity: 0.1; transform: scale(0.8); }
         50% { opacity: 0.4; transform: scale(1.3); }
+      }
+      .ks1-answer-btn { padding: 8px 12px; gap: 8px; }
+      .ks1-answer-icon { width: 34px; height: 34px; font-size: 16px; }
+      .ks1-answer-text { font-size: 14px; }
+      .ks1-submit-btn { padding: 10px 20px; font-size: 13px; }
+      @media (min-width: 640px) {
+        .ks1-answer-btn { padding: 12px 16px; gap: 12px; }
+        .ks1-answer-icon { width: 42px; height: 42px; font-size: 20px; }
+        .ks1-answer-text { font-size: 16px; }
+        .ks1-submit-btn { padding: 14px 32px; font-size: 16px; }
       }
     `}</style>
     </div>
