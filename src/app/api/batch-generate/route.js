@@ -1,33 +1,27 @@
 /**
- * LaunchPard — Batch Generate v2
+ * LaunchPard — Batch Generate v3 (Topic-Aware, IXL-Level Coverage)
  * File: src/app/api/batch-generate/route.js
  *
- * Priority-queue strategy: every run calculates which curriculum×subject×year×tier
- * cells are most under-populated and fills the top MAX_CELLS_PER_RUN of them.
- *
- * vercel.json — one cron per curriculum (6 total, within Pro limit of 10):
- *   { "path": "/api/batch-generate?curriculum=uk_11plus",      "schedule": "0 1 * * *" }
- *   { "path": "/api/batch-generate?curriculum=uk_national",    "schedule": "0 5 * * *" }
- *   { "path": "/api/batch-generate?curriculum=us_common_core", "schedule": "0 9 * * *" }
- *   { "path": "/api/batch-generate?curriculum=australian",     "schedule": "0 13 * * *" }
- *   { "path": "/api/batch-generate?curriculum=ib_pyp",         "schedule": "0 17 * * *" }
- *   { "path": "/api/batch-generate?curriculum=waec",           "schedule": "0 21 * * *" }
+ * Daily cron per curriculum — fills under-populated topic cells.
+ * Topic definitions from src/lib/topicDefinitions.js ensure IXL-level granularity.
  *
  * Manual override:
- *   /api/batch-generate?curriculum=waec&subject=maths&tier=mastering
+ *   /api/batch-generate?curriculum=uk_national&subject=mathematics&tier=developing
  *
- * Per-run budget (Vercel Pro 60s): 8 cells × 1 OpenRouter call × ~6s ≈ 50s ✅
+ * Per-run budget (Vercel Pro 60s): 12 cells × 1 OpenRouter call × ~4s ≈ 48s ✅
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse }  from 'next/server';
+import { getTopicsForSubjectYear } from '@/lib/topicDefinitions';
 
-// ─── CURRICULA CONFIG ────────────────────────────────────────────────────────
+// ─── UNIFIED CURRICULUM CONFIG ────────────────────────────────────────────────
+// Merged: canonical subjects/years from curriculumConfig.js + prompt context for buildPrompt
 const CURRICULA = {
   uk_11plus: {
-    name:       'UK 11+',
-    subjects:   ['maths','english','verbal','nvr'],
-    grades:     [3,4,5,6],
+    name:       'UK 11+ (GL/CEM)',
+    subjects:   ['mathematics', 'english', 'verbal_reasoning', 'nvr', 'science'],
+    grades:     [3, 4, 5, 6],
     gradeLabel: 'Year',
     region:     'GL',
     spelling:   'British English',
@@ -36,28 +30,28 @@ const CURRICULA = {
   },
   uk_national: {
     name:       'UK National Curriculum',
-    subjects:   ['maths','english','verbal','nvr','science'],
-    grades:     [1,2,3,4,5,6],
+    subjects:   ['mathematics', 'english', 'science', 'computing', 'history', 'geography'],
+    grades:     [1, 2, 3, 4, 5, 6, 7, 8, 9],
     gradeLabel: 'Year',
     region:     'GL',
     spelling:   'British English',
-    context:    'UK National Curriculum KS1–KS2 (SATs-aligned)',
+    context:    'UK National Curriculum KS1–KS4 (SATs/GCSE-aligned)',
     examples:   'British everyday contexts: pounds sterling (£), metres/kilometres, UK schools, seasons',
   },
   us_common_core: {
     name:       'US Common Core',
-    subjects:   ['maths','english','science','geography'],
-    grades:     [1,2,3,4,5,6,7,8],
+    subjects:   ['math', 'ela', 'science', 'social_studies'],
+    grades:     [1, 2, 3, 4, 5, 6, 7, 8],
     gradeLabel: 'Grade',
     region:     'US',
     spelling:   'American English',
     context:    'US Common Core State Standards',
     examples:   'American contexts: dollars ($), miles/yards, US cities/states, American history/culture',
   },
-  australian: {
-    name:       'Australian Curriculum',
-    subjects:   ['maths','english','verbal','science'],
-    grades:     [1,2,3,4,5,6],
+  aus_acara: {
+    name:       'Australian Curriculum (ACARA)',
+    subjects:   ['mathematics', 'english', 'science', 'hass'],
+    grades:     [1, 2, 3, 4, 5, 6],
     gradeLabel: 'Year',
     region:     'AU',
     spelling:   'Australian English',
@@ -66,23 +60,73 @@ const CURRICULA = {
   },
   ib_pyp: {
     name:       'IB Primary Years (PYP)',
-    subjects:   ['maths','english','science','geography','history'],
-    grades:     [1,2,3,4,5],
+    subjects:   ['mathematics', 'english', 'science', 'geography', 'history'],
+    grades:     [1, 2, 3, 4, 5],
     gradeLabel: 'Grade',
     region:     'IB',
     spelling:   'International English',
     context:    'IB Primary Years Programme — inquiry-based, conceptual, transdisciplinary',
     examples:   'International contexts: global scenarios, multicultural examples, inclusive language',
   },
-  waec: {
-    name:       'WAEC / Nigerian',
-    subjects:   ['maths','english','verbal','science','geography','history'],
-    grades:     [7,8,9,10,11,12],
+  ib_myp: {
+    name:       'IB Middle Years (MYP)',
+    subjects:   ['mathematics', 'english', 'science', 'humanities'],
+    grades:     [1, 2, 3, 4, 5],
     gradeLabel: 'Year',
+    region:     'IB',
+    spelling:   'International English',
+    context:    'IB Middle Years Programme — concept-driven, inquiry-based, interdisciplinary',
+    examples:   'International contexts: global scenarios, multicultural examples, inclusive language',
+  },
+  ng_primary: {
+    name:       'Nigerian Primary (Basic 1-6)',
+    subjects:   ['mathematics', 'english_studies', 'basic_science', 'social_studies', 'civic_education'],
+    grades:     [1, 2, 3, 4, 5, 6],
+    gradeLabel: 'Primary',
     region:     'NG',
     spelling:   'British English',
-    context:    'WAEC/NECO Nigerian secondary school curriculum',
+    context:    'Nigerian Basic Education Curriculum (NERDC) — Primary school level',
+    examples:   'Nigerian contexts: naira (₦), Nigerian geography/culture, West African scenarios',
+  },
+  ng_jss: {
+    name:       'Nigerian JSS (Basic 7-9)',
+    subjects:   ['mathematics', 'english_studies', 'basic_science', 'social_studies', 'civic_education'],
+    grades:     [1, 2, 3],
+    gradeLabel: 'JSS',
+    region:     'NG',
+    spelling:   'British English',
+    context:    'Nigerian Basic Education Curriculum (NERDC) — Junior Secondary School level',
     examples:   'Nigerian contexts: naira (₦), Nigerian geography/history, West African scenarios',
+  },
+  ng_sss: {
+    name:       'Nigerian SSS (SS 1-3)',
+    subjects:   ['mathematics', 'english', 'physics', 'chemistry', 'biology', 'economics', 'government', 'commerce', 'civic_education'],
+    grades:     [1, 2, 3],
+    gradeLabel: 'SS',
+    region:     'NG',
+    spelling:   'British English',
+    context:    'WAEC/NECO Nigerian Senior Secondary School curriculum',
+    examples:   'Nigerian contexts: naira (₦), Nigerian geography/history, West African scenarios',
+  },
+  ca_primary: {
+    name:       'Canadian Primary (Grade 1-8)',
+    subjects:   ['mathematics', 'english', 'science', 'social_studies'],
+    grades:     [1, 2, 3, 4, 5, 6, 7, 8],
+    gradeLabel: 'Grade',
+    region:     'CA',
+    spelling:   'Canadian English',
+    context:    'Canadian provincial curricula (Ontario / BC / Alberta aligned)',
+    examples:   'Canadian contexts: Canadian dollars (CAD), kilometres, Canadian geography/history, multicultural scenarios',
+  },
+  ca_secondary: {
+    name:       'Canadian Secondary (Grade 9-12)',
+    subjects:   ['mathematics', 'english', 'science', 'canadian_history', 'geography'],
+    grades:     [9, 10, 11, 12],
+    gradeLabel: 'Grade',
+    region:     'CA',
+    spelling:   'Canadian English',
+    context:    'Canadian provincial curricula — secondary level (Ontario / BC / Alberta aligned)',
+    examples:   'Canadian contexts: Canadian dollars (CAD), kilometres, Canadian history/geography, diverse communities',
   },
 };
 
@@ -106,42 +150,14 @@ const DIFFICULTY_TIERS = [
 ];
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const TARGET_PER_CELL   = 20;
+const TARGET_PER_CELL   = 50;   // IXL-level coverage: 50 questions per topic cell
 const RATE_LIMIT_MS     = 1200;
 const BATCH_SIZE        = 5;
-const MAX_CELLS_PER_RUN = 8;
+const MAX_CELLS_PER_RUN = 12;   // Increased for daily runs
 const MODEL             = 'openai/gpt-4o-mini';
 
-const CURRICULUM_CONFIG = {
-  uk_11plus: {
-    label:    'UK 11+ (GL/CEM)',
-    subjects: ['maths', 'english', 'verbal', 'nvr'],
-    years:    [3, 4, 5, 6],
-  },
-  uk_ks2: {
-    label:    'UK Key Stage 2',
-    subjects: ['maths', 'english', 'science'],
-    years:    [1, 2, 3, 4, 5, 6],
-  },
-  waec: {
-    label:    'WAEC / Nigerian Primary',
-    subjects: ['maths', 'english', 'basic_science', 'social_studies'],
-    years:    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-  },
-  us_common_core: {
-    label:    'US Common Core',
-    subjects: ['math', 'ela', 'science', 'social_studies'],
-    years:    [1, 2, 3, 4, 5, 6],
-  },
-  australia_ac: {
-    label:    'Australian Curriculum v9',
-    subjects: ['maths', 'english', 'science', 'hass'],
-    years:    [1, 2, 3, 4, 5, 6],
-  },
-};
-
 // ─── PROMPT BUILDER ──────────────────────────────────────────────────────────
-function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n) {
+function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n, topicHint) {
   const { name, gradeLabel, context, examples, spelling } = currConfig;
 
   // Reusable JSON schemas for the model
@@ -154,22 +170,32 @@ function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n) {
   const HINTS_RULE = `HINTS: Each question MUST have a "hints" array (1–3 items). Hint 1 = directional (no spoilers). Hint 2 = structural (what to look for). Hint 3 = near-answer (almost gives it away). Never reveal the answer outright in hints 1 or 2.`;
 
   // ── MATHS ────────────────────────────────────────────────────────────────
-  if (subject === 'mathematics' || subject === 'maths') {
+  if (subject === 'mathematics' || subject === 'maths' || subject === 'math' || subject === 'further_mathematics') {
     const useSteps = tier.difficulty >= 45 && grade >= 3;
-    const topics    = grade <= 2
+    const topics = topicHint || (grade <= 2
       ? 'addition, subtraction, counting, simple shapes, measurement'
       : grade <= 4
       ? 'multiplication, division, fractions, decimals, mental arithmetic, area & perimeter'
       : grade <= 6
       ? 'fractions, percentages, ratios, algebra foundations, geometry, data handling'
-      : 'algebra, equations, indices, probability, statistics, advanced geometry';
+      : 'algebra, equations, indices, probability, statistics, advanced geometry');
 
     return `You are generating ${n} ${name} Mathematics questions for ${gradeLabel} ${grade} students.
 Curriculum: ${context}
 Difficulty: ${tier.desc}
-Topics to cover: ${topics}
+Topics to cover (MUST generate questions specifically on these): ${topics}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+
+CRITICAL MATH ACCURACY RULES — FOLLOW EXACTLY:
+1. COMPUTE EVERY ANSWER YOURSELF before writing the question. Double-check arithmetic.
+2. The correct option (index "a") MUST be the mathematically correct result. Verify: if the question says "450 + 350 - 100", the answer MUST be 700, not 650 or any other number.
+3. If the question includes a passage or context with arithmetic, the passage arithmetic MUST match the correct answer exactly.
+4. NEVER generate a question where the explanation contradicts the marked answer.
+5. ALL four options must be distinct numbers. No duplicates.
+6. The "exp" (explanation) field must show the working and arrive at the SAME answer as option index "a".
+7. The "topic" field must accurately reflect the PRIMARY operation: use "addition" only if the main skill is adding, "subtraction" for subtracting, "word_problems" for multi-step problems mixing operations.
+8. SELF-CHECK: After generating each question, mentally verify: question text → compute → does option[a] match? Does explanation match? If not, fix it before including.
 
 Question mix:
 ${useSteps ? `- At least 2 multi-step word problems: ${STEP}` : ''}
@@ -181,11 +207,12 @@ Output ONLY valid JSON:
   }
 
   // ── ENGLISH ──────────────────────────────────────────────────────────────
-  if (subject === 'english') {
+  if (subject === 'english' || subject === 'english_studies' || subject === 'ela' || subject === 'literature') {
     if (grade <= 2) {
       return `Generate ${n} ${name} English questions for ${gradeLabel} ${grade} students.
 Curriculum: ${context}
 Difficulty: ${tier.desc}
+${topicHint ? `Focus topics: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
 
@@ -199,6 +226,7 @@ Output ONLY valid JSON:
     return `Generate a ${wordCount}-word reading passage then ${n} questions for ${name} ${gradeLabel} ${grade}.
 Curriculum: ${context}
 Difficulty: ${tier.desc}
+${topicHint ? `Focus topics: ${topicHint}` : ''}
 Spelling & style: ${spelling}
 Context: ${examples}
 ${HINTS_RULE}
@@ -216,10 +244,11 @@ Output ONLY valid JSON:
   }
 
   // ── VERBAL ───────────────────────────────────────────────────────────────
-  if (subject === 'verbal') {
+  if (subject === 'verbal' || subject === 'verbal_reasoning') {
     return `Create ${n} verbal reasoning questions for ${name} ${gradeLabel} ${grade} students.
 Curriculum: ${context}
 Difficulty: ${tier.desc}
+${topicHint ? `Focus types: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
 
@@ -245,8 +274,8 @@ Output ONLY valid JSON:
   }
 
   // ── SCIENCE ──────────────────────────────────────────────────────────────
-  if (subject === 'science') {
-    const sciTopics = {
+  if (subject === 'science' || subject === 'basic_science') {
+    const sciTopicsFallback = {
       1: 'living/non-living things, animals, everyday materials, seasons',
       2: 'plants, animal habitats, uses of materials, health basics',
       3: 'rocks and soil, light and shadows, forces and magnets, plants',
@@ -257,11 +286,11 @@ Output ONLY valid JSON:
       8: 'elements and compounds, organ systems, waves, chemical reactions',
       9: 'atomic structure, genetics, energy transfer, chemical equations',
     };
-    const topics = sciTopics[grade] || 'general science concepts';
+    const topics = topicHint || sciTopicsFallback[grade] || 'general science concepts';
 
     return `Generate ${n} ${name} Science questions for ${gradeLabel} ${grade}.
 Curriculum: ${context}
-Topics: ${topics}
+Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
@@ -276,19 +305,19 @@ Output ONLY valid JSON:
 {"questions":[...5 items...]}`;
   }
 
-  // ── GEOGRAPHY ────────────────────────────────────────────────────────────
-  if (subject === 'geography') {
-    const geoTopics = {
+  // ── GEOGRAPHY / HASS / SOCIAL STUDIES ────────────────────────────────────
+  if (subject === 'geography' || subject === 'hass' || subject === 'social_studies' || subject === 'humanities') {
+    const geoTopicsFallback = {
       US: 'US and world geography, physical features, climate, human-environment interaction, map skills',
       IB: 'global geography, climate zones, urbanisation, sustainability, global interconnections',
       NG: 'Nigerian and West African geography, physical geography, climate, economic geography, population',
       AU: 'Australian geography, Asia-Pacific, environments, sustainable development',
     };
-    const topics = geoTopics[currConfig.region] || 'world geography, physical and human geography';
+    const topics = topicHint || geoTopicsFallback[currConfig.region] || 'world geography, physical and human geography';
 
-    return `Generate ${n} ${name} Geography questions for ${gradeLabel} ${grade}.
+    return `Generate ${n} ${name} ${subject === 'hass' ? 'HASS (Humanities & Social Sciences)' : subject === 'social_studies' ? 'Social Studies' : 'Geography'} questions for ${gradeLabel} ${grade}.
 Curriculum: ${context}
-Topics: ${topics}
+Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
@@ -300,16 +329,16 @@ Output ONLY valid JSON:
   }
 
   // ── HISTORY ──────────────────────────────────────────────────────────────
-  if (subject === 'history') {
-    const histTopics = {
+  if (subject === 'history' || subject === 'canadian_history') {
+    const histTopicsFallback = {
       IB: 'ancient civilisations, exploration, rights and responsibilities, innovation, interconnection',
       NG: 'pre-colonial West Africa, transatlantic trade, colonialism, independence movements, modern Nigeria',
     };
-    const topics = histTopics[currConfig.region] || 'historical events, cause and consequence, change and continuity';
+    const topics = topicHint || histTopicsFallback[currConfig.region] || 'historical events, cause and consequence, change and continuity';
 
-    return `Generate ${n} ${name} History questions for ${gradeLabel} ${grade}.
+    return `Generate ${n} ${name} ${subject === 'canadian_history' ? 'Canadian History' : 'History'} questions for ${gradeLabel} ${grade}.
 Curriculum: ${context}
-Topics: ${topics}
+Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
@@ -320,8 +349,45 @@ Output ONLY valid JSON:
 {"questions":[${MCQ}, ${FREE}]}`;
   }
 
-  // Generic fallback
-  return `Generate ${n} ${name} ${subject} questions for ${gradeLabel} ${grade}. Difficulty: ${tier.desc}. ${HINTS_RULE}
+  // ── COMPUTING / COMPUTER SCIENCE ────────────────────────────────────────
+  if (subject === 'computing' || subject === 'computer_science' || subject === 'basic_digital_literacy') {
+    return `Generate ${n} ${name} Computing questions for ${gradeLabel} ${grade}.
+Curriculum: ${context}
+${topicHint ? `Topics: ${topicHint}` : ''}
+Difficulty: ${tier.desc}
+Use ${spelling} and ${examples}.
+${HINTS_RULE}
+
+All MCQ, 4 options, exactly one correct answer. Focus on computational thinking and digital literacy.
+
+Output ONLY valid JSON:
+{"questions":[${MCQ}]}`;
+  }
+
+  // ── NIGERIAN SSS SUBJECTS ──────────────────────────────────────────────
+  if (['physics', 'chemistry', 'biology', 'economics', 'government', 'commerce',
+       'financial_accounting', 'civic_education', 'business_studies', 'business_education',
+       'agricultural_science', 'religious_studies', 'religious_education'].includes(subject)) {
+    const displayName = subject.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return `Generate ${n} ${name} ${displayName} questions for ${gradeLabel} ${grade}.
+Curriculum: ${context}
+${topicHint ? `Topics (generate questions specifically on these): ${topicHint}` : ''}
+Difficulty: ${tier.desc}
+Use ${spelling} and ${examples}.
+${HINTS_RULE}
+
+Mix: 3× MCQ, 1× fill-blank: ${FILL}, 1× MCQ application/analysis.
+
+Output ONLY valid JSON:
+{"questions":[${MCQ}, ${FILL}]}`;
+  }
+
+  // Generic fallback — uses topicHint if available
+  const displayName = subject.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return `Generate ${n} ${name} ${displayName} questions for ${gradeLabel} ${grade}.
+Difficulty: ${tier.desc}
+${topicHint ? `Topics: ${topicHint}` : ''}
+${HINTS_RULE}
 Output ONLY valid JSON: {"questions":[${MCQ}]}`;
 }
 
@@ -333,7 +399,53 @@ function validateQuestion(q) {
   if (type === 'multi_step')   return Array.isArray(q.steps) && q.steps.length >= 2 && q.steps.every(s => s.prompt && s.answer !== undefined);
   if (type === 'multi_select') return Array.isArray(q.opts) && q.opts.length === 4 && Array.isArray(q.a) && q.a.length >= 2;
   // mcq / fill_blank
-  return Array.isArray(q.opts) && q.opts.length === 4 && typeof q.a === 'number' && q.a >= 0 && q.a <= 3;
+  if (!(Array.isArray(q.opts) && q.opts.length === 4 && typeof q.a === 'number' && q.a >= 0 && q.a <= 3)) return false;
+
+  // ── Duplicate option check ─────────────────────────────────────────────
+  const uniqOpts = new Set(q.opts.map(o => String(o).toLowerCase().trim()));
+  if (uniqOpts.size < q.opts.length) return false;
+
+  // ── Math verification gate ─────────────────────────────────────────────
+  // For questions with arithmetic expressions, verify the answer is correct
+  const allText = [q.q, q.exp || '', q.passage || ''].join(' ');
+  const exprMatch = allText.match(/(\d+(?:\s*[+\-*/×÷]\s*\d+)+)\s*=\s*(\d+(?:\.\d+)?)/);
+  if (exprMatch) {
+    const expr = exprMatch[1].replace(/×/g, '*').replace(/÷/g, '/');
+    const claimed = parseFloat(exprMatch[2]);
+    try {
+      // eslint-disable-next-line no-new-func
+      const actual = new Function(`"use strict"; return (${expr.replace(/[^0-9+\-*/().]/g, '')})`)();
+      if (typeof actual === 'number' && isFinite(actual) && Math.abs(actual - claimed) > 0.01) {
+        console.warn(`[batch-validate] Math error rejected: "${expr} = ${claimed}" (actual: ${actual}) in: "${q.q.slice(0, 60)}"`);
+        return false;
+      }
+    } catch { /* skip if can't evaluate */ }
+  }
+
+  // ── Explanation-answer consistency ─────────────────────────────────────
+  if (q.exp && q.opts[q.a]) {
+    const expLower = (q.exp || '').toLowerCase();
+    const markedAnswer = String(q.opts[q.a]).toLowerCase().trim();
+    const answerMatch = expLower.match(/\b(?:the\s+)?(?:correct\s+)?answer\s+is\s+["']?(\d+[\d,.]*)/i)
+      || expLower.match(/\b(?:=|equals?)\s+["']?(\d+[\d,.]*)/i);
+    if (answerMatch) {
+      const expAnswer = answerMatch[1].replace(/,/g, '').trim();
+      const markedClean = markedAnswer.replace(/,/g, '').replace(/[^0-9.\-]/g, '');
+      if (expAnswer !== markedClean && expAnswer.length > 0 && markedClean.length > 0) {
+        // Check if explanation answer matches a DIFFERENT option
+        const expOptIdx = q.opts.findIndex(o => {
+          const clean = String(o).toLowerCase().replace(/,/g, '').replace(/[^0-9.\-]/g, '');
+          return clean === expAnswer;
+        });
+        if (expOptIdx >= 0 && expOptIdx !== q.a) {
+          console.warn(`[batch-validate] Explanation mismatch rejected: exp says "${expAnswer}" but a=${q.a} ("${markedAnswer}") in: "${q.q.slice(0, 60)}"`);
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 // ─── OPENROUTER CALLER ───────────────────────────────────────────────────────
@@ -411,6 +523,13 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
   const needed = TARGET_PER_CELL - current;
   if (needed <= 0) { log.push(`${curriculumKey} ${subject} Y${grade} ${tier.label}: at target`); return 0; }
 
+  // Get IXL-level topic list for this subject+year and pick under-covered topics
+  const topicPool = getTopicsForSubjectYear(subject, grade);
+  // Rotate through topics based on current count to spread coverage
+  const topicIdx = current % topicPool.length;
+  const topicSlice = topicPool.slice(topicIdx, topicIdx + 3).concat(topicPool.slice(0, Math.max(0, 3 - (topicPool.length - topicIdx))));
+  const topicHint = topicSlice.map(t => t.replace(/_/g, ' ')).join(', ');
+
   // Fetch existing texts for dedup (within this cell)
   const { data: existing } = await supabase
     .from('question_bank')
@@ -422,7 +541,7 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
   const toInsert = [];
 
   try {
-    const prompt = buildPrompt(curriculumKey, currConfig, subject, grade, tier, BATCH_SIZE);
+    const prompt = buildPrompt(curriculumKey, currConfig, subject, grade, tier, BATCH_SIZE, topicHint);
     const gen = await callOpenRouter(prompt);
     if (!gen?.questions || !Array.isArray(gen.questions)) throw new Error('Invalid response structure');
 

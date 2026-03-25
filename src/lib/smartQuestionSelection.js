@@ -1066,6 +1066,57 @@ function postProcessQuestions(rows, year, subject) {
       }
     }
 
+    // ── G18: Math arithmetic verification ────────────────────────────
+    // If the question/passage/explanation contains "X + Y - Z = W", verify
+    // that the arithmetic is correct and the marked answer matches.
+    if (isMaths) {
+      const fullText = [qTextRaw, row.passage || '', row.explanation || row.question_data?.exp || ''].join(' ');
+      // Find expressions like "450 + 350 - 100 = 700"
+      const exprPattern = /(\d+(?:\s*[+\-*/×÷]\s*\d+)+)\s*=\s*(\d+(?:\.\d+)?)/g;
+      let exprMatch;
+      while ((exprMatch = exprPattern.exec(fullText)) !== null) {
+        const expr = exprMatch[1].replace(/×/g, '*').replace(/÷/g, '/').replace(/[^0-9+\-*/().]/g, '');
+        const claimed = parseFloat(exprMatch[2]);
+        try {
+          // eslint-disable-next-line no-new-func
+          const actual = new Function(`"use strict"; return (${expr})`)();
+          if (typeof actual === 'number' && isFinite(actual) && Math.abs(actual - claimed) > 0.01) {
+            return reject('G18', row, `math error: "${exprMatch[1]} = ${claimed}" but actual is ${actual}`);
+          }
+        } catch { /* skip unevaluable expressions */ }
+      }
+
+      // Also check: if we can extract numbers from a word problem and compute the answer,
+      // does the marked answer match?
+      const correctIdx = row.correct_index ?? row.correct_answer_index;
+      if (correctIdx != null && opts[correctIdx]) {
+        const markedNum = parseFloat(String(opts[correctIdx]).replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(markedNum)) {
+          // Look for simple "A op B op C" patterns in the question
+          const simpleExpr = qTextRaw.match(/(\d+)\s*([+\-])\s*(\d+)(?:\s*([+\-])\s*(\d+))?/);
+          if (simpleExpr) {
+            const a = parseInt(simpleExpr[1]);
+            const op1 = simpleExpr[2];
+            const b = parseInt(simpleExpr[3]);
+            let result = op1 === '+' ? a + b : a - b;
+            if (simpleExpr[4] && simpleExpr[5]) {
+              const op2 = simpleExpr[4];
+              const c = parseInt(simpleExpr[5]);
+              result = op2 === '+' ? result + c : result - c;
+            }
+            // Only reject if our computed answer is in the options but differs from marked
+            const computedOptIdx = opts.findIndex(o => {
+              const n = parseFloat(String(o).replace(/[^0-9.\-]/g, ''));
+              return !isNaN(n) && Math.abs(n - result) < 0.01;
+            });
+            if (computedOptIdx >= 0 && computedOptIdx !== correctIdx && Math.abs(result - markedNum) > 0.01) {
+              return reject('G18', row, `computed answer ${result} (opt ${computedOptIdx}) != marked "${opts[correctIdx]}" (opt ${correctIdx})`);
+            }
+          }
+        }
+      }
+    }
+
     return true;
   });
 }

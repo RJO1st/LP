@@ -25,15 +25,52 @@
       "schedule": "0 18 * * 0"
     },
     {
-      "path": "/api/batch-generate",
-      "schedule": "0 2 * * 0"
+      "path": "/api/cron/reminders",
+      "schedule": "*/15 * * * *"
     },
     {
-  "crons": [{
-    "path": "/api/cron/reminders",
-    "schedule": "*/15 * * * *"
-  }]
-}
-    
+      "path": "/api/batch-generate?curriculum=uk_11plus",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=uk_national",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=us_common_core",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=aus_acara",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ib_pyp",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ng_primary",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ng_jss",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ng_sss",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ca_primary",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ca_secondary",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/batch-generate?curriculum=ib_myp",
+      "schedule": "0 21 * * *"
+    }
   ]
 }
