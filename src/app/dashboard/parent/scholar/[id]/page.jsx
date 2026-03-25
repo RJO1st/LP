@@ -65,11 +65,11 @@ const TIME_PERIODS = [{ label: "Week", value: "week" }, { label: "Month", value:
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ icon, label, value, sub }) => (
-  <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-5 flex items-start gap-4">
-    <div className="p-2.5 rounded-xl bg-slate-100 text-slate-600 shrink-0">{icon}</div>
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-      <p className="text-2xl font-black text-slate-800 leading-none">{value}</p>
+  <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
+    <div className="p-2 sm:p-2.5 rounded-xl bg-slate-100 text-slate-600 shrink-0">{icon}</div>
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 truncate">{label}</p>
+      <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{value}</p>
       {sub && <p className="text-[11px] font-bold text-slate-400 mt-1">{sub}</p>}
     </div>
   </div>
@@ -160,7 +160,7 @@ export default function ScholarInsights({ params }) {
     <div className="min-h-screen bg-slate-50 font-sans pb-24">
 
       {/* NAV */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-50 shadow-sm">
+      <nav className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 sticky top-0 z-50 shadow-sm">
         <Link href="/dashboard/parent" className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-colors">
           <ArrowLeftIcon /> <span className="hidden sm:inline">Mission Control</span>
         </Link>
@@ -173,13 +173,13 @@ export default function ScholarInsights({ params }) {
         )}
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 pt-10">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-6 sm:pt-10">
 
         {/* SCHOLAR HERO */}
-        <div className="bg-white border-4 border-slate-100 border-b-8 rounded-[40px] p-8 mb-8">
+        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[40px] p-4 sm:p-8 mb-4 sm:mb-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-black text-slate-900 mb-3">{scholar?.name}</h1>
+              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 mb-2 sm:mb-3">{scholar?.name}</h1>
               <div className="flex flex-wrap items-center gap-2">
                 {currInfo && <>
                   <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-sm">
@@ -200,11 +200,11 @@ export default function ScholarInsights({ params }) {
             {/* XP + Level bar */}
             <div className="text-right shrink-0">
               <div className="flex items-baseline gap-1.5 justify-end mb-2">
-                <span className="text-3xl font-black text-amber-600">{(scholar?.total_xp || 0).toLocaleString()}</span>
+                <span className="text-xl sm:text-3xl font-black text-amber-600">{(scholar?.total_xp || 0).toLocaleString()}</span>
                 <span className="text-sm font-bold text-slate-400">XP</span>
               </div>
               {levelInfo?.next && (
-                <div className="w-44">
+                <div className="w-32 sm:w-44">
                   <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
                     <span>Lv.{levelInfo.current.level}</span>
                     <span>{levelInfo.progressPct}% → Lv.{levelInfo.next.level}</span>
@@ -234,7 +234,7 @@ export default function ScholarInsights({ params }) {
         </div>
 
         {/* QUICK STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
           <StatCard icon={<TargetIcon />} label="Avg Accuracy"  value={`${avgAccuracy}%`}   sub={`${skills.length} topics tracked`} />
           <StatCard icon={<ClockIcon />}  label="Study Time"    value={`${weeklyMinutes}m`}  sub="this week" />
           <StatCard icon={<ZapIcon />}    label="Mastered"      value={masteredCount}         sub="topics ≥ 80%" />
@@ -245,7 +245,7 @@ export default function ScholarInsights({ params }) {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           {TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2.5 rounded-2xl font-black text-sm uppercase tracking-wide whitespace-nowrap transition-all
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap transition-all
                 ${activeTab === tab ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-white text-slate-500 border-2 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"}`}
             >
               {tab}
@@ -258,7 +258,7 @@ export default function ScholarInsights({ params }) {
           <div className="space-y-6">
 
             {/* Exam Readiness (visible for all scholars) */}
-            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
               <h3 className="font-black text-lg text-slate-800 mb-4">🎯 Exam Readiness</h3>
               <ReadinessScore scholarId={id} supabase={supabase} />
             </div>
@@ -266,7 +266,7 @@ export default function ScholarInsights({ params }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Subject bars */}
-            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
               <h3 className="font-black text-lg text-slate-800 mb-4">Subject Breakdown</h3>
               {subjects.length === 0 ? <p className="text-slate-400 text-sm font-bold">No data yet.</p> : (
                 <div className="space-y-4">
@@ -293,7 +293,7 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Strongest topics */}
-            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
               <h3 className="font-black text-lg text-slate-800 mb-4">🌟 Strongest Topics</h3>
               {skills.length === 0 ? <p className="text-slate-400 text-sm font-bold">Complete some quests first.</p> : (
                 <div className="space-y-1">
@@ -311,7 +311,7 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Needs work */}
-            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
               <h3 className="font-black text-lg text-slate-800 mb-4">🎯 Areas to Improve</h3>
               {skills.filter(s => s.score < 60 && (s.attempts || 0) > 0).length === 0 ? (
                 <p className="text-slate-400 text-sm font-bold">{skills.length === 0 ? "No data yet." : "Everything's looking great! 🎉"}</p>
@@ -332,7 +332,7 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Week snapshot */}
-            <div className="bg-white border-4 border-slate-100 border-b-8 rounded-3xl p-6">
+            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
               <h3 className="font-black text-lg text-slate-800 mb-4">📅 This Week</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-indigo-50 rounded-2xl p-4 text-center">

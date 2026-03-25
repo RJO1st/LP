@@ -4,29 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
-// ─── CUSTOM SVG LOGO ─────────────────────────────────────────────────────────
+// ─── LOGO (uses correct brand SVG) ──────────────────────────────────────────
 const LogoIcon = ({ className = "w-8 h-8" }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-    <path d="M55 20A32 32 0 1 0 75 75" stroke="url(#logo-grad)" strokeWidth="12" strokeLinecap="round"/>
-    <circle cx="18" cy="45" r="2.5" fill="#00f2fe"/>
-    <circle cx="50" cy="85" r="2" fill="#4facfe"/>
-    <path d="M70 55Q75 55 75 50Q75 55 80 55Q75 55 75 60Q75 55 70 55Z" fill="#00f2fe"/>
-    <path d="M80 65Q83 65 83 62Q83 65 86 65Q83 65 83 68Q83 65 80 65Z" fill="#4facfe"/>
-    <g transform="rotate(45 50 50) translate(0 -5)">
-      <path d="M35 60L25 75L45 65Z" fill="#e11d48"/>
-      <path d="M65 60L75 75L55 65Z" fill="#e11d48"/>
-      <path d="M42 68L50 85L58 68Z" fill="#fef08a"/>
-      <path d="M45 68L50 80L55 68Z" fill="#f97316"/>
-      <path d="M50 15C65 30 65 60 50 70C35 60 35 30 50 15Z" fill="#1e1b4b" stroke="#0f172a" strokeWidth="4" strokeLinejoin="round"/>
-      <circle cx="50" cy="40" r="6" fill="#0f172a"/>
-    </g>
-    <defs>
-      <linearGradient id="logo-grad" x1="0%" y1="100%" x2="0%" y2="0%">
-        <stop offset="0%" stopColor="#0ea5e9"/>
-        <stop offset="100%" stopColor="#3b82f6"/>
-      </linearGradient>
-    </defs>
-  </svg>
+  <img src="/logo.svg" alt="LaunchPard" className={className} />
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -106,38 +86,38 @@ export default function SubscribePage() {
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-float-delayed" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16">
         {/* Header */}
-        <div className="text-center mb-16 animate-fade-in-up">
-          <div className="inline-block mb-6">
+        <div className="text-center mb-8 sm:mb-16 animate-fade-in-up">
+          <div className="inline-block mb-4 sm:mb-6">
             <div className="relative">
-              <div className="flex items-center justify-center gap-3 text-6xl sm:text-7xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-shimmer">
-                <LogoIcon className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0" />
+              <div className="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-6xl lg:text-7xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-shimmer">
+                <LogoIcon className="w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20 flex-shrink-0" />
                 LaunchPard
               </div>
               <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-30 blur-2xl -z-10" />
             </div>
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black mb-6 leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black mb-4 sm:mb-6 leading-tight">
             Mission: Transform Your
             <br />
             <span className="text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
               Child's Learning
             </span>
           </h1>
-          <p className="text-xl sm:text-2xl text-slate-300 max-w-3xl mx-auto font-medium mb-8">
+          <p className="text-base sm:text-xl lg:text-2xl text-slate-300 max-w-3xl mx-auto font-medium mb-6 sm:mb-8 px-2">
             AI-powered education across 6 global curricula. One platform, unlimited potential.
           </p>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-400">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-slate-400">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-yellow-400">⭐⭐⭐⭐⭐</span>
               <span>4.9/5 rating</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-green-400">✓</span>
               <span>3,000+ families</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-blue-400">🚀</span>
               <span>15,000+ questions</span>
             </div>
@@ -145,11 +125,11 @@ export default function SubscribePage() {
         </div>
 
         {/* Billing Toggle */}
-        <div className="flex justify-center mb-12 animate-fade-in-up animation-delay-200">
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-full p-1.5 border border-slate-700">
+        <div className="flex justify-center mb-8 sm:mb-12 animate-fade-in-up animation-delay-200">
+          <div className="bg-slate-800/50 backdrop-blur-xl rounded-full p-1 sm:p-1.5 border border-slate-700">
             <button
               onClick={() => setBillingCycle("monthly")}
-              className={`px-8 py-3 rounded-full text-sm font-bold transition-all ${
+              className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-sm font-bold transition-all ${
                 billingCycle === "monthly"
                   ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/50"
                   : "text-slate-400 hover:text-white"
@@ -159,7 +139,7 @@ export default function SubscribePage() {
             </button>
             <button
               onClick={() => setBillingCycle("annual")}
-              className={`px-8 py-3 rounded-full text-sm font-bold transition-all relative ${
+              className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-sm font-bold transition-all relative ${
                 billingCycle === "annual"
                   ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/50"
                   : "text-slate-400 hover:text-white"
@@ -174,39 +154,39 @@ export default function SubscribePage() {
         </div>
 
         {/* Pricing Card */}
-        <div className="max-w-2xl mx-auto mb-16 animate-fade-in-up animation-delay-400">
+        <div className="max-w-2xl mx-auto mb-10 sm:mb-16 animate-fade-in-up animation-delay-400">
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
             <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700 overflow-hidden">
               <div className="absolute top-0 right-0 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black px-6 py-2 rounded-bl-2xl">
                 🔥 MOST POPULAR
               </div>
-              <div className="p-8 sm:p-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <LogoIcon className="w-10 h-10 flex-shrink-0" />
+              <div className="p-5 sm:p-8 md:p-12">
+                <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                  <LogoIcon className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
                   <div>
-                    <h3 className="text-3xl font-black text-white">LaunchPard Pro</h3>
+                    <h3 className="text-xl sm:text-3xl font-black text-white">LaunchPard Pro</h3>
                     <p className="text-slate-400 text-sm">Everything included</p>
                   </div>
                 </div>
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                   {billingCycle === "monthly" ? (
                     <>
                       <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
+                        <span className="text-4xl sm:text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
                           £12.99
                         </span>
-                        <span className="text-2xl text-slate-400 font-medium">/month</span>
+                        <span className="text-lg sm:text-2xl text-slate-400 font-medium">/month</span>
                       </div>
                       <p className="text-slate-400">Billed monthly • Cancel anytime</p>
                     </>
                   ) : (
                     <>
                       <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
+                        <span className="text-4xl sm:text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
                           £120
                         </span>
-                        <span className="text-2xl text-slate-400 font-medium">/year</span>
+                        <span className="text-lg sm:text-2xl text-slate-400 font-medium">/year</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-slate-400">£10/month</span>
@@ -270,39 +250,39 @@ export default function SubscribePage() {
         </div>
 
         {/* Comparison Section */}
-        <div className="max-w-5xl mx-auto mb-16 animate-fade-in-up animation-delay-600">
-          <h2 className="text-3xl font-black text-center mb-8">Why LaunchPard?</h2>
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-3xl border border-slate-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+        <div className="max-w-5xl mx-auto mb-10 sm:mb-16 animate-fade-in-up animation-delay-600">
+          <h2 className="text-2xl sm:text-3xl font-black text-center mb-6 sm:mb-8">Why LaunchPard?</h2>
+          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-700 overflow-hidden">
+            <div className="overflow-x-auto -mx-px">
+              <table className="w-full min-w-[540px]">
                 <thead>
                   <tr className="border-b border-slate-700">
-                    <th className="text-left p-6 text-slate-400 font-medium">Feature</th>
-                    <th className="p-6 text-center">
-                      <div className="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-full font-black text-sm">
+                    <th className="text-left p-3 sm:p-6 text-slate-400 font-medium text-xs sm:text-sm">Feature</th>
+                    <th className="p-3 sm:p-6 text-center">
+                      <div className="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-black text-xs sm:text-sm">
                         LaunchPard
                       </div>
                     </th>
-                    <th className="p-6 text-center text-slate-400 font-medium">Atom Learning</th>
-                    <th className="p-6 text-center text-slate-400 font-medium">Prodigy</th>
-                    <th className="p-6 text-center text-slate-400 font-medium">Tutoring</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Atom</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Prodigy</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Tutor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    ["Price", "£12.99/mo", "£29.99/mo", "$14.95/mo", "£60/hour"],
+                    ["Price", "£12.99/mo", "£29.99/mo", "$14.95/mo", "£60/hr"],
                     ["Multi-curriculum", "✅ 6 curricula", "❌ UK only", "❌ US only", "✓ Varies"],
                     ["AI-powered", "✅", "✅", "Partial", "❌"],
-                    ["Unlimited tests", "✅", "✅ (Plus tier)", "❌", "❌"],
+                    ["Unlimited tests", "✅", "✅ (Plus)", "❌", "❌"],
                     ["Multiple children", "✅ Up to 3", "❌", "❌", "❌"],
-                    ["Gamification", "✅ Full system", "❌", "✅", "❌"],
+                    ["Gamification", "✅ Full", "❌", "✅", "❌"],
                   ].map((row, i) => (
                     <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
-                      <td className="p-6 font-medium text-slate-200">{row[0]}</td>
-                      <td className="p-6 text-center font-bold text-green-400">{row[1]}</td>
-                      <td className="p-6 text-center text-slate-400">{row[2]}</td>
-                      <td className="p-6 text-center text-slate-400">{row[3]}</td>
-                      <td className="p-6 text-center text-slate-400">{row[4]}</td>
+                      <td className="p-3 sm:p-6 font-medium text-slate-200 text-xs sm:text-sm">{row[0]}</td>
+                      <td className="p-3 sm:p-6 text-center font-bold text-green-400 text-xs sm:text-sm">{row[1]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[2]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[3]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[4]}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -313,7 +293,7 @@ export default function SubscribePage() {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto animate-fade-in-up animation-delay-800">
-          <h2 className="text-3xl font-black text-center mb-12">Frequently Asked Questions</h2>
+          <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 sm:mb-12">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {[
               {
@@ -338,11 +318,11 @@ export default function SubscribePage() {
               }
             ].map((faq, i) => (
               <details key={i} className="group bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden">
-                <summary className="p-6 cursor-pointer list-none font-bold text-lg hover:text-cyan-400 transition-colors flex justify-between items-center">
+                <summary className="p-4 sm:p-6 cursor-pointer list-none font-bold text-sm sm:text-lg hover:text-cyan-400 transition-colors flex justify-between items-center gap-2">
                   {faq.q}
-                  <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  <span className="text-slate-400 group-open:rotate-180 transition-transform shrink-0">▼</span>
                 </summary>
-                <div className="px-6 pb-6 text-slate-300 leading-relaxed">
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 text-slate-300 leading-relaxed text-sm sm:text-base">
                   {faq.a}
                 </div>
               </details>
@@ -351,11 +331,11 @@ export default function SubscribePage() {
         </div>
 
         {/* Final CTA */}
-        <div className="text-center mt-16 animate-fade-in-up animation-delay-1000">
+        <div className="text-center mt-10 sm:mt-16 animate-fade-in-up animation-delay-1000">
           <button
             onClick={handleCheckout}
             disabled={loading}
-            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-xl px-12 py-6 rounded-2xl shadow-2xl shadow-cyan-500/50 transform hover:scale-105 transition-all disabled:opacity-50"
+            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-base sm:text-xl px-8 sm:px-12 py-4 sm:py-6 rounded-2xl shadow-2xl shadow-cyan-500/50 transform hover:scale-105 transition-all disabled:opacity-50"
           >
             🚀 Launch Your Learning Journey
           </button>

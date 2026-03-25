@@ -1422,7 +1422,7 @@ const UK_NATIONAL_SUBJECTS = {
       <main className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-6 space-y-5">
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}
-        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-[28px] p-6 text-white shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-2xl sm:rounded-[28px] p-4 sm:p-6 text-white shadow-xl relative overflow-hidden">
           {/* Star dust */}
           {["top-3 left-10", "top-8 right-24", "bottom-5 left-1/3", "top-5 right-44", "bottom-8 right-1/4"].map((pos, i) => (
             <div key={i} className={`absolute ${pos} rounded-full bg-white pointer-events-none`}
@@ -1432,7 +1432,7 @@ const UK_NATIONAL_SUBJECTS = {
           <div className="absolute -top-16 -right-16 w-52 h-52 rounded-full pointer-events-none"
             style={{ background: "radial-gradient(circle, rgba(167,139,250,0.35) 0%, rgba(99,102,241,0.12) 60%, transparent 80%)" }} />
 
-          <div className="flex items-center gap-5 relative z-10">
+          <div className="flex items-center gap-3 sm:gap-5 relative z-10">
             {/* Scholar avatar — large illustrated character with customisation ring */}
             <div className="relative shrink-0 cursor-pointer group" onClick={() => setShowAvatarShop(true)}>
               {/* Outer cyan glow ring — matches PDF design */}
@@ -1734,9 +1734,9 @@ const UK_NATIONAL_SUBJECTS = {
       )}
       {/* Progress section (toggle) */}
         {showProgress && (
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4">
-            <h2 className="text-xl font-black text-slate-800 mb-5">Your Progress</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-md border border-slate-200 animate-in slide-in-from-top-4 mx-3 sm:mx-5">
+            <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-3 sm:mb-5">Your Progress</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <SkillHeatmap
                 skills={fullSkills}
                 curriculum={curriculum}

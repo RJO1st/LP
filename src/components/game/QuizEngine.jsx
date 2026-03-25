@@ -1248,7 +1248,7 @@ export default function QuizEngine({
 
   if (generating) return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[40px] p-6 text-center max-w-xs w-full shadow-2xl">
+      <div className="bg-white rounded-2xl sm:rounded-[40px] p-4 sm:p-6 text-center max-w-xs w-full shadow-2xl">
         <RocketIcon size={48} className="mx-auto text-indigo-500 mb-4 animate-bounce" />
         <h3 className="text-xl font-black text-slate-800 mb-1">Pre-Flight Checks…</h3>
         <p className="text-sm text-slate-500 font-bold">
@@ -1264,7 +1264,7 @@ export default function QuizEngine({
       ? Math.round((finalScore / sessionQuestions.length) * 100) : 0;
     return (
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
-        <div className="bg-white rounded-[40px] p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
+        <div className="bg-white rounded-2xl sm:rounded-[40px] p-4 sm:p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
           <PlanetIcon size={56} className="mx-auto text-indigo-500 mb-3" />
           <h2 className="text-2xl font-black text-slate-800 mb-1">Orbit Achieved!</h2>
           <p className="text-slate-500 font-bold text-sm mb-1">{finalScore}/{sessionQuestions.length} Correct</p>
@@ -1317,7 +1317,7 @@ export default function QuizEngine({
     if (advancedResult) {
       return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
+          <div className="bg-white rounded-2xl sm:rounded-[40px] p-4 sm:p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
             {advancedResult.isCorrect
               ? <CheckCircleIcon size={56} className="mx-auto text-emerald-500 mb-3" />
               : <XCircleIcon size={56} className="mx-auto text-rose-500 mb-3" />}

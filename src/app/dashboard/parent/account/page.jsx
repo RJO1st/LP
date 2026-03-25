@@ -16,7 +16,7 @@ const Icon = ({ d, size = 20 }) => (
 );
 
 const BackIcon = ({ size = 18 }) => <Icon size={size} d={["M19 12H5","M12 19l-7-7 7-7"]} />;
-const RocketIcon = ({ size = 20 }) => <Icon size={size} d={["M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z","m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"]} />;
+
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -150,11 +150,9 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════════════════ */}
       {/* NAVIGATION */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <nav className="bg-white border-b-4 border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-3 font-black text-xl">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md border-b-4 border-indigo-800">
-            <RocketIcon size={20} />
-          </div>
+      <nav className="bg-white border-b-4 border-slate-200 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3 font-black text-lg sm:text-xl">
+          <img src="/logo.svg" alt="LaunchPard" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl" />
           <span className="hidden sm:inline text-slate-900">Account Settings</span>
         </div>
         <Link
@@ -165,7 +163,7 @@ export default function AccountPage() {
         </Link>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 pt-12">
+      <main className="max-w-2xl mx-auto px-3 sm:px-6 pt-6 sm:pt-12">
 
         {/* Success/Error Message */}
         {message.text && (
@@ -181,8 +179,8 @@ export default function AccountPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* ACCOUNT DETAILS */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="bg-white border-4 border-slate-100 border-b-8 rounded-[32px] p-8 mb-8">
-          <h2 className="text-3xl font-black mb-6">Account Details</h2>
+        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8 mb-4 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6">Account Details</h2>
           
           <form onSubmit={handleSave} className="space-y-6">
             {/* Full Name */}
@@ -229,7 +227,7 @@ export default function AccountPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* SUBSCRIPTION INFO */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="bg-white border-4 border-slate-100 border-b-8 rounded-[32px] p-8 mb-8">
+        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8 mb-4 sm:mb-8">
           <h2 className="text-2xl font-black mb-4">Subscription</h2>
           
           <div className="space-y-3">
@@ -278,7 +276,7 @@ export default function AccountPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* DANGER ZONE */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="bg-white border-4 border-rose-100 border-b-8 rounded-[32px] p-8">
+        <div className="bg-white border-2 sm:border-4 border-rose-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8">
           <h2 className="text-2xl font-black mb-4 text-rose-600">Danger Zone</h2>
           
           <div className="space-y-4">

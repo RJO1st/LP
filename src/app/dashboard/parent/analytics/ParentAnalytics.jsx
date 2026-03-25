@@ -18,13 +18,6 @@ import {
   formatGradeLabel,
 } from "@/lib/gamificationEngine";
 
-const RocketIcon = ({ size = 24 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-  </svg>
-);
-
 const ArrowLeftIcon = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="m12 19-7-7 7-7"/>
@@ -97,12 +90,10 @@ export default function ParentAnalytics({ scholar, results }) {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
 
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
+      <nav className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
-              <RocketIcon size={20} />
-            </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img src="/logo.svg" alt="LaunchPard" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl" />
             <div>
               <h1 className="font-black text-lg text-slate-900">Analytics</h1>
               <p className="text-xs text-slate-500">{scholar.name}&apos;s Progress</p>
@@ -118,7 +109,7 @@ export default function ParentAnalytics({ scholar, results }) {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-6 sm:pt-8 space-y-4 sm:space-y-6">
 
         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white">
           <h2 className="text-2xl font-black mb-2">{scholar.name}</h2>

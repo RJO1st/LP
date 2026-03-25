@@ -632,22 +632,22 @@ function ReferralCard({ parentId, parentName, supabase, fullWidth }) {
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <button onClick={handleWhatsApp}
-          className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg text-[11px] transition-colors">
-          <span>💬</span> WhatsApp
+          className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg text-[10px] sm:text-[11px] transition-colors">
+          <span>💬</span> <span className="hidden xs:inline">WhatsApp</span><span className="xs:hidden">Share</span>
         </button>
         <button onClick={handleEmail}
-          className="flex-1 flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-[11px] transition-colors">
+          className="flex-1 flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-[10px] sm:text-[11px] transition-colors">
           <span>✉️</span> Email
         </button>
         <button onClick={handleCopy}
-          className={`flex-1 flex items-center justify-center gap-1 font-bold py-2 rounded-lg text-[11px] transition-all border ${
+          className={`flex-1 flex items-center justify-center gap-1 font-bold py-2 rounded-lg text-[10px] sm:text-[11px] transition-all border ${
             copied
               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
               : "bg-white hover:bg-purple-50 text-purple-700 border-purple-200"
           }`}>
-          {copied ? "✓ Copied" : "🔗 Copy Link"}
+          {copied ? "✓ Copied" : "🔗 Copy"}
         </button>
       </div>
     </div>
@@ -673,6 +673,7 @@ export default function ParentDashboard() {
   const [error, setError]       = useState(null);
   const [expandedInsights, setExpandedInsights] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [deletingScholar, setDeletingScholar] = useState(null); // { id, name } or null
 
   // Form state
   const [newName,     setNewName]     = useState("");
@@ -758,9 +759,25 @@ export default function ParentDashboard() {
 
   const MAX_SCHOLARS = 3;
 
+  const handleDeleteScholar = async () => {
+    if (!deletingScholar) return;
+    try {
+      const { error: delError } = await supabase.from("scholars").delete().eq("id", deletingScholar.id).eq("parent_id", user.id);
+      if (delError) { setError(`Failed to remove scholar: ${delError.message}`); return; }
+      setScholars(prev => prev.filter(s => s.id !== deletingScholar.id));
+    } catch (err) {
+      setError(`Something went wrong: ${err?.message || "Please try again."}`);
+    } finally {
+      setDeletingScholar(null);
+    }
+  };
+
   const handleAddScholar = async (e) => {
     e.preventDefault();
     if (!newName.trim()) { setError("Please enter a name"); return; }
+    if (scholars.some(s => s.name.trim().toLowerCase() === newName.trim().toLowerCase())) {
+      setError("A scholar with this name already exists. Please choose a different name."); return;
+    }
     if (scholars.length >= MAX_SCHOLARS) { setError(`Maximum of ${MAX_SCHOLARS} scholars on your current plan.`); return; }
     if (newCurriculum === "ng_sss" && !newStream) { setError("Please select a stream for this SSS scholar."); return; }
 
@@ -868,7 +885,12 @@ export default function ParentDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col lg:flex-row">
 
-      {/* SIDEBAR — Fixed, white with subtle border */}
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* SIDEBAR — Fixed on mobile, static on desktop */}
       <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-40 transform transition-transform lg:transform-none ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } flex flex-col`}>
@@ -919,7 +941,7 @@ export default function ParentDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* Top bar - Mobile hamburger + right-aligned controls */}
-        <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center sticky top-0 z-30">
+        <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-2 sm:py-3 flex items-center sticky top-0 z-30">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-600 hover:text-slate-900 mr-3">
             <Icon size={24} d={["M5 12h14","M5 6h14","M5 18h14"]} />
           </button>
@@ -939,35 +961,35 @@ export default function ParentDashboard() {
 
         {/* SCROLLABLE CONTENT AREA */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-6 py-8 pb-24">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24">
 
             {/* Welcome banner — warm gradient */}
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-8 mb-8">
-              <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl border border-amber-200 p-4 sm:p-8 mb-4 sm:mb-8">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 sm:mb-2">
                 Welcome back, {parent?.full_name?.split(' ')[0] || 'Parent'}! 👋
               </h1>
-              <p className="text-slate-600 font-bold mb-4">
+              <p className="text-xs sm:text-base text-slate-600 font-bold mb-3 sm:mb-4">
                 You have {scholars.length} scholar{scholars.length !== 1 ? 's' : ''} {scholars.length === 1 ? 'studying' : 'studying together'} on LaunchPard
               </p>
 
               {/* Quick stats */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="bg-white rounded-lg p-3 border border-amber-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Total Scholars</p>
-                  <p className="text-2xl font-black text-slate-900">{scholars.length}</p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-amber-100">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 mb-0.5 sm:mb-1">Scholars</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900">{scholars.length}</p>
                 </div>
-                <div className="bg-white rounded-lg p-3 border border-orange-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Active Today</p>
-                  <p className="text-2xl font-black text-slate-900">—</p>
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-orange-100">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-orange-600 mb-0.5 sm:mb-1">Active</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900">—</p>
                 </div>
-                <div className="bg-white rounded-lg p-3 border border-amber-100 hidden md:block">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Quizzes This Week</p>
-                  <p className="text-2xl font-black text-slate-900">{scholars.reduce((a, s) => a + (s.quizzes_this_week || s.weekly_quizzes || 0), 0)}</p>
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-amber-100">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 mb-0.5 sm:mb-1">Quizzes</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900">{scholars.reduce((a, s) => a + (s.quizzes_this_week || s.weekly_quizzes || 0), 0)}</p>
                 </div>
               </div>
 
               {/* Two-column: Pro Trial + Referral — matched card design */}
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mt-3 sm:mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
                 {/* Pro Trial card */}
                 {parent?.subscription_status === "trial" && parent?.trial_end && (
                   <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
@@ -1008,7 +1030,7 @@ export default function ParentDashboard() {
 
             {/* ── Flash Update + Growth Metrics + Parent Action Tip ─── */}
             {scholars.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-8">
 
                 {/* Flash Update */}
                 <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -1107,13 +1129,13 @@ export default function ParentDashboard() {
 
             {/* ── How-To Guide: collapsible getting-started card ── */}
             {scholars.length <= 2 && (
-              <details className="mb-6 group">
-                <summary className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-4 cursor-pointer list-none flex items-center justify-between shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-lg">📘</div>
+              <details className="mb-4 sm:mb-6 group">
+                <summary className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-3 sm:p-4 cursor-pointer list-none flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-base sm:text-lg">📘</div>
                     <div>
-                      <p className="text-sm font-black text-indigo-900">Getting Started Guide</p>
-                      <p className="text-[11px] text-indigo-400 font-semibold">How to add a scholar, sign them in, and start their first quest</p>
+                      <p className="text-xs sm:text-sm font-black text-indigo-900">Getting Started Guide</p>
+                      <p className="text-[10px] sm:text-[11px] text-indigo-400 font-semibold hidden sm:block">How to add a scholar, sign them in, and start their first quest</p>
                     </div>
                   </div>
                   <ChevronDown size={18} />
@@ -1164,14 +1186,14 @@ export default function ParentDashboard() {
             )}
 
             {/* Scholar grid + Add Scholar card */}
-            <div id="scholars-section" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="scholars-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
 
               {/* Scholar cards */}
               {scholars.length === 0 ? (
-                <div className="md:col-span-2 lg:col-span-3 bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
-                  <p className="text-5xl mb-4">🚀</p>
-                  <p className="font-black text-2xl text-slate-700 mb-2">No scholars yet</p>
-                  <p className="text-slate-400 font-bold">Add your first scholar to get started</p>
+                <div className="sm:col-span-2 lg:col-span-3 bg-white rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 p-6 sm:p-12 text-center">
+                  <p className="text-4xl sm:text-5xl mb-3 sm:mb-4">🚀</p>
+                  <p className="font-black text-lg sm:text-2xl text-slate-700 mb-1 sm:mb-2">No scholars yet</p>
+                  <p className="text-sm sm:text-base text-slate-400 font-bold">Add your first scholar to get started</p>
                 </div>
               ) : (
                 scholars.map(scholar => {
@@ -1185,7 +1207,7 @@ export default function ParentDashboard() {
                   return (
                     <div
                       key={scholar.id}
-                      className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all hover:shadow-md ${bandColor.border}`}
+                      className={`bg-white rounded-xl p-3 sm:p-4 shadow-sm border-2 transition-all hover:shadow-md ${bandColor.border}`}
                     >
                       {/* Clickable header → scholar insights */}
                       <Link
@@ -1279,13 +1301,22 @@ export default function ParentDashboard() {
                         )}
                       </div>
 
-                      {/* View full insights */}
-                      <Link
-                        href={`/dashboard/parent/scholar/${scholar.id}`}
-                        className="w-full block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
-                      >
-                        View Full Insights
-                      </Link>
+                      {/* Actions row */}
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/dashboard/parent/scholar/${scholar.id}`}
+                          className="flex-1 block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
+                        >
+                          View Full Insights
+                        </Link>
+                        <button
+                          onClick={() => setDeletingScholar({ id: scholar.id, name: scholar.name })}
+                          className="p-2 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition-colors"
+                          title="Remove scholar"
+                        >
+                          <Icon size={14} d={["M3 6h18","M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2","M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"]} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })
@@ -1534,6 +1565,33 @@ export default function ParentDashboard() {
 
       {/* Dashboard Tour — shows once per user, re-triggerable via ? button */}
       {user?.id && <DashboardTour type="parent" userId={user.id} />}
+
+      {/* Delete Scholar Confirmation Modal */}
+      {deletingScholar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 flex items-center justify-center mb-3">
+                <Icon size={28} d={["M3 6h18","M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2","M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"]} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900">Remove Scholar?</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                This will permanently remove <span className="font-bold text-slate-700">{deletingScholar.name}</span> and all their progress data. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletingScholar(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleDeleteScholar}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-colors">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Graduation Modal */}
       {graduatingScholar && (
