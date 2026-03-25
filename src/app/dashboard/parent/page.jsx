@@ -8,9 +8,9 @@ import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
 import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
-import ReferralBanner from "../../../components/ReferralBanner";
+import { ensureReferralCode, getReferralStats } from "@/lib/referralSystem";
 import ReadinessScore from "@/components/ReadinessScore";
-import DashboardTour from "@/components/DashboardTour";
+import DashboardTour, { useTourReset } from "@/components/DashboardTour";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -456,6 +456,74 @@ const CurriculumCard = ({ currKey, curr, selected, onSelect }) => (
 );
 
 // ═══════════════════════════════════════════════════════════════════
+// REFERRAL CARD — inline share (WhatsApp, Email, Copy Link)
+// ═══════════════════════════════════════════════════════════════════
+function ReferralCard({ parentId, parentName, supabase, fullWidth }) {
+  const [stats, setStats]   = React.useState(null);
+  const [copied, setCopied] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!parentId) return;
+    (async () => {
+      try {
+        await ensureReferralCode(supabase, parentId, parentName);
+        const s = await getReferralStats(supabase, parentId);
+        setStats(s);
+      } catch {}
+    })();
+  }, [parentId, parentName, supabase]);
+
+  if (!stats?.code) return null;
+
+  const shareUrl = `https://launchpard.com/signup?ref=${stats.code}`;
+  const shareText = `My children use LaunchPard for AI-powered learning. Try it free: ${shareUrl}`;
+
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(shareUrl); } catch {
+      const el = document.createElement("input"); el.value = shareUrl;
+      document.body.appendChild(el); el.select(); document.execCommand("copy"); document.body.removeChild(el);
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank");
+  const handleEmail = () => window.open(`mailto:?subject=${encodeURIComponent("Try LaunchPard for your children")}&body=${encodeURIComponent(shareText)}`, "_blank");
+
+  return (
+    <div className={`bg-purple-50 rounded-xl p-4 border border-purple-200 ${fullWidth ? "md:col-span-2" : ""}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-8 h-8 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center text-sm">🎁</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-black text-purple-900">Refer a Friend, Get 1 Free Month</p>
+          <p className="text-[10px] text-purple-500 font-bold tracking-wide">
+            {stats.code}
+            {stats.referralCount > 0 && <span className="ml-1.5 text-emerald-600">· {stats.credits} earned</span>}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={handleWhatsApp}
+          className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg text-[11px] transition-colors">
+          <span>💬</span> WhatsApp
+        </button>
+        <button onClick={handleEmail}
+          className="flex-1 flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-[11px] transition-colors">
+          <span>✉️</span> Email
+        </button>
+        <button onClick={handleCopy}
+          className={`flex-1 flex items-center justify-center gap-1 font-bold py-2 rounded-lg text-[11px] transition-all border ${
+            copied
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : "bg-white hover:bg-purple-50 text-purple-700 border-purple-200"
+          }`}>
+          {copied ? "✓ Copied" : "🔗 Copy Link"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function ParentDashboard() {
@@ -489,6 +557,7 @@ export default function ParentDashboard() {
   const [contactMessage, setContactMessage] = useState("");
   const [contactSent, setContactSent] = useState(false);
 
+  const resetTour  = useTourReset("parent", user?.id);
   const currDef    = CURRICULA[newCurriculum];
   const isCanadian = !!currDef?.hasProvinces;
   const isNgSss    = newCurriculum === "ng_sss";
@@ -727,6 +796,10 @@ export default function ParentDashboard() {
           <div className="flex items-center gap-3 ml-auto">
             <Link href="/dashboard/parent/analytics" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Analytics</Link>
             <Link href="/dashboard/parent/billing" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Billing</Link>
+            <button onClick={resetTour} title="Dashboard tour"
+              className="w-8 h-8 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-sm flex items-center justify-center transition-colors border border-indigo-200">
+              ?
+            </button>
             <button onClick={handleSignOut} className="flex items-center gap-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
               <LogOutIcon size={18} /> <span className="hidden sm:inline">Sign Out</span>
             </button>
@@ -762,33 +835,45 @@ export default function ParentDashboard() {
                 </div>
               </div>
 
-              {/* Trial badge */}
-              {parent?.subscription_status === "trial" && parent?.trial_end && (
-                <div className="mt-4 bg-white rounded-lg p-3 border border-blue-200 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-black text-blue-900 text-sm mb-0.5">🎉 Pro Trial Active</p>
-                    <p className="text-xs text-blue-700 font-semibold">
-                      {(() => {
-                        const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
-                        return daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining` : "Trial ended";
-                      })()}
-                    </p>
+              {/* Two-column: Pro Trial + Referral — matched card design */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Pro Trial card */}
+                {parent?.subscription_status === "trial" && parent?.trial_end && (
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-sm">🎉</div>
+                      <div>
+                        <p className="text-xs font-black text-blue-900">Pro Trial Active</p>
+                        <p className="text-[10px] text-blue-500 font-semibold">
+                          {(() => {
+                            const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
+                            return daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining` : "Trial ended";
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link href="/subscribe"
+                        className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs transition-colors">
+                        Upgrade Now
+                      </Link>
+                      <Link href="/dashboard/parent/billing"
+                        className="flex-1 text-center bg-white hover:bg-blue-50 text-blue-700 font-bold py-2 rounded-lg text-xs transition-colors border border-blue-200">
+                        View Plan
+                      </Link>
+                    </div>
                   </div>
-                  <Link href="/subscribe" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors whitespace-nowrap">
-                    Upgrade
-                  </Link>
-                </div>
-              )}
+                )}
+
+                {/* Referral card — inline with share options */}
+                <ReferralCard parentId={user?.id} parentName={parent?.full_name} supabase={supabase}
+                  fullWidth={parent?.subscription_status !== "trial"} />
+              </div>
             </div>
 
             {error && (
               <div className="mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700 font-bold text-sm">{error}</div>
             )}
-
-            {/* Referral banner */}
-            <div className="mb-8">
-              <ReferralBanner parentId={user?.id} parentName={parent?.full_name} supabase={supabase} />
-            </div>
 
             {/* ── Flash Update + Growth Metrics + Parent Action Tip ─── */}
             {scholars.length > 0 && (
@@ -886,29 +971,6 @@ export default function ParentDashboard() {
                     Personalised based on your family's progress
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Subscription & Billing Quick Card */}
-            {parent?.subscription_status && (
-              <div className="mb-8 bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-lg">💳</div>
-                  <div>
-                    <p className="text-sm font-black text-slate-900">
-                      {parent.subscription_status === "trial" ? "Pro Trial" : parent.subscription_status === "pro" ? "Pro Plan" : "Free Plan"}
-                    </p>
-                    <p className="text-[11px] text-slate-400 font-semibold">
-                      {parent.subscription_status === "trial" && parent.trial_end
-                        ? `${Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5))} days remaining`
-                        : `${scholars.length}/${MAX_SCHOLARS} scholars`}
-                    </p>
-                  </div>
-                </div>
-                <Link href="/dashboard/parent/billing"
-                  className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs rounded-lg transition-colors">
-                  Manage Plan
-                </Link>
               </div>
             )}
 
@@ -1107,7 +1169,7 @@ export default function ParentDashboard() {
                   <h3 className="font-black text-lg text-slate-900 mb-1">Add Scholar</h3>
                   <p className="text-sm text-slate-500 font-semibold mb-6">Create a new profile and access code</p>
 
-                  {/* Mini form in card */}
+                  {/* Scholar creation form */}
                   <form onSubmit={handleAddScholar} className="w-full space-y-3">
                     <input
                       type="text" required placeholder="Scholar's name" value={newName}
@@ -1122,7 +1184,110 @@ export default function ParentDashboard() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                       {currDef.grades.map(g => <option key={g} value={g}>{currDef.gradeLabel} {g}</option>)}
                     </select>
-                    <button type="submit" disabled={isAdding || !newName.trim()}
+
+                    {/* Canadian province selector */}
+                    {isCanadian && (
+                      <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                        <option value="">Select province</option>
+                        {CANADIAN_PROVINCES.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
+                      </select>
+                    )}
+
+                    {/* NG_SSS stream selector */}
+                    {isNgSss && (
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Stream</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {Object.entries(NG_SSS_STREAMS).map(([key, s]) => (
+                            <button key={key} type="button" onClick={() => setNewStream(key)}
+                              className={`p-2 rounded-lg border-2 text-center transition-all ${
+                                newStream === key
+                                  ? "border-amber-400 bg-amber-50 text-amber-900 shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-500 hover:border-amber-300"
+                              }`}>
+                              <span className="text-lg block">{s.emoji}</span>
+                              <span className="text-[10px] font-black">{s.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {newStream && (
+                          <select value={newTrade} onChange={e => setNewTrade(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                            <option value="">Trade subject (optional)</option>
+                            {NG_SSS_TRADES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* UK KS4 GCSE option subjects */}
+                    {isUkKs4 && (
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">GCSE Options</label>
+                        {UK_KS4_OPTIONS.map(group => (
+                          <div key={group.group}>
+                            <p className="text-[10px] font-bold text-slate-400 mb-1">{group.emoji} {group.group}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {group.subjects.map(s => (
+                                <button key={s.value} type="button" onClick={() => toggleSubject(s.value)}
+                                  className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all ${
+                                    selectedSubjects.includes(s.value)
+                                      ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                                      : "bg-white border-slate-200 text-slate-500 hover:border-indigo-200"
+                                  }`}>
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Exam mode — show eligible options based on curriculum + year */}
+                    {(() => {
+                      const eligibleExams = Object.entries(EXAM_MODES).filter(([, def]) =>
+                        def.eligibleCurricula.includes(newCurriculum) && def.eligibleYears.includes(Number(newGrade))
+                      );
+                      if (eligibleExams.length === 0) return null;
+                      return (
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Exam Prep Mode</label>
+                          {eligibleExams.map(([key, def]) => (
+                            <button key={key} type="button" onClick={() => setNewExamMode(newExamMode === key ? null : key)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
+                                newExamMode === key
+                                  ? "border-amber-400 bg-amber-50"
+                                  : "border-slate-200 bg-white hover:border-amber-300"
+                              }`}>
+                              <p className="text-xs font-black text-slate-800">{def.emoji} {def.label}</p>
+                              <p className="text-[10px] text-slate-500 font-semibold">{def.shortDesc}</p>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Preview: subjects this scholar will study */}
+                    {(() => {
+                      const previewSubjects = getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode);
+                      if (previewSubjects.length === 0) return null;
+                      return (
+                        <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Subjects ({previewSubjects.length})</p>
+                          <div className="flex flex-wrap gap-1">
+                            {previewSubjects.map(s => (
+                              <span key={s} className="inline-flex items-center gap-0.5 bg-white text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-100">
+                                {subjectEmoji(s)} {subjectLabel(s)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <button type="submit" disabled={isAdding || !newName.trim() || (isNgSss && !newStream)}
                       className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
                       {isAdding ? "Creating…" : "Create Scholar"}
                     </button>
@@ -1228,6 +1393,9 @@ export default function ParentDashboard() {
           </div>
         </div>
       )}
+
+      {/* Dashboard Tour — shows once per user, re-triggerable via ? button */}
+      {user?.id && <DashboardTour type="parent" userId={user.id} />}
 
       {/* Graduation Modal */}
       {graduatingScholar && (
