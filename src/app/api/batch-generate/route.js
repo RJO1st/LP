@@ -159,10 +159,21 @@ const MAX_CELLS_PER_RUN = 16;   // 16 cells × 1 call × 8 Qs ≈ ~90 raw Qs per
 
 // Ultra-cheap model rotation — all under $0.20/1M input tokens
 const BATCH_MODELS = [
-  'openai/gpt-4o-mini',              // $0.15/$0.60 per 1M
-  'google/gemini-flash-1.5',         // $0.075/$0.30 per 1M
-  'deepseek/deepseek-chat-v3-0324',  // $0.14/$0.28 per 1M
-  'qwen/qwen-2.5-72b-instruct',     // $0.18/$0.18 per 1M
+  'openai/gpt-4o-mini',                          // $0.15/$0.60 per 1M — reliable baseline
+  'google/gemini-2.5-flash-lite-preview-09-2025', // ultra-cheap Gemini
+  'google/gemini-2.0-flash-lite-001',             // fast Gemini lite
+  'deepseek/deepseek-v3.2',                       // strong reasoning
+  'qwen/qwen3-30b-a3b-instruct-2507',            // strong maths
+  'openai/gpt-oss-20b',                           // compact OpenAI
+  'openai/gpt-oss-120b',                          // larger OpenAI
+  'xiaomi/mimo-v2-flash',                         // fast + cheap
+  'meta-llama/llama-3.3-70b-instruct',           // strong instruction following
+  'mistralai/mistral-small-3.1-24b-instruct',    // fast Mistral
+  'arcee-ai/trinity-large-preview:free',          // free tier
+  'google/gemma-3-27b-it:free',                   // free tier
+  'qwen/qwen3.5-9b',                              // compact Qwen
+  'microsoft/phi-4',                               // strong reasoning for size
+  'meta-llama/llama-4-scout:free',                // free tier
 ];
 function pickBatchModel() {
   return BATCH_MODELS[Math.floor(Math.random() * BATCH_MODELS.length)];
@@ -183,6 +194,8 @@ function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n, topicHi
 
   const UNIQUENESS_RULE = `UNIQUENESS: Every question MUST be distinctly different. Vary the scenario, numbers, context, and wording. Do NOT produce two questions that test the same concept with only superficial changes (e.g., swapping "apples" for "oranges"). Each question should feel like a fresh challenge.`;
 
+  const NO_VISUAL_REFS_RULE = `VISUAL REFERENCES BAN: NEVER write "look at the diagram", "the picture shows", "shown below", "as seen in the image", "refer to the graph", "the table below", "the chart shows", "the map shows", or ANY phrase that implies a visual/image/diagram/picture/table/chart/map/graph is attached. The student will ONLY see your text — there is no accompanying image. All information must be SELF-CONTAINED in the question text. If a question needs data, write it inline (e.g., "The heights in cm are: 12, 15, 18, 22"). If a question involves a shape, describe it in words (e.g., "A rectangle has length 8cm and width 5cm").`;
+
   // ── MATHS ────────────────────────────────────────────────────────────────
   if (subject === 'mathematics' || subject === 'maths' || subject === 'math' || subject === 'further_mathematics') {
     const useSteps = tier.difficulty >= 45 && grade >= 3;
@@ -201,6 +214,7 @@ Topics to cover (MUST generate questions specifically on these): ${topics}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 CRITICAL MATH ACCURACY RULES — FOLLOW EXACTLY:
 1. COMPUTE EVERY ANSWER YOURSELF before writing the question. Double-check arithmetic.
@@ -231,6 +245,7 @@ ${topicHint ? `Focus topics: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix: 2× MCQ (grammar/vocabulary), 2× fill-blank (simple sentences), 1× MCQ (basic comprehension of a 2-sentence scenario).
 
@@ -247,6 +262,7 @@ Spelling & style: ${spelling}
 Context: ${examples}
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Passage: ${grade >= 5 ? 'non-fiction or structured narrative with varied vocabulary' : 'accessible narrative or informational text'}.
 
@@ -269,6 +285,7 @@ ${topicHint ? `Focus types: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix: word analogies, odd-one-out, code-breaking, word relationships, synonyms/antonyms.
 All MCQ, 4 options, exactly one correct answer.
@@ -283,6 +300,7 @@ Output ONLY valid JSON:
 Difficulty: ${tier.desc}
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Represent shapes/patterns using ASCII-safe text only.
 Types: series completion (△ ○ □ △ ○ ___), matrix problems (rows/columns of shapes), odd-one-out by property, rotation/reflection described in words, analogies.
@@ -314,6 +332,7 @@ Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix:
 - 2× MCQ factual recall: ${MCQ}
@@ -342,6 +361,7 @@ Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix: 3× MCQ, 1× free-text (name/locate/describe a maximum of one sentence), 1× MCQ data/map interpretation.
 
@@ -364,6 +384,7 @@ Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix: 2× MCQ factual, 1× MCQ source/evidence interpretation, 1× free-text cause-and-consequence (1 sentence expected), 1× MCQ significance/chronology.
 
@@ -380,6 +401,7 @@ Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 All MCQ, 4 options, exactly one correct answer. Focus on computational thinking and digital literacy.
 
@@ -399,6 +421,7 @@ Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 
 Mix: 3× MCQ, 1× fill-blank: ${FILL}, 1× MCQ application/analysis.
 
@@ -413,6 +436,7 @@ Difficulty: ${tier.desc}
 ${topicHint ? `Topics: ${topicHint}` : ''}
 ${HINTS_RULE}
 ${UNIQUENESS_RULE}
+${NO_VISUAL_REFS_RULE}
 Output ONLY valid JSON: {"questions":[${MCQ}]}`;
 }
 
@@ -429,6 +453,13 @@ function validateQuestion(q) {
   // ── Duplicate option check ─────────────────────────────────────────────
   const uniqOpts = new Set(q.opts.map(o => String(o).toLowerCase().trim()));
   if (uniqOpts.size < q.opts.length) return false;
+
+  // ── Orphan visual reference gate ──────────────────────────────────────
+  // Reject questions that reference images/diagrams that don't exist
+  const qLower = (q.q || '').toLowerCase();
+  if (/look at|shown below|shown above|the diagram|the picture|the image|the chart shows|the graph shows|the table below|the map shows|refer to the|see the diagram|figure \d/i.test(qLower)) {
+    return false; // AI hallucinated a visual reference — reject
+  }
 
   // ── Math verification gate ─────────────────────────────────────────────
   // For questions with arithmetic expressions, verify the answer is correct
@@ -589,6 +620,26 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
       seenTexts.add(normalise(q.q));
       seenFingerprints.add(fingerprint(q.q));
 
+      // ── Detect if this question needs a generated visual ───────────────
+      const qLower = (q.q || '').toLowerCase();
+      const refersToVisual = /look at|the diagram|the graph|the chart|the table|the picture|the image|the map|shown below|shown above/.test(qLower);
+      const benefitsFromVisual = (
+        (['science', 'basic_science', 'biology', 'chemistry', 'physics'].includes(subject)
+          && /cell|organ|skeleton|food chain|circuit|magnet|solar system|water cycle|photosynthesis|respiration|atom|molecule|force/.test(qLower))
+        || (['geography', 'hass', 'social_studies'].includes(subject)
+          && /continent|country|ocean|river|mountain|climate|map|region/.test(qLower))
+        || (['mathematics', 'math'].includes(subject) && grade >= 5
+          && /graph|plot|coordinate|quadratic|parabola|bar chart|pie chart|histogram|y\s*=/.test(qLower))
+      );
+      const needsVis = refersToVisual || benefitsFromVisual;
+      const imgType = needsVis ? (
+        /graph|parabola|quadratic|coordinate|plot|y\s*=/.test(qLower) ? 'graph' :
+        /map|continent|country|ocean|region/.test(qLower) ? 'map' :
+        /chart|bar chart|pie chart|histogram|tally/.test(qLower) ? 'chart' :
+        /table|data table|timetable|frequency/.test(qLower) ? 'data_table' :
+        'diagram'
+      ) : null;
+
       toInsert.push({
         curriculum: curriculumKey,
         subject,
@@ -598,6 +649,9 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
         question_data: JSON.stringify(q),
         batch_id: batchId,
         created_at: new Date().toISOString(),
+        needs_visual:  needsVis,
+        visual_status: needsVis ? 'pending' : 'none',
+        image_type:    imgType,
       });
       if (toInsert.length >= needed) break;
     }

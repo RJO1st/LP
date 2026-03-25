@@ -31,6 +31,12 @@ function validateGeneratedQuestion(q, idx) {
     return null;
   }
 
+  // Reject questions that reference non-existent visuals
+  if (/look at|shown below|shown above|the diagram|the picture|the image|the chart shows|the graph shows|the table below|the map shows|refer to the|see the diagram|figure \d/i.test(q.q)) {
+    console.warn(`[generate] Q${idx + 1} rejected — references non-existent visual`);
+    return null;
+  }
+
   // ── Math arithmetic verification ──────────────────────────────────
 
   const text = `${q.q} ${q.exp || ''}`;
@@ -85,10 +91,21 @@ const MATH_ACCURACY_RULES = `
 // Rotate through ultra-cheap models to spread cost and avoid rate limits.
 // All are $0.10–$0.20 per 1M input tokens — orders of magnitude cheaper than Claude.
 const GENERATE_MODELS = [
-  'openai/gpt-4o-mini',           // $0.15/$0.60 per 1M — best quality/cost
-  'google/gemini-flash-1.5',      // $0.075/$0.30 per 1M — very fast
-  'deepseek/deepseek-chat-v3-0324', // $0.14/$0.28 per 1M — strong reasoning
-  'qwen/qwen-2.5-72b-instruct',  // $0.18/$0.18 per 1M — good maths
+  'openai/gpt-4o-mini',                          // $0.15/$0.60 per 1M — reliable baseline
+  'google/gemini-2.5-flash-lite-preview-09-2025', // ultra-cheap Gemini
+  'google/gemini-2.0-flash-lite-001',             // fast Gemini lite
+  'deepseek/deepseek-v3.2',                       // strong reasoning
+  'qwen/qwen3-30b-a3b-instruct-2507',            // strong maths
+  'openai/gpt-oss-20b',                           // compact OpenAI
+  'openai/gpt-oss-120b',                          // larger OpenAI
+  'xiaomi/mimo-v2-flash',                         // fast + cheap
+  'meta-llama/llama-3.3-70b-instruct',           // strong instruction following
+  'mistralai/mistral-small-3.1-24b-instruct',    // fast Mistral
+  'arcee-ai/trinity-large-preview:free',          // free tier
+  'google/gemma-3-27b-it:free',                   // free tier
+  'qwen/qwen3.5-9b',                              // compact Qwen
+  'microsoft/phi-4',                               // strong reasoning for size
+  'meta-llama/llama-4-scout:free',                // free tier
 ];
 let modelIndex = 0;
 function getNextModel() {
@@ -120,6 +137,7 @@ export async function POST(req) {
     4. Current Proficiency: ${proficiency}/100. Adjust mission difficulty accordingly.
     5. Avoid duplicating these recent questions: ${JSON.stringify(previousQuestions || []).slice(0, 500)}.
     6. Each question MUST include a "topic" field describing the specific topic area.
+    7. VISUAL REFERENCES BAN: NEVER write "look at the diagram", "the picture shows", "shown below", "as seen in the image", "refer to the graph", "the table below", or ANY phrase implying an image/diagram/picture/chart/map is attached. The student sees ONLY your text — no images. All information must be self-contained in the question text. Describe shapes in words. Write data inline.
 
     OUTPUT FORMAT:
     Strict JSON only: {"questions": [{"q": "Question text", "opts": ["A","B","C","D"], "a": 0, "exp": "Explanation text", "topic": "specific topic"}]}`;

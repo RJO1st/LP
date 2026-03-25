@@ -71,6 +71,38 @@
     {
       "path": "/api/batch-generate?curriculum=ib_myp",
       "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40&type=graph",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40&type=diagram",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40&type=diagram",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40&type=map",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/generate-visuals?limit=40&retry=true",
+      "schedule": "0 22 * * *"
     }
   ]
 }

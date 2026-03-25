@@ -559,7 +559,20 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
 
   const { data, error } = await q;
   if (error) console.warn('[fetchQuestions] error:', error.message, `| ${dbSubject}/${dbCurriculum}/Y${year}`);
-  return data ?? [];
+
+  // Boost questions that have visuals — scholars learn better with images.
+  // Sort: questions with image_url first, then those with question_data visual hints, then rest.
+  // Within each tier, maintain random order so sessions feel fresh.
+  const rows = data ?? [];
+  if (rows.length > 1) {
+    rows.sort((a, b) => {
+      const aHas = (a.image_url ? 2 : 0) + (a.needs_visual && a.visual_status === 'generated' ? 1 : 0);
+      const bHas = (b.image_url ? 2 : 0) + (b.needs_visual && b.visual_status === 'generated' ? 1 : 0);
+      if (aHas !== bHas) return bHas - aHas; // visual questions first
+      return Math.random() - 0.5; // random within same tier
+    });
+  }
+  return rows;
 }
 
 /**
