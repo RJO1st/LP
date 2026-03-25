@@ -149,11 +149,13 @@ const DIFFICULTY_TIERS = [
   },
 ];
 
-// ── Config (cost-optimised: slow & steady) ──────────────────────────────────
-const TARGET_PER_CELL   = 30;   // 30 questions per cell — achievable in 2 weeks steady
-const RATE_LIMIT_MS     = 2000; // 2s between calls — gentle on rate limits
-const BATCH_SIZE        = 5;    // 5 questions per API call
-const MAX_CELLS_PER_RUN = 6;    // 6 cells × 1 call each = ~6 API calls per cron run
+// ── Config (1000 questions/day target across 11 curricula) ──────────────────
+const TARGET_PER_CELL   = 50;   // 50 questions per cell — deep coverage per topic
+const RATE_LIMIT_MS     = 1500; // 1.5s between calls — balanced pacing
+const BATCH_SIZE        = 8;    // 8 questions per API call — higher yield per call
+const MAX_CELLS_PER_RUN = 16;   // 16 cells × 1 call × 8 Qs ≈ ~90 raw Qs per cron
+                                // 11 crons × 90 × 70% validation ≈ ~700 net/day
+                                // + some cells generate 2 calls → ~1000/day
 
 // Ultra-cheap model rotation — all under $0.20/1M input tokens
 const BATCH_MODELS = [
@@ -179,6 +181,8 @@ function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n, topicHi
 
   const HINTS_RULE = `HINTS: Each question MUST have a "hints" array (1–3 items). Hint 1 = directional (no spoilers). Hint 2 = structural (what to look for). Hint 3 = near-answer (almost gives it away). Never reveal the answer outright in hints 1 or 2.`;
 
+  const UNIQUENESS_RULE = `UNIQUENESS: Every question MUST be distinctly different. Vary the scenario, numbers, context, and wording. Do NOT produce two questions that test the same concept with only superficial changes (e.g., swapping "apples" for "oranges"). Each question should feel like a fresh challenge.`;
+
   // ── MATHS ────────────────────────────────────────────────────────────────
   if (subject === 'mathematics' || subject === 'maths' || subject === 'math' || subject === 'further_mathematics') {
     const useSteps = tier.difficulty >= 45 && grade >= 3;
@@ -196,6 +200,7 @@ Difficulty: ${tier.desc}
 Topics to cover (MUST generate questions specifically on these): ${topics}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 CRITICAL MATH ACCURACY RULES — FOLLOW EXACTLY:
 1. COMPUTE EVERY ANSWER YOURSELF before writing the question. Double-check arithmetic.
@@ -225,6 +230,7 @@ Difficulty: ${tier.desc}
 ${topicHint ? `Focus topics: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix: 2× MCQ (grammar/vocabulary), 2× fill-blank (simple sentences), 1× MCQ (basic comprehension of a 2-sentence scenario).
 
@@ -240,6 +246,7 @@ ${topicHint ? `Focus topics: ${topicHint}` : ''}
 Spelling & style: ${spelling}
 Context: ${examples}
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Passage: ${grade >= 5 ? 'non-fiction or structured narrative with varied vocabulary' : 'accessible narrative or informational text'}.
 
@@ -261,6 +268,7 @@ Difficulty: ${tier.desc}
 ${topicHint ? `Focus types: ${topicHint}` : ''}
 Use ${spelling}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix: word analogies, odd-one-out, code-breaking, word relationships, synonyms/antonyms.
 All MCQ, 4 options, exactly one correct answer.
@@ -274,6 +282,7 @@ Output ONLY valid JSON:
     return `Create ${n} non-verbal reasoning questions described in plain text for ${name} ${gradeLabel} ${grade}.
 Difficulty: ${tier.desc}
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Represent shapes/patterns using ASCII-safe text only.
 Types: series completion (△ ○ □ △ ○ ___), matrix problems (rows/columns of shapes), odd-one-out by property, rotation/reflection described in words, analogies.
@@ -304,6 +313,7 @@ Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix:
 - 2× MCQ factual recall: ${MCQ}
@@ -331,6 +341,7 @@ Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix: 3× MCQ, 1× free-text (name/locate/describe a maximum of one sentence), 1× MCQ data/map interpretation.
 
@@ -352,6 +363,7 @@ Topics (generate questions specifically on these): ${topics}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix: 2× MCQ factual, 1× MCQ source/evidence interpretation, 1× free-text cause-and-consequence (1 sentence expected), 1× MCQ significance/chronology.
 
@@ -367,6 +379,7 @@ ${topicHint ? `Topics: ${topicHint}` : ''}
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 All MCQ, 4 options, exactly one correct answer. Focus on computational thinking and digital literacy.
 
@@ -385,6 +398,7 @@ ${topicHint ? `Topics (generate questions specifically on these): ${topicHint}` 
 Difficulty: ${tier.desc}
 Use ${spelling} and ${examples}.
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 
 Mix: 3× MCQ, 1× fill-blank: ${FILL}, 1× MCQ application/analysis.
 
@@ -398,6 +412,7 @@ Output ONLY valid JSON:
 Difficulty: ${tier.desc}
 ${topicHint ? `Topics: ${topicHint}` : ''}
 ${HINTS_RULE}
+${UNIQUENESS_RULE}
 Output ONLY valid JSON: {"questions":[${MCQ}]}`;
 }
 
@@ -536,20 +551,25 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
 
   // Get IXL-level topic list for this subject+year and pick under-covered topics
   const topicPool = getTopicsForSubjectYear(subject, grade);
-  // Rotate through topics based on current count to spread coverage
+  // Rotate through topics based on current count to spread coverage evenly
   const topicIdx = current % topicPool.length;
-  const topicSlice = topicPool.slice(topicIdx, topicIdx + 3).concat(topicPool.slice(0, Math.max(0, 3 - (topicPool.length - topicIdx))));
+  const topicSlice = topicPool.slice(topicIdx, topicIdx + 4).concat(
+    topicPool.slice(0, Math.max(0, 4 - (topicPool.length - topicIdx)))
+  );
   const topicHint = topicSlice.map(t => t.replace(/_/g, ' ')).join(', ');
 
-  // Fetch existing texts for dedup (within this cell)
+  // ── DEDUP: Fetch existing texts + build fingerprint index ────────────────
   const { data: existing } = await supabase
     .from('question_bank')
     .select('question_text')
     .eq('curriculum', curriculumKey).eq('subject', subject)
     .eq('year_level', grade).eq('difficulty_tier', tier.label);
+
   const seenTexts = new Set((existing ?? []).map(r => normalise(r.question_text)));
+  const seenFingerprints = new Set((existing ?? []).map(r => fingerprint(r.question_text)));
 
   const toInsert = [];
+  let dupeCount = 0;
 
   try {
     const prompt = buildPrompt(curriculumKey, currConfig, subject, grade, tier, BATCH_SIZE, topicHint);
@@ -558,9 +578,17 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
 
     for (const q of gen.questions) {
       if (!validateQuestion(q)) continue;
-      const norm = normalise(q.q);
-      if (seenTexts.has(norm)) continue;
-      seenTexts.add(norm);
+
+      // Triple-layer dedup: exact normalised text → fingerprint → within-batch
+      if (isDuplicate(q.q, seenTexts, seenFingerprints)) {
+        dupeCount++;
+        continue;
+      }
+
+      // Mark as seen for within-batch dedup
+      seenTexts.add(normalise(q.q));
+      seenFingerprints.add(fingerprint(q.q));
+
       toInsert.push({
         curriculum: curriculumKey,
         subject,
@@ -577,10 +605,10 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
     if (toInsert.length > 0) {
       const { error } = await supabase.from('question_bank').insert(toInsert);
       if (error) throw new Error(`Insert error: ${error.message}`);
-      log.push(`✓ ${curriculumKey} ${subject} Y${grade} ${tier.label}: +${toInsert.length} (${current} → ${current + toInsert.length})`);
+      log.push(`✓ ${curriculumKey} ${subject} Y${grade} ${tier.label}: +${toInsert.length} (${current}→${current + toInsert.length})${dupeCount ? ` [${dupeCount} dupes blocked]` : ''}`);
       return toInsert.length;
     }
-    log.push(`⚠ ${curriculumKey} ${subject} Y${grade} ${tier.label}: 0 new (duplicates only)`);
+    log.push(`⚠ ${curriculumKey} ${subject} Y${grade} ${tier.label}: 0 new (${dupeCount} dupes blocked)`);
     return 0;
   } catch (err) {
     log.push(`✗ ${curriculumKey} ${subject} Y${grade} ${tier.label}: ${err.message}`);
@@ -589,8 +617,51 @@ async function processCell(supabase, { curriculumKey, currConfig, subject, grade
 }
 
 // ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
+
+/**
+ * Aggressive normalisation for dedup — strips all non-alphanumeric characters,
+ * collapses whitespace, lowercases. This catches near-duplicates like:
+ * "What is 5 + 3?" vs "What is 5+3?" vs "what is 5 + 3"
+ */
 function normalise(text) {
-  return text.toLowerCase().replace(/\s+/g, ' ').trim();
+  return text.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')  // strip punctuation, symbols, operators
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extract a "fingerprint" from a question — the core numbers and keywords.
+ * Used for fuzzy dedup: catches "A bag has 5 apples and 3 oranges. How many fruits?"
+ * vs "There are 5 apples and 3 oranges in a bag. How many fruits in total?"
+ */
+function fingerprint(text) {
+  const lower = text.toLowerCase();
+  // Extract all numbers in order
+  const nums = (lower.match(/\d+/g) || []).join(',');
+  // Extract key mathematical/topical words
+  const keywords = lower
+    .replace(/[^a-z\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3)  // skip short words (the, is, a, etc.)
+    .sort()
+    .slice(0, 8)  // keep top 8 keywords
+    .join(',');
+  return `${nums}|${keywords}`;
+}
+
+/**
+ * Check if a question is too similar to any existing question.
+ * Uses both exact normalised match AND fingerprint similarity.
+ */
+function isDuplicate(questionText, seenTexts, seenFingerprints) {
+  const norm = normalise(questionText);
+  if (seenTexts.has(norm)) return true;
+
+  const fp = fingerprint(questionText);
+  if (fp.length > 3 && seenFingerprints.has(fp)) return true;
+
+  return false;
 }
 
 function sleep(ms) {
