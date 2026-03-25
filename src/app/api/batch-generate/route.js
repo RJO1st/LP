@@ -149,12 +149,22 @@ const DIFFICULTY_TIERS = [
   },
 ];
 
-// ── Config ──────────────────────────────────────────────────────────────────
-const TARGET_PER_CELL   = 50;   // IXL-level coverage: 50 questions per topic cell
-const RATE_LIMIT_MS     = 1200;
-const BATCH_SIZE        = 5;
-const MAX_CELLS_PER_RUN = 12;   // Increased for daily runs
-const MODEL             = 'openai/gpt-4o-mini';
+// ── Config (cost-optimised: slow & steady) ──────────────────────────────────
+const TARGET_PER_CELL   = 30;   // 30 questions per cell — achievable in 2 weeks steady
+const RATE_LIMIT_MS     = 2000; // 2s between calls — gentle on rate limits
+const BATCH_SIZE        = 5;    // 5 questions per API call
+const MAX_CELLS_PER_RUN = 6;    // 6 cells × 1 call each = ~6 API calls per cron run
+
+// Ultra-cheap model rotation — all under $0.20/1M input tokens
+const BATCH_MODELS = [
+  'openai/gpt-4o-mini',              // $0.15/$0.60 per 1M
+  'google/gemini-flash-1.5',         // $0.075/$0.30 per 1M
+  'deepseek/deepseek-chat-v3-0324',  // $0.14/$0.28 per 1M
+  'qwen/qwen-2.5-72b-instruct',     // $0.18/$0.18 per 1M
+];
+function pickBatchModel() {
+  return BATCH_MODELS[Math.floor(Math.random() * BATCH_MODELS.length)];
+}
 
 // ─── PROMPT BUILDER ──────────────────────────────────────────────────────────
 function buildPrompt(curriculumKey, currConfig, subject, grade, tier, n, topicHint) {
@@ -448,8 +458,9 @@ function validateQuestion(q) {
   return true;
 }
 
-// ─── OPENROUTER CALLER ───────────────────────────────────────────────────────
+// ─── OPENROUTER CALLER (with model rotation) ────────────────────────────────
 async function callOpenRouter(prompt) {
+  const model = pickBatchModel();
   const controller = new AbortController();
   const timeout    = setTimeout(() => controller.abort(), 45_000);
   try {
@@ -462,25 +473,25 @@ async function callOpenRouter(prompt) {
         'X-Title':       'LaunchPard Batch',
       },
       body: JSON.stringify({
-        model:    MODEL,
+        model,
         messages: [
           { role: 'system', content: 'Output ONLY valid JSON. No markdown fences. No trailing commas. No commentary.' },
           { role: 'user',   content: prompt },
         ],
-        max_tokens: 6000, temperature: 0.8,
+        max_tokens: 4000, temperature: 0.8,
       }),
     });
     clearTimeout(timeout);
-    if (!res.ok) { const t = await res.text(); throw new Error(`OpenRouter ${res.status}: ${t.slice(0, 200)}`); }
+    if (!res.ok) { const t = await res.text(); throw new Error(`OpenRouter ${res.status} (${model}): ${t.slice(0, 200)}`); }
     const data = await res.json();
     const raw  = (data.choices[0].message.content || '')
       .trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
     const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) throw new Error('No JSON object found');
+    if (start === -1 || end === -1) throw new Error(`No JSON object found (model: ${model})`);
     return JSON.parse(raw.slice(start, end + 1));
   } catch (err) {
     clearTimeout(timeout);
-    throw err.name === 'AbortError' ? new Error('OpenRouter timed out') : err;
+    throw err.name === 'AbortError' ? new Error(`OpenRouter timed out (${model})`) : err;
   }
 }
 
@@ -627,7 +638,7 @@ async function handleBatch(req) {
     await supabase.from('batch_log').insert({
       batch_id: batchId, curriculum: curriculumKey,
       subject: subjectOverride || 'mixed', questions_generated: 0,
-      model_used: MODEL, status: 'running',
+      model_used: 'rotating', status: 'running',
     });
 
     // Calculate priority cells (1 RPC call)

@@ -1,36 +1,55 @@
 import { NextResponse } from 'next/server';
 
+// Chat uses Claude via OpenRouter — quality matters for student-facing conversation
+const CHAT_MODEL = 'anthropic/claude-3.5-haiku';  // $0.80/$4.00 per 1M — fast + cheap Claude
+
 export async function POST(req) {
   try {
     const { system, messages } = await req.json();
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: "Communications offline: OPENROUTER_API_KEY missing" }, { status: 500 });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
-        "anthropic-version": "2023-06-01"
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://launchpard.com",
+        "X-Title": "LaunchPard Chat",
       },
       body: JSON.stringify({
-        model: "claude-3-sonnet-20240229", // Updated to a currently valid model ID just in case
+        model: CHAT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: system || "You are Mission Control, a warm and encouraging AI copilot helping Cadets prepare for their 11+ exams. Use space-themed metaphors (e.g., 'trajectory', 'orbit', 'fuel levels', 'liftoff') to explain concepts, but ensure the educational advice remains clear, simple, and accurate for a 7-11 year old.",
+          },
+          ...messages,
+        ],
         max_tokens: 300,
-        // REBRAND: Updated default persona to Mission Control
-        system: system || "You are Mission Control, a warm and encouraging AI copilot helping Cadets prepare for their 11+ exams. Use space-themed metaphors (e.g., 'trajectory', 'orbit', 'fuel levels', 'liftoff') to explain concepts, but ensure the educational advice remains clear, simple, and accurate for a 7-11 year old.",
-        messages: messages
+        temperature: 0.7,
       })
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API Error:", errorText);
+      console.error(`[chat] OpenRouter ${response.status}:`, errorText.slice(0, 200));
       throw new Error("AI Chat Error");
     }
 
     const data = await response.json();
-    
+    const text = data.choices?.[0]?.message?.content || '';
+
     // Return the specific format the QuizEngine expects
     return NextResponse.json({
-      content: [{ text: data.content[0].text }]
+      content: [{ text }]
     });
 
   } catch (error) {

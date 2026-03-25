@@ -81,18 +81,33 @@ const MATH_ACCURACY_RULES = `
     H. SELF-CHECK: After generating each question, mentally verify: question text → compute → does option[a] match your computed answer?
     I. For word problems, ensure ALL numbers mentioned in the problem text are consistent with the question and answer.`;
 
+// ─── OPENROUTER CHEAP MODEL ROTATION ────────────────────────────────────────
+// Rotate through ultra-cheap models to spread cost and avoid rate limits.
+// All are $0.10–$0.20 per 1M input tokens — orders of magnitude cheaper than Claude.
+const GENERATE_MODELS = [
+  'openai/gpt-4o-mini',           // $0.15/$0.60 per 1M — best quality/cost
+  'google/gemini-flash-1.5',      // $0.075/$0.30 per 1M — very fast
+  'deepseek/deepseek-chat-v3-0324', // $0.14/$0.28 per 1M — strong reasoning
+  'qwen/qwen-2.5-72b-instruct',  // $0.18/$0.18 per 1M — good maths
+];
+let modelIndex = 0;
+function getNextModel() {
+  const model = GENERATE_MODELS[modelIndex % GENERATE_MODELS.length];
+  modelIndex++;
+  return model;
+}
+
 export async function POST(req) {
   try {
     const { year, region, subject, count, proficiency, previousQuestions, guide } = await req.json();
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: "Mission Control Offline: API Key missing" }, { status: 500 });
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: "Mission Control Offline: OPENROUTER_API_KEY missing" }, { status: 500 });
     }
 
     const age = parseInt(year) + 4; // Approximates age based on UK school year
     const isMathSubject = /math|maths|mathematics/i.test(subject);
 
-    // REBRAND: Persona updated to Mission Control (Flight Instructor)
     const prompt = `You are Mission Control, an expert AI flight instructor for UK Primary School students (Cadets).
     Generate ${count} multiple-choice questions for a Year ${year} Cadet (Age ${age}-${age+1}) in ${subject}.
 
@@ -109,35 +124,51 @@ export async function POST(req) {
     OUTPUT FORMAT:
     Strict JSON only: {"questions": [{"q": "Question text", "opts": ["A","B","C","D"], "a": 0, "exp": "Explanation text", "topic": "specific topic"}]}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const model = getNextModel();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://launchpard.com",
+        "X-Title": "LaunchPard Generate",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", // Restored your specific model ID
-        max_tokens: 1500,
-        system: "You are a JSON generator. You output valid raw JSON only. No preamble.",
-        messages: [{ role: "user", content: prompt }]
+        model,
+        messages: [
+          { role: "system", content: "You are a JSON generator. You output valid raw JSON only. No markdown fences. No preamble. No trailing commas." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 2000,
+        temperature: 0.7,
       })
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API Error:", errorText);
+      console.error(`[generate] OpenRouter ${response.status} (${model}):`, errorText.slice(0, 200));
       throw new Error("Mission Control uplink failed");
     }
 
     const data = await response.json();
-    const textContent = data.content[0].text;
+    const raw = (data.choices?.[0]?.message?.content || '')
+      .trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+
+    // Extract JSON object safely
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('No JSON object in response');
+    const textContent = raw.slice(start, end + 1);
 
     // Safety parse + post-generation validation
     try {
       const parsed = JSON.parse(textContent);
 
-      // Validate each question, filtering out bad ones
       if (parsed.questions && Array.isArray(parsed.questions)) {
         const before = parsed.questions.length;
         parsed.questions = parsed.questions
@@ -146,19 +177,18 @@ export async function POST(req) {
 
         const rejected = before - parsed.questions.length;
         if (rejected > 0) {
-          console.warn(`[generate] Post-validation: ${rejected}/${before} questions rejected`);
+          console.warn(`[generate] Post-validation: ${rejected}/${before} questions rejected (model: ${model})`);
         }
 
-        // If all questions were rejected, return an error
         if (parsed.questions.length === 0) {
-          console.error('[generate] All generated questions failed validation');
+          console.error(`[generate] All questions failed validation (model: ${model})`);
           return NextResponse.json({ error: "All generated questions failed quality checks" }, { status: 500 });
         }
       }
 
       return NextResponse.json(parsed);
     } catch (e) {
-      console.error("JSON Parse Error:", textContent);
+      console.error("JSON Parse Error:", textContent?.slice(0, 200));
       return NextResponse.json({ error: "Corrupted flight data received" }, { status: 500 });
     }
 

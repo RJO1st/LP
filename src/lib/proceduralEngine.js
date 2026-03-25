@@ -1708,22 +1708,20 @@ export const generateLocalBiology = (year) => {
     id: null,
   };
 };
-// ─── FETCH CLAUDE RESPONSE ────────────────────────────────────────────────────
+// ─── FETCH AI RESPONSE (via /api/chat → OpenRouter) ──────────────────────────
 export const fetchClaudeResponse = async (prompt, system) => {
   try {
     const response = await fetch("/api/chat", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
-        model:     "claude-sonnet-4-6",
-        max_tokens: 300,
         system,
-        messages:  [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: prompt }],
       }),
     });
     const data = await response.json();
-    return data?.content?.[0]?.text ?? "Tara says: That's a great effort! Explaining your thinking is the secret to becoming a master scholar. ✨ Keep going!";
+    return data?.content?.[0]?.text ?? "Tara says: That's a great effort! Explaining your thinking is the secret to becoming a master scholar. Keep going!";
   } catch (err) {
-    return "Tara says: That's a great effort! Explaining your thinking is the secret to becoming a master scholar. ✨ Keep going!";
+    return "Tara says: That's a great effort! Explaining your thinking is the secret to becoming a master scholar. Keep going!";
   }
 };
