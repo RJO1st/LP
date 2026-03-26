@@ -1,0 +1,500 @@
+#!/usr/bin/env node
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * LaunchPard — Visual Repurposing Migration
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Scans existing questions in the DB and enriches them with visual metadata
+ * so MathsVisualiser's resolveVisual() can auto-render them.
+ *
+ * What it does:
+ *   1. Fetches questions that don't yet have visual metadata (visual_status = 'none')
+ *   2. Runs the same detection logic as MathsVisualiser.resolveVisual()
+ *   3. Updates question_data with inline visual hints and sets visual_status = 'auto'
+ *   4. Optionally enriches question_data with visual-friendly numeric data
+ *
+ * Usage:
+ *   node scripts/repurposeVisualsInDB.js                    # full scan + update
+ *   node scripts/repurposeVisualsInDB.js --dry-run           # preview without DB writes
+ *   node scripts/repurposeVisualsInDB.js --subject mathematics # single subject
+ *   node scripts/repurposeVisualsInDB.js --curriculum uk_national # single curriculum
+ *   node scripts/repurposeVisualsInDB.js --limit 500          # process N questions max
+ *   node scripts/repurposeVisualsInDB.js --batch-size 100     # DB fetch batch size
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+const { createClient } = require("@supabase/supabase-js");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env.local") });
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// ── CLI args ─────────────────────────────────────────────────────────────────
+const args = process.argv.slice(2);
+function getArg(name) {
+  const idx = args.indexOf(`--${name}`);
+  return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : null;
+}
+const hasFlag = (name) => args.includes(`--${name}`);
+
+const DRY_RUN = hasFlag("dry-run");
+const FILTER_SUBJECT = getArg("subject");
+const FILTER_CURRICULUM = getArg("curriculum");
+const LIMIT = parseInt(getArg("limit") || "30000");
+const BATCH_SIZE = parseInt(getArg("batch-size") || "500");
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VISUAL TYPE DETECTION — mirrors MathsVisualiser.resolveVisual() logic
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Returns { type, ...metadata } or null if no visual can be auto-detected.
+ * The metadata enriches question_data so the frontend renderer can build the visual.
+ */
+function detectAndEnrich(questionText, topic, subject, yearLevel) {
+  const q = (questionText || "").toLowerCase();
+  const t = (topic || "").toLowerCase();
+  const subj = (subject || "").toLowerCase();
+
+  // ── MATHEMATICS VISUALS ────────────────────────────────────────────────────
+
+  if (["mathematics", "math", "maths", "further_mathematics"].includes(subj)) {
+
+    // NUMBER LINE
+    if (/number\s*line/i.test(q) || t.includes("number_line")) {
+      const nums = q.match(/-?\d+\.?\d*/g)?.map(Number) || [];
+      const min = nums.length ? Math.min(...nums) - 2 : 0;
+      const max = nums.length ? Math.max(...nums) + 2 : 10;
+      return { type: "number_line", min, max, marks: nums.slice(0, 5) };
+    }
+
+    // BAR CHART
+    if (/bar\s*chart|bar\s*graph/i.test(q) || t.includes("bar_chart")) {
+      const nums = q.match(/\d+/g)?.map(Number)?.filter(n => n < 500) || [];
+      if (nums.length >= 2) {
+        return { type: "bar_chart", labels: nums.map((_, i) => `Item ${i + 1}`), values: nums.slice(0, 6), title: "Data", yLabel: "Value" };
+      }
+    }
+
+    // PIE CHART
+    if (/pie\s*chart/i.test(q) || t.includes("pie_chart")) {
+      const nums = q.match(/\d+/g)?.map(Number)?.filter(n => n <= 100) || [];
+      if (nums.length >= 2) {
+        return { type: "pie_chart", slices: nums.slice(0, 5).map((v, i) => ({ label: `Slice ${i + 1}`, value: v })) };
+      }
+    }
+
+    // FRACTIONS
+    if (/fraction|½|⅓|¼|⅔|¾/i.test(q) || t.includes("fraction")) {
+      const fracMatch = q.match(/(\d+)\s*\/\s*(\d+)/);
+      if (fracMatch) {
+        return { type: "fraction", numerator: parseInt(fracMatch[1]), denominator: parseInt(fracMatch[2]) };
+      }
+      return { type: "fraction", numerator: 1, denominator: 4 };
+    }
+
+    // ANGLES
+    if (/angle|degree|protractor|°/i.test(q) || t.includes("angle")) {
+      const degMatch = q.match(/(\d+)\s*°|(\d+)\s*degree/i);
+      let degrees = degMatch ? parseInt(degMatch[1] || degMatch[2]) : null;
+      if (!degrees) {
+        if (/right angle/i.test(q)) degrees = 90;
+        else if (/acute/i.test(q)) degrees = 55;
+        else if (/obtuse/i.test(q)) degrees = 120;
+        else if (/reflex/i.test(q)) degrees = 210;
+        else degrees = 45;
+      }
+      return { type: "angle", degrees };
+    }
+
+    // COORDINATES
+    if (/coordinate|plot.*point|x-axis|y-axis|\(\s*-?\d+\s*,\s*-?\d+\s*\)/i.test(q) || t.includes("coordinate")) {
+      const pointMatches = [...q.matchAll(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)];
+      const points = pointMatches.map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]) }));
+      return { type: "coordinate_graph", points: points.length ? points : [{ x: 3, y: 4 }], gridSize: yearLevel >= 6 ? 10 : 5, showNegative: yearLevel >= 6 };
+    }
+
+    // VENN DIAGRAMS
+    if (/venn/i.test(q) || t.includes("venn")) {
+      return { type: "venn", labelA: "Set A", labelB: "Set B", setA: [], setB: [], intersection: [] };
+    }
+
+    // PICTOGRAM
+    if (/pictogram/i.test(q) || t.includes("pictogram")) {
+      return { type: "pictogram" };
+    }
+
+    // TALLY CHART
+    if (/tally/i.test(q) || t.includes("tally")) {
+      return { type: "tally_chart" };
+    }
+
+    // SYMMETRY
+    if (/symmetry|reflect/i.test(q) || t.includes("symmetry")) {
+      return { type: "symmetry" };
+    }
+
+    // AREA / PERIMETER
+    if (/area|perimeter/i.test(q) || t.includes("area") || t.includes("perimeter")) {
+      const dims = q.match(/(\d+)\s*cm/g)?.map(m => parseInt(m)) || [];
+      return {
+        type: "area",
+        width: dims[0] || 8,
+        height: dims[1] || dims[0] || 5,
+        mode: /perimeter/i.test(q) ? "perimeter" : "area",
+      };
+    }
+
+    // CLOCK / TIME
+    if (/o'clock|half past|quarter past|quarter to|:\d{2}\s*(am|pm)?/i.test(q) || t.includes("time") || t.includes("clock")) {
+      const oclockM = q.match(/(\d{1,2})\s*o'clock/i);
+      const halfM = q.match(/half past\s*(\d{1,2})/i);
+      const colonM = q.match(/(\d{1,2}):(\d{2})/);
+      if (oclockM) return { type: "clock", hours: parseInt(oclockM[1]), minutes: 0 };
+      if (halfM) return { type: "clock", hours: parseInt(halfM[1]), minutes: 30 };
+      if (colonM) return { type: "clock", hours: parseInt(colonM[1]), minutes: parseInt(colonM[2]) };
+      return { type: "clock", hours: 3, minutes: 0 };
+    }
+
+    // MONEY
+    if (/coins?|pence|£\d|change|pay/i.test(q) || t.includes("money")) {
+      const amountMatch = q.match(/£(\d+\.?\d*)|(\d+)p/);
+      const total = amountMatch ? (amountMatch[1] ? parseFloat(amountMatch[1]) * 100 : parseInt(amountMatch[2])) : 50;
+      return { type: "money", coins: [], total };
+    }
+
+    // PLACE VALUE
+    if (/place value|tens and ones|hundreds.*tens|hto/i.test(q) || t.includes("place_value")) {
+      const numMatch = q.match(/\b(\d{2,4})\b/);
+      const n = numMatch ? parseInt(numMatch[1]) : 42;
+      return { type: "place_value", tens: Math.floor(n / 10) % 10, ones: n % 10 };
+    }
+
+    // PERCENTAGE BAR
+    if (/percent|%/i.test(q) || t.includes("percentage")) {
+      const pctMatch = q.match(/(\d+)\s*%/);
+      return { type: "percentage_bar", percentage: pctMatch ? parseInt(pctMatch[1]) : 50 };
+    }
+
+    // PROBABILITY
+    if (/probability|likely|certain|impossible|chance/i.test(q) || t.includes("probability")) {
+      return { type: "probability" };
+    }
+
+    // RATIO
+    if (/ratio|:\s*\d/i.test(q) || t.includes("ratio")) {
+      const ratioMatch = q.match(/(\d+)\s*:\s*(\d+)/);
+      return { type: "ratio", partA: ratioMatch ? parseInt(ratioMatch[1]) : 2, partB: ratioMatch ? parseInt(ratioMatch[2]) : 3, labelA: "Part A", labelB: "Part B" };
+    }
+
+    // CONVERSION LADDER
+    if (/convert|mm.*cm|cm.*m(?:etre)?|g.*kg|ml.*l(?:itre)?|km/i.test(q) || t.includes("conversion")) {
+      return { type: "conversion_ladder" };
+    }
+
+    // THERMOMETER
+    if (/thermometer|temperature|°C|celsius/i.test(q) || t.includes("thermometer") || t.includes("temperature")) {
+      const tempMatch = q.match(/(-?\d+)\s*°/);
+      return { type: "thermometer", value: tempMatch ? parseInt(tempMatch[1]) : 20 };
+    }
+
+    // QUADRATIC
+    if (/quadratic|parabola|x²|x\^2/i.test(q) || t.includes("quadratic")) {
+      return { type: "quadratic", a: 1, roots: [-2, 2], vertex: { x: 0, y: -4 } };
+    }
+
+    // FORMULA TRIANGLE
+    if (/speed.*distance|distance.*time|formula triangle|s\s*=\s*d\s*÷/i.test(q) || t.includes("speed") || t.includes("formula_triangle")) {
+      return { type: "formula_triangle", top: "v", left: "d", right: "t", title: "Speed = Distance ÷ Time" };
+    }
+
+    // LINE GRAPH
+    if (/line\s*graph/i.test(q) || t.includes("line_graph")) {
+      return { type: "line_graph" };
+    }
+
+    // CARROLL DIAGRAM
+    if (/carroll/i.test(q) || t.includes("carroll")) {
+      return { type: "carroll_diagram" };
+    }
+
+    // RULER
+    if (/ruler|measure.*cm|cm.*long/i.test(q)) {
+      const cmMatch = q.match(/(\d+)\s*cm/);
+      return { type: "ruler", cm: cmMatch ? parseInt(cmMatch[1]) : 10 };
+    }
+
+    // NUMBER SEQUENCE
+    if (/sequence|pattern|next.*number|what comes next/i.test(q)) {
+      const nums = q.match(/\d+/g)?.map(Number)?.slice(0, 6) || [2, 4, 6, 8];
+      return { type: "number_sequence", sequence: nums, gapIndex: nums.length };
+    }
+
+    // DIVISION (sharing)
+    if (/share|divide.*equally|split.*into.*group/i.test(q)) {
+      const nums = q.match(/\d+/g)?.map(Number) || [];
+      if (nums.length >= 2) {
+        return { type: "division", total: nums[0], groups: nums[1] };
+      }
+    }
+  }
+
+  // ── SCIENCE VISUALS ──────────────────────────────────────────────────────
+
+  if (["science", "basic_science", "biology", "chemistry", "physics"].includes(subj)) {
+    if (/cell|organelle|nucleus|cytoplasm|mitochondr|chloroplast|membrane|vacuole/i.test(q)) {
+      const isPlant = /plant\s*cell|chloroplast|cell wall/i.test(q);
+      return { type: "cell", cellType: isPlant ? "plant" : "animal" };
+    }
+    if (/atom|proton|neutron|electron|atomic number|mass number/i.test(q)) {
+      const pMatch = q.match(/(\d+)\s*proton/i);
+      const nMatch = q.match(/(\d+)\s*neutron/i);
+      const eMatch = q.match(/(\d+)\s*electron/i);
+      return { type: "atom", protons: pMatch ? parseInt(pMatch[1]) : 6, neutrons: nMatch ? parseInt(nMatch[1]) : 6, electrons: eMatch ? parseInt(eMatch[1]) : 6 };
+    }
+    if (/ph\s*(scale|value)?|acid|alkali|neutral|litmus/i.test(q)) {
+      const phMatch = q.match(/ph\s*(?:of|=|is)\s*(\d+)/i);
+      return { type: "ph_scale", value: phMatch ? parseInt(phMatch[1]) : 7, substance: "solution" };
+    }
+    if (/wave|amplitude|frequency|wavelength|crest|trough/i.test(q)) {
+      const isLong = /longitudinal|compress/i.test(q);
+      return { type: "wave", waveType: isLong ? "longitudinal" : "transverse", amplitude: 1, frequency: 1 };
+    }
+    if (/force|newton|push|pull|friction|gravity|weight.*mass/i.test(q)) {
+      return { type: "free_body", forces: [] };
+    }
+    if (/circuit|battery|cell.*bulb|switch|series|parallel|resistor/i.test(q)) {
+      const isParallel = /parallel/i.test(q);
+      return { type: "circuit", circuitType: isParallel ? "parallel" : "series" };
+    }
+    if (/punnett|dominant|recessive|genotype|phenotype|allele/i.test(q)) {
+      return { type: "punnett", parent1: "Aa", parent2: "Aa", trait: "trait" };
+    }
+    if (/molecule|chemical formula|H₂O|CO₂|NaCl|CH₄/i.test(q)) {
+      if (/water|H₂O/i.test(q)) return { type: "molecule", formula: "H2O" };
+      if (/carbon dioxide|CO₂/i.test(q)) return { type: "molecule", formula: "CO2" };
+      if (/methane|CH₄/i.test(q)) return { type: "molecule", formula: "CH4" };
+      if (/salt|sodium chloride|NaCl/i.test(q)) return { type: "molecule", formula: "NaCl" };
+      return { type: "molecule", formula: "H2O" };
+    }
+    if (/solid|liquid|gas|melting|freezing|evaporat|condens|sublim|state.*matter/i.test(q)) {
+      return { type: "state_changes", highlighted: [] };
+    }
+    if (/energy store|kinetic|potential|thermal|elastic|chemical energy|gravitational/i.test(q)) {
+      return { type: "energy_stores", stores: [] };
+    }
+    if (/periodic table|element.*symbol|atomic mass/i.test(q)) {
+      return { type: "periodic_element" };
+    }
+    if (/electromagnetic|spectrum|gamma|x-ray|ultraviolet|infrared|microwave|radio wave/i.test(q)) {
+      return { type: "em_spectrum", highlighted: [] };
+    }
+    if (/motion.*graph|distance.*time.*graph|velocity.*time/i.test(q)) {
+      return { type: "motion_graph", motionType: "distance-time" };
+    }
+  }
+
+  // ── BUSINESS / ECONOMICS VISUALS ───────────────────────────────────────
+
+  if (["economics", "commerce", "business", "government"].includes(subj)) {
+    if (/t-account|debit|credit|ledger|double entry/i.test(q)) {
+      return { type: "t_account", account: "Account", debits: [], credits: [] };
+    }
+    if (/break.?even|fixed cost.*variable|total revenue.*total cost/i.test(q)) {
+      return { type: "break_even", fixedCost: 1000, variableCostPerUnit: 5, pricePerUnit: 10 };
+    }
+    if (/supply.*demand|equilibrium.*price|market.*price/i.test(q)) {
+      return { type: "supply_demand", eqPrice: 50, eqQty: 50 };
+    }
+  }
+
+  // ── NVR VISUALS ────────────────────────────────────────────────────────
+
+  if (subj === "nvr") {
+    if (/matrix|grid|pattern|which.*next|complete.*sequence/i.test(q)) {
+      return { type: "nvr_matrix", cells: [] };
+    }
+  }
+
+  // ── ENGLISH VISUALS ────────────────────────────────────────────────────
+
+  if (["english", "english_studies", "ela", "literature"].includes(subj)) {
+    if (/grammar|tense|noun|verb|adjective|adverb|clause/i.test(q)) {
+      return { type: "grammar", sentence: "", labels: [] };
+    }
+    if (/synonym|antonym/i.test(q)) {
+      return { type: "synonym_ladder", words: [], concept: "" };
+    }
+    if (/prefix|suffix|root word/i.test(q)) {
+      return { type: "word_builder" };
+    }
+    if (/alphabet|letter.*order|comes after/i.test(q)) {
+      return { type: "alphabet_strip", highlighted: [] };
+    }
+    if (/analogy|is to.*as/i.test(q)) {
+      return { type: "analogy" };
+    }
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN MIGRATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function main() {
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log("  LaunchPard — Visual Repurposing Migration");
+  console.log("═══════════════════════════════════════════════════════════════");
+  console.log(`  Mode:         ${DRY_RUN ? "DRY RUN (preview only)" : "LIVE (will update DB)"}`);
+  console.log(`  Batch size:   ${BATCH_SIZE}`);
+  console.log(`  Max questions: ${LIMIT}`);
+  if (FILTER_SUBJECT) console.log(`  Subject:      ${FILTER_SUBJECT}`);
+  if (FILTER_CURRICULUM) console.log(`  Curriculum:   ${FILTER_CURRICULUM}`);
+  console.log("═══════════════════════════════════════════════════════════════\n");
+
+  let totalProcessed = 0;
+  let totalEnriched = 0;
+  let totalSkipped = 0;
+  let offset = 0;
+
+  // Stats per visual type
+  const visualStats = {};
+
+  while (totalProcessed < LIMIT) {
+    // Fetch batch of questions without visual metadata
+    let query = supabase
+      .from("question_bank")
+      .select("id, question_text, question_data, subject, year_level, topic, visual_status, needs_visual, image_type")
+      .or("visual_status.eq.none,visual_status.is.null,needs_visual.eq.false,needs_visual.is.null")
+      .range(offset, offset + BATCH_SIZE - 1)
+      .order("id", { ascending: true });
+
+    if (FILTER_SUBJECT) query = query.eq("subject", FILTER_SUBJECT);
+    if (FILTER_CURRICULUM) query = query.eq("curriculum", FILTER_CURRICULUM);
+
+    const { data: rows, error } = await query;
+
+    if (error) {
+      console.error(`DB error: ${error.message}`);
+      break;
+    }
+    if (!rows || rows.length === 0) {
+      console.log("  No more questions to process.");
+      break;
+    }
+
+    const updates = [];
+
+    for (const row of rows) {
+      totalProcessed++;
+      if (totalProcessed > LIMIT) break;
+
+      // Parse existing question_data
+      let qData;
+      try {
+        qData = typeof row.question_data === "string" ? JSON.parse(row.question_data) : row.question_data || {};
+      } catch {
+        qData = {};
+      }
+
+      // Already has visual metadata in question_data?
+      if (qData.visual && qData.visual.type) {
+        totalSkipped++;
+        continue;
+      }
+
+      // Detect visual type
+      const visual = detectAndEnrich(
+        row.question_text || qData.q || "",
+        row.topic || qData.topic || "",
+        row.subject || "",
+        row.year_level || 5
+      );
+
+      if (!visual) {
+        totalSkipped++;
+        continue;
+      }
+
+      // Enrich question_data
+      qData.visual = visual;
+      // Add a unique identifier to avoid duplicate question_data conflicts
+      qData.visual._uniqueId = row.id;   // <--- FIX: adds unique field
+
+      // Track stats
+      visualStats[visual.type] = (visualStats[visual.type] || 0) + 1;
+
+      if (!DRY_RUN) {
+        updates.push({
+          id: row.id,
+          question_data: JSON.stringify(qData),
+          needs_visual: true,
+          visual_status: "auto",
+          image_type: visual.type,
+        });
+      }
+
+      totalEnriched++;
+    }
+
+    // Batch update
+    if (updates.length > 0 && !DRY_RUN) {
+      // Supabase doesn't support batch upsert by id easily, so we do individual updates
+      // grouped into small batches
+      for (let i = 0; i < updates.length; i++) {
+        const u = updates[i];
+        const { error: updateError } = await supabase
+          .from("question_bank")
+          .update({
+            question_data: u.question_data,
+            needs_visual: u.needs_visual,
+            visual_status: u.visual_status,
+            image_type: u.image_type,
+          })
+          .eq("id", u.id);
+
+        if (updateError) {
+          console.error(`  ✗ Update error for id ${u.id}: ${updateError.message}`);
+        }
+      }
+      console.log(`  ✓ Batch: ${updates.length} questions enriched (offset ${offset})`);
+    } else if (DRY_RUN && totalEnriched > 0) {
+      console.log(`  🔍 Batch: ${rows.length} scanned, ${totalEnriched - (totalProcessed - rows.length > 0 ? totalEnriched - updates.length : 0)} would be enriched (offset ${offset})`);
+    }
+
+    offset += BATCH_SIZE;
+
+    // Short delay to avoid hammering DB
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  // Summary
+  console.log("\n═══════════════════════════════════════════════════════════════");
+  console.log("  MIGRATION COMPLETE");
+  console.log(`  Processed:  ${totalProcessed} questions`);
+  console.log(`  Enriched:   ${totalEnriched} with visual metadata`);
+  console.log(`  Skipped:    ${totalSkipped} (no visual match or already enriched)`);
+  console.log("═══════════════════════════════════════════════════════════════");
+
+  if (Object.keys(visualStats).length > 0) {
+    console.log("\n  Visual type breakdown:");
+    const sorted = Object.entries(visualStats).sort((a, b) => b[1] - a[1]);
+    for (const [type, count] of sorted) {
+      const bar = "█".repeat(Math.min(40, Math.round((count / totalEnriched) * 40)));
+      console.log(`    ${type.padEnd(20)} ${String(count).padStart(5)}  ${bar}`);
+    }
+  }
+
+  console.log("");
+}
+
+main().catch((err) => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});

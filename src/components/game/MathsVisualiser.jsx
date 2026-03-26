@@ -2053,7 +2053,7 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
       { rx: /fish|fins|gills|scales/i, concept: "fish", label: "Fish", emoji: "🐟" },
       { rx: /mammal|fur|warm.blooded|milk/i, concept: "mammals", label: "Mammals", emoji: "🐾" },
     ];
-    const combo = (questionStr || "") + " " + (topic || "");
+    const combo = (questionStr || "") + " " + (t || "");
     for (const c of BASIC_CONCEPTS) {
       if (c.rx.test(combo)) {
         return { type: "basic_concept", concept: c.concept, label: c.label, emoji: c.emoji };

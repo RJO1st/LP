@@ -144,22 +144,46 @@ export default function AdminDashboard() {
   // ── Auth check (waits for session hydration) ─────────────────────────────
   useEffect(() => {
     const supabase = sb();
-    // Listen for auth state — fires immediately once session hydrates
+    let redirectTimer = null;
+
+    // First try getSession (may resolve instantly from cache)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
+      if (user && ADMIN_EMAILS.includes(user.email)) {
+        setAuthed(true);
+        loadData(supabase);
+      }
+    }).catch(() => {});
+
+    // Also listen for auth state changes (handles token refresh, sign-out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const user = session?.user;
-        if (!user || !ADMIN_EMAILS.includes(user.email)) {
-          // Only redirect after INITIAL_SESSION (hydration done, still no valid admin)
-          if (event === "INITIAL_SESSION" || event === "SIGNED_OUT") {
-            router.replace("/dashboard/parent");
-          }
+        if (user && ADMIN_EMAILS.includes(user.email)) {
+          setAuthed(true);
+          await loadData(supabase);
           return;
         }
-        setAuthed(true);
-        await loadData(supabase);
+        // Only redirect after hydration is confirmed done — give a small delay
+        // to avoid race where INITIAL_SESSION fires with null before token refresh
+        if (event === "INITIAL_SESSION" && !session) {
+          redirectTimer = setTimeout(() => {
+            // Double-check session before redirecting
+            supabase.auth.getSession().then(({ data: { session: s2 } }) => {
+              if (!s2?.user || !ADMIN_EMAILS.includes(s2.user.email)) {
+                router.replace("/dashboard/parent");
+              }
+            });
+          }, 1500);
+        } else if (event === "SIGNED_OUT") {
+          router.replace("/dashboard/parent");
+        }
       }
     );
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (redirectTimer) clearTimeout(redirectTimer);
+    };
   }, []);
 
   // ── Data loader ───────────────────────────────────────────────────────────
