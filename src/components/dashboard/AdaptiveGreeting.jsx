@@ -21,56 +21,28 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
+import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { AVATAR_ITEMS } from "@/lib/gamificationEngine";
+import AvatarRenderer from "@/components/game/AvatarRenderer";
+import LottieAvatar from "@/components/game/LottieAvatar";
 
-// ── Inline Avatar Display ──────────────────────────────────────────────────
-function GreetingAvatar({ avatar, onClick, band }) {
-  const BASE_EMOJI = {
-    astronaut: "👨‍🚀", explorer: "👩‍🚀", hero: "🦸", wizard: "🧙",
-    fox: "🦊", cat: "🐱", robot: "🤖", unicorn: "🦄",
-  };
-  const BG_MAP = {
-    planet: "from-purple-600 to-indigo-800",
-    galaxy: "from-slate-800 to-indigo-900",
-    sunset: "from-orange-500 to-rose-600",
-    ocean:  "from-cyan-600 to-blue-800",
-  };
-  const bgKey = avatar?.background;
-  const bgClass = BG_MAP[bgKey] || "from-indigo-700 to-violet-800";
-  const size = band === "ks1" ? 64 : band === "ks4" ? 44 : 52;
+// ── Avatar Display — Lottie primary, SVG fallback ───────────────────────────
+function GreetingAvatar({ avatar, onClick, band, questsCompleted, streak = 0, mastery = 0 }) {
+  const sizeKey = band === "ks1" ? "lg" : band === "ks4" ? "md" : "lg";
 
   return (
     <div
-      onClick={onClick}
-      style={{ width: size, height: size, cursor: onClick ? "pointer" : "default", position: "relative", flexShrink: 0 }}
+      style={{ cursor: onClick ? "pointer" : "default", position: "relative", flexShrink: 0 }}
       title={onClick ? "Customise avatar" : undefined}
     >
-      <div
-        className={`w-full h-full rounded-full bg-gradient-to-br ${bgClass} flex items-center justify-center shadow-lg`}
-        style={{ fontSize: size * 0.5, lineHeight: 1 }}
-      >
-        {BASE_EMOJI[avatar?.base] || "🚀"}
-      </div>
-      {avatar?.hat && AVATAR_ITEMS[avatar.hat] && (
-        <span style={{ position: "absolute", top: -4, right: -4, fontSize: size * 0.28 }}>
-          {AVATAR_ITEMS[avatar.hat].icon}
-        </span>
-      )}
-      {avatar?.pet && AVATAR_ITEMS[avatar.pet] && (
-        <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: size * 0.25 }}>
-          {AVATAR_ITEMS[avatar.pet].icon}
-        </span>
-      )}
-      {onClick && (
-        <div style={{
-          position: "absolute", bottom: -2, right: -2, width: 20, height: 20,
-          borderRadius: "50%", background: "#22d3ee", border: "2px solid white",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-        }}>✏️</div>
-      )}
+      <LottieAvatar
+        avatar={avatar}
+        size={sizeKey}
+        streak={streak}
+        mastery={mastery}
+        onClick={onClick}
+      />
     </div>
   );
 }
@@ -85,6 +57,7 @@ export default function AdaptiveGreeting({
   avatar,
   onAvatarClick,
   isFirstLogin = false,
+  questsCompleted = 0,
 }) {
   const { band, theme: t } = useTheme();
   const name = scholarName || "Scholar";
@@ -97,7 +70,7 @@ export default function AdaptiveGreeting({
     },
     ks3: {
       main: isFirstLogin ? `Welcome, ${name}.` : `Hey ${name}. Let's make progress.`,
-      sub: `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}${t.dashboard.showMasteryPct ? " · Top 15%" : ""}`,
+      sub: `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}`,
     },
     ks4: {
       main: `${name} · Year ${yearLevel || "11"}`,
@@ -106,9 +79,21 @@ export default function AdaptiveGreeting({
   };
 
   const g = greetings[band] || greetings.ks2;
+  const greetRef = useRef(null);
+
+  // ── GSAP entrance: fade-in + scale from center ──
+  useEffect(() => {
+    const el = greetRef.current;
+    if (!el) return;
+    gsap.fromTo(el,
+      { opacity: 0, y: -12, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out", delay: 0.1 }
+    );
+  }, []);
 
   return (
     <div
+      ref={greetRef}
       style={{
         display: "flex",
         alignItems: band === "ks1" ? "center" : "flex-start",
@@ -118,7 +103,7 @@ export default function AdaptiveGreeting({
       }}
     >
       {avatar && (
-        <GreetingAvatar avatar={avatar} onClick={onAvatarClick} band={band} />
+        <GreetingAvatar avatar={avatar} onClick={onAvatarClick} band={band} questsCompleted={questsCompleted} streak={streak} mastery={xp > 0 ? Math.min(100, Math.round(xp / 50)) : 0} />
       )}
       <div style={{ textAlign: band === "ks1" ? "center" : "left", flex: 1, minWidth: 0 }}>
         <div

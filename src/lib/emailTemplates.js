@@ -87,7 +87,7 @@ export const EMAIL_TEMPLATES = {
       <p>Welcome to <strong>LaunchPard</strong> — your scholars' mission control for smarter learning. 🎉</p>
       <p>Your <strong>30-day free trial</strong> has started. Here's what to do next:</p>
       <ol style="color:#374151;font-size:15px;line-height:2;">
-        <li>Add up to <strong>3 scholars</strong> from your parent dashboard</li>
+        <li>Add up to <strong>3 scholars</strong> from your guardian dashboard</li>
         <li>Choose their curriculum &amp; year group</li>
         <li>Watch them blast off! 🚀</li>
       </ol>
@@ -154,11 +154,11 @@ export const EMAIL_TEMPLATES = {
       </table>
 
       <div class="tip">
-        <p>💡 <strong>Tip:</strong> 10-15 minutes of daily practice builds lasting knowledge. Check your parent dashboard anytime for progress reports.</p>
+        <p>💡 <strong>Tip:</strong> 10-15 minutes of daily practice builds lasting knowledge. Check your guardian dashboard anytime for progress reports.</p>
       </div>
 
       <a href="${BASE_URL}/dashboard/parent" class="cta">View ${scholarName}'s Dashboard →</a>
-      <p style="font-size:13px;color:#94a3b8;">Keep this code safe. Parents can always find it in Mission Control.</p>
+      <p style="font-size:13px;color:#94a3b8;">Keep this code safe. Guardians can always find it in Mission Control.</p>
     `;
     return {
       subject: `🛸 ${scholarName} is ready to launch on LaunchPard!`,

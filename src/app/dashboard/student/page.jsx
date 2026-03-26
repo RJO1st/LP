@@ -40,6 +40,11 @@ const GalaxyMap = dynamic(
   { ssr: false }
 );
 
+const FullAvatarShop = dynamic(
+  () => import("../../../components/game/AvatarShop"),
+  { ssr: false, loading: () => <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontWeight: 700 }}>Loading shop…</div> }
+);
+
 const StoryUnlockModal = dynamic(
   () => import("../../../components/adventure/StoryUnlockModal"),
   { ssr: false }
@@ -330,74 +335,38 @@ function CertificatesPanel({ records, scholarName, subjects }) {
   );
 }
 
-// ─── AVATAR SHOP MODAL ────────────────────────────────────────────
-function AvatarShop({ scholar, earnedBadgeIds, onClose, onPurchase }) {
-  const [tab, setTab] = useState("hat");
-  const tabs  = ["hat", "accessory", "pet", "background"];
-  const items = Object.entries(AVATAR_ITEMS).filter(([, v]) => v.category === tab);
-
-  const canAfford  = (item) => !item.badgeRequired
-    ? (scholar.coins || 0) >= item.coinCost
-    : earnedBadgeIds.includes(item.badgeRequired);
-
-  const isUnlocked = (itemId) => {
-    const av = scholar.avatar || {};
-    return av.hat === itemId || av.pet === itemId ||
-           av.accessory === itemId || av.background === itemId;
-  };
-
+// ─── AVATAR SHOP MODAL — wraps the full AvatarShop component ─────
+function AvatarShopModal({ scholarId, onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/80 z-[8000] flex items-center justify-center p-4"
-      onClick={onClose}>
-      <div className="bg-white rounded-[32px] p-4 sm:p-6 max-w-md w-full max-h-[85vh] overflow-y-auto shadow-2xl"
-        style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}
-        onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-black">Avatar Shop</h2>
-          <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
-            <CoinIcon size={16} />
-            <span className="font-black text-yellow-700">{scholar.coins || 0}</span>
-          </div>
-        </div>
-        <div className="flex gap-2 mb-4">
-          {tabs.map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-xs font-black rounded-xl capitalize
-                ${tab === t ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {items.map(([id, item]) => {
-            const unlocked   = isUnlocked(id);
-            const affordable = canAfford(item);
-            return (
-              <button key={id}
-                onClick={() => affordable && !unlocked && onPurchase(id, item)}
-                className={`p-3 rounded-2xl border-2 text-center transition-all ${
-                  unlocked   ? "border-indigo-400 bg-indigo-50" :
-                  affordable ? "border-slate-200 hover:border-indigo-300 hover:bg-slate-50" :
-                               "border-slate-100 opacity-50 cursor-not-allowed"
-                }`}>
-                <div className="text-3xl mb-1">{item.icon}</div>
-                <p className="text-xs font-black text-slate-700 truncate">{item.name}</p>
-                <p className={`text-xs font-bold ${RARITY_COLORS[item.rarity]}`}>{item.rarity}</p>
-                {unlocked ? (
-                  <p className="text-xs text-indigo-600 font-black">Equipped</p>
-                ) : item.badgeRequired ? (
-                  <p className="text-xs text-slate-400">🏆 {BADGES[item.badgeRequired]?.name}</p>
-                ) : (
-                  <p className="text-xs text-yellow-600 font-black">{item.coinCost} coins</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <button onClick={onClose}
-          className="mt-4 w-full bg-slate-900 text-white font-black py-3 rounded-2xl">
-          Done
-        </button>
+    <div
+      className="fixed inset-0 z-[8000] flex items-center justify-center p-3 sm:p-4"
+      style={{
+        background: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[28px] relative"
+        style={{
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "sticky", top: 12, float: "right", marginRight: 12,
+            zIndex: 20, width: 36, height: 36, borderRadius: "50%",
+            background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "white", fontSize: 18, fontWeight: 700,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >✕</button>
+        <FullAvatarShop scholarId={scholarId} />
       </div>
     </div>
   );
@@ -1315,11 +1284,16 @@ const UK_NATIONAL_SUBJECTS = {
         <QuestToast quest={newQuestComplete} onDone={() => setNewQuestComplete(null)} />
       )}
       {showAvatarShop && (
-        <AvatarShop
-          scholar={scholar}
-          earnedBadgeIds={earnedBadges}
-          onClose={() => setShowAvatarShop(false)}
-          onPurchase={handleAvatarPurchase}
+        <AvatarShopModal
+          scholarId={scholar?.id}
+          onClose={async () => {
+            setShowAvatarShop(false);
+            // Refresh scholar data to pick up coin/avatar changes from the full shop
+            if (scholar?.id) {
+              const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
+              if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }
+            }
+          }}
         />
       )}
       {showUpgradeModal && (

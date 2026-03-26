@@ -103,7 +103,7 @@ export default function UpgradeModal({
           {[
             ["🚀", "Unlimited questions every day"],
             ["🤖", "Tara AI tutor — personalised feedback"],
-            ["📊", "Full parent dashboard + weekly reports"],
+            ["📊", "Full guardian dashboard + weekly reports"],
             ["📝", "Mock tests & exam prep"],
             ["🏆", "Certificates & leaderboards"],
           ].map(([icon, text], i) => (
@@ -170,7 +170,7 @@ export function UpgradeBanner({ feature = "This feature", region = "uk", compact
       <span className="text-3xl block mb-3">⭐</span>
       <p className="text-sm font-black text-indigo-900 mb-1">{feature} requires Pro</p>
       <p className="text-xs text-indigo-500 mb-4">
-        From {p.currency}{p.annualMo}/mo · Unlimited questions, Tara AI, parent dashboard & more
+        From {p.currency}{p.annualMo}/mo · Unlimited questions, Tara AI, guardian dashboard & more
       </p>
       <Link href="/subscribe" className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors">
         Upgrade to Pro

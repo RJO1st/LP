@@ -246,7 +246,7 @@ function SignupForm() {
           <ul className="text-xs text-indigo-200 space-y-1">
             <li>✓ Unlimited questions across all subjects</li>
             <li>✓ Tara AI tutor — personalised feedback</li>
-            <li>✓ Full parent dashboard with weekly reports</li>
+            <li>✓ Full guardian dashboard with weekly reports</li>
             <li>✓ Up to 3 scholars on your account</li>
             <li>✓ No payment info required</li>
           </ul>

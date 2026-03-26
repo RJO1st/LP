@@ -191,7 +191,7 @@ export default function ParentAnalytics({ scholar, results }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-bold text-slate-700 capitalize">
-                            {subject.replace(/_/g, " ")}
+                            {subject.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                           </span>
                           <span className="text-sm font-black text-slate-500 ml-2">
                             {avgAccuracy}% · {quizzesTaken} quiz{quizzesTaken !== 1 ? "zes" : ""}

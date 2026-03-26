@@ -211,7 +211,7 @@ export default function ViewScholarPage() {
             onClick={handleReturn}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition-colors"
           >
-            Return to Parent Dashboard
+            Return to Guardian Dashboard
           </button>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default function ViewScholarPage() {
             onClick={handleReturn}
             className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl text-sm transition-colors"
           >
-            Return to Parent Dashboard
+            Return to Guardian Dashboard
           </button>
         </div>
       </div>

@@ -16,13 +16,40 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
+import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 function Card({ icon, label, value, sub }) {
   const { theme: t, isDark } = useTheme();
+  const cardRef = useRef(null);
+
+  // ── 3D micro-tilt on hover ──
+  const handleMouseMove = (e) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    gsap.to(el, {
+      rotateX: -y * 6, rotateY: x * 6, scale: 1.03,
+      duration: 0.3, ease: "power2.out", overwrite: "auto",
+    });
+  };
+  const handleMouseLeave = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    gsap.to(el, {
+      rotateX: 0, rotateY: 0, scale: 1,
+      duration: 0.45, ease: "elastic.out(1, 0.6)", overwrite: "auto",
+    });
+  };
+
   return (
     <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       style={{
         background: t.colours.card,
         border: `1px solid ${t.colours.cardBorder}`,
@@ -31,6 +58,9 @@ function Card({ icon, label, value, sub }) {
         flex: 1,
         minWidth: 0,
         backdropFilter: isDark ? "blur(12px)" : undefined,
+        transformStyle: "preserve-3d",
+        willChange: "transform",
+        transition: "box-shadow 0.3s ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -102,8 +132,22 @@ export default function AdaptiveStats({ stats = {} }) {
     ],
   };
 
+  const rowRef = useRef(null);
+
+  // ── GSAP stagger entrance for stat cards ──
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const children = el.children;
+    if (children.length === 0) return;
+    gsap.fromTo(children,
+      { opacity: 0, y: 18, scale: 0.92 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.1, ease: "back.out(1.4)", delay: 0.2 }
+    );
+  }, [band]);
+
   return (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div ref={rowRef} style={{ display: "flex", gap: 8, perspective: "600px" }}>
       {(cards[band] ?? cards.ks2).map((c, i) => (
         <Card key={i} {...c} />
       ))}

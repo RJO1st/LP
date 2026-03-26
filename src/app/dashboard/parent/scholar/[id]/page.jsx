@@ -39,25 +39,45 @@ const TrendingUpIcon = ({ size = 18 }) => (
 );
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+/** Capitalise a snake_case slug into proper English: "counting_objects" → "Counting Objects" */
+function titleCase(str) {
+  return (str || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 const SUBJECT_META = {
-  maths:     { emoji: "🔢", label: "Maths",     color: "bg-indigo-100 text-indigo-700"  },
-  english:   { emoji: "📖", label: "English",   color: "bg-blue-100 text-blue-700"      },
-  verbal:    { emoji: "🧩", label: "Verbal",    color: "bg-purple-100 text-purple-700"  },
-  nvr:       { emoji: "🔷", label: "NVR",       color: "bg-teal-100 text-teal-700"      },
-  science:   { emoji: "🔬", label: "Science",   color: "bg-green-100 text-green-700"    },
-  geography: { emoji: "🌍", label: "Geography", color: "bg-amber-100 text-amber-700"    },
-  history:   { emoji: "📜", label: "History",   color: "bg-rose-100 text-rose-700"      },
-  physics:   { emoji: "⚛️", label: "Physics",   color: "bg-sky-100 text-sky-700"        },
-  chemistry: { emoji: "🧪", label: "Chemistry", color: "bg-lime-100 text-lime-700"      },
-  biology:   { emoji: "🧬", label: "Biology",   color: "bg-green-100 text-green-700"    },
-  commerce:  { emoji: "💰", label: "Commerce",  color: "bg-amber-100 text-amber-700"    },
-  basic_technology: { emoji: "🔧", label: "Basic Tech", color: "bg-stone-100 text-stone-700" },
+  mathematics:    { emoji: "📚", label: "Mathematics",  color: "bg-indigo-100 text-indigo-700" },
+  maths:          { emoji: "🔢", label: "Maths",        color: "bg-indigo-100 text-indigo-700" },
+  math:           { emoji: "🔢", label: "Math",         color: "bg-indigo-100 text-indigo-700" },
+  english:        { emoji: "📖", label: "English",      color: "bg-blue-100 text-blue-700" },
+  english_studies: { emoji: "📖", label: "English",     color: "bg-blue-100 text-blue-700" },
+  verbal_reasoning: { emoji: "🧩", label: "Verbal Reasoning", color: "bg-purple-100 text-purple-700" },
+  verbal:         { emoji: "🧩", label: "Verbal",       color: "bg-purple-100 text-purple-700" },
+  nvr:            { emoji: "🔷", label: "Non-Verbal Reasoning", color: "bg-teal-100 text-teal-700" },
+  science:        { emoji: "🔬", label: "Science",      color: "bg-green-100 text-green-700" },
+  basic_science:  { emoji: "🧪", label: "Science",      color: "bg-lime-100 text-lime-700" },
+  geography:      { emoji: "🌍", label: "Geography",    color: "bg-amber-100 text-amber-700" },
+  history:        { emoji: "📜", label: "History",       color: "bg-rose-100 text-rose-700" },
+  physics:        { emoji: "⚛️", label: "Physics",      color: "bg-sky-100 text-sky-700" },
+  chemistry:      { emoji: "🧪", label: "Chemistry",    color: "bg-lime-100 text-lime-700" },
+  biology:        { emoji: "🧬", label: "Biology",      color: "bg-green-100 text-green-700" },
+  commerce:       { emoji: "💰", label: "Commerce",     color: "bg-amber-100 text-amber-700" },
+  computing:      { emoji: "💻", label: "Computing",    color: "bg-indigo-100 text-indigo-700" },
+  computer_science: { emoji: "💻", label: "Computer Science", color: "bg-indigo-100 text-indigo-700" },
+  basic_technology: { emoji: "🔧", label: "Technology", color: "bg-stone-100 text-stone-700" },
+  basic_digital_literacy: { emoji: "💻", label: "Digital Skills", color: "bg-indigo-100 text-indigo-700" },
+  design_and_technology: { emoji: "🛠️", label: "Design & Technology", color: "bg-orange-100 text-orange-700" },
+  religious_education: { emoji: "🕊️", label: "Religious Education", color: "bg-violet-100 text-violet-700" },
+  religious_studies: { emoji: "🕊️", label: "Religious Studies", color: "bg-violet-100 text-violet-700" },
+  civic_education: { emoji: "🏛️", label: "Civic Education", color: "bg-blue-100 text-blue-700" },
+  social_studies: { emoji: "👥", label: "Social Studies", color: "bg-cyan-100 text-cyan-700" },
   financial_accounting: { emoji: "📊", label: "Financial Accounting", color: "bg-emerald-100 text-emerald-700" },
   further_mathematics: { emoji: "📐", label: "Further Maths", color: "bg-indigo-100 text-indigo-700" },
-  economics: { emoji: "📈", label: "Economics", color: "bg-teal-100 text-teal-700" },
-  government: { emoji: "🏛️", label: "Government", color: "bg-blue-100 text-blue-700" },
+  economics:      { emoji: "📈", label: "Economics",    color: "bg-teal-100 text-teal-700" },
+  government:     { emoji: "🏛️", label: "Government",  color: "bg-blue-100 text-blue-700" },
   business_studies: { emoji: "💼", label: "Business Studies", color: "bg-purple-100 text-purple-700" },
-  basic_science: { emoji: "🧪", label: "Basic Science", color: "bg-lime-100 text-lime-700" },
+  business_education: { emoji: "💼", label: "Business Studies", color: "bg-purple-100 text-purple-700" },
+  agricultural_science: { emoji: "🌱", label: "Agriculture", color: "bg-green-100 text-green-700" },
+  literature:     { emoji: "📕", label: "Literature",   color: "bg-rose-100 text-rose-700" },
 };
 
 const TABS         = ["Overview", "Skills", "Study Time", "Goals"];
@@ -220,7 +240,7 @@ export default function ScholarInsights({ params }) {
           {/* Subject averages */}
           <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100">
             {subjects.map(s => {
-              const m   = SUBJECT_META[s] || { emoji: "📚", label: s, color: "bg-slate-100 text-slate-700" };
+              const m   = SUBJECT_META[s] || { emoji: "📚", label: titleCase(s), color: "bg-slate-100 text-slate-700" };
               const arr = skills.filter(sk => sk.subject === s);
               const avg = arr.length > 0 ? Math.round(arr.reduce((sum, sk) => sum + sk.score, 0) / arr.length) : null;
               return (
@@ -271,7 +291,7 @@ export default function ScholarInsights({ params }) {
               {subjects.length === 0 ? <p className="text-slate-400 text-sm font-bold">No data yet.</p> : (
                 <div className="space-y-4">
                   {subjects.map(s => {
-                    const m   = SUBJECT_META[s] || { emoji: "📚", label: s };
+                    const m   = SUBJECT_META[s] || { emoji: "📚", label: titleCase(s) };
                     const arr = skills.filter(sk => sk.subject === s);
                     const avg = arr.length > 0 ? Math.round(arr.reduce((sum, sk) => sum + sk.score, 0) / arr.length) : 0;
                     const bar = avg >= 80 ? "bg-emerald-400" : avg >= 60 ? "bg-lime-400" : avg >= 40 ? "bg-amber-400" : "bg-red-400";
@@ -301,7 +321,7 @@ export default function ScholarInsights({ params }) {
                     const m = SUBJECT_META[sk.subject] || { emoji: "📚" };
                     return (
                       <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                        <span className="font-bold text-sm text-slate-700">{m.emoji} {sk.topic?.replace(/_/g, " ")}</span>
+                        <span className="font-bold text-sm text-slate-700">{m.emoji} {titleCase(sk.topic)}</span>
                         <span className="font-black text-emerald-600 text-sm bg-emerald-50 px-2.5 py-0.5 rounded-lg">{sk.score}%</span>
                       </div>
                     );
@@ -322,7 +342,7 @@ export default function ScholarInsights({ params }) {
                     const cls = sk.score < 40 ? "text-red-600 bg-red-50" : "text-amber-600 bg-amber-50";
                     return (
                       <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                        <span className="font-bold text-sm text-slate-700">{m.emoji} {sk.topic?.replace(/_/g, " ")}</span>
+                        <span className="font-bold text-sm text-slate-700">{m.emoji} {titleCase(sk.topic)}</span>
                         <span className={`font-black text-sm px-2.5 py-0.5 rounded-lg ${cls}`}>{sk.score}%</span>
                       </div>
                     );

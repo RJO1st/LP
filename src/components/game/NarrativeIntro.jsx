@@ -50,7 +50,7 @@ export default function NarrativeIntro({
 
   const tier         = masteryToTier(masteryScore);
   const masteryPct   = masteryToPercent(masteryScore);
-  const topicDisplay = topic ? topic.replace(/_/g, " ") : getSubjectLabel(subject);
+  const topicDisplay = topic ? topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : getSubjectLabel(subject);
 
   // Mission brief — tailored to mastery level
   const missionBrief = getMissionBrief(
@@ -293,7 +293,7 @@ export default function NarrativeIntro({
                     .filter(([, v]) => v)
                     .map(([power]) => (
                       <span key={power} className="text-xs bg-indigo-800/60 text-indigo-200 px-2 py-1 rounded-lg">
-                        {power.replace(/_/g, " ")}
+                        {power.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
                     ))}
                 </div>

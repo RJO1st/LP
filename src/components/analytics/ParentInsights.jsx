@@ -164,7 +164,7 @@ export default function ParentInsights({ parentId }) {
                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                       <p className="text-xs font-bold text-emerald-700 mb-1">💪 Strongest this week</p>
                       <p className="font-bold text-emerald-900 capitalize">
-                        {weekly.strongestTopic.topic.replace(/_/g, ' ')}
+                        {weekly.strongestTopic.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </p>
                       <p className="text-xs text-emerald-600">{weekly.strongestTopic.accuracy}% accuracy</p>
                     </div>
@@ -172,7 +172,7 @@ export default function ParentInsights({ parentId }) {
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                         <p className="text-xs font-bold text-amber-700 mb-1">🔄 Needs more practice</p>
                         <p className="font-bold text-amber-900 capitalize">
-                          {weekly.weakestTopic.topic.replace(/_/g, ' ')}
+                          {weekly.weakestTopic.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </p>
                         <p className="text-xs text-amber-600">{weekly.weakestTopic.accuracy}% accuracy</p>
                       </div>
@@ -252,7 +252,7 @@ export default function ParentInsights({ parentId }) {
                   <div key={r.topic} className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
                     <div className="text-xl">🔄</div>
                     <div className="flex-1">
-                      <p className="font-bold capitalize text-sm">{r.topic.replace(/_/g, ' ')}</p>
+                      <p className="font-bold capitalize text-sm">{r.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</p>
                       <p className="text-xs text-slate-500 capitalize">{r.subject}</p>
                     </div>
                     <div className="text-sm font-black text-red-500">

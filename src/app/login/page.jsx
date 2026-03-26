@@ -106,7 +106,7 @@ function LoginForm() {
         .limit(1);
 
       if (fetchError) throw fetchError;
-      if (!scholars?.length) throw new Error("Access code not found. Ask your parent for help.");
+      if (!scholars?.length) throw new Error("Access code not found. Ask your guardian for help.");
 
       const scholar = scholars[0];
 
@@ -157,7 +157,7 @@ function LoginForm() {
 
     try {
       const trimmedEmail = parentEmail.trim().toLowerCase();
-      if (!trimmedEmail) throw new Error("Please enter your parent's email.");
+      if (!trimmedEmail) throw new Error("Please enter your guardian's email.");
 
       // Call our API route that looks up scholars and emails the parent
       const res = await fetch("/api/forgot-access-code", {
@@ -248,7 +248,7 @@ function LoginForm() {
                 <div className="text-4xl mb-3">📧</div>
                 <p className="text-emerald-400 font-bold mb-2">Email sent!</p>
                 <p className="text-slate-400 text-sm mb-4">
-                  We sent the access code to your parent at <span className="text-white font-bold">{parentEmail}</span>.
+                  We sent the access code to your guardian at <span className="text-white font-bold">{parentEmail}</span>.
                   Ask them to check their inbox.
                 </p>
                 <button onClick={() => { setShowForgotCode(false); setCodeSent(false); setParentEmail(""); setError(null); }}
@@ -259,7 +259,7 @@ function LoginForm() {
             ) : (
               <form onSubmit={handleForgotCode} className="space-y-4">
                 <p className="text-slate-400 text-sm">
-                  Enter your parent's email. We'll send them your access code so they can help you log in.
+                  Enter your guardian's email. We'll send them your access code so they can help you log in.
                 </p>
 
                 {error && (
@@ -269,7 +269,7 @@ function LoginForm() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Parent's Email</label>
+                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Guardian's Email</label>
                   <input type="email" required placeholder="parent@example.com" value={parentEmail}
                     onChange={(e) => setParentEmail(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-700 text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-600 text-base" />
@@ -277,7 +277,7 @@ function LoginForm() {
 
                 <button type="submit" disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-50">
-                  {loading ? "Sending..." : "Send Access Code to Parent"}
+                  {loading ? "Sending..." : "Send Access Code to Guardian"}
                 </button>
 
                 <button type="button" onClick={() => { setShowForgotCode(false); setError(null); }}
@@ -299,7 +299,7 @@ function LoginForm() {
                     : "bg-slate-700 text-slate-400 hover:bg-slate-600"
                 }`}
               >
-                Parent
+                Guardian
               </button>
               <button
                 onClick={() => { setLoginType("scholar"); setError(null); }}
@@ -393,7 +393,7 @@ function LoginForm() {
                       className="flex-1 px-1 py-3 bg-transparent text-white placeholder:text-slate-400 outline-none text-base tracking-[0.3em] text-center font-bold" />
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                    Just type the 4 digits — your parent gave you this code
+                    Enter your 4-digit access code
                   </p>
                 </div>
 

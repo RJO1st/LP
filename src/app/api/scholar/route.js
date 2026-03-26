@@ -44,7 +44,7 @@ export async function POST(request) {
 
     if (!scholar) {
       return NextResponse.json(
-        { error: "Access code not found. Please check with your parent." },
+        { error: "Access code not found. Please check with your guardian." },
         { status: 404 }
       );
     }

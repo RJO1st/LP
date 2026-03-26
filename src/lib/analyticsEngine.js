@@ -69,7 +69,7 @@ export function computeWeeklySummary(sessionAnswers, masteryRecords, scholar) {
   const topicBreakdown = Object.values(topicMap).map(t => ({
     ...t,
     accuracy:      Math.round((t.correct / t.total) * 100),
-    displayName:   t.topic.replace(/_/g, ' '),
+    displayName:   t.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
   })).sort((a, b) => b.accuracy - a.accuracy);
 
   const strongestTopic = topicBreakdown[0] ?? null;
@@ -163,7 +163,7 @@ export function computeSubjectOverview(masteryRecords) {
 export function computeTopicHeatmap(masteryRecords) {
   return masteryRecords.map(r => ({
     topic:       r.topic,
-    displayName: r.topic.replace(/_/g, ' '),
+    displayName: r.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
     mastery:     Math.round(r.mastery_score * 100),
     colour:      masteryColour(r.mastery_score),
     tier:        r.current_tier ?? masteryToTier(r.mastery_score),
@@ -232,7 +232,7 @@ export function compileWeeklyReportData(scholar, parent, sessionAnswers, mastery
     .sort((a, b) => a.mastery_score - b.mastery_score)
     .slice(0, 3)
     .map(r => ({
-      topic:    r.topic.replace(/_/g, ' '),
+      topic:    r.topic.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       subject:  r.subject,
       mastery:  Math.round(r.mastery_score * 100),
     }));

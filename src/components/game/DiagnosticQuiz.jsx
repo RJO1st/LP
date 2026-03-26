@@ -197,7 +197,7 @@ export default function DiagnosticQuiz({
                   <p className="text-xs font-bold text-emerald-400 mb-2">💪 Strong areas</p>
                   {strong.map(([topic, score]) => (
                     <p key={topic} className="text-xs text-slate-300 capitalize">
-                      · {topic.replace(/_/g, " ")}
+                      · {topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                     </p>
                   ))}
                 </div>
@@ -207,7 +207,7 @@ export default function DiagnosticQuiz({
                   <p className="text-xs font-bold text-red-400 mb-2">🎯 Focus areas</p>
                   {weak.map(([topic, score]) => (
                     <p key={topic} className="text-xs text-slate-300 capitalize">
-                      · {topic.replace(/_/g, " ")}
+                      · {topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                     </p>
                   ))}
                 </div>
@@ -235,7 +235,7 @@ export default function DiagnosticQuiz({
         <div className="mb-6">
           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
             <span>Question {currentIdx + 1} of {total}</span>
-            <span className="capitalize">{current._diagnostic_topic?.replace(/_/g, " ") ?? current.topic}</span>
+            <span className="capitalize">{current._diagnostic_topic?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) ?? current.topic}</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-2">
             <div

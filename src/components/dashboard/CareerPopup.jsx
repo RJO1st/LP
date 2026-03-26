@@ -27,7 +27,7 @@ export default function CareerPopup({ topic, subject, onDismiss, onExplore }) {
   const text = getCareerPopup(band, topic);
   if (!text) return null;
 
-  const topicLabel = (topic || "").replace(/_/g, " ");
+  const topicLabel = (topic || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <div

@@ -990,7 +990,7 @@ export default function ParentDashboard() {
             {/* Welcome banner — warm gradient */}
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl border border-amber-200 p-4 sm:p-8 mb-4 sm:mb-8">
               <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 sm:mb-2">
-                Welcome back, {parent?.full_name?.split(' ')[0] || 'Parent'}! 👋
+                Welcome back, {parent?.full_name?.split(' ')[0] || 'Flight Guardian'}! 👋
               </h1>
               <p className="text-xs sm:text-base text-slate-600 font-bold mb-3 sm:mb-4">
                 You have {scholars.length} scholar{scholars.length !== 1 ? 's' : ''} {scholars.length === 1 ? 'studying' : 'studying together'} on LaunchPard
@@ -1130,7 +1130,7 @@ export default function ParentDashboard() {
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center text-sm">💡</div>
                     <div>
-                      <p className="text-xs font-black text-violet-900">Parent Action Tip</p>
+                      <p className="text-xs font-black text-violet-900">Guardian Action Tip</p>
                       <p className="text-[10px] text-violet-400 font-semibold">this week's focus</p>
                     </div>
                   </div>
@@ -1140,7 +1140,7 @@ export default function ParentDashboard() {
                       if (lowStreakScholars.length > 0) return `Encourage ${lowStreakScholars[0].name} to build a study streak — even 10 minutes daily makes a big difference.`;
                       const topScholar = [...scholars].sort((a, b) => (b.total_xp || 0) - (a.total_xp || 0))[0];
                       if (topScholar) return `${topScholar.name} is on a roll with ${topScholar.total_xp || 0} XP! Ask them what they learned this week to reinforce retention.`;
-                      return "Set a weekly family learning goal — scholars with parental engagement improve 40% faster.";
+                      return "Set a weekly family learning goal — scholars with guardian engagement improve 40% faster.";
                     })()}
                   </p>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-violet-500">
@@ -1197,7 +1197,7 @@ export default function ParentDashboard() {
                   </div>
                   {/* Tips */}
                   <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                    <p className="text-xs font-black text-amber-800 mb-1.5">Tips for parents</p>
+                    <p className="text-xs font-black text-amber-800 mb-1.5">Tips for guardians</p>
                     <div className="text-xs text-amber-700 space-y-1">
                       <p className="flex items-start gap-1.5"><span className="shrink-0">📱</span><span>Works on phone, tablet, or laptop — no app download needed</span></p>
                       <p className="flex items-start gap-1.5"><span className="shrink-0">⏰</span><span>10-15 minutes daily is enough — consistency beats long sessions</span></p>
@@ -1363,7 +1363,7 @@ export default function ParentDashboard() {
                               }}
                               className="flex-1 block text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-indigo-200 hover:border-indigo-300"
                             >
-                              Login as Scholar
+                              Scholar Dashboard
                             </button>
                           </>
                         )}

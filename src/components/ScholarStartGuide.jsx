@@ -87,7 +87,7 @@ export default function ScholarStartGuide({ scholarName, codename, pin, onDismis
 
           {/* Tips */}
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3">
-            <p className="text-xs font-black text-amber-800 mb-1.5">Tips for parents</p>
+            <p className="text-xs font-black text-amber-800 mb-1.5">Tips for guardians</p>
             <ul className="text-xs text-amber-700 space-y-1">
               <li className="flex items-start gap-1.5">
                 <span className="shrink-0">📱</span>
@@ -99,7 +99,7 @@ export default function ScholarStartGuide({ scholarName, codename, pin, onDismis
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="shrink-0">📊</span>
-                <span>Check your parent dashboard for progress reports and weekly summaries</span>
+                <span>Check your guardian dashboard for progress reports and weekly summaries</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="shrink-0">🎯</span>

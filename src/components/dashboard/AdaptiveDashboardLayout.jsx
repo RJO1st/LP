@@ -40,8 +40,9 @@
  * DashboardShell v4 provides responsive chrome.
  */
 
-import React, { useState, useMemo, lazy, Suspense } from "react";
+import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import gsap from "gsap";
 import DashboardShell, { MIcon, NAV_CONFIG } from "./DashboardShell";
 
 // ── Data-connected components ────────────────────────────────────────────────
@@ -50,6 +51,8 @@ import AdaptiveStats from "./AdaptiveStats";
 import DailyAdventure from "./DailyAdventure";
 import TaraEncouragement from "./TaraEncouragement";
 import SkillMap from "./SkillMap";
+import dynamic from "next/dynamic";
+const GalaxyMap = dynamic(() => import("@/components/adventure/GalaxyMap"), { ssr: false });
 import ConstellationMap from "./ConstellationMap";
 import QuestJournal from "./QuestJournal";
 import CareerPopup from "./CareerPopup";
@@ -68,6 +71,68 @@ import CertificatesPanel from "./CertificatesPanel";
 import SubjectProgressChart from "./SubjectProgressChart";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
+
+// ── Export Report helper ─────────────────────────────────────────────────────
+function generateReport({ scholar, stats, masteryData, subjects, activeSubject, band }) {
+  const titleCase = s => (s || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+  // Group mastery by subject
+  const bySubject = {};
+  (masteryData || []).forEach(r => {
+    const subj = (r.subject || "unknown").toLowerCase();
+    if (!bySubject[subj]) bySubject[subj] = [];
+    bySubject[subj].push(r);
+  });
+
+  let topicRows = "";
+  Object.entries(bySubject).forEach(([subj, rows]) => {
+    const sorted = rows.sort((a, b) => (b.mastery_score ?? 0) - (a.mastery_score ?? 0));
+    sorted.forEach(r => {
+      const pct = Math.round((r.mastery_score ?? 0) * 100);
+      const tier = pct >= 90 ? "Stellar" : pct >= 70 ? "Proficient" : pct >= 50 ? "Developing" : pct >= 30 ? "Emerging" : "Beginner";
+      const color = pct >= 70 ? "#22c55e" : pct >= 50 ? "#f59e0b" : "#ef4444";
+      topicRows += `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${getSubjectLabel(subj, band)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${titleCase(r.topic)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">
+          <span style="color:${color};font-weight:700">${pct}%</span>
+        </td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${tier}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${r.times_seen ?? 0}</td>
+      </tr>`;
+    });
+  });
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Scholar Report — ${scholar.name || "Scholar"}</title>
+<style>body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:40px;color:#1e293b;background:#fff}
+h1{font-size:28px;margin:0 0 4px}h2{font-size:18px;color:#6d28d9;margin:32px 0 12px;border-bottom:2px solid #ede9fe;padding-bottom:6px}
+.meta{color:#64748b;font-size:13px;margin-bottom:24px}.stats{display:flex;gap:20px;margin:20px 0}
+.stat-card{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center}
+.stat-val{font-size:32px;font-weight:900;color:#6d28d9}.stat-lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;border-bottom:2px solid #e2e8f0}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
+@media print{body{padding:20px}.no-print{display:none}}</style></head>
+<body>
+<h1>📊 Scholar Progress Report</h1>
+<p class="meta">${scholar.name || "Scholar"} · Year ${scholar.year_level || "?"} · ${titleCase(scholar.curriculum || "uk_national")} · Generated ${date}</p>
+<div class="stats">
+  <div class="stat-card"><div class="stat-val">${(stats.xp ?? 0).toLocaleString()}</div><div class="stat-lbl">Total Stardust</div></div>
+  <div class="stat-card"><div class="stat-val">${stats.questsCompleted ?? 0}</div><div class="stat-lbl">Missions Completed</div></div>
+  <div class="stat-card"><div class="stat-val">${stats.streak ?? 0}</div><div class="stat-lbl">Day Streak</div></div>
+</div>
+<h2>Subject &amp; Topic Mastery</h2>
+<table><thead><tr><th>Subject</th><th>Topic</th><th style="text-align:center">Mastery</th><th style="text-align:center">Tier</th><th style="text-align:center">Attempts</th></tr></thead>
+<tbody>${topicRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8">No mastery data yet</td></tr>'}</tbody></table>
+<div class="footer">Quest Academy — LaunchPard · This report is auto-generated from the scholar's learning data.</div>
+<script class="no-print">window.onload=()=>window.print();<\/script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 import StickerCollection from "./StickerCollection";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
 const NebulaTrials = lazy(() => import("@/components/game/NebulaTrials"));
@@ -175,6 +240,54 @@ function KS4AtelierAmbient() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function BandCard({ band, children, glow, accent, className = "", style = {}, id, "data-section": dataSection }) {
+  const cardRef = useRef(null);
+
+  // ── GSAP scroll-triggered entrance animation ──────────────────────────────
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    // Start invisible + shifted down
+    gsap.set(el, { opacity: 0, y: 30 });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          gsap.to(el, {
+            opacity: 1, y: 0,
+            duration: 0.55, ease: "power3.out",
+            delay: Math.random() * 0.12, // slight stagger variation
+          });
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // ── CSS 3D tilt on hover (pointer-follow) ─────────────────────────────────
+  const handleMouseMove = (e) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;  // -0.5 to 0.5
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    const tiltX = -y * 3;   // subtle: max 1.5deg
+    const tiltY = x * 3;
+    gsap.to(el, {
+      rotateX: tiltX, rotateY: tiltY,
+      duration: 0.4, ease: "power2.out", overwrite: "auto",
+    });
+  };
+  const handleMouseLeave = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    gsap.to(el, {
+      rotateX: 0, rotateY: 0, scale: 1,
+      duration: 0.5, ease: "elastic.out(1, 0.5)", overwrite: "auto",
+    });
+  };
+
   // "Liquid glass" aesthetic: translucent, heavy blur, subtle inner highlight
   const styles = {
     ks1: {
@@ -212,8 +325,23 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
       position: "relative", overflow: "hidden",
     },
   };
+  const cardStyle = styles[band] || styles.ks3;
   return (
-    <div id={id} data-section={dataSection} style={{ ...styles[band] || styles.ks3, ...style }} className={className}>
+    <div
+      ref={cardRef}
+      id={id}
+      data-section={dataSection}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        ...cardStyle, ...style,
+        perspective: "800px",
+        transformStyle: "preserve-3d",
+        willChange: "transform, opacity",
+        transition: "box-shadow 0.3s ease",
+      }}
+      className={`band-card-3d ${className}`}
+    >
       {band === "ks4" && glow && (
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "200%",
@@ -351,7 +479,84 @@ function BandKeyframes({ band }) {
       @keyframes ks4DonutFill { from{stroke-dashoffset:251} to{stroke-dashoffset:var(--target)} }
     `,
   };
-  return <style>{keyframes[band] || ""}</style>;
+  const shared3D = `
+    .band-card-3d {
+      transform-style: preserve-3d;
+      transition: box-shadow 0.3s ease;
+    }
+    .band-card-3d:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    }
+  `;
+  return <style>{shared3D}{keyframes[band] || ""}</style>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COIN SHOP BANNER — prominent "coins + open shop" shortcut in dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CoinShopBanner({ coins = 0, onOpenShop }) {
+  const [showGuide, setShowGuide] = React.useState(false);
+  if (!onOpenShop) return null;
+  return (
+    <div style={{ borderRadius: 14, overflow: "hidden", border: "2px solid #fcd34d", background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)", boxShadow: "0 2px 12px rgba(251,191,36,0.18)" }}>
+      <button
+        onClick={onOpenShop}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 14px", cursor: "pointer", background: "transparent", border: "none",
+          transition: "all 0.2s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>💰</span>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#92400e", lineHeight: 1 }}>{coins.toLocaleString()}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#b45309", textTransform: "uppercase", letterSpacing: "0.06em" }}>Coins</div>
+          </div>
+        </div>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "6px 12px", borderRadius: 10,
+          background: "linear-gradient(135deg, #f59e0b, #d97706)",
+          color: "white", fontSize: 10, fontWeight: 900, textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          boxShadow: "0 2px 8px rgba(217,119,6,0.3)",
+        }}>
+          🎨 Shop
+        </div>
+      </button>
+      {/* How to Earn guide toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setShowGuide(g => !g); }}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+          padding: "5px 0", background: "rgba(146,64,14,0.06)", border: "none", borderTop: "1px solid rgba(251,191,36,0.3)",
+          cursor: "pointer", fontSize: 10, fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em",
+        }}
+      >
+        {showGuide ? "▴ Hide" : "▾ How to earn coins"}
+      </button>
+      {showGuide && (
+        <div style={{ padding: "8px 12px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+          {[
+            { icon: "🎯", text: "Complete a quiz", detail: "+10 coins" },
+            { icon: "⭐", text: "Perfect score", detail: "+20 bonus" },
+            { icon: "🔥", text: "Streak milestones", detail: "+5/+15/+30" },
+            { icon: "🆕", text: "First topic attempt", detail: "+25 bonus" },
+            { icon: "🏆", text: "Quest completion", detail: "+8 coins" },
+            { icon: "🚀", text: "Full mission", detail: "+50 coins" },
+          ].map((m, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{m.icon}</span>
+              <span style={{ fontWeight: 700, color: "#1e293b", flex: 1 }}>{m.text}</span>
+              <span style={{ fontWeight: 800, color: "#d97706", fontSize: 10 }}>{m.detail}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -421,7 +626,7 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
-                isFirstLogin={isFirstLogin}
+                isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
               />
               <div style={{ marginTop: 16 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
@@ -517,25 +722,25 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
-                isFirstLogin={isFirstLogin}
+                isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
               />
               <div style={{ marginTop: 20 }}>
                 {/* Commander Stats Row */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))", border: "1px solid rgba(99,102,241,0.15)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  <div style={{ textAlign: "center", padding: "14px 6px", borderRadius: 14, background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))", border: "1px solid rgba(99,102,241,0.15)", overflow: "hidden" }}>
                     <div style={{ fontSize: 12, marginBottom: 4 }}>✨</div>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#4f46e5" }}>{(stats.xp ?? 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6366f1", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#4f46e5", lineHeight: 1.1 }}>{(stats.xp ?? 0).toLocaleString()}</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#6366f1", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stardust</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(217,70,239,0.06))", border: "1px solid rgba(168,85,247,0.15)" }}>
+                  <div style={{ textAlign: "center", padding: "14px 6px", borderRadius: 14, background: "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(217,70,239,0.06))", border: "1px solid rgba(168,85,247,0.15)", overflow: "hidden" }}>
                     <div style={{ fontSize: 12, marginBottom: 4 }}>🚀</div>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#7c3aed" }}>{stats.questsCompleted ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#8b5cf6", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#7c3aed", lineHeight: 1.1 }}>{stats.questsCompleted ?? 0}</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions Completed</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: "14px 8px", borderRadius: 14, background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.06))", border: "1px solid rgba(245,158,11,0.15)" }}>
+                  <div style={{ textAlign: "center", padding: "14px 6px", borderRadius: 14, background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.06))", border: "1px solid rgba(245,158,11,0.15)", overflow: "hidden" }}>
                     <div style={{ fontSize: 12, marginBottom: 4 }}>🔥</div>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#d97706" }}>{stats.streak ?? 0}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#b45309", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#d97706", lineHeight: 1.1 }}>{stats.streak ?? 0}</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#b45309", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Streak</div>
                   </div>
                 </div>
               </div>
@@ -566,12 +771,18 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* Galaxy Map (Skill Map) */}
+            {/* Galaxy Map — orbital ring layout */}
             <BandCard band={band} glow data-section="galaxy">
               <SectionHeader band={band} icon="🌌" title="Galaxy Map" subtitle="orbital rings" />
-              <SkillMap
-                topics={topics} subjects={subjects} subject={activeSubject}
-                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+              <GalaxyMap
+                scholar={scholar}
+                subjects={subjects}
+                masteryRecords={masteryData}
+                onLaunchQuest={(subjectKey) => {
+                  setActiveSubject(subjectKey);
+                  if (onStartQuest) onStartQuest(subjectKey);
+                  else if (onTopicClick) onTopicClick(subjectKey);
+                }}
               />
             </BandCard>
 
@@ -699,7 +910,7 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
-                isFirstLogin={isFirstLogin}
+                isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
               />
               <div style={{ marginTop: 16 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
@@ -850,6 +1061,17 @@ export default function AdaptiveDashboardLayout({
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks4" && (
           <>
+            {/* ── Scholar Greeting + Avatar ───────────────────────── */}
+            <BandCard band={band} glow>
+              <AdaptiveGreeting
+                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                yearLevel={scholar.year_level} examName={examData?.examName}
+                daysUntilExam={examData?.daysUntilExam}
+                avatar={scholar.avatar} onAvatarClick={onAvatar}
+                isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+              />
+            </BandCard>
+
             {/* ── Mission Telemetry Header ─────────────────────────── */}
             <div data-section="exams" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: -4 }}>
               <div>
@@ -857,8 +1079,8 @@ export default function AdaptiveDashboardLayout({
                 <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b4b", margin: 0 }}>Knowledge Frontier</h2>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button style={{ padding: "8px 16px", borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.18)", color: "#7c3aed", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
-                <button onClick={() => onStartQuest?.(activeSubject)} style={{ padding: "8px 16px", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>Launch Deep Space</button>
+                <button onClick={() => generateReport({ scholar, stats, masteryData, subjects, activeSubject, band })} style={{ padding: "8px 16px", borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.18)", color: "#7c3aed", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
+                <button onClick={() => onStartMock?.({ category: "exam_prep", subject: activeSubject })} style={{ padding: "8px 16px", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>Launch Deep Space</button>
               </div>
             </div>
 
@@ -883,7 +1105,7 @@ export default function AdaptiveDashboardLayout({
                   </BandCard>
                   <BandCard band={band}>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>Mastery Index</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>{getSubjectLabel(activeSubject, band)} Mastery</div>
                       <div style={{ fontSize: 34, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>{subjectMastery.pct}<span style={{ fontSize: 16, color: "rgba(30,27,75,0.3)" }}>%</span></div>
                       <div style={{ height: 5, borderRadius: 3, background: "rgba(124,58,237,0.1)", marginTop: 8, overflow: "hidden" }}>
                         <div style={{ height: "100%", borderRadius: 3, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.8s ease" }} />
@@ -1059,7 +1281,7 @@ export default function AdaptiveDashboardLayout({
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Active Recall</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Flashcard Deck</div>
                 <Flashcards scholarId={scholarId} subject={activeSubject}
-                  curriculum={scholar.curriculum} supabase={supabase} />
+                  curriculum={scholar.curriculum} supabase={supabase} yearLevel={scholar.year_level} />
               </BandCard>
             </div>
 
@@ -1118,12 +1340,16 @@ export default function AdaptiveDashboardLayout({
   const rightSidebar = (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "relative", zIndex: 1 }}>
 
+      {/* Coin Shop shortcut — all bands */}
+      <CoinShopBanner coins={coins} onOpenShop={onAvatar} />
+
       {/* KS1: Digital Pet Prominent */}
       {band === "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
 
-      {/* KS2: Leaderboard + Career Mini-Cards */}
+      {/* KS2: Digital Pet + Leaderboard + Career Mini-Cards */}
       {band === "ks2" && (
         <>
+          <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
           <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
           {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
         </>
@@ -1144,7 +1370,7 @@ export default function AdaptiveDashboardLayout({
           <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Active Recall</div>
             <Flashcards scholarId={scholarId} subject={activeSubject}
-              curriculum={scholar.curriculum} supabase={supabase} />
+              curriculum={scholar.curriculum} supabase={supabase} yearLevel={scholar.year_level} />
           </div>
           <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
@@ -1159,8 +1385,8 @@ export default function AdaptiveDashboardLayout({
         </>
       )}
 
-      {/* All bands: Common sidebar items */}
-      {band !== "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
+      {/* All bands except KS1/KS2 (already placed above): Digital Pet */}
+      {band !== "ks1" && band !== "ks2" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}
 
       {/* Exam panel only for KS3+ when parent explicitly enrolled scholar in exam mode */}
       {band !== "ks4" && band !== "ks1" && band !== "ks2" && examData && hasActiveExamMode && <ExamPanel
@@ -1177,7 +1403,7 @@ export default function AdaptiveDashboardLayout({
       {band !== "ks3" && band !== "ks4" && <GoalSetting scholarId={scholarId} stats={stats} />}
 
       {band !== "ks4" && <Flashcards scholarId={scholarId} subject={activeSubject}
-        curriculum={scholar.curriculum} supabase={supabase} />}
+        curriculum={scholar.curriculum} supabase={supabase} yearLevel={scholar.year_level} />}
 
       {band !== "ks2" && band !== "ks4" && careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
 

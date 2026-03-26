@@ -100,6 +100,15 @@ export default function useDashboardData(scholar, supabase) {
         availableBySubject[r.subject].add(r.topic);
       });
 
+      // Also include topics the scholar already has mastery data for
+      // (handles subjects where question_bank year_level range doesn't
+      //  match but the scholar has previously engaged with the topic)
+      masteryRows.forEach(r => {
+        if (!r.subject || !r.topic) return;
+        if (!availableBySubject[r.subject]) availableBySubject[r.subject] = new Set();
+        availableBySubject[r.subject].add(r.topic);
+      });
+
       // For maths, also include the year-band curated list
       const mathsAllowed = new Set(MATHS_TOPICS_BY_BAND[band] || MATHS_TOPICS_BY_BAND.ks2);
       ['mathematics', 'maths', 'math'].forEach(key => {

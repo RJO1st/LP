@@ -17,7 +17,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
-export default function Flashcards({ scholarId, subject, curriculum, supabase }) {
+export default function Flashcards({ scholarId, subject, curriculum, supabase, yearLevel }) {
   const { band, theme: t, isDark } = useTheme();
   const [cards, setCards] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -50,6 +50,14 @@ export default function Flashcards({ scholarId, subject, curriculum, supabase })
         return;
       }
 
+      // Compute effective year for NG curricula and filter ±1 year range
+      const c = (curriculum || "").toLowerCase();
+      let effectiveYear = Number(yearLevel || 1);
+      if (c === "ng_jss") effectiveYear = effectiveYear + 6;
+      else if (c === "ng_sss") effectiveYear = effectiveYear + 9;
+      const minYear = Math.max(1, effectiveYear - 1);
+      const maxYear = effectiveYear + 1;
+
       const { data: questions } = await supabase
         .from("question_bank")
         .select("question_text, options, correct_index, explanation, topic")
@@ -57,6 +65,8 @@ export default function Flashcards({ scholarId, subject, curriculum, supabase })
         .eq("subject", subject || "mathematics")
         .in("topic", weakTopics)
         .eq("is_active", true)
+        .gte("year_level", minYear)
+        .lte("year_level", maxYear)
         .limit(50);
 
       // Convert questions to flashcards
@@ -71,7 +81,7 @@ export default function Flashcards({ scholarId, subject, curriculum, supabase })
             id: i,
             front: q.question_text,
             back: `${answer}\n\n${q.explanation}`,
-            topic: (q.topic || "").replace(/_/g, " "),
+            topic: (q.topic || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           };
         });
 
@@ -84,7 +94,7 @@ export default function Flashcards({ scholarId, subject, curriculum, supabase })
     } finally {
       setLoading(false);
     }
-  }, [scholarId, subject, curriculum, supabase]);
+  }, [scholarId, subject, curriculum, supabase, yearLevel]);
 
   useEffect(() => { loadCards(); }, [loadCards]);
 

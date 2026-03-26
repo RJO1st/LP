@@ -90,7 +90,7 @@ export async function GET(req) {
           .order("mastery_score", { ascending: true })
           .limit(1);
 
-        const weakestTopic = topicScores?.[0]?.topic?.replace(/_/g, " ") || null;
+        const weakestTopic = topicScores?.[0]?.topic?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || null;
         const accuracy = s.totalQuestions > 0
           ? Math.round((s.totalCorrect / s.totalQuestions) * 100)
           : 0;
@@ -101,7 +101,7 @@ export async function GET(req) {
           correct: s.totalCorrect,
           accuracy,
           xp: s.totalXP,
-          subjects: [...s.subjects].map(sub => sub.replace(/_/g, " ")),
+          subjects: [...s.subjects].map(sub => sub.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())),
           weakestTopic,
           sessionsCount: s.sessions.length,
         });

@@ -199,9 +199,9 @@ export function EngineHeader({
   return (
     <div className="w-full shrink-0">
       {/* Header row */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
         {/* Left: subject chip + label */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {Icon && (
             <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
               style={{ backgroundColor: colors.accent }}>
@@ -213,16 +213,17 @@ export function EngineHeader({
               style={{ color: colors.accent }}>
               {label || labels.header}
             </p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Question {qIdx + 1} of {count}
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+              Q {qIdx + 1}/{count}
             </p>
           </div>
         </div>
 
         {/* Right: counter pill + timer + close */}
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-            {qIdx + 1} / {count}
+          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full whitespace-nowrap"
+            style={{ minWidth: "fit-content" }}>
+            {qIdx + 1}/{count}
           </span>
          {timeLeft != null && (
             yearLevel ? (

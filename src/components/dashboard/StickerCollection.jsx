@@ -16,7 +16,8 @@
  *   onClose — optional callback for modal mode
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import gsap from "gsap";
 import { BADGES, TIER_COLORS } from "@/lib/gamificationEngine";
 
 // Milestone definitions per band
@@ -183,6 +184,24 @@ function StickerCard({ emoji, label, desc, earned, style: s, band }) {
   );
 }
 
+function StickerGridEntrance({ tab }) {
+  useEffect(() => {
+    // Animate grid children when tab changes
+    const timer = requestAnimationFrame(() => {
+      const grid = document.querySelector(".sticker-grid");
+      if (!grid) return;
+      const items = grid.children;
+      if (!items.length) return;
+      gsap.fromTo(items,
+        { opacity: 0, scale: 0.7, rotateY: 12 },
+        { opacity: 1, scale: 1, rotateY: 0, duration: 0.35, stagger: 0.03, ease: "back.out(1.4)" }
+      );
+    });
+    return () => cancelAnimationFrame(timer);
+  }, [tab]);
+  return null;
+}
+
 export default function StickerCollection({
   band = "ks1",
   earnedBadgeIds = [],
@@ -249,8 +268,9 @@ export default function StickerCollection({
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-5 pt-1">
+      {/* Grid — GSAP stagger entrance */}
+      <StickerGridEntrance tab={tab} />
+      <div className="sticker-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-5 pt-1">
         {tab === "milestones"
           ? bandMilestones.map((m) => (
               <StickerCard

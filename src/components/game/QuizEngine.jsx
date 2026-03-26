@@ -610,7 +610,7 @@ const TopicSummaryCard = ({ topicSummary }) => {
         return (
           <div key={topic}>
             <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-0.5">
-              <span className="capitalize">{topic?.replace(/_/g, " ")}</span>
+              <span className="capitalize">{topic?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
               <span>{correct}/{total}</span>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -1042,17 +1042,39 @@ export default function QuizEngine({
     recordTopicResult(currQ.topic, allCorrect);
   }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult]);
 
+  // Timer: when time expires, auto-advance to next question (don't lock or reveal answer)
+  const timeExpiredRef = useRef(false);
+
   useEffect(() => {
     const currQType = sessionQuestions[qIdx]?.type;
     if (selected !== null || finished || !sessionQuestions.length || generating || currQType === 'numerical_input') return;
+    timeExpiredRef.current = false;
     timerRef.current = setInterval(() => {
       setTimeLeft(p => {
-        if (p <= 1) { clearInterval(timerRef.current); handlePick(-1); return 0; }
+        if (p <= 1) {
+          clearInterval(timerRef.current);
+          // Mark as timed-out — the effect below will advance
+          timeExpiredRef.current = true;
+          return 0;
+        }
         return p - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [qIdx, selected, finished, handlePick, sessionQuestions, generating]);
+  }, [qIdx, selected, finished, sessionQuestions, generating]);
+
+  // Auto-advance when timer hits 0
+  useEffect(() => {
+    if (timeLeft !== 0 || !timeExpiredRef.current) return;
+    timeExpiredRef.current = false;
+    // Skip to next question without revealing answer
+    if (qIdx < sessionQuestions.length - 1) {
+      setQIdx(p => p + 1);
+      resetQuestionState();
+    } else {
+      setFinished(true);
+    }
+  }, [timeLeft]);
 
   const handleEIB = async () => {
     if (!eibText.trim() || eibLocked) return;

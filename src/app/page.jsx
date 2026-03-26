@@ -30,7 +30,7 @@ const FEATURES = [
   { icon: '🤖', title: 'Tara — AI Tutor That Grows With Them', desc: "Age 5: warm and playful. Age 11: bold and encouraging. Age 16: precise and exam-focused. Tara adapts her personality to your scholar's age.", light: 'bg-violet-50 border-violet-200' },
   { icon: '📚', title: 'Your Curriculum. Fully Covered.', desc: "12 curricula across 6 countries. Built from the ground up for your national curriculum — not a US platform pretending to fit.", light: 'bg-cyan-50 border-cyan-200' },
   { icon: '📝', title: 'Exam Mode When It Counts', desc: 'Timed mock tests under real exam conditions. 11+ grammar school, GCSE, WAEC/BECE and IB practice papers with predicted grades.', light: 'bg-orange-50 border-orange-200' },
-  { icon: '📊', title: 'See What They Actually Know', desc: "Parent dashboard shows mastery per topic, time spent, streaks, and what to practise next. Weekly reports to your inbox.", light: 'bg-emerald-50 border-emerald-200' },
+  { icon: '📊', title: 'See What They Actually Know', desc: "Guardian dashboard shows mastery per topic, time spent, streaks, and what to practise next. Weekly reports to your inbox.", light: 'bg-emerald-50 border-emerald-200' },
   { icon: '🧠', title: 'Adaptive AI Engine', desc: 'Questions adjust in real time. Too easy? It challenges them. Struggling? It builds confidence at the right level. Spaced repetition ensures they remember.', light: 'bg-pink-50 border-pink-200' },
   { icon: '🚀', title: 'Missions They Want To Do', desc: 'Stardust rewards, evolving digital pets, mastery certificates, weekly missions, career links, and leaderboards. Scholars come back because they want to.', light: 'bg-amber-50 border-amber-200' },
 ];
@@ -269,7 +269,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-3 gap-6">
             {[
               { icon:'✏️', title:'Learn', desc:'Adaptive missions that match exactly where your scholar is. The AI identifies gaps and focuses there.', color:'violet', items:['AI adapts difficulty in real time','Age-appropriate themes and language','Digital pets, missions, and Stardust rewards','Spaced repetition for long-term memory'] },
-              { icon:'📊', title:'Track', desc:'A parent dashboard that shows mastery building in real time — across every topic and subject.', color:'cyan', items:['Mastery per topic: Building → On Track → Stellar','Time spent by subject — see where effort goes','Career links show real-world relevance','Revision planner suggests what to study next'] },
+              { icon:'📊', title:'Track', desc:'A guardian dashboard that shows mastery building in real time — across every topic and subject.', color:'cyan', items:['Mastery per topic: Building → On Track → Stellar','Time spent by subject — see where effort goes','Career links show real-world relevance','Revision planner suggests what to study next'] },
               { icon:'📝', title:'Test', desc:'Timed mock tests that replicate real exam conditions — then instant marking with predicted grades.', color:'orange', items:['11+ Grammar School preparation','GCSE mock tests with grade predictions','WAEC / BECE practice papers','AI flashcards generated from weak topics'] },
             ].map((card,i) => (
               <div key={i} className={`group bg-gradient-to-br from-${card.color}-50 to-${card.color === 'cyan' ? 'blue' : card.color === 'violet' ? 'indigo' : 'amber'}-50 border border-${card.color}-200 rounded-3xl p-8 hover:shadow-lg transition-all`}>
@@ -383,7 +383,7 @@ export default function LandingPage() {
               </div>
               {annual ? <p className="text-emerald-600 text-xs font-bold mb-5">Billed £109.99/yr · Save £46</p> : <p className="text-slate-400 text-xs mb-5">or £109.99/yr with annual</p>}
               <ul className="space-y-2.5 text-sm text-slate-700 mb-7 flex-1">
-                {["Up to 3 scholars","Unlimited questions","Tara AI tutor (age-adaptive)","Full parent dashboard","Weekly missions & reports","Digital pets & leaderboards","Revision planner (KS3/KS4)","Certificates & achievements"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-500 mt-0.5">✓</span>{f}</li>)}
+                {["Up to 3 scholars","Unlimited questions","Tara AI tutor (age-adaptive)","Full guardian dashboard","Weekly missions & reports","Digital pets & leaderboards","Revision planner (KS3/KS4)","Certificates & achievements"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-500 mt-0.5">✓</span>{f}</li>)}
               </ul>
               <Link href="/signup" className="block text-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20">Start 14-Day Free Trial</Link>
             </div>

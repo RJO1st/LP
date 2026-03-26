@@ -13,11 +13,13 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
+import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 export default function QuestJournal({ entries = [], maxEntries = 5 }) {
   const { band, theme: t, isDark } = useTheme();
+  const listRef = useRef(null);
 
   // Only render for KS1 and KS2
   if (band !== "ks1" && band !== "ks2") return null;
@@ -48,7 +50,8 @@ export default function QuestJournal({ entries = [], maxEntries = 5 }) {
         {title}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <QJEntranceEffect listRef={listRef} count={visible.length} />
+      <div ref={listRef} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {visible.map((entry, i) => (
           <div
             key={i}
@@ -95,4 +98,19 @@ export default function QuestJournal({ entries = [], maxEntries = 5 }) {
       </div>
     </div>
   );
+}
+
+/** GSAP stagger for journal entries */
+function QJEntranceEffect({ listRef, count }) {
+  useEffect(() => {
+    const el = listRef?.current;
+    if (!el || count === 0) return;
+    const children = el.children;
+    if (!children.length) return;
+    gsap.fromTo(children,
+      { opacity: 0, x: -16 },
+      { opacity: 1, x: 0, duration: 0.4, stagger: 0.08, ease: "power2.out", delay: 0.15 }
+    );
+  }, [listRef, count]);
+  return null;
 }

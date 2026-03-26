@@ -326,7 +326,7 @@ export default async function LearnPage({ params }) {
             {[
               ["🧠","Adaptive AI","Every question adjusts to your child's level. Too easy? We move up. Struggling? We scaffold."],
               ["🤖","Tara AI Tutor","Got it wrong? Tara asks your child to explain why — building real understanding, not just memorisation."],
-              ["📊","Parent Dashboard","See exactly which topics are strong and which need work. Weekly reports delivered."],
+              ["📊","Guardian Dashboard","See exactly which topics are strong and which need work. Weekly reports delivered."],
               ["🚀","Space Missions","Your child isn't doing homework — they're completing missions, earning Stardust, and climbing leaderboards."],
             ].map(([icon,title,desc],i) => (
               <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5">

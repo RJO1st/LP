@@ -51,7 +51,7 @@ export default function CareerExplorer({ topics = [], activeSubject }) {
       const key = (tp.slug || tp.label || "").toLowerCase().replace(/\s+/g, "_");
       const data = CAREER_DATA[key];
       if (!data) return null;
-      return { ...data, topic: tp.label || key.replace(/_/g, " "), mastery: tp.mastery || 0, key };
+      return { ...data, topic: tp.label || key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()), mastery: tp.mastery || 0, key };
     })
     .filter(Boolean);
 
@@ -59,7 +59,7 @@ export default function CareerExplorer({ topics = [], activeSubject }) {
   const topicKeys = topics.map(tp => (tp.slug || tp.label || "").toLowerCase().replace(/\s+/g, "_"));
   const extra = Object.entries(CAREER_DATA)
     .filter(([k]) => !topicKeys.includes(k))
-    .map(([k, v]) => ({ ...v, topic: k.replace(/_/g, " "), mastery: 0, key: k }));
+    .map(([k, v]) => ({ ...v, topic: k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()), mastery: 0, key: k }));
 
   const allCareers = [...matched, ...(expanded ? extra.slice(0, 6) : [])];
   const displayCareers = expanded ? allCareers : allCareers.slice(0, 4);
@@ -67,7 +67,7 @@ export default function CareerExplorer({ topics = [], activeSubject }) {
   if (displayCareers.length === 0) {
     // Fallback: show a selection from CAREER_DATA
     const fallback = Object.entries(CAREER_DATA).slice(0, 4).map(([k, v]) => ({
-      ...v, topic: k.replace(/_/g, " "), mastery: 0, key: k,
+      ...v, topic: k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()), mastery: 0, key: k,
     }));
     return (
       <div>

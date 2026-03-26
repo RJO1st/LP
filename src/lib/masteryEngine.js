@@ -41,43 +41,52 @@ const SM2_DEFAULTS = {
 // ─── MASTERY THRESHOLDS → DIFFICULTY TIER ────────────────────────────────────
 export const MASTERY_THRESHOLDS = {
   mastered:    0.80,
-  developing:  0.55,
+  developing:  0.45,
 };
 
 // ─── TIER GATES ──────────────────────────────────────────────────────────────
-// Exceeding: score ≥ 0.80, 100+ questions, 7+ day interval, 3+ spaced reviews, 7+ unique days
-// Expected:  score ≥ 0.55, 50+ questions, 2+ spaced reviews, 3+ unique days
+// Exceeding: score ≥ 0.80, 150+ questions, 14+ day interval, 5+ spaced reviews, 21+ unique days
+// Expected:  score ≥ 0.45, 50+ questions, 3+ spaced reviews, 7+ unique days
 const MIN_SEEN_FOR_EXPECTED     = 50;
-const MIN_SEEN_FOR_EXCEEDING    = 100;
-const MIN_INTERVAL_FOR_EXCEEDING = 7;
-const MIN_SPACED_REVIEWS_EXPECTED  = 2;   // successful reviews with gap ≥ 1 day
-const MIN_SPACED_REVIEWS_EXCEEDING = 3;   // successful reviews with gap ≥ 7 days
-const MIN_UNIQUE_DAYS_EXPECTED     = 3;
-const MIN_UNIQUE_DAYS_EXCEEDING    = 7;
+const MIN_SEEN_FOR_EXCEEDING    = 150;
+const MIN_INTERVAL_FOR_EXCEEDING = 14;
+const MIN_SPACED_REVIEWS_EXPECTED  = 3;   // successful reviews with gap ≥ 1 day
+const MIN_SPACED_REVIEWS_EXCEEDING = 5;   // successful reviews with gap ≥ 7 days
+const MIN_UNIQUE_DAYS_EXPECTED     = 7;
+const MIN_UNIQUE_DAYS_EXCEEDING    = 21;
 
 // ─── VOLUME-BASED MASTERY CAPS ──────────────────────────────────────────────
+// Conservative: ~500 questions per topic per year. 20 questions = ~4% coverage.
+// Scholars must answer many questions across many sessions to build mastery.
 const VOLUME_CAPS = [
-  { minSeen:   0, maxMastery: 0.25 },
-  { minSeen:  10, maxMastery: 0.40 },
-  { minSeen:  25, maxMastery: 0.55 },
-  { minSeen:  50, maxMastery: 0.70 },
-  { minSeen:  75, maxMastery: 0.85 },
-  { minSeen: 100, maxMastery: 0.95 },
-  { minSeen: 150, maxMastery: 1.00 },
+  { minSeen:   0, maxMastery: 0.03 },  // 0-4: barely started → 3%
+  { minSeen:   5, maxMastery: 0.06 },  // 5-9: first taste → 6%
+  { minSeen:  10, maxMastery: 0.10 },  // 10-19: starting out → 10%
+  { minSeen:  20, maxMastery: 0.15 },  // 20-34: getting going → 15%
+  { minSeen:  35, maxMastery: 0.22 },  // 35-49: building → 22%
+  { minSeen:  50, maxMastery: 0.35 },  // 50-74: solid practice → 35%
+  { minSeen:  75, maxMastery: 0.50 },  // 75-99: substantial → 50%
+  { minSeen: 100, maxMastery: 0.65 },  // 100-149: strong → 65%
+  { minSeen: 150, maxMastery: 0.80 },  // 150-249: advanced → 80%
+  { minSeen: 250, maxMastery: 0.90 },  // 250-399: near-complete → 90%
+  { minSeen: 400, maxMastery: 0.95 },  // 400+: comprehensive → 95%
 ];
 
 // ─── DISTRIBUTED-PRACTICE CAPS ──────────────────────────────────────────────
 // Prevents mastery inflation from cramming all practice into one day.
 // Scholars must practice across multiple calendar days to unlock higher scores.
+// 1 day of practice ≈ one session — mastery barely started, no retention proof.
 const PRACTICE_DAY_CAPS = [
-  { minDays:  0, maxMastery: 0.30 },  // 0 unique days (impossible, but safe)
-  { minDays:  1, maxMastery: 0.35 },  // single session → 35% max
-  { minDays:  2, maxMastery: 0.45 },  // 2 days → 45%
-  { minDays:  3, maxMastery: 0.55 },  // 3 days → 55% (unlocks "expected" path)
-  { minDays:  5, maxMastery: 0.70 },  // 5 days → 70%
-  { minDays:  7, maxMastery: 0.85 },  // 7 days → 85% (unlocks "exceeding" path)
-  { minDays: 14, maxMastery: 0.95 },  // 14 days → 95%
-  { minDays: 21, maxMastery: 1.00 },  // 21+ days → uncapped
+  { minDays:  0, maxMastery: 0.02 },  // 0 unique days (impossible, but safe)
+  { minDays:  1, maxMastery: 0.05 },  // single session → 5% max
+  { minDays:  2, maxMastery: 0.10 },  // 2 days → 10%
+  { minDays:  3, maxMastery: 0.18 },  // 3 days → 18%
+  { minDays:  5, maxMastery: 0.30 },  // 5 days → 30%
+  { minDays:  7, maxMastery: 0.45 },  // 7 days → 45% (unlocks "expected" path)
+  { minDays: 14, maxMastery: 0.65 },  // 14 days → 65%
+  { minDays: 21, maxMastery: 0.80 },  // 21 days → 80% (unlocks "exceeding" path)
+  { minDays: 30, maxMastery: 0.90 },  // 30 days → 90%
+  { minDays: 45, maxMastery: 1.00 },  // 45+ days → uncapped
 ];
 
 // ─── COMPOSITE MASTERY WEIGHTS ──────────────────────────────────────────────
@@ -106,7 +115,7 @@ const MAX_DECAY_DAYS = 90;  // cap decay calculation at 90 days
  * Applies volume-based cap to a raw mastery score.
  */
 export function capMasteryByVolume(rawScore, timesSeen = 0) {
-  let cap = 0.25;
+  let cap = 0.03;
   for (const { minSeen, maxMastery } of VOLUME_CAPS) {
     if (timesSeen >= minSeen) cap = maxMastery;
   }
@@ -117,7 +126,7 @@ export function capMasteryByVolume(rawScore, timesSeen = 0) {
  * Applies distributed-practice cap based on unique calendar days practiced.
  */
 export function capMasteryByPracticeDays(rawScore, uniqueDays = 1) {
-  let cap = 0.35;
+  let cap = 0.05;
   for (const { minDays, maxMastery } of PRACTICE_DAY_CAPS) {
     if (uniqueDays >= minDays) cap = maxMastery;
   }
@@ -676,7 +685,7 @@ export function checkCertificateEligibility(masteryRecord, tier) {
  * @param {number} [threshold=0.40] - minimum composite mastery required
  * @returns {{ ready: boolean, reasons: string[] }}
  */
-export function checkRetentionGate(masteryRecord, threshold = 0.40) {
+export function checkRetentionGate(masteryRecord, threshold = 0.15) {
   const reasons = [];
   if (!masteryRecord) return { ready: false, reasons: ['No practice yet'] };
 
@@ -686,7 +695,7 @@ export function checkRetentionGate(masteryRecord, threshold = 0.40) {
 
   if (score < threshold) reasons.push(`Mastery ${Math.round(score * 100)}% < ${Math.round(threshold * 100)}%`);
   if (spacedReviews < 1) reasons.push('Needs at least 1 spaced review');
-  if (uniqueDays < 2) reasons.push(`Practiced ${uniqueDays}/2 required days`);
+  if (uniqueDays < 3) reasons.push(`Practiced ${uniqueDays}/3 required days`);
 
   return { ready: reasons.length === 0, reasons };
 }
@@ -712,7 +721,7 @@ export function checkProgressionReadiness(masteryRecords = []) {
   const reasons = [];
   const total = masteryRecords.length;
 
-  const topicsAboveThreshold = masteryRecords.filter(r => (r.mastery_score ?? 0) >= 0.40).length;
+  const topicsAboveThreshold = masteryRecords.filter(r => (r.mastery_score ?? 0) >= 0.15).length;
   const topicsWithSpacedReview = masteryRecords.filter(r => (r.spaced_review_count ?? 0) >= 1).length;
   const avgStability = masteryRecords.reduce((sum, r) => sum + (r.stability ?? 0), 0) / total;
 
@@ -730,7 +739,7 @@ export function checkProgressionReadiness(masteryRecords = []) {
   if (masteryPct < 70) reasons.push(`${masteryPct}% topics at mastery (need 70%)`);
   if (spacedPct < 50) reasons.push(`${spacedPct}% topics reviewed (need 50%)`);
   if (avgStability < 0.20) reasons.push(`Avg stability ${Math.round(avgStability * 100)}% (need 20%)`);
-  if (totalUniqueDays < 5) reasons.push(`${totalUniqueDays}/5 practice days completed`);
+  if (totalUniqueDays < 7) reasons.push(`${totalUniqueDays}/7 practice days completed`);
 
   return {
     ready: reasons.length === 0,

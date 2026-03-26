@@ -82,7 +82,11 @@ function generatePlan(masteryData, examDate) {
 
 export default function RevisionPlanner({ masteryData = [], examDate, examName, onStartTopic }) {
   const { band, theme: t, isDark } = useTheme();
-  const [selectedDay, setSelectedDay] = useState(0);
+  // Default to today's day index (Mon=0 .. Sun=6)
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const jsDay = new Date().getDay();
+    return (jsDay + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+  });
   // Only render for KS3/KS4
   if (band === "ks1" || band === "ks2") return null;
 
@@ -156,24 +160,43 @@ export default function RevisionPlanner({ masteryData = [], examDate, examName, 
       {/* Day tabs */}
       <div style={{ display: "flex", gap: 2, marginBottom: 14, overflowX: "auto" }}>
         {plan.map((day, i) => {
-          const isToday = i === 0;
+          // Map actual day of week: JS getDay() returns 0=Sun,1=Mon...6=Sat
+          // DAYS array is Mon(0)..Sun(6), so todayIdx = (jsDay + 6) % 7
+          const jsDay = new Date().getDay();
+          const todayIdx = (jsDay + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+          const isToday = i === todayIdx;
           const dayComplete = day.sessions.every((_, si) => completedItems.has(`${i}-${si}`));
+
+          // Colours: blue for today, green for completed, grey for no activity
+          const isSelected = selectedDay === i;
+          let bg = "transparent";
+          let fg = t.colours.textMuted; // grey default
+          if (isSelected) {
+            bg = isToday ? "#3b82f6" : dayComplete ? "#22c55e" : t.colours.accent;
+            fg = "#fff";
+          } else if (isToday) {
+            bg = "rgba(59,130,246,0.1)";
+            fg = "#3b82f6";
+          } else if (dayComplete) {
+            fg = "#22c55e";
+          }
+
           return (
             <button
               key={i}
               onClick={() => setSelectedDay(i)}
               style={{
                 padding: "8px 12px",
-                background: selectedDay === i ? t.colours.accent : "transparent",
-                color: selectedDay === i ? "#fff" : dayComplete ? t.colours.success : t.colours.textMuted,
+                background: bg,
+                color: fg,
                 borderRadius: t.radius.button,
                 fontSize: 11,
                 fontWeight: 700,
                 fontFamily: t.fonts.body,
                 cursor: "pointer",
-                border: "none",
-                textDecoration: dayComplete ? "line-through" : "none",
-                opacity: dayComplete && selectedDay !== i ? 0.5 : 1,
+                border: isToday && !isSelected ? "1.5px solid #3b82f6" : "none",
+                textDecoration: dayComplete && !isSelected ? "line-through" : "none",
+                opacity: dayComplete && !isSelected && !isToday ? 0.6 : 1,
                 whiteSpace: "nowrap",
               }}
             >

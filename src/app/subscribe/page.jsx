@@ -232,7 +232,7 @@ export default function SubscribePage() {
                     { icon: "🤖", text: "AI-powered adaptive learning", color: "from-purple-400 to-pink-500" },
                     { icon: "👨‍👩‍👧", text: "Up to 3 children included", color: "from-green-400 to-emerald-500" },
                     { icon: "🎮", text: "Full gamification (badges, streaks, quests)", color: "from-indigo-400 to-purple-500" },
-                    { icon: "📊", text: "Advanced parent dashboard & reports", color: "from-cyan-400 to-blue-500" },
+                    { icon: "📊", text: "Advanced guardian dashboard & reports", color: "from-cyan-400 to-blue-500" },
                   ].map((feature, i) => (
                     <div key={i} className="flex items-center gap-3 group/item">
                       <div className={`text-2xl bg-gradient-to-r ${feature.color} bg-clip-text text-transparent`}>

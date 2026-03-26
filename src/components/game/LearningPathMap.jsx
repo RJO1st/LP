@@ -165,7 +165,7 @@ export default function LearningPathMap({ path, mastery = [], subject, onStartTo
                         const inProgress = item.masteryScore > 0 && !mastered;
                         // Retention gate: previous topic must pass retention check to unlock next
                         const prevRecord = idx > 0 ? items[idx - 1]?.masteryRecord : null;
-                        const prevGate = idx > 0 ? checkRetentionGate(prevRecord, 0.40) : { ready: true, reasons: [] };
+                        const prevGate = idx > 0 ? checkRetentionGate(prevRecord, 0.15) : { ready: true, reasons: [] };
                         const locked     = item.masteryScore === 0 && idx > 0 && !prevGate.ready;
 
                         const colour = masteryColour(item.masteryScore);

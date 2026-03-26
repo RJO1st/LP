@@ -10,6 +10,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import gsap from "gsap";
 
 /* ── Subject palette ────────────────────────────────────── */
 const SUBJECT_META = {
@@ -39,34 +40,35 @@ const SUBJECT_META = {
 function layoutNodes(count, w, h) {
   if (count === 0) return [];
   const nodes = [];
-  const padX = 35, padY = 30;
+  const padX = 32, padY = 28;
   const usableW = w - padX * 2;
   const usableH = h - padY * 2;
 
   // Create a natural constellation pattern using golden angle distribution
-  // with slight randomization for organic feel
+  // with slight randomization for organic feel — spread across full width
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
   const centerX = w / 2;
   const centerY = h / 2;
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count - 1, 1);
-    // Spiral distribution — wide spread to fill the constellation area
-    const radius = (0.2 + t * 0.75) * Math.min(usableW, usableH) / 2;
-    const angle = i * goldenAngle + (i % 3) * 0.35;
+    // Spiral distribution — use full available space (wider radius for wider canvas)
+    const maxR = Math.min(usableW, usableH) / 2;
+    const radius = (0.18 + t * 0.82) * maxR;
+    const angle = i * goldenAngle + (i % 3) * 0.4;
     // Seed-based deterministic "randomness" for organic feel — generous spacing
-    const jitterX = Math.sin(i * 7.3) * 28;
-    const jitterY = Math.cos(i * 11.7) * 24;
-    const x = centerX + Math.cos(angle) * radius + jitterX;
-    const y = centerY + Math.sin(angle) * radius * 0.7 + jitterY;
+    const jitterX = Math.sin(i * 7.3) * 34;
+    const jitterY = Math.cos(i * 11.7) * 28;
+    const x = centerX + Math.cos(angle) * radius * (usableW / usableH) + jitterX;
+    const y = centerY + Math.sin(angle) * radius * 0.65 + jitterY;
     nodes.push({
       x: Math.max(padX + 10, Math.min(w - padX - 10, x)),
       y: Math.max(padY + 10, Math.min(h - padY - 10, y)),
     });
   }
 
-  // Push apart overlapping nodes (minimum 65px distance for readability)
-  const MIN_DIST = 65;
+  // Push apart overlapping nodes (generous spacing for readability)
+  const MIN_DIST = 80;
   for (let pass = 0; pass < 5; pass++) {
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -203,6 +205,7 @@ function StarNode({ x, y, topic, color, glowColor, isActive, onClick }) {
 
   return (
     <g
+      className="star-node-g"
       onClick={() => !isLocked && onClick?.(topic)}
       style={{ cursor: isLocked ? "default" : "pointer" }}
     >
@@ -263,7 +266,7 @@ function StarNode({ x, y, topic, color, glowColor, isActive, onClick }) {
         x={x} y={y + starRadius + 14}
         textAnchor="middle"
         fill={isActive ? "#fff" : `rgba(226,232,240,${textOpacity})`}
-        fontSize={11}
+        fontSize={13}
         fontWeight={700}
         fontFamily="'DM Sans', sans-serif"
         style={{ pointerEvents: "none", userSelect: "none" }}
@@ -273,10 +276,10 @@ function StarNode({ x, y, topic, color, glowColor, isActive, onClick }) {
       {/* Mastery percentage */}
       {isStarted && (
         <text
-          x={x} y={y + starRadius + 26}
+          x={x} y={y + starRadius + 28}
           textAnchor="middle"
           fill={color}
-          fontSize={10}
+          fontSize={12}
           fontWeight={800}
           fontFamily="'DM Sans', sans-serif"
           opacity={0.8}
@@ -305,13 +308,16 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
   const [hoveredTopic, setHoveredTopic] = useState(null);
   const containerRef = useRef(null);
-  const [dims, setDims] = useState({ w: 500, h: 360 });
+  const [dims, setDims] = useState({ w: 640, h: 480 });
+  const svgRef = useRef(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
     const obs = new ResizeObserver(entries => {
       for (const e of entries) {
-        setDims({ w: e.contentRect.width, h: Math.max(400, Math.min(540, e.contentRect.width * 0.85)) });
+        // Use full available width and generous height for wide-spread constellation
+        const cw = e.contentRect.width;
+        setDims({ w: cw, h: Math.max(460, Math.min(640, cw * 0.75)) });
       }
     });
     obs.observe(containerRef.current);
@@ -331,6 +337,25 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
     setActiveSubject(subj);
     onSubjectChange?.(subj);
   };
+
+  // GSAP entrance animation for star nodes
+  useEffect(() => {
+    if (!svgRef.current || filteredTopics.length === 0) return;
+    const nodes = svgRef.current.querySelectorAll(".star-node-g");
+    const paths = svgRef.current.querySelectorAll(".constellation-edge");
+    if (nodes.length) {
+      gsap.fromTo(nodes,
+        { opacity: 0, scale: 0.3, transformOrigin: "center center" },
+        { opacity: 1, scale: 1, duration: 0.5, stagger: 0.06, ease: "back.out(1.8)", delay: 0.15 }
+      );
+    }
+    if (paths.length) {
+      gsap.fromTo(paths,
+        { strokeDashoffset: 500, opacity: 0 },
+        { strokeDashoffset: 0, opacity: 1, duration: 0.8, stagger: 0.05, ease: "power2.out", delay: 0.3 }
+      );
+    }
+  }, [activeSubject, filteredTopics.length]);
 
   // Stats summary
   const mastered = filteredTopics.filter(t => t.mastery >= 0.8).length;
@@ -372,14 +397,17 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         </div>
       )}
 
-      {/* Constellation viewport */}
-      <div style={{
+      {/* Constellation viewport — CSS 3D perspective container */}
+      <div style={{ perspective: "900px", perspectiveOrigin: "50% 50%" }}>
+      <div className="constellation-viewport" style={{
         position: "relative",
         background: "linear-gradient(160deg, #0c0a1a 0%, #0f0d24 35%, #131030 60%, #0a0818 100%)",
-        borderRadius: 14,
+        borderRadius: 16,
         overflow: "hidden",
-        border: "1px solid rgba(124,58,237,0.15)",
-        boxShadow: "inset 0 0 60px rgba(124,58,237,0.04), 0 4px 20px rgba(0,0,0,0.3)",
+        border: "1px solid rgba(124,58,237,0.2)",
+        boxShadow: "inset 0 0 80px rgba(124,58,237,0.06), 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(124,58,237,0.1)",
+        transition: "transform 0.4s ease",
+        transformStyle: "preserve-3d",
       }}>
         {/* Nebula gradient overlay */}
         <div style={{
@@ -389,6 +417,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         }} />
 
         <svg
+          ref={svgRef}
           width={dims.w} height={dims.h}
           viewBox={`0 0 ${dims.w} ${dims.h}`}
           style={{ display: "block", position: "relative", zIndex: 1 }}
@@ -407,20 +436,21 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
             const t2 = filteredTopics[to];
             const bothActive = (t1?.mastery > 0) && (t2?.mastery > 0);
             const eitherLocked = t1?.status === "locked" || t2?.status === "locked";
-            // Curved path via midpoint offset
-            const mx = (p1.x + p2.x) / 2 + (Math.sin(from * 3.7) * 15);
-            const my = (p1.y + p2.y) / 2 + (Math.cos(to * 5.3) * 10);
+            const bothLocked = t1?.status === "locked" && t2?.status === "locked";
+            // Straight lines for connected, straight dotted for locked
             return (
-              <path
+              <line
                 key={key}
-                d={`M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`}
-                fill="none"
-                stroke={bothActive ? `${meta.color}` : eitherLocked ? "rgba(148,163,184,0.12)" : "rgba(148,163,184,0.25)"}
-                strokeWidth={bothActive ? 2 : 1.2}
-                strokeDasharray={eitherLocked ? "3 4" : undefined}
-                strokeOpacity={bothActive ? 0.6 : undefined}
+                className="constellation-edge"
+                x1={p1.x} y1={p1.y}
+                x2={p2.x} y2={p2.y}
+                stroke={bothActive ? meta.color : eitherLocked ? "rgba(148,163,184,0.4)" : `${meta.color}66`}
+                strokeWidth={bothActive ? 2.5 : eitherLocked ? 1.5 : 1.8}
+                strokeDasharray={eitherLocked ? "6 5" : "none"}
+                strokeOpacity={bothActive ? 0.85 : bothLocked ? 0.3 : 0.5}
+                strokeLinecap="round"
                 style={{
-                  filter: bothActive ? `drop-shadow(0 0 6px ${meta.glow}80)` : undefined,
+                  filter: bothActive ? `drop-shadow(0 0 8px ${meta.glow}aa)` : undefined,
                   transition: "all 0.5s ease",
                 }}
               />
@@ -483,12 +513,13 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
           position: "absolute", top: 12, right: 14,
           display: "flex", alignItems: "center", gap: 6,
         }}>
-          <span style={{ fontSize: 18, fontWeight: 900, color: meta.color, fontFamily: "'DM Sans', sans-serif" }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: meta.color, fontFamily: "'DM Sans', sans-serif" }}>
             {filteredTopics.length > 0 ? Math.round(filteredTopics.reduce((s, t) => s + (t.mastery || 0), 0) / filteredTopics.length * 100) : 0}%
           </span>
           <span style={{ fontSize: 10, color: "rgba(226,232,240,0.45)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>overall</span>
         </div>
       </div>
+      </div>{/* end perspective wrapper */}
 
       {/* Empty state */}
       {filteredTopics.length === 0 && (
@@ -519,7 +550,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         </div>
       )}
 
-      {/* CSS animations */}
+      {/* CSS animations + 3D hover */}
       <style>{`
         @keyframes constellation-twinkle {
           0%, 100% { opacity: 0.15; }
@@ -535,6 +566,13 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
           30% { opacity: 0.8; }
           50% { opacity: 0; transform: translate(120px, 80px); }
           100% { opacity: 0; transform: translate(120px, 80px); }
+        }
+        .constellation-viewport:hover {
+          transform: rotateX(1.5deg) rotateY(-1deg) scale(1.005);
+          box-shadow: inset 0 0 80px rgba(124,58,237,0.08), 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(124,58,237,0.15) !important;
+        }
+        .star-node-g:hover circle {
+          filter: drop-shadow(0 0 14px currentColor) brightness(1.2);
         }
       `}</style>
     </div>

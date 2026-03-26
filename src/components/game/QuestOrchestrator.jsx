@@ -682,14 +682,14 @@ const year = rawYear;
         <div>
           <p className="text-xs font-black text-slate-800">{labels.scenario}</p>
           <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[160px]">
-            {q.topic ? q.topic.replace(/_/g, " ") : "Read and answer"}
+            {q.topic ? q.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Read and answer"}
           </p>
         </div>
       </div>
       <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-500 leading-relaxed overflow-y-auto">
         {q.hints?.[0]
           ? <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
-          : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ") || subject}</span>.</p>
+          : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || subject}</span>.</p>
         }
       </div>
     </div>
@@ -1065,7 +1065,7 @@ function getTopicDescription(topicLabel, subject) {
     "rounding numbers":            "Estimating to the nearest 10, 100, or 1000.",
   };
   return descs[label] ||
-    `Exploring ${topicLabel} — building skills in ${(subject || "mathematics").replace(/_/g, " ")}.`;
+    `Exploring ${topicLabel} — building skills in ${(subject || "mathematics").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}.`;
 }
 
 // ─── QUEST ORCHESTRATOR ───────────────────────────────────────────────────────

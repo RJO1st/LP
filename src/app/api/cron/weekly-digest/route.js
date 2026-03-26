@@ -97,11 +97,11 @@ export async function GET(req) {
           .order("mastery_score", { ascending: false });
 
         const strengths = (mastery || []).slice(0, 3).map(m => ({
-          topic: m.topic.replace(/_/g, " "),
+          topic: m.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           score: Math.round((m.mastery_score || 0) * 100),
         }));
         const weaknesses = (mastery || []).slice(-3).reverse().map(m => ({
-          topic: m.topic.replace(/_/g, " "),
+          topic: m.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           score: Math.round((m.mastery_score || 0) * 100),
         }));
 
@@ -120,7 +120,7 @@ export async function GET(req) {
           accuracyDelta,
           xp: tw.xp,
           sessions: tw.sessions,
-          subjects: [...(tw.subjects || [])].map(s => s.replace(/_/g, " ")),
+          subjects: [...(tw.subjects || [])].map(s => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())),
           streak: streakData?.streak_days || 0,
           strengths,
           weaknesses,

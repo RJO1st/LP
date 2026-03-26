@@ -13,7 +13,8 @@
  *   scholarName  — string
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 
@@ -92,6 +93,22 @@ function CertificateCard({ record, onView }) {
       </div>
     </button>
   );
+}
+
+function CertGridEntrance({ filter, count }) {
+  useEffect(() => {
+    if (count === 0) return;
+    const timer = requestAnimationFrame(() => {
+      const grid = document.querySelector(".cert-grid");
+      if (!grid) return;
+      gsap.fromTo(grid.children,
+        { opacity: 0, y: 14, rotateX: 8 },
+        { opacity: 1, y: 0, rotateX: 0, duration: 0.4, stagger: 0.05, ease: "power2.out" }
+      );
+    });
+    return () => cancelAnimationFrame(timer);
+  }, [filter, count]);
+  return null;
 }
 
 export default function CertificatesPanel({ records = [], scholarName = "Scholar" }) {
@@ -178,10 +195,11 @@ export default function CertificatesPanel({ records = [], scholarName = "Scholar
           ))}
         </div>
 
-        {/* Certificate grid */}
-        <div style={{
+        {/* Certificate grid with GSAP entrance */}
+        <CertGridEntrance filter={filter} count={filtered.length} />
+        <div className="cert-grid" style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
-          maxHeight: 280, overflowY: "auto",
+          maxHeight: 280, overflowY: "auto", perspective: "600px",
         }}>
           {filtered.map((record, i) => (
             <CertificateCard key={record.topic + i} record={record} onView={handleView} />

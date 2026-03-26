@@ -130,7 +130,7 @@ export function SpellingPatternVis({ word = "", pattern = "", highlighted = [] }
       </div>
       {pattern && (
         <p style={{ fontSize: 9, fontWeight: 600, color: T.nebula, textAlign: "center", maxWidth: 200 }}>
-          {PATTERN_LABELS[pattern] || pattern.replace(/_/g, " ")}
+          {PATTERN_LABELS[pattern] || pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
         </p>
       )}
     </Panel>
@@ -182,7 +182,7 @@ export function PunctuationVis({ sentence = "", marks = [], missingPos = -1 }) {
           {[...new Set(marks.map(m => m.type))].map(type => (
             <div key={type} style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 6, height: 6, borderRadius: 2, background: MARK_COLORS[type] || T.amber }} />
-              <span style={{ fontSize: 8, fontWeight: 700, color: T.textMid }}>{type.replace(/_/g, " ")}</span>
+              <span style={{ fontSize: 8, fontWeight: 700, color: T.textMid }}>{type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
             </div>
           ))}
         </div>

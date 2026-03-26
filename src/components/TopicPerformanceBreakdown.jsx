@@ -175,7 +175,7 @@ export default function TopicPerformanceBreakdown({
               <div key={topic}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-semibold text-slate-700 capitalize">
-                    {topic.replace(/_/g, " ")}
+                    {topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                   <div className="flex items-center gap-2 ml-2">
                     <span

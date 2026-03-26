@@ -47,7 +47,7 @@ const BKT = {
   pGuess: 0.30,
   pInit:  0.08,
 };
-const MASTERY_THRESHOLDS = { mastered: 0.80, developing: 0.55 };
+const MASTERY_THRESHOLDS = { mastered: 0.80, developing: 0.45 };
 
 function bktUpdate(currentMastery, correct) {
   const { pLearn, pSlip, pGuess } = BKT;
@@ -62,18 +62,23 @@ function bktUpdate(currentMastery, correct) {
 }
 
 // ── VOLUME-BASED MASTERY CAPS (must match masteryEngine.js) ──────────────────
+// Conservative: ~500 questions per topic per year.
 const VOLUME_CAPS = [
-  { minSeen:   0, maxMastery: 0.25 },
-  { minSeen:  10, maxMastery: 0.40 },
-  { minSeen:  25, maxMastery: 0.55 },
-  { minSeen:  50, maxMastery: 0.70 },
-  { minSeen:  75, maxMastery: 0.85 },
-  { minSeen: 100, maxMastery: 0.95 },
-  { minSeen: 150, maxMastery: 1.00 },
+  { minSeen:   0, maxMastery: 0.03 },
+  { minSeen:   5, maxMastery: 0.06 },
+  { minSeen:  10, maxMastery: 0.10 },
+  { minSeen:  20, maxMastery: 0.15 },
+  { minSeen:  35, maxMastery: 0.22 },
+  { minSeen:  50, maxMastery: 0.35 },
+  { minSeen:  75, maxMastery: 0.50 },
+  { minSeen: 100, maxMastery: 0.65 },
+  { minSeen: 150, maxMastery: 0.80 },
+  { minSeen: 250, maxMastery: 0.90 },
+  { minSeen: 400, maxMastery: 0.95 },
 ];
 
 function capMasteryByVolume(rawScore, timesSeen = 0) {
-  let cap = 0.25;
+  let cap = 0.03;
   for (const { minSeen, maxMastery } of VOLUME_CAPS) {
     if (timesSeen >= minSeen) cap = maxMastery;
   }
@@ -81,19 +86,22 @@ function capMasteryByVolume(rawScore, timesSeen = 0) {
 }
 
 // ── DISTRIBUTED-PRACTICE CAPS (must match masteryEngine.js) ──────────────────
+// 1 practice day ≈ one session — barely started, no retention proof.
 const PRACTICE_DAY_CAPS = [
-  { minDays:  0, maxMastery: 0.30 },
-  { minDays:  1, maxMastery: 0.35 },
-  { minDays:  2, maxMastery: 0.45 },
-  { minDays:  3, maxMastery: 0.55 },
-  { minDays:  5, maxMastery: 0.70 },
-  { minDays:  7, maxMastery: 0.85 },
-  { minDays: 14, maxMastery: 0.95 },
-  { minDays: 21, maxMastery: 1.00 },
+  { minDays:  0, maxMastery: 0.02 },
+  { minDays:  1, maxMastery: 0.05 },
+  { minDays:  2, maxMastery: 0.10 },
+  { minDays:  3, maxMastery: 0.18 },
+  { minDays:  5, maxMastery: 0.30 },
+  { minDays:  7, maxMastery: 0.45 },
+  { minDays: 14, maxMastery: 0.65 },
+  { minDays: 21, maxMastery: 0.80 },
+  { minDays: 30, maxMastery: 0.90 },
+  { minDays: 45, maxMastery: 1.00 },
 ];
 
 function capMasteryByPracticeDays(rawScore, uniqueDays = 1) {
-  let cap = 0.35;
+  let cap = 0.05;
   for (const { minDays, maxMastery } of PRACTICE_DAY_CAPS) {
     if (uniqueDays >= minDays) cap = maxMastery;
   }
@@ -135,10 +143,10 @@ function computeCompositeMastery({ acquisitionScore, stability, recency, timesSe
 
 // ── TIER with full gates (must match masteryEngine.js) ───────────────────────
 function tierFromScore(score, intervalDays = 0, timesSeen = 0, spacedReviewCount = 0, uniquePracticeDays = 1) {
-  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 100 && intervalDays >= 7
-      && spacedReviewCount >= 3 && uniquePracticeDays >= 7) return "exceeding";
+  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 150 && intervalDays >= 14
+      && spacedReviewCount >= 5 && uniquePracticeDays >= 21) return "exceeding";
   if (score >= MASTERY_THRESHOLDS.developing && timesSeen >= 50
-      && spacedReviewCount >= 2 && uniquePracticeDays >= 3) return "expected";
+      && spacedReviewCount >= 3 && uniquePracticeDays >= 7) return "expected";
   return "developing";
 }
 
