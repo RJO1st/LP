@@ -10,6 +10,8 @@
  */
 
 import React, { useState } from "react";
+import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
+import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
 const N = { fontFamily: "'Nunito', 'Comic Sans MS', sans-serif" };
 const OPTION_ICONS = ["🌟", "🪐", "🌙", "⭐"];
@@ -68,6 +70,7 @@ export default function KS1QuizShell({
   leftPanelContent, taraEIBWidget, canProceed,
 }) {
   const [showTaraHelp, setShowTaraHelp] = useState(false);
+  const optionsRef = useStaggerEntrance(".ks1-option", [questionIndex]);
 
   const formatTime = (s) => {
     if (!s && s !== 0) return "";
@@ -286,7 +289,7 @@ export default function KS1QuizShell({
           </h2>
 
           {/* Big, friendly answer buttons with glow */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+          <div ref={optionsRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -315,7 +318,7 @@ export default function KS1QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="ks1-answer-btn"
+                  className="ks1-option ks1-answer-btn"
                   style={{
                     width: "100%", textAlign: "left",
                     borderRadius: 14,
@@ -361,7 +364,16 @@ export default function KS1QuizShell({
                   {isCorrect ? "Amazing work, explorer!" : "Let's learn something new!"}
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, ...N }}>{explanation}</p>
+              {parseExplanationSteps(explanation).length > 1 ? (
+                <StepByStepTimeline
+                  steps={parseExplanationSteps(explanation)}
+                  autoPlay
+                  stepDelay={1.0}
+                  band="ks1"
+                />
+              ) : (
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, ...N }}>{explanation}</p>
+              )}
             </GlowFrame>
           )}
 

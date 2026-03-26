@@ -203,17 +203,17 @@ export function NVRShapePropertyVis({ shapeName }) {
     <Panel accent={color} bg={T.indigoBg} bd={T.indigoBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {props.type === "circle" ? (
-          <circle cx={cx} cy={cy} r={r} fill={T.indigoBg} stroke={color} strokeWidth={2.5}/>
+          <circle className="vis-segment" cx={cx} cy={cy} r={r} fill={T.indigoBg} stroke={color} strokeWidth={2.5}/>
         ) : (
-          <polygon points={props.svgPath(cx, cy, r)}
+          <polygon className="vis-segment" points={props.svgPath(cx, cy, r)}
             fill={T.indigoBg} stroke={color} strokeWidth={2.5}/>
         )}
         {/* Corner dots */}
         {verts.map(([vx, vy], i) => (
-          <circle key={i} cx={vx} cy={vy} r={4} fill={color}/>
+          <circle key={i} className="vis-mark" cx={vx} cy={vy} r={4} fill={color}/>
         ))}
         {/* Shape name */}
-        <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fontWeight="800" fill={color}>
+        <text className="vis-label" x={cx} y={H - 8} textAnchor="middle" fontSize={11} fontWeight="800" fill={color}>
           {props.label}
         </text>
       </svg>
@@ -314,13 +314,13 @@ export function NVRNetVis({ shape3d = "cube" }) {
         {shape3d === "cube" && (
           <g transform={`translate(${(W - SQ*4) / 2}, 4)`}>
             {cubeSquares.map(([col, row], i) => (
-              <rect key={i} x={col*SQ} y={row*SQ} width={SQ-2} height={SQ-2}
+              <rect key={i} className="vis-bar" x={col*SQ} y={row*SQ} width={SQ-2} height={SQ-2}
                 fill={T.amberBg} stroke={T.amber} strokeWidth={2} rx={2}/>
             ))}
           </g>
         )}
         {shape3d !== "cube" && pyramidTris.map((t, i) => (
-          <polygon key={i} points={t.pts}
+          <polygon key={i} className="vis-segment" points={t.pts}
             fill={T.amberBg} stroke={T.amber} strokeWidth={2}/>
         ))}
       </svg>
@@ -342,14 +342,14 @@ export function NVRRotationVis({ degrees = 90, clockwise = true }) {
       ariaLabel={`Rotation of ${degrees} degrees ${clockwise ? "clockwise" : "anti-clockwise"}`}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Original arrow shape */}
-        <text x={cx} y={cy+6} textAnchor="middle" fontSize={30} fill={T.indigo}>→</text>
+        <text className="vis-mark" x={cx} y={cy+6} textAnchor="middle" fontSize={30} fill={T.indigo}>→</text>
         {/* Rotated arrow */}
-        <text x={cx + 90} y={cy+6} textAnchor="middle" fontSize={30} fill={T.nebula}
+        <text className="vis-mark" x={cx + 90} y={cy+6} textAnchor="middle" fontSize={30} fill={T.nebula}
           transform={`rotate(${rot2}, ${cx+90}, ${cy})`}>→</text>
         {/* Arc label */}
-        <path d={`M ${cx+62},${cy-8} A 15 15 0 0 ${clockwise?1:0} ${cx+68},${cy+8}`}
+        <path className="vis-arc" d={`M ${cx+62},${cy-8} A 15 15 0 0 ${clockwise?1:0} ${cx+68},${cy+8}`}
           fill="none" stroke={T.slate} strokeWidth={1.5} strokeDasharray="3,2"/>
-        <text x={cx+62} y={cy-14} textAnchor="middle" fontSize={8} fill={T.textMid}>
+        <text className="vis-label" x={cx+62} y={cy-14} textAnchor="middle" fontSize={8} fill={T.textMid}>
           {degrees}° {clockwise?"↻":"↺"}
         </text>
       </svg>
@@ -420,7 +420,7 @@ export function NVRMatrixVis({ cells }) {
 export function NVRShapeReflectionVis({ shape = "flag", horizontal = false, direction = "right" }) {
   const W = 240, H = 120;
   const midX = W / 2, midY = H / 2;
- 
+
   const shapes = {
     flag: (x, y, dir) => {
       const pole = `M${x},${y - 30} L${x},${y + 30}`;
@@ -450,11 +450,11 @@ export function NVRShapeReflectionVis({ shape = "flag", horizontal = false, dire
     },
     square: (x, y) => ({ rect: { x: x-15, y: y-15, w: 30, h: 30 } }),
   };
- 
+
   const shapeGen = shapes[shape] || shapes.triangle;
   const origX = horizontal ? midX : midX - 55;
   const origY = horizontal ? midY - 30 : midY;
- 
+
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:"12px 8px" }}>
       <span style={{ fontSize:9, fontWeight:700, color:"#64748b", letterSpacing:1, textTransform:"uppercase" }}>
@@ -464,23 +464,23 @@ export function NVRShapeReflectionVis({ shape = "flag", horizontal = false, dire
         {(() => {
           const s = shapeGen(origX, origY, direction);
           return (
-            <g>
-              {s.pole && <path d={s.pole} stroke="#6366f1" strokeWidth={3} fill="none" strokeLinecap="round" />}
-              {s.flag && <path d={s.flag} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
-              {s.polygon && <polygon points={s.polygon} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
-              {s.rect && <rect x={s.rect.x} y={s.rect.y} width={s.rect.w} height={s.rect.h} fill="#818cf8" stroke="#6366f1" strokeWidth={2} rx={3} />}
+            <g className="vis-segment">
+              {s.pole && <path className="vis-arc" d={s.pole} stroke="#6366f1" strokeWidth={3} fill="none" strokeLinecap="round" />}
+              {s.flag && <path className="vis-segment" d={s.flag} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
+              {s.polygon && <polygon className="vis-segment" points={s.polygon} fill="#818cf8" stroke="#6366f1" strokeWidth={2} />}
+              {s.rect && <rect className="vis-bar" x={s.rect.x} y={s.rect.y} width={s.rect.w} height={s.rect.h} fill="#818cf8" stroke="#6366f1" strokeWidth={2} rx={3} />}
             </g>
           );
         })()}
         {horizontal ? (
           <>
-            <line x1={20} y1={midY} x2={W-20} y2={midY} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
-            <text x={W-16} y={midY-4} fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
+            <line className="vis-axis" x1={20} y1={midY} x2={W-20} y2={midY} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
+            <text className="vis-label" x={W-16} y={midY-4} fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
           </>
         ) : (
           <>
-            <line x1={midX} y1={10} x2={midX} y2={H-10} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
-            <text x={midX} y={8} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
+            <line className="vis-axis" x1={midX} y1={10} x2={midX} y2={H-10} stroke="#94a3b8" strokeWidth={2} strokeDasharray="6,4" />
+            <text className="vis-label" x={midX} y={8} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>mirror</text>
           </>
         )}
         {(() => {
@@ -535,16 +535,16 @@ export function NVRPaperFoldVis({ foldType = "half_vertical", punchPositions = [
         <div style={{ textAlign: "center" }}>
           <svg width={pw + 20} height={ph + 20} viewBox={`0 0 ${pw + 20} ${ph + 20}`}>
             {/* Paper */}
-            <rect x={px} y={py} width={pw} height={ph} fill="white" stroke={T.slate} strokeWidth={1.5} rx={2}/>
+            <rect className="vis-bar" x={px} y={py} width={pw} height={ph} fill="white" stroke={T.slate} strokeWidth={1.5} rx={2}/>
             {/* Fold line */}
-            <line x1={px + fold.line[0][0]} y1={py + fold.line[0][1]}
+            <line className="vis-axis" x1={px + fold.line[0][0]} y1={py + fold.line[0][1]}
               x2={px + fold.line[1][0]} y2={py + fold.line[1][1]}
               stroke={T.nebula} strokeWidth={1.5} strokeDasharray="4,3"/>
             {/* Fold arrow */}
-            <text x={px + pw/2} y={ph + 18} fontSize={7} fontWeight="700" fill={T.textMid} textAnchor="middle">folded</text>
+            <text className="vis-label" x={px + pw/2} y={ph + 18} fontSize={7} fontWeight="700" fill={T.textMid} textAnchor="middle">folded</text>
             {/* Punch holes on folded paper */}
             {punchPositions.map(([hx, hy], i) => (
-              <circle key={i} cx={px + hx * pw} cy={py + hy * ph} r={5}
+              <circle key={i} className="vis-mark" cx={px + hx * pw} cy={py + hy * ph} r={5}
                 fill={T.nebula} stroke="white" strokeWidth={1.5}/>
             ))}
           </svg>
@@ -560,17 +560,17 @@ export function NVRPaperFoldVis({ foldType = "half_vertical", punchPositions = [
         {/* Unfolded view */}
         <div style={{ textAlign: "center" }}>
           <svg width={pw + 20} height={ph + 20} viewBox={`0 0 ${pw + 20} ${ph + 20}`}>
-            <rect x={px} y={py} width={pw} height={ph} fill="white" stroke={T.slate} strokeWidth={1.5} rx={2}/>
+            <rect className="vis-bar" x={px} y={py} width={pw} height={ph} fill="white" stroke={T.slate} strokeWidth={1.5} rx={2}/>
             {/* Fold crease (faint) */}
-            <line x1={px + fold.line[0][0]} y1={py + fold.line[0][1]}
+            <line className="vis-axis" x1={px + fold.line[0][0]} y1={py + fold.line[0][1]}
               x2={px + fold.line[1][0]} y2={py + fold.line[1][1]}
               stroke={T.slateBd} strokeWidth={0.5} strokeDasharray="2,2"/>
             {/* All punch holes (reflected) */}
             {reflectedPunches.map(([hx, hy], i) => (
-              <circle key={i} cx={px + hx * pw} cy={py + hy * ph} r={5}
+              <circle key={i} className="vis-mark" cx={px + hx * pw} cy={py + hy * ph} r={5}
                 fill={T.nebula} stroke="white" strokeWidth={1.5}/>
             ))}
-            <text x={px + pw/2} y={ph + 18} fontSize={7} fontWeight="700" fill={T.textMid} textAnchor="middle">unfolded</text>
+            <text className="vis-label" x={px + pw/2} y={ph + 18} fontSize={7} fontWeight="700" fill={T.textMid} textAnchor="middle">unfolded</text>
           </svg>
         </div>
       </div>

@@ -22,6 +22,8 @@ import {
 import TaraEIB, { useTaraGate } from "./TaraEIB";
 import ImageDisplay             from "./ImageDisplay";
 import MathsVisualiser, { canVisualise } from "./MathsVisualiser";
+import AnimatedVisualiser              from "./AnimatedVisualiser";
+import CelebrationBurst                from "./CelebrationBurst";
 import ReadingComprehensionEngine from "./ReadingComprehensionEngine";
 import STEMEngine               from "./STEMEngine";
 import HumanitiesEngine         from "./HumanitiesEngine";
@@ -665,7 +667,7 @@ const year = rawYear;
       <div className="flex-1 flex items-center justify-center bg-white rounded-xl border border-slate-200 p-3 overflow-hidden">
         {q.image_url
           ? <ImageDisplay src={q.image_url} alt="Question visual" />
-          : <MathsVisualiser question={q} subject={subject} yearLevel={q.year_level ?? student?.year_level ?? 6} />
+          : <AnimatedVisualiser question={q} subject={subject} yearLevel={q.year_level ?? student?.year_level ?? 6} />
         }
       </div>
     </div>
@@ -748,6 +750,12 @@ const year = rawYear;
       canNext={canProceed}
     >
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-3 sm:p-4">
+      {/* Celebration burst on correct answer */}
+      <CelebrationBurst
+        active={isCorrectAnswer && selected !== null}
+        band={student?.year_level <= 2 ? "ks1" : student?.year_level <= 6 ? "ks2" : student?.year_level <= 9 ? "ks3" : "ks4"}
+        intensity={isCorrectAnswer ? "normal" : "subtle"}
+      />
       {pendingMilestone && (
         <MilestoneCelebration milestones={[pendingMilestone]} onDismiss={() => setPendingMilestone(null)} />
       )}

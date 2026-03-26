@@ -176,27 +176,27 @@ export function BreakEvenVis({ fixedCost, variableCostPerUnit, pricePerUnit, bre
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Axes */}
-        <line x1={PAD} y1={H-PAD} x2={W} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <line x1={PAD} y1={0}    x2={PAD} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <text x={W/2} y={H-4} textAnchor="middle" fontSize={8} fill={T.slate}>Quantity (units)</text>
-        <text x={8} y={H/2} textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Cost / Revenue (£)</text>
+        <line className="vis-axis" x1={PAD} y1={H-PAD} x2={W} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <line className="vis-axis" x1={PAD} y1={0}    x2={PAD} y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <text className="vis-label" x={W/2} y={H-4} textAnchor="middle" fontSize={8} fill={T.slate}>Quantity (units)</text>
+        <text className="vis-label" x={8} y={H/2} textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Cost / Revenue (£)</text>
         {/* Fixed cost line */}
-        <line x1={PAD} y1={fixedY} x2={W} y2={fixedY} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4,3" />
-        <text x={W-4} y={fixedY - 4} textAnchor="end" fontSize={8} fill="#94a3b8" fontWeight="600">FC</text>
+        <line className="vis-arc" x1={PAD} y1={fixedY} x2={W} y2={fixedY} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4,3" />
+        <text className="vis-label" x={W-4} y={fixedY - 4} textAnchor="end" fontSize={8} fill="#94a3b8" fontWeight="600">FC</text>
         {/* Total cost line */}
-        <line x1={PAD} y1={fixedY} x2={W} y2={scaleY(fixedCost + (maxQ * variableCostPerUnit))}
+        <line className="vis-arc" x1={PAD} y1={fixedY} x2={W} y2={scaleY(fixedCost + (maxQ * variableCostPerUnit))}
           stroke={T.indigo} strokeWidth={2} />
-        <text x={W-4} y={scaleY(fixedCost + maxQ*variableCostPerUnit)-4} textAnchor="end" fontSize={8} fill={T.indigo} fontWeight="700">TC</text>
+        <text className="vis-label" x={W-4} y={scaleY(fixedCost + maxQ*variableCostPerUnit)-4} textAnchor="end" fontSize={8} fill={T.indigo} fontWeight="700">TC</text>
         {/* Revenue line */}
-        <line x1={PAD} y1={H-PAD} x2={W} y2={scaleY(maxQ * pricePerUnit)}
+        <line className="vis-arc" x1={PAD} y1={H-PAD} x2={W} y2={scaleY(maxQ * pricePerUnit)}
           stroke={T.emerald} strokeWidth={2} />
-        <text x={W-4} y={scaleY(maxQ*pricePerUnit)-4} textAnchor="end" fontSize={8} fill={T.emerald} fontWeight="700">TR</text>
+        <text className="vis-label" x={W-4} y={scaleY(maxQ*pricePerUnit)-4} textAnchor="end" fontSize={8} fill={T.emerald} fontWeight="700">TR</text>
         {/* Break-even point */}
         {breakEvenQty && (
           <>
-            <line x1={beX} y1={H-PAD} x2={beX} y2={beY} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-            <circle cx={beX} cy={beY} r={5} fill={T.nebula} />
-            <text x={beX} y={beY - 8} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">BEP</text>
+            <line className="vis-axis" x1={beX} y1={H-PAD} x2={beX} y2={beY} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+            <circle className="vis-mark" cx={beX} cy={beY} r={5} fill={T.nebula} />
+            <text className="vis-label" x={beX} y={beY - 8} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">BEP</text>
           </>
         )}
       </svg>
@@ -223,21 +223,21 @@ export function SupplyDemandVis({ eqPrice, eqQty, shift }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={PAD} y1={H-PAD} x2={W}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <line x1={PAD} y1={0}    x2={PAD}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
-        <text x={W/2}  y={H-6}  textAnchor="middle" fontSize={8} fill={T.slate}>Quantity</text>
-        <text x={8}    y={H/2}  textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Price</text>
+        <line className="vis-axis" x1={PAD} y1={H-PAD} x2={W}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <line className="vis-axis" x1={PAD} y1={0}    x2={PAD}   y2={H-PAD} stroke={T.slate} strokeWidth={1.5} />
+        <text className="vis-label" x={W/2}  y={H-6}  textAnchor="middle" fontSize={8} fill={T.slate}>Quantity</text>
+        <text className="vis-label" x={8}    y={H/2}  textAnchor="middle" fontSize={8} fill={T.slate} transform={`rotate(-90 8 ${H/2})`}>Price</text>
         {/* Demand curve */}
-        <path d={demandPath} fill="none" stroke={T.indigo} strokeWidth={2} />
-        <text x={W-8} y={scaleY(12)} textAnchor="end" fontSize={9} fill={T.indigo} fontWeight="800">D</text>
+        <path className="vis-arc" d={demandPath} fill="none" stroke={T.indigo} strokeWidth={2} />
+        <text className="vis-label" x={W-8} y={scaleY(12)} textAnchor="end" fontSize={9} fill={T.indigo} fontWeight="800">D</text>
         {/* Supply curve */}
-        <path d={supplyPath} fill="none" stroke={T.emerald} strokeWidth={2} />
-        <text x={W-8} y={scaleY(88)} textAnchor="end" fontSize={9} fill={T.emerald} fontWeight="800">S</text>
+        <path className="vis-arc" d={supplyPath} fill="none" stroke={T.emerald} strokeWidth={2} />
+        <text className="vis-label" x={W-8} y={scaleY(88)} textAnchor="end" fontSize={9} fill={T.emerald} fontWeight="800">S</text>
         {/* Equilibrium */}
-        <line x1={scaleX(eq)} y1={H-PAD} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-        <line x1={PAD} y1={scaleY(ep)} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
-        <circle cx={scaleX(eq)} cy={scaleY(ep)} r={5} fill={T.nebula} />
-        <text x={scaleX(eq)+4} y={scaleY(ep)-4} fontSize={8} fill={T.nebula} fontWeight="700">E</text>
+        <line className="vis-axis" x1={scaleX(eq)} y1={H-PAD} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+        <line className="vis-axis" x1={PAD} y1={scaleY(ep)} x2={scaleX(eq)} y2={scaleY(ep)} stroke={T.nebula} strokeWidth={1} strokeDasharray="3,3" />
+        <circle className="vis-mark" cx={scaleX(eq)} cy={scaleY(ep)} r={5} fill={T.nebula} />
+        <text className="vis-label" x={scaleX(eq)+4} y={scaleY(ep)-4} fontSize={8} fill={T.nebula} fontWeight="700">E</text>
       </svg>
       <div style={{ fontSize:11, color:T.slate, textAlign:"center" }}>
         Equilibrium: P = <span style={{ fontWeight:700, color:T.nebula }}>{ep}</span>
@@ -280,27 +280,27 @@ export function MotionGraphVis({ motionType = "distance_time", curveType = "cons
     <Panel accent={color} bg={T.slateBg} bd={T.slateBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Grid */}
-        <line x1={PAD} y1={PAD} x2={PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
-        <line x1={PAD} y1={H-PAD} x2={W-PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
+        <line className="vis-axis" x1={PAD} y1={PAD} x2={PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
+        <line className="vis-axis" x1={PAD} y1={H-PAD} x2={W-PAD} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>
         {/* Axes arrows */}
-        <polygon points={`${PAD},${PAD-2} ${PAD-3},${PAD+6} ${PAD+3},${PAD+6}`} fill={color}/>
-        <polygon points={`${W-PAD+2},${H-PAD} ${W-PAD-6},${H-PAD-3} ${W-PAD-6},${H-PAD+3}`} fill={color}/>
+        <polygon className="vis-mark" points={`${PAD},${PAD-2} ${PAD-3},${PAD+6} ${PAD+3},${PAD+6}`} fill={color}/>
+        <polygon className="vis-mark" points={`${W-PAD+2},${H-PAD} ${W-PAD-6},${H-PAD-3} ${W-PAD-6},${H-PAD+3}`} fill={color}/>
         {/* Axis labels — offset from axis tips for clarity */}
-        <text x={PAD-14} y={PAD+4} fontSize={11} fontWeight="800" fill={color}>{yLabel}</text>
-        <text x={W-PAD+4} y={H-PAD+16} fontSize={11} fontWeight="800" fill={color}>{xLabel}</text>
+        <text className="vis-label" x={PAD-14} y={PAD+4} fontSize={11} fontWeight="800" fill={color}>{yLabel}</text>
+        <text className="vis-label" x={W-PAD+4} y={H-PAD+16} fontSize={11} fontWeight="800" fill={color}>{xLabel}</text>
         {/* Origin */}
-        <text x={PAD-8} y={H-PAD+10} fontSize={8} fill={T.textMid}>0</text>
+        <text className="vis-label" x={PAD-8} y={H-PAD+10} fontSize={8} fill={T.textMid}>0</text>
         {/* Curve */}
-        <path d={curves[curveType] || curves.constant}
+        <path className="vis-arc" d={curves[curveType] || curves.constant}
           stroke={color} strokeWidth={2.5} fill="none" strokeLinecap="round"/>
         {/* Annotations sit below axis line with space — not overlapping curve */}
         {motionType === "distance_time" && (
-          <text x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
+          <text className="vis-label" x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
             gradient = speed
           </text>
         )}
         {motionType === "velocity_time" && (
-          <text x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
+          <text className="vis-label" x={W-PAD-4} y={H-PAD-6} textAnchor="end" fontSize={7} fill={T.textMid}>
             area under = distance
           </text>
         )}
@@ -405,27 +405,27 @@ export function QuadraticVis({ a = 1, roots, vertex, label }) {
       {label && <Chip color={color} bg={T.indigoBg}>{label}</Chip>}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Axes */}
-        <line x1={PAD} y1={originY} x2={W-PAD} y2={originY} stroke="#94a3b8" strokeWidth={1.5}/>
-        <line x1={originX} y1={PAD} x2={originX} y2={H-PAD} stroke="#94a3b8" strokeWidth={1.5}/>
+        <line className="vis-axis" x1={PAD} y1={originY} x2={W-PAD} y2={originY} stroke="#94a3b8" strokeWidth={1.5}/>
+        <line className="vis-axis" x1={originX} y1={PAD} x2={originX} y2={H-PAD} stroke="#94a3b8" strokeWidth={1.5}/>
         {/* Axis arrows */}
-        <polygon points={`${W-PAD},${originY} ${W-PAD-6},${originY-3} ${W-PAD-6},${originY+3}`} fill="#94a3b8"/>
-        <polygon points={`${originX},${PAD} ${originX-3},${PAD+6} ${originX+3},${PAD+6}`} fill="#94a3b8"/>
-        <text x={W-PAD+2} y={originY+4} fontSize={8} fill={T.textMid}>x</text>
-        <text x={originX+3} y={PAD-2} fontSize={8} fill={T.textMid}>y</text>
+        <polygon className="vis-mark" points={`${W-PAD},${originY} ${W-PAD-6},${originY-3} ${W-PAD-6},${originY+3}`} fill="#94a3b8"/>
+        <polygon className="vis-mark" points={`${originX},${PAD} ${originX-3},${PAD+6} ${originX+3},${PAD+6}`} fill="#94a3b8"/>
+        <text className="vis-label" x={W-PAD+2} y={originY+4} fontSize={8} fill={T.textMid}>x</text>
+        <text className="vis-label" x={originX+3} y={PAD-2} fontSize={8} fill={T.textMid}>y</text>
         {/* Curve */}
-        <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
+        <polyline className="vis-arc" points={pts.join(" ")} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
         {/* Roots */}
         {roots?.map((rx, i) => (
           <g key={i}>
-            <circle cx={toSx(rx)} cy={originY} r={4} fill={color}/>
-            <text x={toSx(rx)} y={originY+12} textAnchor="middle" fontSize={8} fontWeight="700" fill={color}>x={rx}</text>
+            <circle className="vis-mark" cx={toSx(rx)} cy={originY} r={4} fill={color}/>
+            <text className="vis-label" x={toSx(rx)} y={originY+12} textAnchor="middle" fontSize={8} fontWeight="700" fill={color}>x={rx}</text>
           </g>
         ))}
         {/* Vertex */}
         {vertex && (
           <g>
-            <circle cx={toSx(vx)} cy={toSy(vy)} r={4} fill={T.nebula}/>
-            <text x={toSx(vx)+6} y={toSy(vy)-4} fontSize={8} fontWeight="700" fill={T.nebula}>({vx},{vy})</text>
+            <circle className="vis-mark" cx={toSx(vx)} cy={toSy(vy)} r={4} fill={T.nebula}/>
+            <text className="vis-label" x={toSx(vx)+6} y={toSy(vy)-4} fontSize={8} fontWeight="700" fill={T.nebula}>({vx},{vy})</text>
           </g>
         )}
       </svg>
@@ -451,16 +451,16 @@ export function ElementVis({ symbol, name, atomicNumber, mass, group, period, gr
     <Panel accent={c.bd} bg={c.bg} bd={c.bd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Element tile */}
-        <rect x={55} y={4} width={70} height={78} rx={8} fill="white" stroke={c.bd} strokeWidth={2}/>
-        <text x={90} y={22} textAnchor="middle" fontSize={10} fill={c.text}>{atomicNumber}</text>
-        <text x={90} y={55} textAnchor="middle" fontSize={28} fontWeight="900" fill={c.text}>{symbol}</text>
-        <text x={90} y={68} textAnchor="middle" fontSize={9} fontWeight="700" fill={c.text}>{name}</text>
-        <text x={90} y={78} textAnchor="middle" fontSize={8} fill={c.text}>{mass}</text>
+        <rect className="vis-bar" x={55} y={4} width={70} height={78} rx={8} fill="white" stroke={c.bd} strokeWidth={2}/>
+        <text className="vis-label" x={90} y={22} textAnchor="middle" fontSize={10} fill={c.text}>{atomicNumber}</text>
+        <text className="vis-label" x={90} y={55} textAnchor="middle" fontSize={28} fontWeight="900" fill={c.text}>{symbol}</text>
+        <text className="vis-label" x={90} y={68} textAnchor="middle" fontSize={9} fontWeight="700" fill={c.text}>{name}</text>
+        <text className="vis-label" x={90} y={78} textAnchor="middle" fontSize={8} fill={c.text}>{mass}</text>
         {/* Group / Period badges */}
-        <rect x={2} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
-        <text x={26} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Group {group}</text>
-        <rect x={130} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
-        <text x={154} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Period {period}</text>
+        <rect className="vis-bar" x={2} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
+        <text className="vis-label" x={26} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Group {group}</text>
+        <rect className="vis-bar" x={130} y={36} width={48} height={14} rx={4} fill={c.bg} stroke={c.bd} strokeWidth={1}/>
+        <text className="vis-label" x={154} y={47} textAnchor="middle" fontSize={8} fontWeight="700" fill={c.text}>Period {period}</text>
       </svg>
     </Panel>
   );

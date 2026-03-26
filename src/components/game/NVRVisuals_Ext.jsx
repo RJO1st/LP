@@ -84,27 +84,27 @@ export function NVRShapeRotationVis({ shape = "triangle", degrees = 90, clockwis
       <Chip color={T.cyan} bg="white">Rotation: {degrees}° {clockwise ? "CW" : "ACW"}</Chip>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {/* Original shape */}
-        <g>
+        <g className="vis-segment">
           {drawShape(shape, 55, 50, 22, T.cyanBg, T.cyan, 2)}
-          <text x={55} y={90} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.textMid}>Original</text>
+          <text className="vis-label" x={55} y={90} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.textMid}>Original</text>
         </g>
 
         {/* Rotation arrow */}
         <g>
-          <path d={`M 90,40 C 100,25 120,25 130,40`}
+          <path className="vis-arc" d={`M 90,40 C 100,25 120,25 130,40`}
             fill="none" stroke={T.slate} strokeWidth={1.5} markerEnd="url(#rot-arrow)" />
-          <text x={110} y={22} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.slate}>
+          <text className="vis-label" x={110} y={22} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.slate}>
             {degrees}° {clockwise ? "↻" : "↺"}
           </text>
         </g>
 
         {/* Rotated shape */}
-        <g transform={`rotate(${degrees * (clockwise ? 1 : -1)}, 165, 50)`}>
+        <g className="vis-segment" transform={`rotate(${degrees * (clockwise ? 1 : -1)}, 165, 50)`}>
           {drawShape(shape, 165, 50, 22, T.indigo + "22", T.indigo, 2)}
         </g>
         {/* "?" overlay */}
-        <text x={165} y={55} textAnchor="middle" fontSize={18} fontWeight="900" fill={T.indigo} opacity={0.4}>?</text>
-        <text x={165} y={90} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.textMid}>Rotated</text>
+        <text className="vis-mark" x={165} y={55} textAnchor="middle" fontSize={18} fontWeight="900" fill={T.indigo} opacity={0.4}>?</text>
+        <text className="vis-label" x={165} y={90} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.textMid}>Rotated</text>
 
         <defs><marker id="rot-arrow" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
           <polygon points="0 0, 6 2, 0 4" fill={T.slate} /></marker></defs>
@@ -201,19 +201,19 @@ export function NVRPlanElevationVis({ shape3d = "cuboid" }) {
 
   function renderView(view, cx, cy) {
     if (view.type === "rect") {
-      return <rect x={cx - view.w / 2} y={cy - view.h / 2} width={view.w} height={view.h}
+      return <rect className="vis-bar" x={cx - view.w / 2} y={cy - view.h / 2} width={view.w} height={view.h}
         fill={T.cyanBg} stroke={T.cyan} strokeWidth={1.5} rx={1} />;
     }
     if (view.type === "circle") {
-      return <circle cx={cx} cy={cy} r={view.r} fill={T.cyanBg} stroke={T.cyan} strokeWidth={1.5} />;
+      return <circle className="vis-mark" cx={cx} cy={cy} r={view.r} fill={T.cyanBg} stroke={T.cyan} strokeWidth={1.5} />;
     }
     if (view.type === "triangle") {
-      return <polygon points={`${cx},${cy - view.h / 2} ${cx - view.w / 2},${cy + view.h / 2} ${cx + view.w / 2},${cy + view.h / 2}`}
+      return <polygon className="vis-segment" points={`${cx},${cy - view.h / 2} ${cx - view.w / 2},${cy + view.h / 2} ${cx + view.w / 2},${cy + view.h / 2}`}
         fill={T.cyanBg} stroke={T.cyan} strokeWidth={1.5} />;
     }
     if (view.type === "l") {
       const s = view.w;
-      return <polygon points={`${cx - s / 2},${cy - s / 2} ${cx},${cy - s / 2} ${cx},${cy} ${cx + s / 2},${cy} ${cx + s / 2},${cy + s / 2} ${cx - s / 2},${cy + s / 2}`}
+      return <polygon className="vis-segment" points={`${cx - s / 2},${cy - s / 2} ${cx},${cy - s / 2} ${cx},${cy} ${cx + s / 2},${cy} ${cx + s / 2},${cy + s / 2} ${cx - s / 2},${cy + s / 2}`}
         fill={T.cyanBg} stroke={T.cyan} strokeWidth={1.5} />;
     }
     return null;
@@ -236,13 +236,13 @@ export function NVRPlanElevationVis({ shape3d = "cuboid" }) {
               {/* Shape */}
               {renderView(views[key], cx, cy)}
               {/* Label */}
-              <text x={cx} y={panelH + 22} textAnchor="middle"
+              <text className="vis-label" x={cx} y={panelH + 22} textAnchor="middle"
                 fontSize={7} fontWeight="700" fill={T.textMid}>{labels[i]}</text>
             </g>
           );
         })}
         {/* 3D label */}
-        <text x={W / 2} y={H - 4} textAnchor="middle" fontSize={7} fill={T.cyan} fontWeight="700">
+        <text className="vis-label" x={W / 2} y={H - 4} textAnchor="middle" fontSize={7} fill={T.cyan} fontWeight="700">
           3D shape: {shape3d.replace(/_/g, " ")}
         </text>
       </svg>

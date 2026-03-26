@@ -17,6 +17,7 @@ import { CompassVis, MapGridVis, ClimateGraphVis, LayerDiagramVis, WaterCycleVis
 import { HumanBodyVis, SolarSystemVis, ClassificationKeyVis, LightDiagramVis, ElectricalSymbolsVis, MagnetVis, PhotosynthesisVis, RespirationVis} from "./ScienceVisuals_Ext";
 import { SentenceStructureVis, SpellingPatternVis, PunctuationVis, WordClassVis } from "./EnglishVisuals";
 import { NVRShapeRotationVis, NVRCodeVis, NVRPlanElevationVis } from "./NVRVisuals_Ext";
+import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 import InteractiveGraph from "./InteractiveGraph";
 import DataTable from "./DataTable";
 import LongMultiplication from "./LongMultiplication";
@@ -300,7 +301,7 @@ function FractionVis({ numerator, denominator }) {
     <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}>
       <div style={{ display: "flex", gap: 3 }}>
         {Array.from({ length: den }).map((_, i) => (
-          <div key={i} style={{
+          <div key={i} className="vis-segment" style={{
             width: segW, height: 48, borderRadius: 7,
             background: i < num ? "#7c3aed" : "#ede9fe",
             border: `2px solid ${i < num ? "#6d28d9" : "#c4b5fd"}`,
@@ -311,7 +312,7 @@ function FractionVis({ numerator, denominator }) {
         ))}
       </div>
       {/* Fraction notation */}
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div className="vis-notation" style={{ display: "flex", alignItems: "center", gap: 5 }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
           <span style={{ fontSize: 28, fontWeight: 900, color: T.nebula, lineHeight: 1 }}>{num}</span>
           <div style={{ width: 18, height: 2.5, background: T.nebula, borderRadius: 2 }} />
@@ -2312,6 +2313,15 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "nvr_shape_rotation": return <NVRShapeRotationVis shape={visual.shape} degrees={visual.degrees} clockwise={visual.clockwise} />;
       case "nvr_code":           return <NVRCodeVis encoded={visual.encoded} decoded={visual.decoded} codeType={visual.codeType} />;
       case "nvr_plan_elevation": return <NVRPlanElevationVis shape3d={visual.shape3d} />;
+      case "equation_solver":    return <EquationSolverVis steps={visual.steps} variable={visual.variable} />;
+      case "probability_tree":   return <ProbabilityTreeVis branches={visual.branches} title={visual.title} />;
+      case "graph_plotter":      return <GraphPlotterVis equation={visual.equation} points={visual.points} xRange={visual.xRange} yRange={visual.yRange} features={visual.features} />;
+      case "animated_timeline":  return <AnimatedTimelineVis events={visual.events} title={visual.title} />;
+      case "clock_face":         return <ClockFaceVis hours={visual.hours} minutes={visual.minutes} label={visual.label} />;
+      case "tally_chart":        return <TallyChartVis items={visual.items} title={visual.title} />;
+      case "percentage_bar":     return <PercentageBarVis value={visual.value} />;
+      case "probability":        return <ProbabilityVis total={visual.total} favourable={visual.favourable} context={visual.context} />;
+      case "symmetry":           return <SymmetryVis shape={visual.shape} />;
       default:                return null;
     }
   })();
@@ -2343,7 +2353,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
       const fx = toX(val);
       const isMajor = i % den === 0;
       fracTicks.push(
-        <g key={i}>
+        <g key={i} className="vis-tick">
           <line x1={fx} y1={34} x2={fx} y2={isMajor ? 42 : 38} stroke={isMajor ? T.indigo : "#cbd5e1"} strokeWidth={isMajor ? 2 : 1}/>
           <text x={fx} y={54} textAnchor="middle" fontSize={isMajor ? 9 : 7} fontWeight={isMajor ? "800" : "600"} fill={isMajor ? T.indigo : T.textMid}>
             {isMajor ? Math.round(val) : `${i % den}/${den}`}
@@ -2361,7 +2371,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
         const tx = toX(to);
         const mx = (fx + tx) / 2;
         jumpArcs.push(
-          <g key={`arc-${j}`}>
+          <g key={`arc-${j}`} className="vis-arc">
             <path d={`M ${fx} 34 Q ${mx} ${10} ${tx} 34`} fill="none" stroke={T.nebula} strokeWidth={1.5}/>
             <polygon points={`${tx},34 ${tx-4},28 ${tx-4},34`} fill={T.nebula}/>
           </g>
@@ -2379,7 +2389,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     return (
       <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2}/>
+          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2} className="vis-axis"/>
           <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.indigo}/>
           <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
           {fracTicks}
@@ -2402,7 +2412,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
       const mx = (fx + tx) / 2;
       const arcH = Math.min(22, Math.max(12, (tx - fx) * 0.4));
       jumpArcs.push(
-        <g key={`j${j}`}>
+        <g key={`j${j}`} className="vis-arc">
           <path d={`M ${fx} 34 Q ${mx} ${34 - arcH} ${tx} 34`}
             fill="none" stroke={T.nebula} strokeWidth={1.5} strokeLinecap="round"/>
           <polygon points={`${tx},34 ${tx-3},29 ${tx-3},34`} fill={T.nebula}/>
@@ -2418,7 +2428,7 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     for (let v = first; v <= max; v += step) {
       const sx = toX(v);
       ticks.push(
-        <g key={v}>
+        <g key={v} className="vis-tick">
           <line x1={sx} y1={37} x2={sx} y2={43} stroke="#94a3b8" strokeWidth={1.5}/>
           <text x={sx} y={53} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
         </g>
@@ -2429,13 +2439,13 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
       <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
         ariaLabel={`Number line: ${jumps} jumps of ${jumpSize}`}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.slate} strokeWidth={2}/>
+          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.slate} strokeWidth={2} className="vis-axis"/>
           <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.slate}/>
           <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.slate}/>
           {ticks}
           {jumpArcs}
-          <circle cx={toX(start || min)} cy={37} r={4} fill={T.indigo}/>
-          <circle cx={endX} cy={37} r={5} fill="white" stroke={T.nebula} strokeWidth={2}/>
+          <circle cx={toX(start || min)} cy={37} r={4} fill={T.indigo} className="vis-mark"/>
+          <circle cx={endX} cy={37} r={5} fill="white" stroke={T.nebula} strokeWidth={2} className="vis-mark"/>
           <text x={endX} y={40} textAnchor="middle" fontSize={8} fontWeight="900" fill={T.nebula}>?</text>
         </svg>
         {label && <Chip color={T.nebula} bg={T.nebulaBg}>{label}</Chip>}
@@ -2468,15 +2478,15 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     return (
       <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2.5}/>
+          <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2.5} className="vis-axis"/>
           <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
           {ticks}
-          <path d={arcPath} fill="none" stroke={T.amber} strokeWidth={2} strokeDasharray="3 2"/>
+          <path d={arcPath} fill="none" stroke={T.amber} strokeWidth={2} strokeDasharray="3 2" className="vis-arc"/>
           <polygon points={`${dx},37 ${dx - arrowDir*5},31 ${dx - arrowDir*5},37`} fill={T.amber}/>
-          <circle cx={sx} cy={37} r={5.5} fill={T.indigo}/>
+          <circle cx={sx} cy={37} r={5.5} fill={T.indigo} className="vis-mark"/>
           <text x={sx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{start}</text>
           <line x1={sx} y1={25} x2={sx} y2={31} stroke={T.indigo} strokeWidth={1.5}/>
-          <circle cx={dx} cy={37} r={5.5} fill="white" stroke={T.amber} strokeWidth={2}/>
+          <circle cx={dx} cy={37} r={5.5} fill="white" stroke={T.amber} strokeWidth={2} className="vis-mark"/>
           <text x={dx} y={40.5} textAnchor="middle" fontSize={9} fontWeight="900" fill={T.amber}>?</text>
           <text x={midX} y={arcY - 3} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.amber}>
             {direction === "right" ? `+${steps}` : `−${steps}`}
@@ -2491,11 +2501,11 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
   return (
     <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.amber} strokeWidth={2.5}/>
+        <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.amber} strokeWidth={2.5} className="vis-axis"/>
         <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.amber}/>
         {ticks}
         {mx != null && (
-          <g>
+          <g className="vis-mark">
             <circle cx={mx} cy={37} r={6} fill={T.amber}/>
             <text x={mx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.amber}>{marked}</text>
             <line x1={mx} y1={25} x2={mx} y2={31} stroke={T.amber} strokeWidth={1.5}/>
@@ -2516,10 +2526,10 @@ function VennVis({ labelA, labelB, itemsA, itemsB, itemsBoth }) {
   return (
     <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <circle cx={cx1} cy={cy} r={r} fill={T.indigoBg} fillOpacity={0.7} stroke={T.indigo} strokeWidth={2}/>
-        <circle cx={cx2} cy={cy} r={r} fill={T.emeraldBg} fillOpacity={0.7} stroke={T.emerald} strokeWidth={2}/>
-        <text x={cx1-18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{labelA}</text>
-        <text x={cx2+18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.emerald}>{labelB}</text>
+        <circle className="vis-circle" cx={cx1} cy={cy} r={r} fill={T.indigoBg} fillOpacity={0.7} stroke={T.indigo} strokeWidth={2}/>
+        <circle className="vis-circle" cx={cx2} cy={cy} r={r} fill={T.emeraldBg} fillOpacity={0.7} stroke={T.emerald} strokeWidth={2}/>
+        <text className="vis-label" x={cx1-18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{labelA}</text>
+        <text className="vis-label" x={cx2+18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.emerald}>{labelB}</text>
         {col(itemsA, cx1 - 22)}
         {col(itemsB, cx2 + 22)}
         {col(itemsBoth, (cx1+cx2)/2)}
@@ -2546,19 +2556,19 @@ function BarChartVis({ bars, yLabel = "Frequency", title }) {
           const sy = toY(v);
           return (
             <g key={v}>
-              <line x1={PAD_L-3} y1={sy} x2={W-PAD_R} y2={sy} stroke={T.slateBd} strokeWidth={1}/>
+              <line className="vis-grid" x1={PAD_L-3} y1={sy} x2={W-PAD_R} y2={sy} stroke={T.slateBd} strokeWidth={1}/>
               <text x={PAD_L-5} y={sy+3} textAnchor="end" fontSize={7} fill={T.textMid}>{v}</text>
             </g>
           );
         })}
-        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
-        <line x1={PAD_L} y1={H-PAD_B} x2={W-PAD_R} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
+        <line className="vis-axis" x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
+        <line className="vis-axis" x1={PAD_L} y1={H-PAD_B} x2={W-PAD_R} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
         {bars.map((b, i) => {
           const bx = PAD_L + gap + i * (barW + gap);
           const by = toY(b.value);
           const bh = H - PAD_B - by;
           return (
-            <g key={i}>
+            <g key={i} className="vis-bar">
               <rect x={bx} y={by} width={barW} height={bh} rx={3}
                 fill={T.indigoBg} stroke={T.indigo} strokeWidth={1.5}/>
               <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>{b.value}</text>
@@ -2917,6 +2927,70 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
       if (values.length >= 3) {
         return { type:"bar_chart", labels:values.map((_,i)=>`v${i+1}`), values, title:"Data set", yLabel:"" };
       }
+    }
+  }
+
+  // ── EQUATION SOLVER — "solve", "find x", algebraic equations ───────────────
+  if (subj.includes("math") && (topicStr.includes("algebra") || topicStr.includes("equation") || topicStr.includes("solve") ||
+      /solve|find\s*(?:the\s+value\s+of\s+)?[xyz]|what is [xyz]/i.test(questionStr))) {
+    const eqLine = (questionStr || "").match(/\d+[xyz]\s*[+\-]\s*\d+\s*=\s*\d+/i) ||
+                   (questionStr || "").match(/[xyz]\s*[+\-]\s*\d+\s*=\s*\d+/i);
+    if (eqLine) {
+      return { type: "equation_solver", steps: [
+        { equation: eqLine[0].trim(), operation: "Given equation" },
+      ], variable: /[xyz]/i.exec(eqLine[0])?.[0] || "x" };
+    }
+  }
+
+  // ── PROBABILITY TREE — "probability", "tree diagram", "outcomes" ────────────
+  if (subj.includes("math") && (topicStr.includes("probability") || topicStr.includes("tree") ||
+      /probability|tree diagram|outcome|coin.*dice|dice.*coin|heads.*tails/i.test(questionStr))) {
+    if (/tree diagram|draw.*tree|show.*outcomes/i.test(questionStr)) {
+      return { type: "probability_tree", branches: [
+        { label: "Outcome A", probability: "" },
+        { label: "Outcome B", probability: "" },
+      ], title: "Probability Tree" };
+    }
+  }
+
+  // ── PLACE VALUE — "place value", "hundreds tens units", "value of the digit" ─
+  if (subj.includes("math") && (topicStr.includes("place_value") || topicStr.includes("place value") ||
+      /place value|value of the digit|hundreds.*tens|tens.*units|what does the \d+ represent/i.test(questionStr))) {
+    const pvNum = nums.find(n => n >= 10 && n <= 9999);
+    if (pvNum) {
+      return { type: "place_value", number: pvNum };
+    }
+  }
+
+  // ── CLOCK FACE — "time", "clock", "quarter past", "half past" ───────────────
+  if (subj.includes("math") && (topicStr.includes("time") || topicStr.includes("clock") ||
+      /what time|quarter past|half past|o'clock|minutes past|minutes to|analogue|clock/i.test(questionStr))) {
+    const timeMatch = (questionStr || "").match(/(\d{1,2}):(\d{2})/);
+    const pastMatch = (questionStr || "").match(/(\d{1,2})\s*(?:o'clock|oclock)/i);
+    const quarterPast = /quarter past (\d{1,2})/i.exec(questionStr);
+    const halfPast = /half past (\d{1,2})/i.exec(questionStr);
+    if (timeMatch) {
+      return { type: "clock_face", hours: parseInt(timeMatch[1]), minutes: parseInt(timeMatch[2]) };
+    }
+    if (pastMatch) {
+      return { type: "clock_face", hours: parseInt(pastMatch[1]), minutes: 0 };
+    }
+    if (quarterPast) {
+      return { type: "clock_face", hours: parseInt(quarterPast[1]), minutes: 15 };
+    }
+    if (halfPast) {
+      return { type: "clock_face", hours: parseInt(halfPast[1]), minutes: 30 };
+    }
+  }
+
+  // ── TALLY CHART — "tally", data with counts ─────────────────────────────────
+  if (subj.includes("math") && (topicStr.includes("tally") ||
+      /tally|how many.*votes|count.*tally/i.test(questionStr))) {
+    const tallyMatch = [...(questionStr || "").matchAll(/([A-Za-z][\w ]{0,12}):\s*(\d+)/g)];
+    if (tallyMatch.length >= 2) {
+      return { type: "tally_chart", items: tallyMatch.slice(0, 6).map(m => ({
+        label: m[1].trim(), count: parseInt(m[2]),
+      })), title: "Tally Chart" };
     }
   }
 

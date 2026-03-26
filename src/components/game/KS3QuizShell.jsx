@@ -11,6 +11,8 @@
  */
 
 import React, { useState } from "react";
+import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
+import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
@@ -45,6 +47,7 @@ export default function KS3QuizShell({
 }) {
   const [showMentor, setShowMentor] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const optionsRef = useStaggerEntrance(".ks3-option", [questionIndex]);
 
   const career = CAREER_MAP[subjectLabel] || CAREER_MAP.Science;
   const progress = totalQuestions > 0 ? ((questionIndex) / totalQuestions) * 100 : 0;
@@ -223,7 +226,7 @@ export default function KS3QuizShell({
             {question}
           </h2>
 
-          <div className="space-y-1.5 sm:space-y-2 flex-1">
+          <div ref={optionsRef} className="space-y-1.5 sm:space-y-2 flex-1">
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -231,7 +234,7 @@ export default function KS3QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
+                  className="ks3-option w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
                   style={{
                     background: correct ? "rgba(34,197,94,0.1)" : wrong ? "rgba(239,68,68,0.1)" : selected ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.02)",
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#10b981" : "rgba(255,255,255,0.06)",
@@ -264,7 +267,16 @@ export default function KS3QuizShell({
                   {isCorrect ? "Career Skill Unlocked" : "Learning Opportunity"}
                 </span>
               </div>
-              <p className="text-sm text-white/60 leading-relaxed">{explanation}</p>
+              {parseExplanationSteps(explanation).length > 1 ? (
+                <StepByStepTimeline
+                  steps={parseExplanationSteps(explanation)}
+                  autoPlay
+                  stepDelay={1.0}
+                  band="ks3"
+                />
+              ) : (
+                <p className="text-sm text-white/60 leading-relaxed">{explanation}</p>
+              )}
             </div>
           )}
 

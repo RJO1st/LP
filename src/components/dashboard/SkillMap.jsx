@@ -9,6 +9,7 @@
 import React, { useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { getSubjectLabel, getSubjectIcon, getSubjectColor } from "@/lib/subjectDisplay";
+import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
 const SUBJECT_META = {
   mathematics:        { label: "Maths",    icon: "🔢", color: "#6366f1" },
@@ -37,6 +38,7 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
   const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
   const [showArchived, setShowArchived] = useState(false);
+  const gridRef = useStaggerEntrance(".skill-card", [], { stagger: 0.08, fromY: 24, duration: 0.5 });
 
   const titles = {
     ks1: "🗺️ Treasure Map",
@@ -121,7 +123,7 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
       })() ? (
         <>
           {/* Active topics */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: band === "ks1" ? 10 : band === "ks4" ? 4 : 8 }}>
+          <div ref={gridRef} style={{ display: "flex", flexWrap: "wrap", gap: band === "ks1" ? 10 : band === "ks4" ? 4 : 8 }}>
             {filteredTopics.filter(tp => !tp.archived).map((topic, i) => (
               <TopicNode key={topic.slug || i} topic={topic} band={band} theme={t} isDark={isDark} onClick={onTopicClick} />
             ))}
@@ -207,7 +209,7 @@ function TopicNode({ topic, band, theme: t, isDark, onClick }) {
     const intensity = topic.mastery > 0 ? 0.15 + topic.mastery * 0.6 : 0;
     const heat = intensity > 0 ? `rgba(167,139,250,${intensity})` : "rgba(255,255,255,0.02)";
     return (
-      <div onClick={() => !isLocked && onClick?.(topic)} style={{
+      <div className="skill-card" onClick={() => !isLocked && onClick?.(topic)} style={{
         width: "calc(16.66% - 3px)", background: heat,
         border: `1px solid ${topic.mastery > 0.7 ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.06)"}`,
         borderRadius: 5, padding: "5px 4px", cursor: isLocked ? "default" : "pointer",
@@ -259,7 +261,7 @@ function TopicNode({ topic, band, theme: t, isDark, onClick }) {
   const fs  = band === "ks1" ? 13 : 12;
 
   return (
-    <div onClick={() => !isLocked && onClick?.(topic)} style={{
+    <div className="skill-card" onClick={() => !isLocked && onClick?.(topic)} style={{
       display: "flex", alignItems: "center", gap: 8,
       background: bg, border: `1.5px solid ${border}`, borderRadius: t.radius.card * 0.6,
       padding: pad, cursor: isLocked ? "default" : "pointer",

@@ -11,6 +11,8 @@
  */
 
 import React, { useState } from "react";
+import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
+import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
@@ -24,6 +26,7 @@ export default function KS4QuizShell({
 }) {
   const [showTaraPanel, setShowTaraPanel] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const optionsRef = useStaggerEntrance(".ks4-option", [questionIndex]);
 
   const formatTime = (s) => {
     if (!s && s !== 0) return "";
@@ -122,7 +125,7 @@ export default function KS4QuizShell({
             {question}
           </h2>
 
-          <div className="space-y-1.5 sm:space-y-2 flex-1">
+          <div ref={optionsRef} className="space-y-1.5 sm:space-y-2 flex-1">
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -130,7 +133,7 @@ export default function KS4QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
+                  className="ks4-option w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
                   style={{
                     background: correct ? "rgba(34,197,94,0.08)" : wrong ? "rgba(239,68,68,0.08)" : selected ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.02)",
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#a78bfa" : "rgba(255,255,255,0.06)",
@@ -156,7 +159,16 @@ export default function KS4QuizShell({
               background: isCorrect ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)",
               border: `1px solid ${isCorrect ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)"}`
             }}>
-              <p className="text-sm text-white/60">{explanation}</p>
+              {parseExplanationSteps(explanation).length > 1 ? (
+                <StepByStepTimeline
+                  steps={parseExplanationSteps(explanation)}
+                  autoPlay
+                  stepDelay={0.8}
+                  band="ks4"
+                />
+              ) : (
+                <p className="text-sm text-white/60">{explanation}</p>
+              )}
             </div>
           )}
 

@@ -150,18 +150,18 @@ export function ForcesVis({ force1, force2, label1 = "Push", label2 = "Friction"
           ← {force2}N
         </text>
         {/* ── object block ── */}
-        <rect x={cx - 26} y={42} width={52} height={28} rx={6}
+        <rect className="vis-bar" x={cx - 26} y={42} width={52} height={28} rx={6}
           fill="white" stroke={T.slateBd} strokeWidth={2}/>
         <text x={cx} y={60} textAnchor="middle"
           fontSize={9} fontWeight="700" fill={T.slate}>OBJECT</text>
         {/* ── right arrow (solid) ── */}
-        <line x1={cx + 26} y1={56} x2={cx + 26 + FIXED} y2={56}
+        <line className="vis-ray" x1={cx + 26} y1={56} x2={cx + 26 + FIXED} y2={56}
           stroke={T.indigo} strokeWidth={3} strokeLinecap="round"/>
         <polygon
           points={`${cx+26+FIXED},56 ${cx+26+FIXED-8},51 ${cx+26+FIXED-8},61`}
           fill={T.indigo}/>
         {/* ── left arrow (dashed — pattern diff for colour blindness) ── */}
-        <line x1={cx - 26} y1={56} x2={cx - 26 - FIXED} y2={56}
+        <line className="vis-ray" x1={cx - 26} y1={56} x2={cx - 26 - FIXED} y2={56}
           stroke={T.rose} strokeWidth={3} strokeDasharray="5,3" strokeLinecap="round"/>
         <polygon
           points={`${cx-26-FIXED},56 ${cx-26-FIXED+8},51 ${cx-26-FIXED+8},61`}
@@ -204,7 +204,7 @@ export function VelocityVis({ v1, v2, label1 = "initial", label2 = "final", unit
           fill={T.indigoBg} stroke={T.indigoBd} strokeWidth={1.5}/>
         <text x={bx1 + BW / 2} y={27} textAnchor="middle"
           fontSize={8} fontWeight="700" fill={T.indigo}>{v1} {unit}</text>
-        <line x1={X0} y1={36} x2={X0 + px1 - 10} y2={36}
+        <line className="vis-ray" x1={X0} y1={36} x2={X0 + px1 - 10} y2={36}
           stroke={T.indigo} strokeWidth={3} strokeLinecap="round"/>
         <polygon
           points={`${X0+px1},36 ${X0+px1-10},31 ${X0+px1-10},41`}
@@ -219,7 +219,7 @@ export function VelocityVis({ v1, v2, label1 = "initial", label2 = "final", unit
               fill={T.nebulaBg} stroke={T.nebulaBd} strokeWidth={1.5}/>
             <text x={bx2 + BW / 2} y={75} textAnchor="middle"
               fontSize={8} fontWeight="700" fill={T.nebula}>{v2} {unit}</text>
-            <line x1={X0} y1={84} x2={X0 + px2 - 10} y2={84}
+            <line className="vis-ray" x1={X0} y1={84} x2={X0 + px2 - 10} y2={84}
               stroke={T.nebula} strokeWidth={3} strokeLinecap="round"/>
             <polygon
               points={`${X0+px2},84 ${X0+px2-10},79 ${X0+px2-10},89`}
@@ -287,7 +287,7 @@ export function AtomVis({ protons, neutrons, electrons, element }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
       <svg width={W} height={W} viewBox={`0 0 ${W} ${W}`}>
         {/* Nucleus */}
-        <circle cx={cx} cy={cy} r={18} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        <circle className="vis-mark" cx={cx} cy={cy} r={18} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
         <text x={cx} y={cy - 4} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>{protons}p</text>
         <text x={cx} y={cy + 6} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.nebula}>{neutrons}n</text>
         {/* Electron shells */}
@@ -295,7 +295,7 @@ export function AtomVis({ protons, neutrons, electrons, element }) {
           const r = 30 + (si + 1) * 22;
           return (
             <g key={si}>
-              <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
+              <circle className="vis-mark" cx={cx} cy={cy} r={r} fill="none" stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
               {Array.from({ length: count }, (_, ei) => {
                 const angle = (ei / count) * 2 * Math.PI - Math.PI / 2;
                 const ex = cx + r * Math.cos(angle);
@@ -483,7 +483,7 @@ export function MoleculeVis({ formula, bonds }) {
           const count = b.type === "triple" ? 3 : b.type === "double" ? 2 : 1;
           const offsets = count === 1 ? [0] : count === 2 ? [-1,1] : [-2,0,2];
           return offsets.map((o, oi) => (
-            <line key={`${i}-${oi}`}
+            <line className="vis-arc" key={`${i}-${oi}`}
               x1={a1.x + nx*o} y1={a1.y + ny*o} x2={a2.x + nx*o} y2={a2.y + ny*o}
               stroke={BOND_COLORS[b.type] || "#475569"}
               strokeWidth={b.type === "ionic" ? 1.5 : 2}
@@ -493,7 +493,7 @@ export function MoleculeVis({ formula, bonds }) {
         })}
         {mol.atoms.map((a, i) => (
           <g key={i}>
-            <circle cx={a.x} cy={a.y} r={a.r} fill={a.color} stroke="white" strokeWidth={1.5} />
+            <circle className="vis-mark" cx={a.x} cy={a.y} r={a.r} fill={a.color} stroke="white" strokeWidth={1.5} />
             <text x={a.x} y={a.y} textAnchor="middle" dominantBaseline="central"
               fontSize={a.r > 12 ? 9 : 8} fontWeight="800" fill="white">{a.label}</text>
           </g>
@@ -654,7 +654,7 @@ export function WaveVis({ type, wavelength, amplitude, label }) {
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
         <svg width={W} height={40} viewBox={`0 0 ${W} 40`}>
           {bars.map((b, i) => (
-            <rect key={i} x={b.x} y={8} width={W/20 - 1} height={24}
+            <rect className="vis-bar" key={i} x={b.x} y={8} width={W/20 - 1} height={24}
               fill={T.indigo} opacity={b.opacity * 0.8 + 0.1} rx={1} />
           ))}
           <text x={W/2} y={36} textAnchor="middle" fontSize={9} fill={T.slate}>Compressions and rarefactions</text>
@@ -666,8 +666,8 @@ export function WaveVis({ type, wavelength, amplitude, label }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={0} y1={mid} x2={W} y2={mid} stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
-        <path d={wavePath()} fill="none" stroke={T.indigo} strokeWidth={2.5} />
+        <line className="vis-axis" x1={0} y1={mid} x2={W} y2={mid} stroke={T.slate} strokeWidth={1} strokeDasharray="3,3" opacity={0.4} />
+        <path className="vis-arc" d={wavePath()} fill="none" stroke={T.indigo} strokeWidth={2.5} />
         {/* Wavelength arrow */}
         <line x1={10} y1={16} x2={10 + W/2} y2={16} stroke={T.nebula} strokeWidth={1.5} markerEnd="url(#wEnd)" />
         <text x={10 + W/4} y={13} textAnchor="middle" fontSize={8} fill={T.nebula} fontWeight="700">λ (wavelength)</text>
@@ -744,7 +744,7 @@ export function FreeBodyVis({ forces }) {
           ))}
         </defs>
         {/* Object */}
-        <rect x={cx-14} y={cy-14} width={28} height={28} rx={4} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
+        <rect className="vis-bar" x={cx-14} y={cy-14} width={28} height={28} rx={4} fill={T.indigoBg} stroke={T.indigo} strokeWidth={2} />
         <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={8} fill={T.indigo} fontWeight="700">obj</text>
         {/* Force arrows */}
         {forces.map((f, i) => {
@@ -756,7 +756,7 @@ export function FreeBodyVis({ forces }) {
           const color = FORCE_COLORS[f.direction];
           return (
             <g key={i}>
-              <line x1={cx + d.dx*14} y1={cy + d.dy*14} x2={ex} y2={ey}
+              <line className="vis-ray" x1={cx + d.dx*14} y1={cy + d.dy*14} x2={ex} y2={ey}
                 stroke={color} strokeWidth={2.5} markerEnd={`url(#fbArrow-${f.direction})`} />
               <text x={cx + d.lx * 0.8} y={cy + d.ly * 0.8}
                 textAnchor="middle" dominantBaseline="central" fontSize={8} fill={color} fontWeight="700">

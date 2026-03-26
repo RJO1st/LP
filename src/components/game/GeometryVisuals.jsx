@@ -178,11 +178,11 @@ export function CoordinateVis({ points = [], xRange = [-3,3], yRange = [-3,3] })
   const gridLines = [];
   for (let x = xRange[0]; x <= xRange[1]; x++) {
     const sx = PAD + (x - xRange[0]) * cellW;
-    gridLines.push(<line key={`v${x}`} x1={sx} y1={PAD} x2={sx} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>);
+    gridLines.push(<line key={`v${x}`} className="vis-grid" x1={sx} y1={PAD} x2={sx} y2={H-PAD} stroke={T.slateBd} strokeWidth={1}/>);
   }
   for (let y = yRange[0]; y <= yRange[1]; y++) {
     const sy = H - PAD - (y - yRange[0]) * cellH;
-    gridLines.push(<line key={`h${y}`} x1={PAD} y1={sy} x2={W-PAD} y2={sy} stroke={T.slateBd} strokeWidth={1}/>);
+    gridLines.push(<line key={`h${y}`} className="vis-grid" x1={PAD} y1={sy} x2={W-PAD} y2={sy} stroke={T.slateBd} strokeWidth={1}/>);
   }
   // Axis tick labels
   const ticks = [];
@@ -203,8 +203,8 @@ export function CoordinateVis({ points = [], xRange = [-3,3], yRange = [-3,3] })
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         {gridLines}
         {/* Axes */}
-        <line x1={PAD} y1={originY} x2={W-PAD+6} y2={originY} stroke={T.text} strokeWidth={1.5}/>
-        <line x1={originX} y1={H-PAD} x2={originX} y2={PAD-6} stroke={T.text} strokeWidth={1.5}/>
+        <line className="vis-axis" x1={PAD} y1={originY} x2={W-PAD+6} y2={originY} stroke={T.text} strokeWidth={1.5}/>
+        <line className="vis-axis" x1={originX} y1={H-PAD} x2={originX} y2={PAD-6} stroke={T.text} strokeWidth={1.5}/>
         <polygon points={`${W-PAD+6},${originY} ${W-PAD},${originY-3} ${W-PAD},${originY+3}`} fill={T.text}/>
         <polygon points={`${originX},${PAD-6} ${originX-3},${PAD} ${originX+3},${PAD}`} fill={T.text}/>
         <text x={W-PAD+8} y={originY+4} fontSize={8} fill={T.textMid}>x</text>
@@ -219,8 +219,8 @@ export function CoordinateVis({ points = [], xRange = [-3,3], yRange = [-3,3] })
             <g key={i}>
               <line x1={sx} y1={sy} x2={sx} y2={originY} stroke={col} strokeWidth={1} strokeDasharray="3,2" opacity={0.6}/>
               <line x1={sx} y1={sy} x2={originX} y2={sy} stroke={col} strokeWidth={1} strokeDasharray="3,2" opacity={0.6}/>
-              <circle cx={sx} cy={sy} r={5} fill={col}/>
-              <text x={sx+6} y={sy-5} fontSize={8} fontWeight="700" fill={col}>({pt.x},{pt.y})</text>
+              <circle className="vis-point" cx={sx} cy={sy} r={5} fill={col}/>
+              <text className="vis-label" x={sx+6} y={sy-5} fontSize={8} fontWeight="700" fill={col}>({pt.x},{pt.y})</text>
             </g>
           );
         })}
@@ -266,10 +266,10 @@ export function AngleVis({ degrees, label, scenario, knownAngles, unknownLabel }
     <Panel accent={color} bg={T.slateBg} bd={T.slateBd}
       ariaLabel={`Angle diagram showing ${degrees} degrees (${typeLabel})`}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={ox} y1={oy} x2={ex} y2={ey} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
-        <line x1={ox} y1={oy} x2={ax} y2={ay} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
+        <line className="vis-ray" x1={ox} y1={oy} x2={ex} y2={ey} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
+        <line className="vis-ray" x1={ox} y1={oy} x2={ax} y2={ay} stroke={color} strokeWidth={2.5} strokeLinecap="round"/>
         {degrees !== 90 ? (
-          <path d={`M ${ox+ar},${oy} A ${ar},${ar} 0 ${large},0 ${arcX},${arcY}`}
+          <path className="vis-arc" d={`M ${ox+ar},${oy} A ${ar},${ar} 0 ${large},0 ${arcX},${arcY}`}
             stroke={color} strokeWidth={1.5} fill={`${color}15`}/>
         ) : (
           <g>
@@ -277,9 +277,9 @@ export function AngleVis({ degrees, label, scenario, knownAngles, unknownLabel }
             <line x1={ox+14} y1={oy-14} x2={ox} y2={oy-14} stroke={color} strokeWidth={1.5}/>
           </g>
         )}
-        <text x={ox + ar + 10} y={oy - ar * 0.35} fontSize={13} fontWeight="900" fill={color}>{degrees}°</text>
-        <circle cx={ox} cy={oy} r={3.5} fill={color}/>
-        <text x={ox + r * 0.5} y={oy + 18} fontSize={9} fontWeight="700" fill={T.textMid} textAnchor="middle">{typeLabel}</text>
+        <text className="vis-label" x={ox + ar + 10} y={oy - ar * 0.35} fontSize={13} fontWeight="900" fill={color}>{degrees}°</text>
+        <circle className="vis-mark" cx={ox} cy={oy} r={3.5} fill={color}/>
+        <text className="vis-label" x={ox + r * 0.5} y={oy + 18} fontSize={9} fontWeight="700" fill={T.textMid} textAnchor="middle">{typeLabel}</text>
       </svg>
       {label && <Chip color={color} bg={T.slateBg}>{label}</Chip>}
     </Panel>

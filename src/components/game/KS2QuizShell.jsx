@@ -10,6 +10,8 @@
  */
 
 import React, { useState } from "react";
+import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
+import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
 const N = { fontFamily: "'Orbitron', 'Rajdhani', 'Nunito', sans-serif" };
 const NB = { fontFamily: "'Rajdhani', 'Nunito', sans-serif" };
@@ -79,6 +81,7 @@ export default function KS2QuizShell({
   leftPanelContent, taraEIBWidget, canProceed,
 }) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const optionsRef = useStaggerEntrance(".ks2-option", [questionIndex]);
 
   const formatTime = (s) => {
     if (!s && s !== 0) return "";
@@ -289,7 +292,7 @@ export default function KS2QuizShell({
           </h2>
 
           {/* Option buttons with HUD styling */}
-          <div className="ks2-options-grid" style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+          <div className="ks2-options-grid" ref={optionsRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
               const correct = showResult && isCorrect && selected;
@@ -321,7 +324,7 @@ export default function KS2QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="ks2-answer-btn"
+                  className="ks2-option ks2-answer-btn"
                   style={{
                     width: "100%", textAlign: "left",
                     borderRadius: 2,
@@ -364,7 +367,16 @@ export default function KS2QuizShell({
                   {isCorrect ? "CONFIRMED" : "CORRECTION"}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: "rgba(226,232,240,0.5)", lineHeight: 1.6, ...NB }}>{explanation}</p>
+              {parseExplanationSteps(explanation).length > 1 ? (
+                <StepByStepTimeline
+                  steps={parseExplanationSteps(explanation)}
+                  autoPlay
+                  stepDelay={1.0}
+                  band="ks2"
+                />
+              ) : (
+                <p style={{ fontSize: 12, color: "rgba(226,232,240,0.5)", lineHeight: 1.6, ...NB }}>{explanation}</p>
+              )}
             </HudFrame>
           )}
 
