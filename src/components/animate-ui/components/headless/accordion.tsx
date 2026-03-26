@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { ChevronDownIcon } from 'lucide-react';

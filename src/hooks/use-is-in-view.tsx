@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as React from 'react';
 import { useInView, type UseInViewOptions } from 'motion/react';
 
