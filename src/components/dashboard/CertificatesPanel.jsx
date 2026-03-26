@@ -100,9 +100,9 @@ export default function CertificatesPanel({ records = [], scholarName = "Scholar
   const [viewing, setViewing] = useState(null);
   const [LazyMC, setLazyMC] = useState(null);
 
-  // Only show if there are earned certificates
+  // Only show meaningful certificates — "developing" is a status, not a certificate
   const certRecords = records.filter(r =>
-    r.current_tier && ["developing", "expected", "exceeding"].includes(r.current_tier)
+    r.current_tier && ["expected", "exceeding"].includes(r.current_tier)
   );
 
   if (certRecords.length === 0) return null;
@@ -128,7 +128,6 @@ export default function CertificatesPanel({ records = [], scholarName = "Scholar
     all: certRecords.length,
     exceeding: certRecords.filter(r => r.current_tier === "exceeding").length,
     expected: certRecords.filter(r => r.current_tier === "expected").length,
-    developing: certRecords.filter(r => r.current_tier === "developing").length,
   };
 
   const isDark = band === "ks2" || band === "ks4";
@@ -161,13 +160,12 @@ export default function CertificatesPanel({ records = [], scholarName = "Scholar
           </span>
         </div>
 
-        {/* Filter tabs */}
+        {/* Filter tabs — only meaningful tiers (no "Building" certificates) */}
         <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
           {[
             { key: "all", label: "All", emoji: "" },
             { key: "exceeding", label: "Stellar", emoji: "🏆" },
             { key: "expected", label: "On Track", emoji: "⭐" },
-            { key: "developing", label: "Building", emoji: "🌱" },
           ].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)} style={{
               padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 700, cursor: "pointer",

@@ -438,9 +438,10 @@ export function EngineFinished({
       />
     )}
 
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[5000] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ WebkitOverflowScrolling: "touch" }}>
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto"
-        style={{ maxHeight: "92vh" }}>
+        style={{ maxHeight: "92vh", maxHeight: "92dvh" }}>
 
         {/* ── HERO SECTION ── */}
         <div className="px-5 pt-6 pb-5"

@@ -178,7 +178,12 @@ export default function AvatarShop({ scholarId }) {
   );
 
   return (
-    <div className="bg-white rounded-3xl p-6 border-2 border-slate-100">
+    <div className="bg-white rounded-3xl p-4 sm:p-6 border-2 border-slate-100 relative" style={{
+      /* Mobile underlay: subtle gradient backdrop for readability over dashboard content */
+      boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+    }}>
+      {/* Mobile background underlay — semi-opaque scrim behind the shop on small screens */}
+      <div className="absolute inset-0 rounded-3xl bg-white/95 backdrop-blur-sm sm:hidden -z-[1]" />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-black text-slate-900">Avatar Shop</h2>

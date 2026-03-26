@@ -21,7 +21,7 @@ import { getAgeBand } from "@/lib/ageBandConfig";
 export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }) {
   const band = getAgeBand(yearLevel, curriculum);
   const pct = total > 0 ? timeLeft / total : 1;
-  const isLow = pct < 0.25;
+  const isLow = timeLeft <= 10;
 
   // ── KS1: Caterpillar eating leaves ────────────────────────────────
   if (band === "ks1") {

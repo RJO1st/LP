@@ -15,6 +15,10 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse }  from 'next/server';
 import { getTopicsForSubjectYear } from '@/lib/topicDefinitions';
 
+// Vercel cron invocations need extended timeout (Pro plan: 60s max)
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 // ─── UNIFIED CURRICULUM CONFIG ────────────────────────────────────────────────
 // Merged: canonical subjects/years from curriculumConfig.js + prompt context for buildPrompt
 const CURRICULA = {

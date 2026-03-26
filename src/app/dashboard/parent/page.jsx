@@ -674,6 +674,7 @@ export default function ParentDashboard() {
   const [expandedInsights, setExpandedInsights] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deletingScholar, setDeletingScholar] = useState(null); // { id, name } or null
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Form state
   const [newName,     setNewName]     = useState("");
@@ -759,16 +760,39 @@ export default function ParentDashboard() {
 
   const MAX_SCHOLARS = 3;
 
-  const handleDeleteScholar = async () => {
+  const handleArchiveScholar = async () => {
     if (!deletingScholar) return;
     try {
-      const { error: delError } = await supabase.from("scholars").delete().eq("id", deletingScholar.id).eq("parent_id", user.id);
-      if (delError) { setError(`Failed to remove scholar: ${delError.message}`); return; }
-      setScholars(prev => prev.filter(s => s.id !== deletingScholar.id));
+      const { error: archiveError } = await supabase
+        .from("scholars")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", deletingScholar.id)
+        .eq("parent_id", user.id);
+      if (archiveError) { setError(`Failed to archive scholar: ${archiveError.message}`); return; }
+      // Update local state — mark as archived (still counts toward MAX_SCHOLARS)
+      setScholars(prev => prev.map(s =>
+        s.id === deletingScholar.id ? { ...s, archived_at: new Date().toISOString() } : s
+      ));
     } catch (err) {
       setError(`Something went wrong: ${err?.message || "Please try again."}`);
     } finally {
       setDeletingScholar(null);
+    }
+  };
+
+  const handleRestoreScholar = async (scholarId) => {
+    try {
+      const { error } = await supabase
+        .from("scholars")
+        .update({ archived_at: null })
+        .eq("id", scholarId)
+        .eq("parent_id", user.id);
+      if (error) { setError(`Failed to restore scholar: ${error.message}`); return; }
+      setScholars(prev => prev.map(s =>
+        s.id === scholarId ? { ...s, archived_at: null } : s
+      ));
+    } catch (err) {
+      setError(`Something went wrong: ${err?.message || "Please try again."}`);
     }
   };
 
@@ -953,7 +977,7 @@ export default function ParentDashboard() {
               className="w-8 h-8 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-sm flex items-center justify-center transition-colors border border-indigo-200">
               ?
             </button>
-            <button onClick={handleSignOut} className="flex items-center gap-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
+            <button onClick={() => setShowLogoutConfirm(true)} className="flex items-center gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
               <LogOutIcon size={18} /> <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
@@ -1204,15 +1228,29 @@ export default function ParentDashboard() {
                   const isInsightsOpen = !!expandedInsights[scholar.id];
                   const bandColor = getKSBandColor(scholar.curriculum, yearLevel);
 
+                  const isArchived = !!scholar.archived_at;
+
                   return (
                     <div
                       key={scholar.id}
-                      className={`bg-white rounded-xl p-3 sm:p-4 shadow-sm border-2 transition-all hover:shadow-md ${bandColor.border}`}
+                      className={`rounded-xl p-3 sm:p-4 shadow-sm border-2 transition-all ${
+                        isArchived
+                          ? "bg-slate-50 border-slate-200 opacity-60"
+                          : `bg-white hover:shadow-md ${bandColor.border}`
+                      }`}
                     >
+                      {/* Archived banner */}
+                      {isArchived && (
+                        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-slate-100 rounded-lg border border-slate-200">
+                          <Icon size={12} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Archived — auto-deletes in 6 months</span>
+                        </div>
+                      )}
                       {/* Clickable header → scholar insights */}
                       <Link
-                        href={`/dashboard/parent/scholar/${scholar.id}`}
-                        className="flex items-center gap-3 mb-3 group"
+                        href={isArchived ? "#" : `/dashboard/parent/scholar/${scholar.id}`}
+                        className={`flex items-center gap-3 mb-3 group ${isArchived ? "pointer-events-none" : ""}`}
+                        onClick={isArchived ? (e) => e.preventDefault() : undefined}
                       >
                         <div className={`w-10 h-10 rounded-full ${bandColor.bg} border-2 ${bandColor.border} flex items-center justify-center flex-shrink-0`}>
                           <span className="text-lg">{scholar.name?.[0]?.toUpperCase() || '?'}</span>
@@ -1303,19 +1341,41 @@ export default function ParentDashboard() {
 
                       {/* Actions row */}
                       <div className="flex items-center gap-2">
-                        <Link
-                          href={`/dashboard/parent/scholar/${scholar.id}`}
-                          className="flex-1 block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
-                        >
-                          View Full Insights
-                        </Link>
-                        <button
-                          onClick={() => setDeletingScholar({ id: scholar.id, name: scholar.name })}
-                          className="p-2 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition-colors"
-                          title="Remove scholar"
-                        >
-                          <Icon size={14} d={["M3 6h18","M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2","M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"]} />
-                        </button>
+                        {isArchived ? (
+                          <button
+                            onClick={() => handleRestoreScholar(scholar.id)}
+                            className="flex-1 block text-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-emerald-200 hover:border-emerald-300"
+                          >
+                            Restore Scholar
+                          </button>
+                        ) : (
+                          <>
+                            <Link
+                              href={`/dashboard/parent/scholar/${scholar.id}`}
+                              className="flex-1 block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
+                            >
+                              Insights
+                            </Link>
+                            <button
+                              onClick={() => {
+                                localStorage.setItem("active_scholar", JSON.stringify(scholar));
+                                router.push("/dashboard/student");
+                              }}
+                              className="flex-1 block text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-indigo-200 hover:border-indigo-300"
+                            >
+                              Login as Scholar
+                            </button>
+                          </>
+                        )}
+                        {!isArchived && (
+                          <button
+                            onClick={() => setDeletingScholar({ id: scholar.id, name: scholar.name })}
+                            className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Archive scholar"
+                          >
+                            <Icon size={14} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -1566,17 +1626,20 @@ export default function ParentDashboard() {
       {/* Dashboard Tour — shows once per user, re-triggerable via ? button */}
       {user?.id && <DashboardTour type="parent" userId={user.id} />}
 
-      {/* Delete Scholar Confirmation Modal */}
+      {/* Archive Scholar Confirmation Modal */}
       {deletingScholar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="text-center mb-4">
-              <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 flex items-center justify-center mb-3">
-                <Icon size={28} d={["M3 6h18","M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2","M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"]} />
+              <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                <Icon size={28} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
               </div>
-              <h3 className="text-lg font-black text-slate-900">Remove Scholar?</h3>
+              <h3 className="text-lg font-black text-slate-900">Archive Scholar?</h3>
               <p className="text-sm text-slate-500 mt-1">
-                This will permanently remove <span className="font-bold text-slate-700">{deletingScholar.name}</span> and all their progress data. This cannot be undone.
+                <span className="font-bold text-slate-700">{deletingScholar.name}</span> will be archived and greyed out. Their data is kept for 6 months, during which you can restore them. After 6 months, all data is permanently deleted.
+              </p>
+              <p className="text-xs text-amber-600 font-bold mt-2">
+                Note: Archived scholars still count toward your scholar limit.
               </p>
             </div>
             <div className="flex gap-3">
@@ -1584,9 +1647,9 @@ export default function ParentDashboard() {
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
-              <button onClick={handleDeleteScholar}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-colors">
-                Remove
+              <button onClick={handleArchiveScholar}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 transition-colors">
+                Archive
               </button>
             </div>
           </div>
@@ -1600,6 +1663,30 @@ export default function ParentDashboard() {
           supabase={supabase}
           onClose={() => { setGraduatingScholar(null); window.location.reload(); }}
         />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLogoutConfirm(false); }}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <div className="text-4xl mb-3">👋</div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Sign out?</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              You'll need to log back in to view your scholars' progress and manage your account.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">
+                Stay
+              </button>
+              <button onClick={() => { setShowLogoutConfirm(false); handleSignOut(); }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-colors">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

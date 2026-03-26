@@ -71,17 +71,25 @@ function applyTimeDecay(score, lastSeenAt) {
 }
 
 function tierFromScore(score, intervalDays = 0, timesSeen = 0) {
-  // ── Stage-gated mastery tiers ──────────────────────────────────────────
-  // A scholar cannot reach higher tiers without sustained evidence:
-  //   exceeding: score >= 0.80 AND seen 40+ questions AND interval >= 7 days
-  //   expected:  score >= 0.55 AND seen 20+ questions
-  //   developing: everything else
+  // ── Stage-gated mastery tiers (tightened to prevent valueless certificates) ──
   //
-  // This prevents "Stellar in one quest" — even 20/20 correct only reaches
-  // "expected" at best on the first session, because times_seen starts at 20.
-  // The scholar must return for more sessions to prove retention.
-  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 100 && intervalDays >= 7) return "exceeding";
-  if (score >= MASTERY_THRESHOLDS.developing && timesSeen >= 50) return "expected";
+  // Certificates should feel earned, not automatic. Three tiers:
+  //
+  //   exceeding (Stellar 🏆):
+  //     score >= 0.80 AND seen 50+ questions AND interval >= 7 days
+  //     = Genuine mastery with proven retention over time
+  //
+  //   expected (On Track ⭐):
+  //     score >= 0.60 AND seen 25+ questions
+  //     = Solid understanding with enough practice depth
+  //
+  //   developing (no certificate):
+  //     Everything else — this is a status, not an achievement.
+  //     Scholars see progress but don't get a certificate until they
+  //     cross into "expected" territory.
+  //
+  if (score >= MASTERY_THRESHOLDS.mastered && timesSeen >= 50 && intervalDays >= 7) return "exceeding";
+  if (score >= 0.60 && timesSeen >= 25) return "expected";
   return "developing";
 }
 
@@ -153,12 +161,13 @@ export async function POST(request) {
     nextReview.setDate(nextReview.getDate() + newInterval);
 
     // ── Detect stage threshold crossings for certificate surfacing ──────────────
+    // Only "expected" and "exceeding" crossings trigger certificates.
+    // "developing" is a status, not an achievement — no certificate popup.
     const prevTier = prevMastery?.current_tier ?? null;
     const TIER_RANK = { developing: 1, expected: 2, exceeding: 3 };
     const tierRankPrev = TIER_RANK[prevTier] ?? 0;
     const tierRankNew  = TIER_RANK[tier]     ?? 0;
-    // tier_crossed = new tier if we just moved UP a stage for the first time
-    const tier_crossed = tierRankNew > tierRankPrev ? tier : null;
+    const tier_crossed = (tierRankNew > tierRankPrev && tier !== "developing") ? tier : null;
 
     const masteryPayload = {
       scholar_id:     scholarId,

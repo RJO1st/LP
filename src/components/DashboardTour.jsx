@@ -30,7 +30,7 @@ const PARENT_STEPS = [
   },
   {
     title: "Weekly summary",
-    description: "Every Sunday you'll receive an email summary. You can also check progress here anytime.",
+    description: "Every week you'll receive an email summary. You can also check progress here anytime.",
     icon: "📧",
     position: "center",
   },

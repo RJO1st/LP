@@ -44,6 +44,7 @@ export default function KS3QuizShell({
   leftPanelContent, taraEIBWidget, canProceed,
 }) {
   const [showMentor, setShowMentor] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const career = CAREER_MAP[subjectLabel] || CAREER_MAP.Science;
   const progress = totalQuestions > 0 ? ((questionIndex) / totalQuestions) * 100 : 0;
@@ -104,7 +105,7 @@ export default function KS3QuizShell({
           <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-sm">
             {career.icon}
           </div>
-          <button onClick={onClose} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors text-emerald-400"
+          <button onClick={() => setShowExitConfirm(true)} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors text-emerald-400"
             style={{ fontSize: 14 }} title="Exit challenge">
             ✕
           </button>
@@ -317,6 +318,41 @@ export default function KS3QuizShell({
         <span>DEPT: {career.dept.toUpperCase()} • TASK: {questionIndex + 1}/{totalQuestions}</span>
       </footer>
     </div>
+
+    {/* Exit Confirmation Modal */}
+    {showExitConfirm && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowExitConfirm(false); }}>
+        <div style={{
+          background: "#0c1222", borderRadius: 20, padding: "28px 24px", maxWidth: 360, width: "100%",
+          boxShadow: "0 25px 50px rgba(0,0,0,0.5)", border: "1px solid rgba(16,185,129,0.15)",
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🚪</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", marginBottom: 8 }}>
+            Leave Challenge?
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 24, lineHeight: 1.5 }}>
+            Your progress on this challenge will be lost. Are you sure you want to exit?
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setShowExitConfirm(false)} style={{
+              flex: 1, padding: "12px 16px", borderRadius: 12, border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: 800, background: "rgba(255,255,255,0.1)", color: "#fff",
+            }}>
+              Continue
+            </button>
+            <button onClick={() => { setShowExitConfirm(false); onClose?.(); }} style={{
+              flex: 1, padding: "12px 16px", borderRadius: 12, border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: 800, background: "#ef4444", color: "#fff",
+            }}>
+              Exit
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

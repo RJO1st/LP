@@ -363,7 +363,7 @@ export default function AdaptiveDashboardLayout({
   journalEntries = [], dailyAdventure, encouragement, careerTopic, examData,
   masteryData = [], peerComparisons = [], pastMocks = [], leaderboard = [],
   scholarId, supabase, coins = 0, todayQCount = 0, effectiveTier = "pro",
-  earnedBadgeIds = [],
+  earnedBadgeIds = [], isFirstLogin = false,
   onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
   onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic,
 }) {
@@ -421,6 +421,7 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
+                isFirstLogin={isFirstLogin}
               />
               <div style={{ marginTop: 16 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
@@ -516,6 +517,7 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
+                isFirstLogin={isFirstLogin}
               />
               <div style={{ marginTop: 20 }}>
                 {/* Commander Stats Row */}
@@ -697,6 +699,7 @@ export default function AdaptiveDashboardLayout({
                 yearLevel={scholar.year_level} examName={examData?.examName}
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
+                isFirstLogin={isFirstLogin}
               />
               <div style={{ marginTop: 16 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />

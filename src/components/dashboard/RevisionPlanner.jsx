@@ -83,8 +83,6 @@ function generatePlan(masteryData, examDate) {
 export default function RevisionPlanner({ masteryData = [], examDate, examName, onStartTopic }) {
   const { band, theme: t, isDark } = useTheme();
   const [selectedDay, setSelectedDay] = useState(0);
-  const [completedItems, setCompleted] = useState(new Set());
-
   // Only render for KS3/KS4
   if (band === "ks1" || band === "ks2") return null;
 
@@ -95,15 +93,30 @@ export default function RevisionPlanner({ masteryData = [], examDate, examName, 
     ? Math.max(0, Math.ceil((new Date(examDate) - new Date()) / (1000 * 60 * 60 * 24)))
     : null;
 
-  const toggleComplete = (dayIdx, sessionIdx) => {
-    const key = `${dayIdx}-${sessionIdx}`;
-    setCompleted(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+  // Auto-check: a session is "complete" when the scholar's current mastery
+  // for that topic has risen above the threshold that generated it.
+  // learn (<30%) → complete when mastery >= 30%
+  // practice (<60%) → complete when mastery >= 60%
+  // review (<85%) → complete when mastery >= 85%
+  // mock sessions are never auto-checked.
+  const completedItems = useMemo(() => {
+    const set = new Set();
+    const masteryMap = {};
+    (masteryData || []).forEach(r => {
+      masteryMap[r.topic] = r.mastery_score ?? 0;
     });
-  };
+    plan.forEach((day, di) => {
+      day.sessions.forEach((session, si) => {
+        if (session.type === "mock") return;
+        const currentMastery = masteryMap[session.topic] ?? 0;
+        const threshold = session.type === "learn" ? 0.30
+          : session.type === "practice" ? 0.60
+          : 0.85;
+        if (currentMastery >= threshold) set.add(`${di}-${si}`);
+      });
+    });
+    return set;
+  }, [plan, masteryData]);
 
   const typeColours = {
     learn:    { bg: isDark ? "rgba(251,146,60,.12)" : "#fff7ed", border: isDark ? "rgba(251,146,60,.3)" : "#fed7aa", text: "#ea580c" },
@@ -193,19 +206,19 @@ export default function RevisionPlanner({ masteryData = [], examDate, examName, 
                 transition: "all 0.2s",
               }}
             >
-              {/* Checkbox */}
-              <button
-                onClick={() => toggleComplete(selectedDay, si)}
+              {/* Auto-check indicator — checked when mastery threshold is met */}
+              <div
                 style={{
                   width: 20, height: 20, borderRadius: 6, flexShrink: 0,
                   border: `2px solid ${done ? t.colours.success : tc.text}`,
                   background: done ? t.colours.success : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", fontSize: 11, color: done ? "#fff" : "transparent",
+                  fontSize: 11, color: done ? "#fff" : "transparent",
+                  transition: "all 0.3s ease",
                 }}
               >
                 {done ? "✓" : ""}
-              </button>
+              </div>
 
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>

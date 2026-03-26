@@ -84,18 +84,19 @@ export default function AdaptiveGreeting({
   daysUntilExam,
   avatar,
   onAvatarClick,
+  isFirstLogin = false,
 }) {
   const { band, theme: t } = useTheme();
   const name = scholarName || "Scholar";
 
   const greetings = {
-    ks1: { main: `Hi ${name}! Ready for an adventure? ✨`, sub: null },
+    ks1: { main: isFirstLogin ? `Welcome, ${name}! ✨` : `Hi ${name}! Ready for an adventure? ✨`, sub: null },
     ks2: {
-      main: `Welcome back, Commander ${name}! 🚀`,
-      sub: `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}`,
+      main: isFirstLogin ? `Welcome, Commander ${name}! 🚀` : `Welcome back, Commander ${name}! 🚀`,
+      sub: streak > 0 ? `${streak}-day streak 🔥` : null,
     },
     ks3: {
-      main: `Hey ${name}. Let's make progress.`,
+      main: isFirstLogin ? `Welcome, ${name}.` : `Hey ${name}. Let's make progress.`,
       sub: `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}${t.dashboard.showMasteryPct ? " · Top 15%" : ""}`,
     },
     ks4: {

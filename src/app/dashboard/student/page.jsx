@@ -349,7 +349,8 @@ function AvatarShop({ scholar, earnedBadgeIds, onClose, onPurchase }) {
   return (
     <div className="fixed inset-0 bg-black/80 z-[8000] flex items-center justify-center p-4"
       onClick={onClose}>
-      <div className="bg-white rounded-[32px] p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
+      <div className="bg-white rounded-[32px] p-4 sm:p-6 max-w-md w-full max-h-[85vh] overflow-y-auto shadow-2xl"
+        style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}
         onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-black">Avatar Shop</h2>
@@ -709,6 +710,7 @@ export default function StudentDashboard() {
 
   const [scholar,          setScholar]          = useState(null);
   const [activeSubject,    setActiveSubject]    = useState(null);
+  const lastSubjectRef = React.useRef(null);
   const [unlockModal,      setUnlockModal]      = useState(null); // { tier, subject, topic } | null
   const [showNebulaTrials,   setShowNebulaTrials]   = useState(false);
   const [view,             setView]             = useState("dashboard"); // "dashboard" | "tests" | "weekly_test" | "debrief"
@@ -737,6 +739,7 @@ export default function StudentDashboard() {
   const [parentInfo,       setParentInfo]       = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeReason,    setUpgradeReason]    = useState("daily_limit_reached");
+  const [isFirstLogin,     setIsFirstLogin]     = useState(false);
   const [todayQCount,      setTodayQCount]      = useState(0);
 
   // ── Tier 1 state ──────────────────────────────────────────────────
@@ -754,6 +757,7 @@ export default function StudentDashboard() {
 
   // Gated quest launch — checks daily limit for Free tier before starting
   const launchQuest = useCallback(async (subject) => {
+    lastSubjectRef.current = subject; // Remember for return-to-subject
     if (effectiveTier === "pro") {
       setActiveSubject(subject);
       return;
@@ -776,6 +780,15 @@ export default function StudentDashboard() {
       const scholar = JSON.parse(saved);
       console.log("✅ Loaded:", scholar.name, "curriculum:", scholar.curriculum, "exam_mode:", scholar.exam_mode ?? "none");
       setScholar(scholar);
+      // Detect first login: check if scholar has visited before
+      const visitKey = `lp_scholar_visited_${scholar.id}`;
+      try {
+        const hasVisited = localStorage.getItem(visitKey);
+        if (!hasVisited) {
+          setIsFirstLogin(true);
+          localStorage.setItem(visitKey, "1");
+        }
+      } catch (_) {}
       if (scholar.parent_id) {
         loadTrialStatus(scholar.parent_id);
       }
@@ -1382,7 +1395,7 @@ const UK_NATIONAL_SUBJECTS = {
             stats={adaptiveData.stats}
             topics={adaptiveData.topics}
             subjects={subjects}
-            subject={subjects[0] || "mathematics"}
+            subject={lastSubjectRef.current || subjects[0] || "mathematics"}
             journalEntries={adaptiveData.journal}
             dailyAdventure={adaptiveData.dailyAdventure}
             encouragement={adaptiveData.encouragement}
@@ -1411,6 +1424,7 @@ const UK_NATIONAL_SUBJECTS = {
             todayQCount={todayQCount}
             effectiveTier={effectiveTier}
             earnedBadgeIds={earnedBadges}
+            isFirstLogin={isFirstLogin}
             onSignOut={handleSignOut}
             onAvatar={() => setShowAvatarShop(true)}
           />

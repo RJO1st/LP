@@ -263,7 +263,7 @@ function StarNode({ x, y, topic, color, glowColor, isActive, onClick }) {
         x={x} y={y + starRadius + 14}
         textAnchor="middle"
         fill={isActive ? "#fff" : `rgba(226,232,240,${textOpacity})`}
-        fontSize={9}
+        fontSize={11}
         fontWeight={700}
         fontFamily="'DM Sans', sans-serif"
         style={{ pointerEvents: "none", userSelect: "none" }}
@@ -273,13 +273,13 @@ function StarNode({ x, y, topic, color, glowColor, isActive, onClick }) {
       {/* Mastery percentage */}
       {isStarted && (
         <text
-          x={x} y={y + starRadius + 24}
+          x={x} y={y + starRadius + 26}
           textAnchor="middle"
           fill={color}
-          fontSize={8}
+          fontSize={10}
           fontWeight={800}
           fontFamily="'DM Sans', sans-serif"
-          opacity={0.7}
+          opacity={0.8}
           style={{ pointerEvents: "none", userSelect: "none" }}
         >
           {pct}%
@@ -466,15 +466,15 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.color, boxShadow: `0 0 6px ${meta.glow}` }} />
-            <span style={{ fontSize: 9, color: "rgba(226,232,240,0.5)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Mastered ({mastered})</span>
+            <span style={{ fontSize: 10, color: "rgba(226,232,240,0.55)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Mastered ({mastered})</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: `${meta.color}66`, border: `1px solid ${meta.color}44` }} />
-            <span style={{ fontSize: 9, color: "rgba(226,232,240,0.5)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>In Progress ({started})</span>
+            <span style={{ fontSize: 10, color: "rgba(226,232,240,0.55)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>In Progress ({started})</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(148,163,184,0.15)", border: "1px solid rgba(148,163,184,0.2)" }} />
-            <span style={{ fontSize: 9, color: "rgba(226,232,240,0.5)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Locked ({locked})</span>
+            <span style={{ fontSize: 10, color: "rgba(226,232,240,0.55)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Locked ({locked})</span>
           </div>
         </div>
 
@@ -486,7 +486,7 @@ export default function ConstellationMap({ topics = [], subjects = [], subject, 
           <span style={{ fontSize: 18, fontWeight: 900, color: meta.color, fontFamily: "'DM Sans', sans-serif" }}>
             {filteredTopics.length > 0 ? Math.round(filteredTopics.reduce((s, t) => s + (t.mastery || 0), 0) / filteredTopics.length * 100) : 0}%
           </span>
-          <span style={{ fontSize: 9, color: "rgba(226,232,240,0.4)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>overall</span>
+          <span style={{ fontSize: 10, color: "rgba(226,232,240,0.45)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>overall</span>
         </div>
       </div>
 

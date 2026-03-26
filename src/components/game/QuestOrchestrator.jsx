@@ -250,6 +250,7 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const [finished,         setFinished]         = useState(false);
   const [generating,       setGenerating]       = useState(true);
   const [timeLeft,         setTimeLeft]         = useState(perQTimer);
+  const [timerExpired,     setTimerExpired]     = useState(false);
   const [topicSummary,     setTopicSummary]     = useState({});
 
   const timerRef        = useRef(null);
@@ -380,7 +381,14 @@ const year = rawYear;
     sessionStartRef.current = Date.now(); // ← TIER 1: start clock once questions ready
   }, [student, subject, curriculum, questionCount, previousQuestionIds]);
 
-  useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
+  // Only fetch on initial mount — do NOT re-fetch when student prop updates mid-quiz
+  // (e.g. when handleQuestComplete refreshes scholar data after quest ends).
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   // ── Per-question timer ────────────────────────────────────────────────────
   useEffect(() => {
@@ -392,6 +400,41 @@ const year = rawYear;
     return () => clearInterval(timerRef.current);
   }, [qIdx, generating, finished, sessionQuestions]);
 
+  // ── Timer expiry: lock question, record as wrong, auto-advance ──────────
+  useEffect(() => {
+    if (timeLeft !== 0 || finished || generating || timerExpired) return;
+    setTimerExpired(true);
+    clearInterval(timerRef.current);
+
+    // If no answer was selected, record as unanswered (wrong)
+    if (selected === null) {
+      const q = sessionQuestions[qIdx];
+      if (q) {
+        const timeTaken = Date.now() - questionStartTime.current;
+        setSelected(-1); // sentinel: time expired, no pick
+        setResults((r) => {
+          const upd = {
+            ...r,
+            answers: [...r.answers, {
+              q: q.q, isCorrect: false, correct: q.opts[q.a], myAnswer: "Time expired",
+              opts: q.opts, correctIdx: q.a, chosenIdx: -1,
+              exp: q.exp || null, topic: q.topic || subject,
+              hints: q.hints || [],
+            }],
+          };
+          resultsRef.current = upd;
+          return upd;
+        });
+        recordTopicResult(q.topic || subject, false);
+        recordAnswer(q, false, -1, timeTaken);
+      }
+    }
+
+    // Auto-advance after 1.5 s so scholar sees "Time's up!" briefly
+    const advanceTimer = setTimeout(() => next(), 1500);
+    return () => clearTimeout(advanceTimer);
+  }, [timeLeft, finished, generating, timerExpired, selected, sessionQuestions, qIdx]);
+
   // ── Answer handler ────────────────────────────────────────────────────────
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
@@ -402,7 +445,7 @@ const year = rawYear;
   }, []);
 
   const handlePick = useCallback((idx) => {
-    if (selected !== null) return;
+    if (selected !== null || timerExpired) return;
     const q         = sessionQuestions[qIdx];
     const isCorrect = idx === q.a;
     const timeTaken = Date.now() - questionStartTime.current;
@@ -474,6 +517,7 @@ const year = rawYear;
     if (qIdx < sessionQuestions.length - 1) {
       setQIdx((p) => p + 1);
       setSelected(null);
+      setTimerExpired(false);
       setTimeLeft(perQTimer);
       resetTara();
     } else {
@@ -641,20 +685,17 @@ const year = rawYear;
         </div>
       </div>
       <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-500 leading-relaxed overflow-y-auto">
-        {selected !== null && q.exp
-          ? <p className="text-sm text-slate-600 leading-relaxed">{q.exp}</p>
-          : (q.hints?.[0]
-            ? <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
-            : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ") || subject}</span>.</p>
-          )
+        {q.hints?.[0]
+          ? <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
+          : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ") || subject}</span>.</p>
         }
       </div>
     </div>
   );
   // ── Band-specific quiz shell (KS1-KS4 split-screen layouts) ──────────────
   if (BandQuizShell && !finished) {
-    // Build TaraEIB widget for wrong answers
-    const taraEIBWidget = (selected !== null && !isCorrectAnswer && taraEnabled !== false) ? (
+    // Build TaraEIB widget for wrong answers (hidden when timer expired — no time to explain)
+    const taraEIBWidget = (selected !== null && !timerExpired && !isCorrectAnswer && taraEnabled !== false) ? (
       <TaraEIB
         student={student}
         subject={subject}
@@ -673,8 +714,8 @@ const year = rawYear;
         questionIndex={qIdx}
         totalQuestions={sessionQuestions.length}
         selectedAnswer={selected}
-        onSelect={(i) => { if (selected === null) handlePick(i); }}
-        onSubmit={() => { if (canProceed) next(); }}
+        onSelect={(i) => { if (selected === null && !timerExpired) handlePick(i); }}
+        onSubmit={() => { if (canProceed && !timerExpired) next(); }}
         onSkip={() => next()}
         onClose={onClose}
         subjectLabel={friendlySubject || labels.header}

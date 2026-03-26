@@ -57,12 +57,48 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
         });
       }
 
-      // Calculate per-subject readiness
-      const subjectData = {};
+      // ── Realistic readiness calculation ──────────────────────────────────
+      // A topic is only "exam-ready" when the scholar has:
+      //   1. Sufficient depth: at least MIN_QUESTIONS_FOR_CONFIDENCE answered
+      //   2. Demonstrated mastery: mastery_score above the exam threshold
+      //   3. Recent practice: mastery decays if not reviewed recently
+      //
+      // Per-topic readiness = mastery_score × confidence × recency
+      //   confidence = min(1, times_seen / MIN_QUESTIONS_FOR_CONFIDENCE)
+      //   recency    = 1.0 if reviewed within 7d, decays to 0.5 over 60d
+      //
+      // Subject readiness = (sum of topic readiness / total required topics) × 100
+      // Overall readiness = weighted average across subjects
+      const MIN_QUESTIONS_FOR_CONFIDENCE = 10;
+      const RECENCY_FULL_DAYS = 7;
+      const RECENCY_DECAY_DAYS = 60;
+      const now = new Date();
+
+      const subjectTopicReadiness = {};
+
       mastery.forEach(m => {
-        if (!subjectData[m.subject]) subjectData[m.subject] = { total: 0, count: 0 };
-        subjectData[m.subject].total += m.mastery_score ?? 0;
-        subjectData[m.subject].count += 1;
+        const sub = m.subject;
+        if (!subjectTopicReadiness[sub]) subjectTopicReadiness[sub] = [];
+
+        const score = m.mastery_score ?? 0;
+        const seen = m.times_seen ?? 1;
+
+        // Confidence: how much can we trust this mastery score?
+        const confidence = Math.min(1, seen / MIN_QUESTIONS_FOR_CONFIDENCE);
+
+        // Recency: how recently was this topic practised?
+        let recency = 1.0;
+        if (m.last_seen_at || m.updated_at) {
+          const lastSeen = new Date(m.last_seen_at || m.updated_at);
+          const daysSince = Math.max(0, (now - lastSeen) / (1000 * 60 * 60 * 24));
+          if (daysSince > RECENCY_FULL_DAYS) {
+            const decayPortion = Math.min(1, (daysSince - RECENCY_FULL_DAYS) / RECENCY_DECAY_DAYS);
+            recency = 1.0 - (decayPortion * 0.5); // decays to 0.5 minimum
+          }
+        }
+
+        const topicReadiness = score * confidence * recency;
+        subjectTopicReadiness[sub].push(topicReadiness);
       });
 
       const subjects = {};
@@ -70,21 +106,26 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
       let totalWeight = 0;
 
       for (const [sub, weight] of Object.entries(ELEVEN_PLUS_WEIGHTS)) {
-        const sd = subjectData[sub];
-        if (!sd) {
-          subjects[sub] = { avg: 0, coverage: 0, readiness: 0, topicsDone: 0, topicsTotal: totalTopics[sub]?.size || 20 };
+        const topicScores = subjectTopicReadiness[sub] || [];
+        const topicsTotal = totalTopics[sub]?.size || Math.max(topicScores.length, 20);
+
+        if (topicScores.length === 0) {
+          subjects[sub] = { avg: 0, coverage: 0, readiness: 0, topicsDone: 0, topicsTotal };
           continue;
         }
-        const avg = sd.total / sd.count;
-        const topicsTotal = totalTopics[sub]?.size || Math.max(sd.count, 20);
-        const coverage = Math.min(1, sd.count / topicsTotal);
-        const readiness = Math.round(avg * coverage * 100);
+
+        const topicReadinessSum = topicScores.reduce((s, v) => s + v, 0);
+        // Readiness = sum of topic readiness scores / total topics needed
+        // This naturally penalises: low coverage, low mastery, low confidence, and stale topics
+        const readiness = Math.round((topicReadinessSum / topicsTotal) * 100);
+        const avgMastery = topicScores.reduce((s, v) => s + v, 0) / topicScores.length;
+        const coverage = Math.round((topicScores.length / topicsTotal) * 100);
 
         subjects[sub] = {
-          avg: Math.round(avg * 100),
-          coverage: Math.round(coverage * 100),
-          readiness,
-          topicsDone: sd.count,
+          avg: Math.round(avgMastery * 100),
+          coverage: Math.min(100, coverage),
+          readiness: Math.min(100, readiness),
+          topicsDone: topicScores.length,
           topicsTotal,
         };
 
@@ -92,7 +133,7 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
         totalWeight += weight;
       }
 
-      const overall = totalWeight > 0 ? Math.round(weightedTotal / totalWeight) : 0;
+      const overall = totalWeight > 0 ? Math.min(100, Math.round(weightedTotal / totalWeight)) : 0;
 
       setData({ overall, subjects });
       setLoading(false);

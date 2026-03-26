@@ -9,7 +9,7 @@
  * Inspired by futuristic HUD interfaces.
  */
 
-import React from "react";
+import React, { useState } from "react";
 
 const N = { fontFamily: "'Orbitron', 'Rajdhani', 'Nunito', sans-serif" };
 const NB = { fontFamily: "'Rajdhani', 'Nunito', sans-serif" };
@@ -78,6 +78,8 @@ export default function KS2QuizShell({
   taraHint, isCorrect, showResult, explanation, missionTitle,
   leftPanelContent, taraEIBWidget, canProceed,
 }) {
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
   const formatTime = (s) => {
     if (!s && s !== 0) return "";
     const m = Math.floor(s / 60); const sec = s % 60;
@@ -128,8 +130,8 @@ export default function KS2QuizShell({
             <span style={{ fontSize: 14 }}>🛰️</span>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: CYAN, letterSpacing: "0.2em", ...N }}>ORBITAL COMMAND</div>
-            <div style={{ fontSize: 8, color: `${CYAN}40`, letterSpacing: "0.15em", fontWeight: 600, ...NB }}>MISSION ACTIVE • SECTOR {questionIndex + 1}</div>
+            <div style={{ fontSize: 9, fontWeight: 900, color: CYAN, letterSpacing: "0.15em", ...N }}>ORBITAL COMMAND</div>
+            <div style={{ fontSize: 7, color: `${CYAN}40`, letterSpacing: "0.12em", fontWeight: 600, ...NB }}>MISSION ACTIVE • SECTOR {questionIndex + 1}</div>
           </div>
         </div>
 
@@ -163,9 +165,9 @@ export default function KS2QuizShell({
             fontSize: 11, fontWeight: 900, color: CYAN, ...N,
             background: `${CYAN}05`,
           }}>
-            {String(questionIndex + 1).padStart(2, "0")}
+            {String(questionIndex + 1).padStart(2, "0")}<span style={{ color: `${CYAN}30`, fontWeight: 600, fontSize: 8 }}>/{totalQuestions}</span>
           </div>
-          <button onClick={onClose} className="flex items-center justify-center" style={{
+          <button onClick={() => setShowExitConfirm(true)} className="flex items-center justify-center" style={{
             width: 28, height: 28, borderRadius: 2,
             border: `1px solid rgba(239,68,68,0.2)`,
             background: "rgba(239,68,68,0.05)",
@@ -425,6 +427,44 @@ export default function KS2QuizShell({
         </div>
       </div>
     </div>
+
+    {/* Exit Confirmation Modal */}
+    {showExitConfirm && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowExitConfirm(false); }}>
+        <div style={{
+          background: "linear-gradient(170deg, #0a1628, #020b1a)",
+          borderRadius: 4, padding: "28px 24px", maxWidth: 340, width: "100%",
+          boxShadow: `0 25px 50px rgba(0,0,0,0.5), 0 0 30px ${CYAN}08`,
+          border: `1px solid ${CYAN}20`, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🛰️</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: CYAN, marginBottom: 8, letterSpacing: "0.1em", ...N }}>
+            ABORT MISSION?
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(226,232,240,0.5)", marginBottom: 24, lineHeight: 1.5, ...NB }}>
+            Your progress on this quest will not be saved. Are you sure you want to return to base?
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setShowExitConfirm(false)} style={{
+              flex: 1, padding: "12px 16px", borderRadius: 2, border: `1px solid ${CYAN}25`, cursor: "pointer",
+              fontSize: 12, fontWeight: 900, letterSpacing: "0.1em",
+              background: `${CYAN}08`, color: CYAN, ...N,
+            }}>
+              CONTINUE
+            </button>
+            <button onClick={() => { setShowExitConfirm(false); onClose?.(); }} style={{
+              flex: 1, padding: "12px 16px", borderRadius: 2, border: "1px solid rgba(239,68,68,0.3)", cursor: "pointer",
+              fontSize: 12, fontWeight: 900, letterSpacing: "0.1em",
+              background: "rgba(239,68,68,0.15)", color: "#f87171", ...N,
+            }}>
+              ABORT
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── Fonts ── */}
     <style>{`

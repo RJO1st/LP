@@ -78,13 +78,14 @@ export default function useDashboardData(scholar, supabase) {
               .eq("adventure_date", new Date().toISOString().split("T")[0])
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        // ← FIX: use effectiveYear instead of raw yearLevel
+        // Use effectiveYear (mapped for NG curricula) so JSS/SSS scholars
+        // get topics at their actual DB year_level (7-12), not raw 1-3
         supabase.from("question_bank")
           .select("subject, topic")
           .eq("curriculum", curriculum)
           .eq("is_active", true)
-          .gte("year_level", Math.max(1, yearLevel - 1))
-        .lte("year_level", yearLevel + 1),
+          .gte("year_level", Math.max(1, effectiveYear - 1))
+          .lte("year_level", effectiveYear + 1),
       ]);
 
       const masteryRows = masteryResult.data ?? [];
@@ -142,6 +143,7 @@ export default function useDashboardData(scholar, supabase) {
       });
 
       // ── Mark current + unlock progression per subject ──────────────
+      // Also archive mastered topics so the active list stays focused
       const subjectGroups = {};
       allTopics.forEach(t => {
         if (!subjectGroups[t.subject]) subjectGroups[t.subject] = [];
@@ -149,19 +151,33 @@ export default function useDashboardData(scholar, supabase) {
       });
 
       Object.entries(subjectGroups).forEach(([subj, group]) => {
-        const activeIdx = group.findIndex(t => t.status === "developing" || t.status === "started");
-        const firstLockedIdx = group.findIndex(t => t.status === "locked");
+        // Archive mastered topics — they move to a separate "completed" section
+        group.forEach(t => {
+          t.archived = t.status === "mastered";
+        });
+
+        // Only consider non-archived topics for progression unlock
+        const active = group.filter(t => !t.archived);
+        const activeIdx = active.findIndex(t => t.status === "developing" || t.status === "started");
+        const firstLockedIdx = active.findIndex(t => t.status === "locked");
         const hasActive = activeIdx >= 0;
 
         if (hasActive) {
-          const nextLocked = group.findIndex((t, i) => i > activeIdx && t.status === "locked");
-          if (nextLocked >= 0) group[nextLocked].status = "started";
+          const nextLocked = active.findIndex((t, i) => i > activeIdx && t.status === "locked");
+          if (nextLocked >= 0) active[nextLocked].status = "started";
         } else if (firstLockedIdx >= 0) {
-          group[firstLockedIdx].status = "current";
-          if (firstLockedIdx + 1 < group.length && group[firstLockedIdx + 1].status === "locked") {
-            group[firstLockedIdx + 1].status = "started";
+          active[firstLockedIdx].status = "current";
+          if (firstLockedIdx + 1 < active.length && active[firstLockedIdx + 1].status === "locked") {
+            active[firstLockedIdx + 1].status = "started";
           }
         }
+      });
+
+      // Sort: active topics first, archived (mastered) at the end
+      allTopics.sort((a, b) => {
+        if (a.archived && !b.archived) return 1;
+        if (!a.archived && b.archived) return -1;
+        return 0;
       });
 
       setTopics(allTopics);

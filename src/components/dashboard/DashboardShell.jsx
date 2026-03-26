@@ -298,6 +298,7 @@ export default function DashboardShell({
   const navItems = cfg.items.filter((item) => !item.minYear || yearLevel >= item.minYear);
   const isDark = cfg.dark;
   const [showRightPanel, setShowRightPanel] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // ── Imperatively override html/body backgrounds to prevent white bleed ──
   // This is far more reliable than CSS :has() selectors which have browser quirks
@@ -377,45 +378,22 @@ export default function DashboardShell({
               cursor: "pointer", color: cfg.textMuted,
               display: "flex", alignItems: "center", gap: 4,
             }}
-            title="Settings"
-          >
-            <MIcon name="settings" size={18} />
-            <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Settings</span>
-          </button>
-          <button
-            style={{
-              padding: "4px 10px", borderRadius: 8,
-              background: "transparent", border: "none",
-              cursor: "pointer", color: cfg.textMuted,
-              display: "flex", alignItems: "center", gap: 4,
-            }}
             title="Notifications"
           >
             <MIcon name="notifications" size={18} />
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Alerts</span>
           </button>
-          <button onClick={onSignOut}
+          <button onClick={() => setShowLogoutConfirm(true)}
             style={{
               padding: "4px 10px", borderRadius: 8,
               background: "transparent", border: "none",
-              cursor: "pointer", color: cfg.textMuted,
+              cursor: "pointer", color: "#ef4444",
               display: "flex", alignItems: "center", gap: 4,
             }}
             title="Sign out"
           >
             <MIcon name="logout" size={18} />
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Sign Out</span>
-          </button>
-          <button onClick={() => setShowRightPanel(!showRightPanel)}
-            className="xl:hidden"
-            style={{
-              padding: "4px 8px", borderRadius: 8,
-              background: "transparent", border: "none",
-              cursor: "pointer", color: cfg.textMuted,
-              display: "flex", alignItems: "center", gap: 4,
-            }}
-          >
-            <MIcon name={showRightPanel ? "close" : "smart_toy"} size={20} />
           </button>
         </div>
       </header>
@@ -440,6 +418,46 @@ export default function DashboardShell({
           )}
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLogoutConfirm(false); }}>
+          <div style={{
+            background: isDark ? "#1e1b4b" : "#fff",
+            borderRadius: 20, padding: "28px 24px", maxWidth: 340, width: "100%",
+            boxShadow: "0 25px 50px rgba(0,0,0,0.3)",
+            border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🚪</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: isDark ? "#fff" : "#1e293b", marginBottom: 8 }}>
+              Leaving so soon?
+            </div>
+            <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,0.6)" : "#64748b", marginBottom: 24, lineHeight: 1.5 }}>
+              Your progress is saved, but any active quest will be paused. Are you sure you want to sign out?
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowLogoutConfirm(false)} style={{
+                flex: 1, padding: "12px 16px", borderRadius: 12, border: "none", cursor: "pointer",
+                fontSize: 14, fontWeight: 800,
+                background: isDark ? "rgba(255,255,255,0.1)" : "#f1f5f9",
+                color: isDark ? "#fff" : "#475569",
+              }}>
+                Stay
+              </button>
+              <button onClick={() => { setShowLogoutConfirm(false); onSignOut?.(); }} style={{
+                flex: 1, padding: "12px 16px", borderRadius: 12, border: "none", cursor: "pointer",
+                fontSize: 14, fontWeight: 800,
+                background: "#ef4444", color: "#fff",
+              }}>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomTabs band={band} activeTab={activeTab} onTabChange={onTabChange} onAction={onAction} navItems={navItems} />
 

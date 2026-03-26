@@ -36,6 +36,7 @@ const SUBJECT_META = {
 export default function SkillMap({ topics = [], subjects = [], subject, onTopicClick, onSubjectChange }) {
   const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
+  const [showArchived, setShowArchived] = useState(false);
 
   const titles = {
     ks1: "🗺️ Treasure Map",
@@ -92,9 +93,9 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
                   display: "flex", alignItems: "center", gap: 5,
                   padding: band === "ks1" ? "8px 12px" : "6px 10px",
                   borderRadius: band === "ks1" ? 999 : t.radius.button,
-                  background: isActive ? meta.color : "transparent",
-                  border: isActive ? "none" : `1.5px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0"}`,
-                  color: isActive ? "#fff" : t.colours.textMuted,
+                  background: isActive ? (isDark ? "rgba(255,255,255,0.12)" : t.colours.accentLight || "#eef2ff") : "transparent",
+                  border: isActive ? `1.5px solid ${isDark ? "rgba(255,255,255,0.15)" : t.colours.accent || "#6366f1"}` : `1.5px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0"}`,
+                  color: isActive ? (isDark ? "#fff" : t.colours.accent || "#4f46e5") : t.colours.textMuted,
                   fontSize: band === "ks1" ? 12 : 11,
                   fontWeight: 700,
                   fontFamily: t.fonts.body,
@@ -112,13 +113,48 @@ export default function SkillMap({ topics = [], subjects = [], subject, onTopicC
         </div>
       )}
 
-      {/* Topic grid */}
-      {filteredTopics.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: band === "ks1" ? 10 : band === "ks4" ? 4 : 8 }}>
-          {filteredTopics.map((topic, i) => (
-            <TopicNode key={topic.slug || i} topic={topic} band={band} theme={t} isDark={isDark} onClick={onTopicClick} />
-          ))}
-        </div>
+      {/* Topic grid — active topics first, archived (mastered) collapsed below */}
+      {(() => {
+        const activeTopics = filteredTopics.filter(t => !t.archived);
+        const archivedTopics = filteredTopics.filter(t => t.archived);
+        return activeTopics.length > 0 || archivedTopics.length > 0;
+      })() ? (
+        <>
+          {/* Active topics */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: band === "ks1" ? 10 : band === "ks4" ? 4 : 8 }}>
+            {filteredTopics.filter(tp => !tp.archived).map((topic, i) => (
+              <TopicNode key={topic.slug || i} topic={topic} band={band} theme={t} isDark={isDark} onClick={onTopicClick} />
+            ))}
+          </div>
+
+          {/* Archived (mastered) topics — collapsed by default */}
+          {filteredTopics.filter(tp => tp.archived).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 10px", borderRadius: t.radius.button || 8,
+                  background: isDark ? "rgba(52,211,153,0.08)" : "#f0fdf4",
+                  border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "#bbf7d0"}`,
+                  cursor: "pointer", fontSize: 11, fontWeight: 700,
+                  color: isDark ? "#6ee7b7" : "#16a34a",
+                  fontFamily: t.fonts.body,
+                }}
+              >
+                <span style={{ fontSize: 12, transform: showArchived ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                {band === "ks1" ? "🏝️" : band === "ks2" ? "🌍" : "✅"} Mastered ({filteredTopics.filter(tp => tp.archived).length})
+              </button>
+              {showArchived && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: band === "ks1" ? 10 : band === "ks4" ? 4 : 8, marginTop: 8, opacity: 0.7 }}>
+                  {filteredTopics.filter(tp => tp.archived).map((topic, i) => (
+                    <TopicNode key={topic.slug || i} topic={topic} band={band} theme={t} isDark={isDark} onClick={onTopicClick} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div style={{ textAlign: "center", padding: "28px 16px" }}>
           <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>
