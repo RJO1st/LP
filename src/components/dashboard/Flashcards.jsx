@@ -98,7 +98,37 @@ export default function Flashcards({ scholarId, subject, curriculum, supabase, y
 
   useEffect(() => { loadCards(); }, [loadCards]);
 
-  if (cards.length === 0 && !loading) return null;
+  if (cards.length === 0 && !loading) {
+    return (
+      <div style={{
+        background: t.colours.card,
+        border: `1px solid ${t.colours.cardBorder}`,
+        borderRadius: t.radius.card,
+        padding: 18,
+        backdropFilter: isDark ? "blur(12px)" : undefined,
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: t.fontWeight.bold, color: t.colours.text, fontFamily: t.fonts.display }}>
+            📇 Flashcards
+          </span>
+        </div>
+        <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>🎉</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.colours.text, marginBottom: 4 }}>All caught up!</div>
+          <div style={{ fontSize: 11, color: t.colours.textMuted, lineHeight: 1.5 }}>
+            No weak topics to revise right now. Keep practising to unlock new flashcards.
+          </div>
+          <button onClick={loadCards} style={{
+            marginTop: 12, padding: "8px 16px", borderRadius: t.radius.button,
+            background: t.colours.accent, border: "none", color: "#fff",
+            fontSize: 11, fontWeight: 700, cursor: "pointer",
+          }}>
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const card = cards[currentIdx];
   const remaining = cards.length - known.size;

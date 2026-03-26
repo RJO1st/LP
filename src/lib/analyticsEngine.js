@@ -12,7 +12,7 @@
  */
 
 import { masteryColour, masteryEmoji, masteryToTier } from './masteryEngine.js';
-import { estimateExamReadiness } from './learningPathEngine.js';
+import { estimateExamReadiness, computeExamReadinessIndex, predictGrade, fetchExamBoardData } from './learningPathEngine.js';
 
 // ─── WEEKLY SUMMARY ───────────────────────────────────────────────────────────
 /**
@@ -308,6 +308,72 @@ function erf(x) {
   const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
   return x >= 0 ? y : -y;
 }
+
+// ─── DYNAMIC EXAM READINESS (uses exam board data when available) ────────────
+/**
+ * Compute full exam readiness for a scholar across all their subjects.
+ * Fetches exam board data from Supabase if scholar has an exam_board_id.
+ *
+ * @param {array}  masteryRecords  - all mastery rows for this scholar
+ * @param {object} scholar         - scholar DB row (needs exam_board_id, curriculum)
+ * @param {object} supabase        - Supabase client
+ * @param {string} examDate        - ISO date string (optional)
+ * @returns {object} - { bySubject: { [subject]: readinessResult }, overall: readinessResult }
+ */
+export async function computeFullExamReadiness(masteryRecords, scholar, supabase, examDate = null) {
+  // Group mastery by subject
+  const subjectGroups = {};
+  for (const r of masteryRecords) {
+    if (!subjectGroups[r.subject]) subjectGroups[r.subject] = [];
+    subjectGroups[r.subject].push(r);
+  }
+
+  const bySubject = {};
+  let totalScore = 0;
+  let subjectCount = 0;
+
+  for (const [subject, records] of Object.entries(subjectGroups)) {
+    // Fetch exam board data if scholar has a board assigned
+    let examBoardData = null;
+    if (scholar?.exam_board_id && supabase) {
+      examBoardData = await fetchExamBoardData(scholar.exam_board_id, subject, supabase);
+    }
+
+    bySubject[subject] = computeExamReadinessIndex(records, subject, {
+      examBoardData,
+      examDate,
+      curriculum: scholar?.curriculum ?? 'uk_gcse',
+    });
+
+    totalScore += bySubject[subject].score;
+    subjectCount++;
+  }
+
+  // Overall readiness is the weighted average
+  const overallScore = subjectCount > 0 ? Math.round(totalScore / subjectCount) : 0;
+  const overallGrade = predictGrade(
+    overallScore,
+    null,
+    scholar?.curriculum ?? 'uk_gcse'
+  );
+
+  return {
+    bySubject,
+    overall: {
+      score: overallScore,
+      grade: overallGrade.grade,
+      nextGrade: overallGrade.nextGrade,
+      pointsToNext: overallGrade.pointsToNext,
+      scale: overallGrade.scale,
+      label: overallScore >= 80 ? 'Exam Ready' : overallScore >= 60 ? 'On Track' : overallScore >= 40 ? 'Developing' : 'Needs Focus',
+      colour: overallScore >= 80 ? '#22c55e' : overallScore >= 60 ? '#f59e0b' : overallScore >= 40 ? '#fb923c' : '#ef4444',
+      subjectCount,
+    },
+  };
+}
+
+// Re-export for convenience
+export { computeExamReadinessIndex, predictGrade, fetchExamBoardData };
 
 // ─── STREAK HEATMAP (GitHub-style calendar) ───────────────────────────────────
 /**

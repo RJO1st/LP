@@ -52,6 +52,9 @@
  *   advanceLearningPath()
  *   checkMilestones()
  *   estimateExamReadiness()
+ *   computeExamReadinessIndex() — enhanced: uses exam board boundaries + topic weightings
+ *   predictGrade()              — maps readiness score → grade string (GCSE 9-1, WAEC A1-F9, etc.)
+ *   fetchExamBoardData()        — loads board config from Supabase (with circuit breaker)
  *   aggregateClassMastery()    — teacher dashboard: class-level topic mastery
  *   getStrugglingStudents()    — teacher dashboard: students below threshold
  *   getGroupRecommendations()  — teacher dashboard: suggested next focus areas
@@ -59,6 +62,9 @@
  */
 
 import { scoreDiagnostic, masteryToTier, MASTERY_THRESHOLDS } from './masteryEngine.js';
+
+// Re-export key functions for convenience
+// (computeExamReadinessIndex, predictGrade, fetchExamBoardData are defined below)
 
 // ─── CANONICAL TOPIC SEQUENCES ────────────────────────────────────────────────
 
@@ -573,6 +579,303 @@ export function estimateExamReadiness(masteryRecords, subject, sequence = null) 
   const colour       = score >= 80 ? '#22c55e'    : score >= 60 ? '#f59e0b'   : '#ef4444';
 
   return { score, label, topicsNeeded, colour };
+}
+
+// ─── EXAM BOARD DATA LOADER ──────────────────────────────────────────────────
+
+let _examBoardTableExists = true;
+const _examBoardCache = new Map();
+const EXAM_BOARD_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+/**
+ * Fetch exam board configuration from Supabase.
+ * Returns { board, subjects, topicWeightings } or null if unavailable.
+ *
+ * @param {string} boardId    - UUID of the exam board
+ * @param {string} subject    - subject slug (e.g. 'mathematics')
+ * @param {object} supabase   - Supabase client
+ * @returns {object|null}
+ */
+export async function fetchExamBoardData(boardId, subject, supabase) {
+  if (!boardId || !supabase || !_examBoardTableExists) return null;
+
+  const cacheKey = `${boardId}::${subject}`;
+  const cached = _examBoardCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < EXAM_BOARD_CACHE_TTL) return cached.value;
+
+  try {
+    // Fetch board info + subject config + topic weightings in parallel
+    const [boardRes, subjectRes, weightingsRes] = await Promise.all([
+      supabase.from('exam_boards').select('*').eq('id', boardId).single(),
+      supabase.from('exam_board_subjects').select('*').eq('board_id', boardId).eq('subject', subject).single(),
+      supabase.from('topic_exam_mapping').select('*').eq('board_id', boardId).eq('subject', subject),
+    ]);
+
+    // Circuit breaker: if tables don't exist, stop querying
+    for (const res of [boardRes, subjectRes, weightingsRes]) {
+      if (
+        res.status === 404 ||
+        res.error?.code === 'PGRST116' ||
+        res.error?.message?.includes('does not exist') ||
+        res.error?.message?.includes('relation')
+      ) {
+        _examBoardTableExists = false;
+        return null;
+      }
+    }
+
+    const board = boardRes.data;
+    const subjectConfig = subjectRes.data;
+    const weightings = weightingsRes.data ?? [];
+
+    if (!board) return null;
+
+    const result = {
+      board,
+      gradeScale: board.grade_scale,
+      gradeBoundaries: subjectConfig?.grade_boundaries ?? null,
+      weighting: subjectConfig?.weighting ?? null,
+      topicWeightings: weightings.reduce((acc, tw) => {
+        acc[tw.topic_slug] = parseFloat(tw.weighting) || 0;
+        return acc;
+      }, {}),
+    };
+
+    _examBoardCache.set(cacheKey, { value: result, ts: Date.now() });
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+// ─── PREDICT GRADE FROM READINESS SCORE ──────────────────────────────────────
+
+/**
+ * Default grade scales for when no exam board is configured.
+ * Each entry: { grade, minPercent } — sorted highest-first.
+ */
+const DEFAULT_GRADE_SCALES = {
+  gcse_9_1: [
+    { grade: '9', minPercent: 90 },
+    { grade: '8', minPercent: 80 },
+    { grade: '7', minPercent: 70 },
+    { grade: '6', minPercent: 60 },
+    { grade: '5', minPercent: 50 },
+    { grade: '4', minPercent: 40 },
+    { grade: '3', minPercent: 30 },
+    { grade: '2', minPercent: 20 },
+    { grade: '1', minPercent: 10 },
+  ],
+  waec: [
+    { grade: 'A1', minPercent: 85 },
+    { grade: 'B2', minPercent: 75 },
+    { grade: 'B3', minPercent: 65 },
+    { grade: 'C4', minPercent: 60 },
+    { grade: 'C5', minPercent: 55 },
+    { grade: 'C6', minPercent: 50 },
+    { grade: 'D7', minPercent: 40 },
+    { grade: 'E8', minPercent: 30 },
+    { grade: 'F9', minPercent: 0  },
+  ],
+  eleven_plus: [
+    { grade: 'Pass (High)',   minPercent: 85 },
+    { grade: 'Pass',          minPercent: 70 },
+    { grade: 'Near Pass',     minPercent: 55 },
+    { grade: 'Below',         minPercent: 0  },
+  ],
+};
+
+/**
+ * Convert a readiness percentage (0-100) to a predicted grade string.
+ *
+ * Uses exam board grade boundaries if available, otherwise falls back to
+ * DEFAULT_GRADE_SCALES based on curriculum.
+ *
+ * @param {number} readinessPercent  - 0-100
+ * @param {object|null} examBoardData - from fetchExamBoardData()
+ * @param {string} curriculum        - e.g. 'uk_gcse', 'nigerian_waec', 'uk_11plus'
+ * @returns {object} { grade, nextGrade, pointsToNext, scale }
+ */
+export function predictGrade(readinessPercent, examBoardData = null, curriculum = 'uk_gcse') {
+  let boundaries = null;
+
+  // 1. Try exam board grade boundaries (from DB)
+  if (examBoardData?.gradeBoundaries?.boundaries) {
+    boundaries = examBoardData.gradeBoundaries.boundaries;
+  }
+
+  // 2. Fall back to default scales
+  if (!boundaries) {
+    if (curriculum?.includes('waec') || curriculum?.includes('nigerian')) {
+      boundaries = DEFAULT_GRADE_SCALES.waec;
+    } else if (curriculum?.includes('11plus') || curriculum?.includes('eleven')) {
+      boundaries = DEFAULT_GRADE_SCALES.eleven_plus;
+    } else {
+      boundaries = DEFAULT_GRADE_SCALES.gcse_9_1;
+    }
+  }
+
+  // Sort boundaries highest-first
+  const sorted = [...boundaries].sort((a, b) => (b.minPercent ?? b.min_percent ?? 0) - (a.minPercent ?? a.min_percent ?? 0));
+
+  let currentGrade = sorted[sorted.length - 1]?.grade ?? '—';
+  let nextGrade = null;
+  let pointsToNext = 0;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const threshold = sorted[i].minPercent ?? sorted[i].min_percent ?? 0;
+    if (readinessPercent >= threshold) {
+      currentGrade = sorted[i].grade;
+      // Next grade is one step above
+      if (i > 0) {
+        const nextThreshold = sorted[i - 1].minPercent ?? sorted[i - 1].min_percent ?? 0;
+        nextGrade = sorted[i - 1].grade;
+        pointsToNext = Math.max(0, Math.round(nextThreshold - readinessPercent));
+      }
+      break;
+    }
+  }
+
+  return {
+    grade: currentGrade,
+    nextGrade,
+    pointsToNext,
+    scale: examBoardData?.gradeScale?.name ?? (curriculum?.includes('waec') ? 'WAEC A1-F9' : curriculum?.includes('11plus') ? 'Standardised' : 'GCSE 9-1'),
+  };
+}
+
+// ─── ENHANCED EXAM READINESS INDEX ──────────────────────────────────────────
+
+/**
+ * Compute a comprehensive exam readiness index that factors in:
+ *   1. Topic-weighted mastery (using exam board topic weightings if available)
+ *   2. Coverage percentage (how many exam topics have been attempted)
+ *   3. Time-until-exam urgency factor
+ *   4. Retention health (proportion of topics with strong stability)
+ *
+ * @param {array}  masteryRecords   - all mastery rows for this scholar + subject
+ * @param {string} subject          - subject slug
+ * @param {object} options
+ * @param {object} options.examBoardData   - from fetchExamBoardData()
+ * @param {string} options.examDate        - ISO date string
+ * @param {object} options.sequence        - topic sequence override
+ * @returns {object} { score, grade, label, colour, coverage, retention, topicsNeeded, nextGrade, pointsToNext, daysUntilExam, urgency }
+ */
+export function computeExamReadinessIndex(masteryRecords, subject, options = {}) {
+  const { examBoardData = null, examDate = null, sequence = null, curriculum = 'uk_gcse' } = options;
+
+  if (!masteryRecords?.length) {
+    const fallbackGrade = predictGrade(0, examBoardData, curriculum);
+    return {
+      score: 0, grade: fallbackGrade.grade, label: 'Not started', colour: '#ef4444',
+      coverage: 0, retention: 0, topicsNeeded: [], nextGrade: fallbackGrade.nextGrade,
+      pointsToNext: fallbackGrade.pointsToNext, daysUntilExam: null, urgency: 'low',
+      scale: fallbackGrade.scale,
+    };
+  }
+
+  const seq = sequence ?? getTopicSequenceSync(subject);
+  const allTopics = getTopicList(seq);
+  const masteryMap = {};
+  const stabilityMap = {};
+
+  for (const r of masteryRecords) {
+    masteryMap[r.topic] = r.mastery_score ?? 0;
+    // Stability: SM-2 repetitions + interval as proxy
+    const reps = r.sm2_repetitions ?? r.repetitions ?? 0;
+    const interval = r.sm2_interval ?? r.interval_days ?? 1;
+    stabilityMap[r.topic] = Math.min(1, (reps * interval) / 100); // normalised 0-1
+  }
+
+  // ── Topic-weighted mastery ──────────────────────────────────────────────
+  const topicWeightings = examBoardData?.topicWeightings ?? {};
+  const strandWeights = { foundation: 1.5, intermediate: 1.0, advanced: 0.8 };
+
+  let totalWeight = 0;
+  let weightedScore = 0;
+
+  for (const [strand, w] of Object.entries(strandWeights)) {
+    for (const topic of seq[strand] ?? []) {
+      // Use exam board weighting if available, otherwise use strand weight
+      const topicWeight = topicWeightings[topic] != null
+        ? parseFloat(topicWeightings[topic])
+        : w;
+      totalWeight += topicWeight;
+      weightedScore += (masteryMap[topic] ?? 0) * topicWeight;
+    }
+  }
+
+  const rawScore = totalWeight > 0 ? (weightedScore / totalWeight) * 100 : 0;
+
+  // ── Coverage ───────────────────────────────────────────────────────────
+  const attemptedTopics = allTopics.filter(t => masteryMap[t] != null && masteryMap[t] > 0);
+  const coverage = allTopics.length > 0 ? Math.round((attemptedTopics.length / allTopics.length) * 100) : 0;
+
+  // ── Retention health ──────────────────────────────────────────────────
+  const stableTopics = allTopics.filter(t => stabilityMap[t] >= 0.3);
+  const retention = allTopics.length > 0 ? Math.round((stableTopics.length / allTopics.length) * 100) : 0;
+
+  // ── Time urgency factor ───────────────────────────────────────────────
+  let daysUntilExam = null;
+  let urgencyMultiplier = 1.0;
+  let urgency = 'low';
+
+  if (examDate) {
+    const now = new Date();
+    const exam = new Date(examDate);
+    daysUntilExam = Math.max(0, Math.ceil((exam - now) / (1000 * 60 * 60 * 24)));
+
+    if (daysUntilExam <= 7)       { urgency = 'critical'; urgencyMultiplier = 0.85; }
+    else if (daysUntilExam <= 30) { urgency = 'high';     urgencyMultiplier = 0.92; }
+    else if (daysUntilExam <= 90) { urgency = 'medium';   urgencyMultiplier = 0.96; }
+    // Urgency slightly penalises the score to encourage action
+  }
+
+  // ── Composite score ───────────────────────────────────────────────────
+  // 60% topic-weighted mastery + 25% coverage + 15% retention
+  const compositeScore = Math.round(
+    (rawScore * 0.60 + coverage * 0.25 + retention * 0.15) * urgencyMultiplier
+  );
+
+  const finalScore = Math.min(100, Math.max(0, compositeScore));
+
+  // ── Grade prediction ──────────────────────────────────────────────────
+  const gradeResult = predictGrade(finalScore, examBoardData, curriculum);
+
+  // ── Topics needing work ───────────────────────────────────────────────
+  const topicsNeeded = allTopics
+    .filter(t => (masteryMap[t] ?? 0) < 0.55)
+    .sort((a, b) => {
+      // Prioritise high-weight topics
+      const wA = topicWeightings[a] ?? 1;
+      const wB = topicWeightings[b] ?? 1;
+      return wB - wA || (masteryMap[a] ?? 0) - (masteryMap[b] ?? 0);
+    })
+    .map(t => ({
+      topic: t,
+      displayName: t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      mastery: Math.round((masteryMap[t] ?? 0) * 100),
+      weight: topicWeightings[t] ?? null,
+    }));
+
+  // ── Label + colour ────────────────────────────────────────────────────
+  const label  = finalScore >= 80 ? 'Exam Ready' : finalScore >= 60 ? 'On Track' : finalScore >= 40 ? 'Developing' : 'Needs Focus';
+  const colour = finalScore >= 80 ? '#22c55e'    : finalScore >= 60 ? '#f59e0b'   : finalScore >= 40 ? '#fb923c' : '#ef4444';
+
+  return {
+    score: finalScore,
+    grade: gradeResult.grade,
+    nextGrade: gradeResult.nextGrade,
+    pointsToNext: gradeResult.pointsToNext,
+    scale: gradeResult.scale,
+    label,
+    colour,
+    coverage,
+    retention,
+    topicsNeeded,
+    daysUntilExam,
+    urgency,
+  };
 }
 
 // ─── TEACHER DASHBOARD AGGREGATIONS ──────────────────────────────────────────

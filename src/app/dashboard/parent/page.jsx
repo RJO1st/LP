@@ -4,13 +4,13 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { getCurriculumInfo, formatGradeLabel } from "@/lib/gamificationEngine";
+import { getCurriculumInfo, formatGradeLabel, getLevelInfo } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
 import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 import { ensureReferralCode, getReferralStats } from "@/lib/referralSystem";
 import ReadinessScore from "@/components/ReadinessScore";
-import DashboardTour, { useTourReset } from "@/components/DashboardTour";
+import DashboardTour, { TourHelpButton, useTourReset } from "@/components/DashboardTour";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -1272,7 +1272,8 @@ export default function ParentDashboard() {
                         </div>
                         <div className="bg-indigo-50 rounded-lg p-2 border border-indigo-100 text-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Level</p>
-                          <p className="text-sm font-black text-indigo-700">{Math.floor((scholar.total_xp || 0) / 100) + 1}</p>
+                          <p className="text-sm font-black text-indigo-700">{getLevelInfo(scholar.total_xp || 0).current.level}</p>
+                          <p className="text-[8px] font-bold text-indigo-400 truncate">{getLevelInfo(scholar.total_xp || 0).current.title}</p>
                         </div>
                         <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100 text-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Subjects</p>

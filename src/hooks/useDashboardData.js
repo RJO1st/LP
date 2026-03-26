@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getAgeBand, getBandConfig, getEncouragement, getQuestNarrative } from "@/lib/ageBandConfig";
+import { computeExamReadinessIndex, predictGrade, fetchExamBoardData } from "@/lib/learningPathEngine";
 
 // ── Year mapping: scholar.year_level → DB year_level ─────────────────────────
 function getEffectiveYear(yearLevel, curriculum) {
@@ -212,7 +213,7 @@ export default function useDashboardData(scholar, supabase) {
         masteryPct,
         topicCount: seenRows.length,
         timeMinutes: weekQuizzes.length * 8,
-        predictedGrade: band === "ks4" ? estimateGrade(masteryPct) : null,
+        predictedGrade: band === "ks4" ? predictGrade(masteryPct, null, curriculum).grade : null,
         mocksCompleted: quizzes.filter(q => q.details?.mock).length,
         stickersCollected: Math.floor(totalXp / 10),
       });
@@ -249,18 +250,75 @@ export default function useDashboardData(scholar, supabase) {
         setCareerTopic(quizzes[0].details?.[0]?.topic ?? null);
       }
 
-      // ── Exam data (KS4) ────────────────────────────────────────────
+      // ── Exam data (KS4) — Dynamic Exam Readiness Index ─────────────
       if (band === "ks4") {
         const mastered = masteryRows.filter(r => (r.mastery_score ?? 0) >= 0.7).length;
+        const examDate = scholar?.exam_date ?? null;
+        const daysUntilExam = examDate
+          ? Math.max(0, Math.ceil((new Date(examDate) - new Date()) / 86400000))
+          : null;
+
+        // Compute per-subject readiness using the real engine
+        const subjectGroups = {};
+        masteryRows.forEach(r => {
+          if (!subjectGroups[r.subject]) subjectGroups[r.subject] = [];
+          subjectGroups[r.subject].push(r);
+        });
+
+        // Fetch exam board data once (scholar may have exam_board_id)
+        let primaryExamBoardData = null;
+        const primarySubject = Object.keys(subjectGroups)[0] || "mathematics";
+        if (scholar?.exam_board_id && supabase) {
+          try {
+            primaryExamBoardData = await fetchExamBoardData(scholar.exam_board_id, primarySubject, supabase);
+          } catch { /* graceful fallback */ }
+        }
+
+        // Compute readiness for the primary subject (shown in predicted grade HUD)
+        const primaryRecords = subjectGroups[primarySubject] || masteryRows;
+        const readiness = computeExamReadinessIndex(primaryRecords, primarySubject, {
+          examBoardData: primaryExamBoardData,
+          examDate,
+          curriculum,
+        });
+
+        // Also compute an overall grade using all mastery data
+        const overallReadiness = computeExamReadinessIndex(masteryRows, primarySubject, {
+          examBoardData: primaryExamBoardData,
+          examDate,
+          curriculum,
+        });
+
         setExamData({
-          predictedGrade: estimateGrade(masteryPct), previousGrade: null,
+          predictedGrade: readiness.grade,
+          previousGrade: null,
           examName: scholar?.exam_mode === "gcse" ? "GCSE" : scholar?.exam_mode === "waec" ? "WAEC" : "Exam",
-          daysUntilExam: scholar?.exam_date
-            ? Math.max(0, Math.ceil((new Date(scholar.exam_date) - new Date()) / 86400000))
-            : null,
+          daysUntilExam,
+          examDate,
           topicsRemaining: allTopics.length - mastered,
           mocksCompleted: quizzes.filter(q => q.details?.mock).length,
           revisionPlan: buildRevisionPlan(masteryRows),
+          // New readiness data for Phase 1 KS4 visualizations
+          readiness: {
+            score: readiness.score,
+            grade: readiness.grade,
+            nextGrade: readiness.nextGrade,
+            pointsToNext: readiness.pointsToNext,
+            scale: readiness.scale,
+            label: readiness.label,
+            colour: readiness.colour,
+            coverage: readiness.coverage,
+            retention: readiness.retention,
+            urgency: readiness.urgency,
+            topicsNeeded: readiness.topicsNeeded,
+          },
+          // Per-subject readiness for heatmap/breakdown
+          subjectReadiness: Object.fromEntries(
+            Object.entries(subjectGroups).map(([subj, records]) => [
+              subj,
+              computeExamReadinessIndex(records, subj, { examDate, curriculum }),
+            ])
+          ),
         });
       }
 
@@ -280,7 +338,7 @@ export default function useDashboardData(scholar, supabase) {
         .filter(q => q.details?.mock || (q.total_questions ?? q.questions_total ?? 0) >= 20)
         .map(q => ({
           date: getDate(q), score: q.score ?? 0, total: q.total_questions ?? q.questions_total ?? 0,
-          predictedGrade: estimateGrade(Math.round(((q.score ?? 0) / Math.max(q.total_questions ?? q.questions_total ?? 1, 1)) * 100)),
+          predictedGrade: predictGrade(Math.round(((q.score ?? 0) / Math.max(q.total_questions ?? q.questions_total ?? 1, 1)) * 100), null, curriculum).grade,
         })));
 
     } catch (err) {

@@ -65,12 +65,19 @@ import MockTestLauncher from "./MockTestLauncher";
 import AdaptiveLeaderboard from "./AdaptiveLeaderboard";
 import DigitalPet from "./DigitalPet";
 import GoalSetting from "./GoalSetting";
-import DashboardTour from "@/components/DashboardTour";
+import DashboardTour, { TourHelpButton, SectionTip } from "@/components/DashboardTour";
 import Flashcards from "./Flashcards";
 import CertificatesPanel from "./CertificatesPanel";
 import SubjectProgressChart from "./SubjectProgressChart";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
+
+// ── KS4 Phase 1 Visualizations ──────────────────────────────────────────────
+import TopicHeatmap from "./TopicHeatmap";
+import RetentionHealthRing from "./RetentionHealthRing";
+import StudySessionMetrics from "./StudySessionMetrics";
+import CertificateProgress from "./CertificateProgress";
+import MockTestDebrief from "./MockTestDebrief";
 
 // ── Export Report helper ─────────────────────────────────────────────────────
 function generateReport({ scholar, stats, masteryData, subjects, activeSubject, band }) {
@@ -198,19 +205,48 @@ function KS2Radar() {
 function KS3HudAmbient() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {/* Faint tech grid */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.025,
+      {/* Tech grid — tighter, more cockpit-like */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.03,
         backgroundImage: "linear-gradient(rgba(91,106,191,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(91,106,191,0.3) 1px, transparent 1px)",
-        backgroundSize: "60px 60px" }} />
+        backgroundSize: "40px 40px" }} />
+      {/* Radar sweep — bottom-right quadrant */}
+      <div style={{ position: "absolute", width: 600, height: 600, bottom: "-15%", right: "-10%", opacity: 0.04 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%",
+          border: "1px solid rgba(91,106,191,0.3)" }} />
+        <div style={{ position: "absolute", inset: "15%", borderRadius: "50%",
+          border: "1px solid rgba(91,106,191,0.2)" }} />
+        <div style={{ position: "absolute", inset: "30%", borderRadius: "50%",
+          border: "1px solid rgba(91,106,191,0.15)" }} />
+        {/* Sweep arm */}
+        <div style={{ position: "absolute", top: "50%", left: "50%", width: "50%", height: 2,
+          background: "linear-gradient(90deg, rgba(91,106,191,0.4), transparent)",
+          transformOrigin: "0 50%", animation: "ks3RadarSweep 8s linear infinite" }} />
+      </div>
       {/* Soft accent orb — top right */}
       <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "-8%", right: "-12%", opacity: 0.06,
         background: "radial-gradient(circle, rgba(91,106,191,0.3) 0%, transparent 70%)" }} />
       {/* Secondary orb — bottom left */}
       <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", bottom: "5%", left: "-8%", opacity: 0.04,
         background: "radial-gradient(circle, rgba(14,165,233,0.25) 0%, transparent 70%)" }} />
-      {/* Horizontal scan line (very subtle) */}
+      {/* Horizontal scan line */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, opacity: 0.06,
         background: "rgba(91,106,191,0.4)", animation: "ks3DataSweep 12s linear infinite" }} />
+      {/* Vertical scan line */}
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1, opacity: 0.04,
+        background: "rgba(91,106,191,0.3)", animation: "ks3VSweep 18s linear infinite" }} />
+      {/* HUD corner brackets — viewport corners */}
+      <svg width="60" height="60" style={{ position: "absolute", top: 12, left: 12, opacity: 0.06 }}>
+        <path d="M0 50 L0 4 Q0 0 4 0 L50 0" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      </svg>
+      <svg width="60" height="60" style={{ position: "absolute", top: 12, right: 12, opacity: 0.06 }}>
+        <path d="M60 50 L60 4 Q60 0 56 0 L10 0" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      </svg>
+      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, left: 12, opacity: 0.06 }}>
+        <path d="M0 10 L0 56 Q0 60 4 60 L50 60" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      </svg>
+      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, right: 12, opacity: 0.06 }}>
+        <path d="M60 10 L60 56 Q60 60 56 60 L10 60" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      </svg>
     </div>
   );
 }
@@ -452,6 +488,184 @@ function SectionHeader({ band, icon, title, subtitle, accent, size = "md" }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// KS3 HUD PANEL — Cockpit dock panel wrapper with designation label
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function HudPanel({ designation, label, children, glow, span, dataSection, style: extraStyle = {} }) {
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    gsap.set(el, { opacity: 0, y: 20 });
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        gsap.to(el, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", delay: Math.random() * 0.1 });
+        obs.unobserve(el);
+      }
+    }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={panelRef}
+      data-section={dataSection}
+      style={{
+        position: "relative", borderRadius: 12, overflow: "hidden",
+        background: "rgba(255,255,255,0.6)",
+        border: glow ? "1px solid rgba(91,106,191,0.2)" : "1px solid rgba(91,106,191,0.1)",
+        boxShadow: glow ? "0 4px 20px rgba(91,106,191,0.06)" : "0 1px 8px rgba(0,0,0,0.02)",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        animation: glow ? "ks3PanelGlow 6s ease-in-out infinite" : "none",
+        gridColumn: span === 2 ? "1 / -1" : "auto",
+        ...extraStyle,
+      }}
+    >
+      {/* Top designation bar */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "6px 14px", borderBottom: "1px solid rgba(91,106,191,0.08)",
+        background: "linear-gradient(135deg, rgba(91,106,191,0.06), rgba(91,106,191,0.02))",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {designation && (
+            <span style={{
+              fontSize: 9, fontWeight: 900, fontFamily: "'DM Mono', 'JetBrains Mono', monospace",
+              color: "#5b6abf", letterSpacing: "0.15em", textTransform: "uppercase",
+              background: "rgba(91,106,191,0.08)", padding: "2px 8px", borderRadius: 4,
+              border: "1px solid rgba(91,106,191,0.12)",
+            }}>{designation}</span>
+          )}
+          {label && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(26,29,46,0.5)",
+              letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
+          )}
+        </div>
+        {/* Status dot */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#10b981",
+            animation: "ks3GaugePulse 3s ease-in-out infinite" }} />
+          <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(16,185,129,0.6)",
+            textTransform: "uppercase", letterSpacing: "0.1em" }}>LIVE</span>
+        </div>
+      </div>
+      {/* HUD corner accents inside panel */}
+      <svg width="14" height="14" style={{ position: "absolute", top: 30, left: 4, opacity: 0.12 }}>
+        <path d="M0 12 L0 2 Q0 0 2 0 L12 0" fill="none" stroke="#5b6abf" strokeWidth="1.2" />
+      </svg>
+      <svg width="14" height="14" style={{ position: "absolute", top: 30, right: 4, opacity: 0.12 }}>
+        <path d="M14 12 L14 2 Q14 0 12 0 L2 0" fill="none" stroke="#5b6abf" strokeWidth="1.2" />
+      </svg>
+      {/* Content area */}
+      <div style={{ padding: 16 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── KS3 Subject Radar — hexagonal subject mastery visualization ─────────────
+function SubjectRadar({ subjects, masteryData }) {
+  const subjectList = subjects?.length ? subjects.slice(0, 6) : ["Maths", "English", "Science"];
+  const count = subjectList.length;
+  const cx = 90, cy = 90, maxR = 70;
+
+  // compute mastery per subject
+  const values = subjectList.map(subj => {
+    const items = masteryData.filter(m => (m.subject || "").toLowerCase() === subj.toLowerCase());
+    if (!items.length) return 0;
+    const avg = items.reduce((s, m) => s + (m.mastery_score ?? m.composite_mastery ?? 0), 0) / items.length;
+    return Math.min(100, Math.round(avg));
+  });
+
+  const angleStep = (2 * Math.PI) / count;
+  const startAngle = -Math.PI / 2; // top
+
+  const getPoint = (i, r) => {
+    const angle = startAngle + i * angleStep;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  };
+
+  // grid rings
+  const rings = [0.25, 0.5, 0.75, 1.0];
+  // data polygon
+  const dataPoints = values.map((v, i) => getPoint(i, (v / 100) * maxR));
+  const dataPath = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + " Z";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <svg width={180} height={180} viewBox="0 0 180 180">
+        {/* Grid rings */}
+        {rings.map((r, ri) => {
+          const pts = Array.from({ length: count }, (_, i) => getPoint(i, r * maxR));
+          const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + " Z";
+          return <path key={ri} d={path} fill="none" stroke="rgba(91,106,191,0.12)"
+            strokeWidth={ri === rings.length - 1 ? 1.5 : 0.8} strokeDasharray={ri < rings.length - 1 ? "3 3" : "none"} />;
+        })}
+        {/* Axis lines */}
+        {subjectList.map((_, i) => {
+          const [ex, ey] = getPoint(i, maxR);
+          return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(91,106,191,0.1)" strokeWidth="0.8" />;
+        })}
+        {/* Data polygon */}
+        <path d={dataPath} fill="rgba(91,106,191,0.12)" stroke="#5b6abf" strokeWidth="2" strokeLinejoin="round" />
+        {/* Data points */}
+        {dataPoints.map((p, i) => (
+          <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="#5b6abf" stroke="#fff" strokeWidth="1.5" />
+        ))}
+        {/* Labels */}
+        {subjectList.map((subj, i) => {
+          const [lx, ly] = getPoint(i, maxR + 16);
+          return (
+            <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fontWeight="700" fill="rgba(26,29,46,0.5)"
+              style={{ fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {subj.slice(0, 6)}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ── KS3 Gauge Readout — arc gauge for a single metric ───────────────────────
+function HudGauge({ value = 0, max = 100, label, colour = "#5b6abf", size = 64 }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  const r = (size - 10) / 2;
+  const cx = size / 2, cy = size / 2;
+  // 240-degree arc (from 150deg to 390deg)
+  const arcLen = (240 / 360) * 2 * Math.PI * r;
+  const filled = (pct / 100) * arcLen;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Background arc */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(91,106,191,0.08)" strokeWidth={4}
+          strokeDasharray={`${arcLen} 999`}
+          strokeLinecap="round"
+          style={{ transform: "rotate(150deg)", transformOrigin: "50% 50%" }} />
+        {/* Filled arc */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={colour} strokeWidth={4}
+          strokeDasharray={`${filled} 999`}
+          strokeLinecap="round"
+          style={{ transform: "rotate(150deg)", transformOrigin: "50% 50%", transition: "stroke-dasharray 0.8s ease" }} />
+        {/* Value text */}
+        <text x={cx} y={cy + 2} textAnchor="middle" dominantBaseline="middle"
+          fontSize={size * 0.28} fontWeight="900" fill={colour}
+          style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {typeof value === "number" ? Math.round(value) : value}
+        </text>
+      </svg>
+      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(26,29,46,0.4)",
+        textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>{label}</span>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // GLOBAL KEYFRAMES
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -470,6 +684,10 @@ function BandKeyframes({ band }) {
     ks3: `
       @keyframes ks3EdgePulse { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
       @keyframes ks3DataSweep { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
+      @keyframes ks3VSweep { 0%{transform:translateY(-100%)} 100%{transform:translateY(200%)} }
+      @keyframes ks3RadarSweep { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+      @keyframes ks3GaugePulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+      @keyframes ks3PanelGlow { 0%,100%{box-shadow:inset 0 0 12px rgba(91,106,191,0.03)} 50%{box-shadow:inset 0 0 20px rgba(91,106,191,0.06)} }
     `,
     ks4: `
       @keyframes ks4Scan { 0%{backgroundPosition:0 0} 100%{backgroundPosition:0 100%} }
@@ -578,6 +796,7 @@ export default function AdaptiveDashboardLayout({
     band === "ks1" ? "adventure" : band === "ks2" ? "mission" : band === "ks4" ? "exams" : "mission"
   );
   const [showNebulaTrials, setShowNebulaTrials] = useState(false);
+  const [mockDebriefResult, setMockDebriefResult] = useState(null);
 
   // Handle nav actions (e.g. opening modals from nav buttons)
   const handleNavAction = (action) => {
@@ -671,6 +890,20 @@ export default function AdaptiveDashboardLayout({
               <BandCard band={band}>
                 <SectionHeader band={band} icon="📊" title="My Progress" subtitle="subject mastery" />
                 <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
+            {/* ── Study Session Metrics (KS1-friendly) ─────── */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📊" title="My Star Stats" subtitle="how I'm doing" />
+              <StudySessionMetrics stats={stats} examData={null} masteryData={masteryData} />
+            </BandCard>
+
+            {/* ── Certificate Progress ─────── */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="🏅" title="My Trophies" subtitle="keep exploring!" />
+                <CertificateProgress masteryData={masteryData} subjects={subjects} />
               </BandCard>
             )}
 
@@ -786,6 +1019,20 @@ export default function AdaptiveDashboardLayout({
               />
             </BandCard>
 
+            {/* ── Study Session Metrics (KS2-appropriate) ─────── */}
+            <BandCard band={band}>
+              <SectionHeader band={band} icon="📊" title="Mission Stats" subtitle="this week" />
+              <StudySessionMetrics stats={stats} examData={null} masteryData={masteryData} />
+            </BandCard>
+
+            {/* ── Certificate Progress (KS2-appropriate) ─────── */}
+            {masteryData.length > 0 && (
+              <BandCard band={band}>
+                <SectionHeader band={band} icon="🏅" title="Medal Collection" subtitle="unlock certificates" />
+                <CertificateProgress masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+            )}
+
             {/* Mission Log (Quest Journal) */}
             <BandCard band={band}>
               <SectionHeader band={band} icon="📡" title="Mission Log" subtitle="comms history" />
@@ -899,49 +1146,61 @@ export default function AdaptiveDashboardLayout({
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            KS3: CAREER SIMULATOR (Light, Professional, Data-Focused)
+            KS3: SPACE SIMULATOR HUD (Light, Professional, Cockpit-Instrumentation)
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks3" && (
           <>
-            {/* Hero Greeting + Stats */}
-            <BandCard band={band} glow>
-              <AdaptiveGreeting
-                scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
-                yearLevel={scholar.year_level} examName={examData?.examName}
-                daysUntilExam={examData?.daysUntilExam}
-                avatar={scholar.avatar} onAvatarClick={onAvatar}
-                isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
-              />
-              <div style={{ marginTop: 16 }}>
+            {/* ── COMMAND DECK: Hero Greeting + Gauge Cluster ────────────────── */}
+            <HudPanel designation="CMD" label="Command Deck" glow span={2}>
+              <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                  <AdaptiveGreeting
+                    scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
+                    yearLevel={scholar.year_level} examName={examData?.examName}
+                    daysUntilExam={examData?.daysUntilExam}
+                    avatar={scholar.avatar} onAvatarClick={onAvatar}
+                    isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+                  />
+                </div>
+                {/* Instrument gauge cluster */}
+                <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center", padding: "8px 0" }}>
+                  <HudGauge value={subjectMastery.pct} label="Mastery" colour="#5b6abf" />
+                  <HudGauge value={stats.bestAccuracy ?? stats.accuracy ?? 0} label="Accuracy" colour="#3b82f6" />
+                  <HudGauge value={Math.min(stats.streak ?? 0, 30)} max={30} label="Streak" colour="#f59e0b" />
+                  <HudGauge value={examData?.readiness?.score ?? 0} label="Ready" colour="#10b981" />
+                </div>
+              </div>
+              {/* Compact stats row */}
+              <div style={{ marginTop: 12, borderTop: "1px solid rgba(91,106,191,0.08)", paddingTop: 10 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
               </div>
-            </BandCard>
+            </HudPanel>
 
             {/* Exam Mode Switch — only for scholars with active exam mode (e.g. 11+) */}
             {hasActiveExamMode && (
-              <BandCard band={band}>
+              <HudPanel designation="EXM" label="Exam Configuration">
                 <ExamModeSwitch
                   currentMode={scholar.exam_mode || "general"}
                   curriculum={scholar.curriculum}
                   onSwitch={onExamModeSwitch}
                 />
-              </BandCard>
+              </HudPanel>
             )}
 
             {/* Encouragement */}
             {encouragement && (
-              <BandCard band={band}>
+              <HudPanel designation="COM" label="Mission Control">
                 <TaraEncouragement
                   message={encouragement.text}
                   visible={encouragement.visible !== false}
                   onDismiss={onDismissEncourage}
                 />
-              </BandCard>
+              </HudPanel>
             )}
 
-            {/* Daily Challenge */}
+            {/* ── MISSION BAY: Daily Challenge ───────────────────────────────── */}
             {dailyAdventure && (
-              <BandCard band={band} glow data-section="mission">
+              <HudPanel designation="MSN" label="Mission Bay" glow dataSection="mission">
                 <SectionHeader band={band} icon="🎯" title="Daily Challenge" subtitle="career skill builder" />
                 <DailyAdventure
                   totalQuestions={dailyAdventure.totalQuestions} completed={dailyAdventure.completed}
@@ -949,96 +1208,110 @@ export default function AdaptiveDashboardLayout({
                   topic={topics.find(tp => tp.subject === activeSubject && tp.status === "current")?.slug || ""}
                   onStart={() => onStartAdventure?.(activeSubject)}
                 />
-              </BandCard>
+              </HudPanel>
             )}
 
-            {/* PRIMARY: Skill Map with Tabs */}
-            <BandCard band={band} glow data-section="galaxy">
-              <SectionHeader band={band} icon="📈" title="Skill Map" subtitle="subject progress" size="lg" />
-              <SkillMap
-                topics={topics} subjects={subjects} subject={activeSubject}
-                onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
-              />
-            </BandCard>
-
-            {/* Mastery Visualization */}
-            <BandCard band={band} data-section="stats">
-              <SectionHeader band={band} icon="🎯" title="Mastery Progress" />
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 32,
-                padding: "20px 0",
-              }}>
-                {/* Donut Ring SVG */}
-                <svg width={120} height={120} style={{ filter: "drop-shadow(0 4px 12px rgba(91,106,191,0.1))" }}>
-                  <circle cx={60} cy={60} r={50} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={8} />
-                  <circle
-                    cx={60} cy={60} r={50} fill="none" stroke="#5b6abf"
-                    strokeWidth={8} strokeDasharray={`${(subjectMastery.pct / 100) * 314.159} 314.159`}
-                    strokeLinecap="round" style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dasharray 0.3s ease" }}
-                  />
-                  <text x={60} y={65} textAnchor="middle" fontSize={32} fontWeight={900} fill="#5b6abf">
+            {/* ── 2-COLUMN INSTRUMENT PANEL: Radar + Skill Map ───────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.8fr", gap: 14 }}>
+              {/* Subject Radar Display */}
+              <HudPanel designation="RDR" label="Subject Scan" dataSection="stats">
+                <SubjectRadar subjects={subjects} masteryData={masteryData} />
+                <div style={{ textAlign: "center", marginTop: 4 }}>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: "#5b6abf", fontFamily: "'DM Sans', sans-serif" }}>
                     {subjectMastery.pct}%
-                  </text>
-                </svg>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1d2e", marginBottom: 8 }}>
-                    {subjectMastery.count} Topics
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(26,29,46,0.5)", lineHeight: 1.5 }}>
-                    Continue learning to improve mastery across all subjects.
-                  </div>
+                  </span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(26,29,46,0.3)", marginLeft: 4 }}>OVERALL</span>
                 </div>
-              </div>
-            </BandCard>
+                <div style={{ fontSize: 10, color: "rgba(26,29,46,0.4)", textAlign: "center", marginTop: 2 }}>
+                  {subjectMastery.count} topics tracked
+                </div>
+              </HudPanel>
 
-            {/* Weekly Goals */}
-            <BandCard band={band}>
-              <SectionHeader band={band} icon="✓" title="Weekly Goals" subtitle="track progress" />
-              <GoalSetting scholarId={scholarId} stats={stats} />
-            </BandCard>
+              {/* Navigation Map — Skill Map with Tabs */}
+              <HudPanel designation="NAV" label="Navigation Map" glow dataSection="galaxy">
+                <SkillMap
+                  topics={topics} subjects={subjects} subject={activeSubject}
+                  onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+                />
+              </HudPanel>
+            </div>
 
-            {/* Subject Year Progression */}
+            {/* ── TELEMETRY: Study Session Metrics ───────────────────────────── */}
+            <HudPanel designation="TEL" label="Performance Telemetry">
+              <StudySessionMetrics stats={stats} examData={examData} masteryData={masteryData} />
+            </HudPanel>
+
+            {/* ── 2-COLUMN: Retention + Certificates ─────────────────────────── */}
             {masteryData.length > 0 && (
-              <BandCard band={band}>
-                <SectionHeader band={band} icon="📈" title="Year Progression" subtitle="all subjects" />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <HudPanel designation="RET" label="Memory Health">
+                  <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} compact />
+                </HudPanel>
+                <HudPanel designation="CRT" label="Certifications">
+                  <CertificateProgress masteryData={masteryData} subjects={subjects} />
+                </HudPanel>
+              </div>
+            )}
+
+            {/* ── OBJECTIVES: Weekly Goals ────────────────────────────────────── */}
+            <HudPanel designation="OBJ" label="Weekly Objectives">
+              <GoalSetting scholarId={scholarId} stats={stats} />
+            </HudPanel>
+
+            {/* ── TRAJECTORY: Year Progression ───────────────────────────────── */}
+            {masteryData.length > 0 && (
+              <HudPanel designation="TRJ" label="Flight Trajectory">
                 <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
-              </BandCard>
+              </HudPanel>
             )}
 
-            {/* Topic Performance Breakdown */}
+            {/* ── DIAGNOSTICS: Topic Breakdown + Heatmap ─────────────────────── */}
             {scholarId && supabase && (
-              <BandCard band={band}>
-                <SectionHeader band={band} icon="📊" title="Topic Breakdown" subtitle="per-topic performance" />
-                <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
-              </BandCard>
+              <HudPanel designation="DGN" label="Topic Diagnostics" glow>
+                <div style={{ marginBottom: 12 }}>
+                  <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
+                </div>
+                {masteryData.length > 0 && (
+                  <>
+                    <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(91,106,191,0.15) 20%, rgba(91,106,191,0.15) 80%, transparent)", margin: "8px 0 12px" }} />
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#5b6abf", textTransform: "uppercase", letterSpacing: "0.12em" }}>Thermal Scan</span>
+                    </div>
+                    <TopicHeatmap
+                      masteryData={masteryData}
+                      subject={activeSubject?.toLowerCase() || "mathematics"}
+                      onTopicClick={onTopicClick}
+                      compact
+                    />
+                  </>
+                )}
+              </HudPanel>
             )}
 
-            {/* Quest Journal */}
-            <BandCard band={band}>
-              <SectionHeader band={band} icon="📋" title="Quest Journal" />
+            {/* ── FLIGHT LOG: Quest Journal ───────────────────────────────────── */}
+            <HudPanel designation="LOG" label="Flight Log">
               <QuestJournal entries={journalEntries} />
-            </BandCard>
+            </HudPanel>
 
-            {/* Career Explorer (nav anchor for "Careers" tab) */}
-            <BandCard band={band} data-section="careers">
-              <SectionHeader band={band} icon="💼" title="Career Explorer" subtitle="how topics connect to real careers" />
+            {/* ── CAREER OPS: Career Explorer ─────────────────────────────────── */}
+            <HudPanel designation="COP" label="Career Operations" dataSection="careers">
               <CareerExplorer topics={topics} activeSubject={activeSubject} />
               {careerTopic && (
                 <div style={{ marginTop: 12 }}>
                   <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />
                 </div>
               )}
-            </BandCard>
+            </HudPanel>
 
-            {/* Mock Test Launcher (mobile) */}
+            {/* ── SIMULATION BAY: Mock Test Launcher (mobile) ─────────────────── */}
             <div className="xl:hidden">
-              <BandCard band={band}>
+              <HudPanel designation="SIM" label="Simulation Bay">
                 <MockTestLauncher
                   subject={activeSubject?.toLowerCase() || "mathematics"}
                   curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
                   pastMocks={pastMocks} onStartMock={onStartMock}
                 />
-              </BandCard>
+              </HudPanel>
             </div>
 
             {/* Skill Badges */}
@@ -1061,7 +1334,7 @@ export default function AdaptiveDashboardLayout({
             ══════════════════════════════════════════════════════════════════════ */}
         {band === "ks4" && (
           <>
-            {/* ── Scholar Greeting + Avatar ───────────────────────── */}
+            {/* ── Scholar Greeting + Knowledge Frontier + Status Metrics (unified card) ────── */}
             <BandCard band={band} glow>
               <AdaptiveGreeting
                 scholarName={scholar.name} streak={stats.streak ?? 0} xp={stats.xp ?? 0}
@@ -1070,64 +1343,68 @@ export default function AdaptiveDashboardLayout({
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
                 isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
               />
-            </BandCard>
 
-            {/* ── Mission Telemetry Header ─────────────────────────── */}
-            <div data-section="exams" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: -4 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 4 }}>Mission Telemetry</div>
-                <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b4b", margin: 0 }}>Knowledge Frontier</h2>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => generateReport({ scholar, stats, masteryData, subjects, activeSubject, band })} style={{ padding: "8px 16px", borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.18)", color: "#7c3aed", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
-                <button onClick={() => onStartMock?.({ category: "exam_prep", subject: activeSubject })} style={{ padding: "8px 16px", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}>Launch Deep Space</button>
-              </div>
-            </div>
-
-            {/* ── 3-column Status Metrics ───────────────────────────── */}
-            <div data-section="stats" style={{ height: 0, margin: 0, padding: 0 }} />
-            {(() => {
-              const isExamMode = hasActiveExamMode;
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                  <BandCard band={band} glow>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>
+              {/* ── Inline 3-column status metrics ────── */}
+              <div data-section="stats" style={{ height: 0, margin: 0, padding: 0 }} />
+              {(() => {
+                const isExamMode = hasActiveExamMode;
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(124,58,237,0.04)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 9, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
                         {isExamMode ? "Predicted Grade" : "Total XP"}
+                        {isExamMode && <SectionTip tip="Your predicted grade is calculated from topic mastery (60%), coverage across the syllabus (25%), and retention strength (15%). It updates after every practice session." style={{ marginLeft: 2 }} />}
                       </div>
-                      <div style={{ fontSize: 34, fontWeight: 900, color: "#7c3aed", fontFamily: "'DM Sans', sans-serif" }}>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: "#7c3aed", fontFamily: "'DM Sans', sans-serif" }}>
                         {isExamMode ? (examData?.predictedGrade || "—") : (stats.xp ?? 0).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.4)", marginTop: 2 }}>
-                        {isExamMode ? "Target: A*" : "Experience points"}
+                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.35)", marginTop: 1 }}>
+                        {isExamMode
+                          ? (examData?.readiness?.nextGrade
+                              ? `${examData.readiness.pointsToNext}pts to ${examData.readiness.nextGrade}`
+                              : examData?.readiness?.label ?? "Target: A*")
+                          : "Experience points"}
                       </div>
                     </div>
-                  </BandCard>
-                  <BandCard band={band}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>{getSubjectLabel(activeSubject, band)} Mastery</div>
-                      <div style={{ fontSize: 34, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>{subjectMastery.pct}<span style={{ fontSize: 16, color: "rgba(30,27,75,0.3)" }}>%</span></div>
-                      <div style={{ height: 5, borderRadius: 3, background: "rgba(124,58,237,0.1)", marginTop: 8, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 3, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.8s ease" }} />
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(124,58,237,0.04)" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>{getSubjectLabel(activeSubject, band)} Mastery</div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>{subjectMastery.pct}<span style={{ fontSize: 12, color: "rgba(30,27,75,0.3)" }}>%</span></div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.1)", marginTop: 6, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 2, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.8s ease" }} />
                       </div>
                     </div>
-                  </BandCard>
-                  <BandCard band={band}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6 }}>
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "rgba(239,68,68,0.04)" : "rgba(124,58,237,0.04)" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
                         {isExamMode ? "Countdown" : "Streak"}
                       </div>
-                      <div style={{ fontSize: 34, fontWeight: 900, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>
                         {isExamMode ? (examData?.daysUntilExam ?? "—") : (stats.streak ?? 0)}
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.4)", marginTop: 2 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.35)", marginTop: 1 }}>
                         {isExamMode ? "days to exam" : "day streak"}
                       </div>
                     </div>
-                  </BandCard>
+                  </div>
+                );
+              })()}
+
+              {/* ── Action buttons row ────── */}
+              <div data-section="exams" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 12, gap: 8 }}>
+                <button onClick={() => generateReport({ scholar, stats, masteryData, subjects, activeSubject, band })} style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.15)", color: "#7c3aed", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
+                <button onClick={() => onStartMock?.({ category: "exam_prep", subject: activeSubject })} style={{ padding: "6px 12px", borderRadius: 8, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 10px rgba(124,58,237,0.3)" }}>Launch Deep Space</button>
+              </div>
+            </BandCard>
+
+            {/* ── Study Session Metrics (compact) ──────────────── */}
+            <BandCard band={band}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Performance Telemetry</div>
+                  <SectionTip tip="Questions answered, accuracy, focus time, and streak this week. The readiness gauge shows your overall exam preparedness based on mastery, coverage, and retention." />
                 </div>
-              );
-            })()}
+              </div>
+              <StudySessionMetrics stats={stats} examData={examData} masteryData={masteryData} />
+            </BandCard>
 
             {/* Encouragement */}
             {encouragement && (
@@ -1140,12 +1417,27 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── Sub-Topic Proficiency Card ────────────────────────── */}
+            {/* ── Constellation Star Chart (full-width for visibility) ──── */}
+            <div data-section="heatmap">
+              <BandCard band={band} glow>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
+                <ConstellationMap
+                  topics={topics} subjects={subjects} subject={activeSubject}
+                  onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+                />
+              </BandCard>
+            </div>
+
+            {/* ── Topic Mastery (Proficiency + Heatmap combined) ──── */}
             <BandCard band={band} glow>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Sub-Topic Proficiency</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b4b", marginTop: 2 }}>Mastery by Subject</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Topic Mastery</div>
+                    <SectionTip tip="Sub-topic proficiency breakdown + colour-coded heatmap. Green = strong (80%+), blue = good (60%+), amber = developing (40%+), red = needs work. Tap any topic to revise." />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginTop: 2 }}>Proficiency & Thermal Scan</div>
                 </div>
                 {/* Subject tabs */}
                 <div style={{ display: "flex", gap: 6 }}>
@@ -1164,18 +1456,38 @@ export default function AdaptiveDashboardLayout({
                   })}
                 </div>
               </div>
+
+              {/* Sub-topic proficiency breakdown */}
               <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
+
+              {/* Divider */}
+              <div style={{ borderTop: "1px solid rgba(124,58,237,0.08)", margin: "14px 0" }} />
+
+              {/* Heatmap grid */}
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Thermal Scan</div>
+              <TopicHeatmap
+                masteryData={masteryData}
+                subject={activeSubject?.toLowerCase() || "mathematics"}
+                onTopicClick={onTopicClick}
+                compact
+              />
             </BandCard>
 
-            {/* ── Constellation Star Chart (full-width for visibility) ──── */}
-            <div data-section="heatmap">
-              <BandCard band={band} glow>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
-                <ConstellationMap
-                  topics={topics} subjects={subjects} subject={activeSubject}
-                  onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
-                />
+            {/* ── Retention Health + Certificate Progress (2-col) ──── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <BandCard band={band}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Memory Integrity</div>
+                  <SectionTip tip="Multi-ring chart showing how well you're retaining topics. Inner ring = overall retention. Outer rings = top subjects. Topics are 'retained' when you've reviewed them 2+ times with mastery above 40%." />
+                </div>
+                <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} />
+              </BandCard>
+              <BandCard band={band}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Achievement Vault</div>
+                  <SectionTip tip="Track certificate milestones per subject. Bronze (3 topics), Silver (5), Gold (8), Platinum (12), Diamond (18). Master topics to unlock the next level!" />
+                </div>
+                <CertificateProgress masteryData={masteryData} subjects={subjects} />
               </BandCard>
             </div>
 
@@ -1274,6 +1586,23 @@ export default function AdaptiveDashboardLayout({
                 />
               </BandCard>
             </div>
+
+            {/* ── Mock Test Debrief (shown after completing a mock) ─── */}
+            {mockDebriefResult && (
+              <BandCard band={band} glow>
+                <MockTestDebrief
+                  mockResult={mockDebriefResult}
+                  masteryData={masteryData}
+                  examData={examData}
+                  onReviseTopic={(topic, subject) => onStartRevisionTopic?.({ topic, subject })}
+                  onRetake={() => {
+                    setMockDebriefResult(null);
+                    onStartMock?.({ category: "exam_prep", subject: activeSubject });
+                  }}
+                  onClose={() => setMockDebriefResult(null)}
+                />
+              </BandCard>
+            )}
 
             {/* ── Discovery Feed (mobile: Flashcards) ────────── */}
             <div className="xl:hidden">
@@ -1380,6 +1709,10 @@ export default function AdaptiveDashboardLayout({
               pastMocks={pastMocks} onStartMock={onStartMock}
             />
           </div>
+          {/* Compact Retention Ring in sidebar */}
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
+            <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} compact />
+          </div>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
           <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
         </>
@@ -1396,7 +1729,7 @@ export default function AdaptiveDashboardLayout({
         revisionPlan={examData.revisionPlan ?? []}
       />}
 
-      {band !== "ks2" && band !== "ks3" && <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />}
+      {band === "ks1" && <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />}
 
       {band === "ks1" && peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
 
@@ -1407,9 +1740,9 @@ export default function AdaptiveDashboardLayout({
 
       {band !== "ks2" && band !== "ks4" && careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
 
-      {/* Mock Test Launcher (desktop only, KS3/4) */}
+      {/* Mock Test Launcher (desktop only, KS3 — KS4 has its own in the band-specific block above) */}
       <div className="hidden xl:block">
-        {(band === "ks3" || band === "ks4") && (
+        {band === "ks3" && (
           <MockTestLauncher
             subject={activeSubject?.toLowerCase() || "mathematics"}
             curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
@@ -1483,6 +1816,7 @@ export default function AdaptiveDashboardLayout({
   return (
     <>
       <DashboardTour type="scholar" userId={scholarId} band={band} />
+      <TourHelpButton type="scholar" userId={scholarId} band={band} />
       <TaraFloatingBlurb scholarName={scholar.name} />
       <DashboardShell
         band={band}
