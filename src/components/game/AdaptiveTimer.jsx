@@ -28,8 +28,8 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
     const leaves = 5;
     const eaten = Math.floor((1 - pct) * leaves);
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-        <span style={{ fontSize: 18 }}>🐛</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 3, background: isLow ? "#fef2f2" : "#ecfdf5", borderRadius: 20, padding: "4px 10px" }}>
+        <span style={{ fontSize: 18 }}>{isLow ? "😰" : "🐛"}</span>
         {Array.from({ length: leaves }, (_, i) => (
           <span
             key={i}
@@ -50,13 +50,13 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
   // ── KS2: Rocket fuel bar ──────────────────────────────────────────
   if (band === "ks2") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, background: isLow ? "#fef2f2" : "#eef2ff", borderRadius: 20, padding: "4px 10px" }}>
         <span style={{ fontSize: 16 }}>🚀</span>
         <div
           style={{
-            width: 80,
+            width: 64,
             height: 8,
-            background: "rgba(255,255,255,0.15)",
+            background: "#e2e8f0",
             borderRadius: 4,
             overflow: "hidden",
           }}
@@ -75,9 +75,9 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
         </div>
         <span
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: isLow ? "#f87171" : "#94a3b8",
+            fontSize: 12,
+            fontWeight: 800,
+            color: isLow ? "#dc2626" : "#4f46e5",
             fontVariantNumeric: "tabular-nums",
             minWidth: 24,
           }}
@@ -91,12 +91,12 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
   // ── KS3: Clean progress bar ───────────────────────────────────────
   if (band === "ks3") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, background: isLow ? "#fef2f2" : "#f1f5f9", borderRadius: 20, padding: "4px 10px" }}>
         <div
           style={{
-            width: 90,
-            height: 5,
-            background: "#e2e8f0",
+            width: 70,
+            height: 6,
+            background: "#cbd5e1",
             borderRadius: 3,
             overflow: "hidden",
           }}
@@ -114,8 +114,8 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
         <span
           style={{
             fontSize: 12,
-            fontWeight: 600,
-            color: isLow ? "#ef4444" : "#475569",
+            fontWeight: 700,
+            color: isLow ? "#dc2626" : "#334155",
             fontVariantNumeric: "tabular-nums",
           }}
         >
@@ -133,16 +133,16 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
   const dashOffset = circumference * (1 - pct);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, background: isLow ? "#fef2f2" : "#f5f3ff", borderRadius: 20, padding: "3px 10px 3px 4px" }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke}
+          fill="none" stroke="#e2e8f0" strokeWidth={stroke}
         />
         <circle
           cx={size / 2} cy={size / 2} r={radius}
           fill="none"
-          stroke={isLow ? "#fb7185" : "#a78bfa"}
+          stroke={isLow ? "#ef4444" : "#7c3aed"}
           strokeWidth={stroke}
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
@@ -153,8 +153,8 @@ export default function AdaptiveTimer({ timeLeft, total, yearLevel, curriculum }
       <span
         style={{
           fontSize: 12,
-          fontWeight: 600,
-          color: isLow ? "#fb7185" : "#94a3b8",
+          fontWeight: 700,
+          color: isLow ? "#dc2626" : "#5b21b6",
           fontVariantNumeric: "tabular-nums",
           fontFamily: "'DM Mono', monospace",
         }}

@@ -290,11 +290,10 @@ export default function AnswerReaction({
         {/* Particles — scoped inside the card */}
         <Particles count={Math.min(theme.particleCount, 14)} isCorrect={isCorrect} />
 
-        {/* Emoji (KS1/KS2 correct only) */}
+        {/* Emoji (KS1/KS2 correct only) — no bounce, stays centered */}
         {(ageBand === "ks1" || ageBand === "ks2") && isCorrect && (
           <div style={{
             fontSize: 40,
-            animation: "reaction-bounce 0.6s ease-in-out infinite",
             filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
             marginBottom: 4,
           }}>
@@ -302,7 +301,7 @@ export default function AnswerReaction({
           </div>
         )}
 
-        {/* Title */}
+        {/* Title — no bounce/shake, just a subtle glow pulse */}
         <h1
           style={{
             fontSize: "clamp(22px, 6vw, 36px)",
@@ -313,7 +312,6 @@ export default function AnswerReaction({
             textShadow: isCorrect
               ? "0 0 24px rgba(251,191,36,0.35), 0 1px 4px rgba(0,0,0,0.2)"
               : "0 0 20px rgba(252,165,165,0.25), 0 1px 4px rgba(0,0,0,0.2)",
-            animation: isCorrect ? "reaction-bounce 0.8s ease-in-out 2" : "reaction-shake 0.5s ease-in-out",
             marginBottom: 6,
             letterSpacing: isCorrect ? "0.03em" : "0",
             lineHeight: 1,
@@ -351,7 +349,7 @@ export default function AnswerReaction({
               fontWeight: 900,
               fontSize: 12,
               fontFamily: "'Nunito', 'DM Sans', system-ui, sans-serif",
-              animation: "reaction-glow-pulse 1s ease-in-out infinite",
+              boxShadow: "0 0 16px rgba(251,191,36,0.2)",
             }}
           >
             🔥 {streakMsg}

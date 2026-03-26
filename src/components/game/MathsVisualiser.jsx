@@ -104,6 +104,95 @@ function Dot({ color, bg, border, size = 20, strikethrough = false }) {
   );
 }
 
+// ─── BASIC CONCEPT — simple inline SVG visuals for KS1/KS2 science ──────────
+function BasicConceptVis({ concept, label, emoji }) {
+  const CONCEPT_SVGS = {
+    leaf: (
+      <svg width="120" height="100" viewBox="0 0 120 100">
+        <ellipse cx="60" cy="45" rx="40" ry="32" fill="#22c55e" opacity="0.85" />
+        <ellipse cx="60" cy="45" rx="40" ry="32" fill="none" stroke="#15803d" strokeWidth="2" />
+        <line x1="60" y1="15" x2="60" y2="90" stroke="#15803d" strokeWidth="2.5" />
+        <line x1="38" y1="30" x2="55" y2="42" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+        <line x1="82" y1="30" x2="65" y2="42" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+        <line x1="32" y1="45" x2="55" y2="48" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+        <line x1="88" y1="45" x2="65" y2="48" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+        <line x1="38" y1="58" x2="55" y2="52" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+        <line x1="82" y1="58" x2="65" y2="52" stroke="#15803d" strokeWidth="1.5" opacity="0.7" />
+      </svg>
+    ),
+    plant_parts: (
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        {/* Roots */}
+        <path d="M60,95 Q50,105 40,115 M60,95 Q55,110 50,118 M60,95 Q65,110 70,118 M60,95 Q70,105 80,115" stroke="#92400e" strokeWidth="2" fill="none" />
+        {/* Stem */}
+        <line x1="60" y1="30" x2="60" y2="95" stroke="#16a34a" strokeWidth="3" />
+        {/* Leaves */}
+        <ellipse cx="42" cy="60" rx="18" ry="10" fill="#22c55e" transform="rotate(-30 42 60)" />
+        <ellipse cx="78" cy="50" rx="18" ry="10" fill="#22c55e" transform="rotate(30 78 50)" />
+        {/* Flower */}
+        <circle cx="60" cy="22" r="4" fill="#fbbf24" />
+        <ellipse cx="60" cy="12" rx="5" ry="8" fill="#f472b6" />
+        <ellipse cx="52" cy="18" rx="5" ry="8" fill="#f472b6" transform="rotate(72 52 18)" />
+        <ellipse cx="55" cy="28" rx="5" ry="8" fill="#f472b6" transform="rotate(144 55 28)" />
+        <ellipse cx="65" cy="28" rx="5" ry="8" fill="#f472b6" transform="rotate(-144 65 28)" />
+        <ellipse cx="68" cy="18" rx="5" ry="8" fill="#f472b6" transform="rotate(-72 68 18)" />
+      </svg>
+    ),
+    root: (
+      <svg width="120" height="100" viewBox="0 0 120 100">
+        <rect x="0" y="0" width="120" height="35" fill="#87CEEB" opacity="0.2" />
+        <rect x="0" y="35" width="120" height="65" fill="#92400e" opacity="0.15" />
+        <line x1="60" y1="5" x2="60" y2="45" stroke="#16a34a" strokeWidth="3" />
+        <ellipse cx="45" cy="25" rx="15" ry="8" fill="#22c55e" transform="rotate(-20 45 25)" />
+        <path d="M60,45 Q50,60 35,80 M60,45 Q55,65 45,85 M60,45 Q60,65 60,90 M60,45 Q65,65 75,85 M60,45 Q70,60 85,80" stroke="#92400e" strokeWidth="2" fill="none" />
+      </svg>
+    ),
+    stem: (
+      <svg width="100" height="110" viewBox="0 0 100 110">
+        <line x1="50" y1="10" x2="50" y2="100" stroke="#16a34a" strokeWidth="4" />
+        <ellipse cx="35" cy="35" rx="16" ry="9" fill="#22c55e" transform="rotate(-25 35 35)" />
+        <ellipse cx="65" cy="55" rx="16" ry="9" fill="#22c55e" transform="rotate(25 65 55)" />
+        <ellipse cx="35" cy="75" rx="16" ry="9" fill="#22c55e" transform="rotate(-25 35 75)" />
+        <path d="M50,10 Q50,8 50,5" stroke="#16a34a" strokeWidth="2" />
+      </svg>
+    ),
+    flower: (
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <line x1="55" y1="60" x2="55" y2="105" stroke="#16a34a" strokeWidth="3" />
+        <ellipse cx="40" cy="85" rx="14" ry="7" fill="#22c55e" transform="rotate(-30 40 85)" />
+        <circle cx="55" cy="45" r="8" fill="#fbbf24" />
+        {[0,60,120,180,240,300].map(a => (
+          <ellipse key={a} cx="55" cy="28" rx="8" ry="14" fill="#ec4899" opacity="0.8" transform={`rotate(${a} 55 45)`} />
+        ))}
+      </svg>
+    ),
+    seed: (
+      <svg width="100" height="90" viewBox="0 0 100 90">
+        <ellipse cx="50" cy="55" rx="18" ry="22" fill="#92400e" opacity="0.7" />
+        <path d="M50,35 Q48,20 42,10" stroke="#16a34a" strokeWidth="2" fill="none" />
+        <ellipse cx="38" cy="12" rx="10" ry="6" fill="#22c55e" transform="rotate(-20 38 12)" />
+        <path d="M50,35 Q52,22 58,12" stroke="#16a34a" strokeWidth="2" fill="none" />
+        <ellipse cx="62" cy="14" rx="10" ry="6" fill="#22c55e" transform="rotate(20 62 14)" />
+      </svg>
+    ),
+  };
+
+  const svg = CONCEPT_SVGS[concept] || null;
+
+  return (
+    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd} ariaLabel={label}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.emerald, textTransform: "uppercase", letterSpacing: 1 }}>
+        {label}
+      </span>
+      {svg || (
+        <div style={{ fontSize: 56, lineHeight: 1, textAlign: "center", padding: "8px 0" }}>
+          {emoji || "🔬"}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 // ─── DOT CLUSTER ─────────────────────────────────────────────────────────────
 function DotCluster({ count, color, bg, border, size = 20, label }) {
   const safe = Math.min(count, 15);
@@ -1189,17 +1278,20 @@ function parseEnglish(topicStr, questionStr, yearLevel, question) {
     if (word) {
       const highlighted = [];
       const lw = word.toLowerCase();
-      if (/^kn/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_k", highlighted }; }
-      if (/^wr/i.test(word)) { highlighted.push(0); return { type: "spelling_pattern", word, pattern: "silent_w", highlighted }; }
-      if (/mb$/i.test(word)) { highlighted.push(word.length - 1); return { type: "spelling_pattern", word, pattern: "silent_b", highlighted }; }
-      if (/[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(word)) {
-        highlighted.push(word.length - 1);
-        return { type: "spelling_pattern", word, pattern: "magic_e", highlighted };
+      // Detect the pattern type — but NEVER expose the actual word (it leaks the answer)
+      let pattern = "";
+      if (/^kn/i.test(word)) { highlighted.push(0); pattern = "silent_k"; }
+      else if (/^wr/i.test(word)) { highlighted.push(0); pattern = "silent_w"; }
+      else if (/mb$/i.test(word)) { highlighted.push(word.length - 1); pattern = "silent_b"; }
+      else if (/[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(word)) {
+        highlighted.push(word.length - 1); pattern = "magic_e";
+      } else {
+        for (let i = 0; i < word.length - 1; i++) {
+          if (lw[i] === lw[i+1]) { highlighted.push(i, i+1); pattern = "double_letter"; break; }
+        }
       }
-      for (let i = 0; i < word.length - 1; i++) {
-        if (lw[i] === lw[i+1]) { highlighted.push(i, i+1); return { type: "spelling_pattern", word, pattern: "double_letter", highlighted }; }
-      }
-      return { type: "spelling_pattern", word, pattern: "", highlighted: [] };
+      // Return masked visual: letter count + highlighted positions + pattern, but NO actual letters
+      return { type: "spelling_pattern", letterCount: word.length, pattern, highlighted, masked: true };
     }
   }
  
@@ -1934,6 +2026,41 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
     return { type: "respiration", respType: isAnaerobic ? "anaerobic" : "aerobic" };
   }
 
+  // ── BASIC SCIENCE CONCEPTS — simple inline SVG visuals for KS1/KS2 ─────────
+  // Catches "plants and animals", leaf, root, stem, flower, seed, water cycle, etc.
+  const isBasicSci = isBio || subj.includes("science") || subj.includes("basic_science");
+  if (isBasicSci) {
+    const BASIC_CONCEPTS = [
+      { rx: /leaf|leaves|green.*makes food|chlorophyll|photosynthesis/i, concept: "leaf", label: "Leaf — makes food using sunlight", emoji: "🍃" },
+      { rx: /root|roots.*absorb|water.*from.*soil/i, concept: "root", label: "Roots — absorb water and nutrients", emoji: "🌱" },
+      { rx: /stem|trunk|transport.*water/i, concept: "stem", label: "Stem — supports and transports", emoji: "🌿" },
+      { rx: /flower|petal|pollen|pollination/i, concept: "flower", label: "Flower — makes seeds", emoji: "🌸" },
+      { rx: /seed|germination|grow/i, concept: "seed", label: "Seed — grows into a new plant", emoji: "🌰" },
+      { rx: /plant.*parts|parts.*plant/i, concept: "plant_parts", label: "Parts of a Plant", emoji: "🪴" },
+      { rx: /habitat|forest|pond|desert|ocean|savanna|arctic/i, concept: "habitat", label: "Habitats — where living things live", emoji: "🏞️" },
+      { rx: /life.*cycle|egg.*larva|tadpole|caterpillar|metamorphosis/i, concept: "lifecycle", label: "Life Cycle", emoji: "🔄" },
+      { rx: /food.*chain|predator|prey|producer|consumer/i, concept: "food_chain", label: "Food Chain", emoji: "🔗" },
+      { rx: /season|winter|spring|summer|autumn/i, concept: "seasons", label: "Seasons", emoji: "🍂" },
+      { rx: /weather|rain|cloud|wind|sun|temperature/i, concept: "weather", label: "Weather", emoji: "🌦️" },
+      { rx: /material|hard|soft|rough|smooth|transparent|opaque|waterproof/i, concept: "materials", label: "Materials & Properties", emoji: "🧱" },
+      { rx: /magnet|attract|repel|magnetic/i, concept: "magnet_basic", label: "Magnets", emoji: "🧲" },
+      { rx: /light|shadow|dark|reflect|transparent/i, concept: "light_basic", label: "Light & Shadows", emoji: "💡" },
+      { rx: /sound|loud|quiet|vibrat|hear|pitch/i, concept: "sound_basic", label: "Sound", emoji: "🔊" },
+      { rx: /teeth|canine|molar|incisor/i, concept: "teeth", label: "Types of Teeth", emoji: "🦷" },
+      { rx: /skeleton|bones|skull|ribs/i, concept: "skeleton_basic", label: "The Skeleton", emoji: "🦴" },
+      { rx: /insect|butterfly|beetle|ant|spider|minibeasts/i, concept: "insects", label: "Minibeasts & Insects", emoji: "🐛" },
+      { rx: /bird|feather|beak|wing|fly/i, concept: "birds", label: "Birds", emoji: "🐦" },
+      { rx: /fish|fins|gills|scales/i, concept: "fish", label: "Fish", emoji: "🐟" },
+      { rx: /mammal|fur|warm.blooded|milk/i, concept: "mammals", label: "Mammals", emoji: "🐾" },
+    ];
+    const combo = (questionStr || "") + " " + (topic || "");
+    for (const c of BASIC_CONCEPTS) {
+      if (c.rx.test(combo)) {
+        return { type: "basic_concept", concept: c.concept, label: c.label, emoji: c.emoji };
+      }
+    }
+  }
+
   // ── ACCOUNTING / COMMERCE / ECONOMICS ────────────────────────────────────────
 
   if (isAccounting && (t.includes("t-account") || t.includes("t_account") || t.includes("double entry") || t.includes("debit") || t.includes("credit") || /\bdebit\b|\bcredit\b|ledger|journal/i.test(questionStr))) {
@@ -2479,6 +2606,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return `Magnet diagram: ${visual.scenario}`;
       case "photosynthesis":      return `Photosynthesis diagram`;
       case "respiration":         return `${visual.respType} respiration diagram`;
+      case "basic_concept":        return visual.label || "Science concept";
       case "pie_chart":           return `Pie chart with ${visual.slices?.length || 0} slices`;
       case "pictogram":           return `Pictogram with ${visual.items?.length || 0} items`;
       case "line_graph":          return `Line graph`;
@@ -2486,7 +2614,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "conversion_ladder":   return `Unit conversion: ${visual.units?.join(" → ")}`;
       case "carroll_diagram":     return `Carroll diagram: ${visual.criteria1} and ${visual.criteria2}`;
       case "sentence_structure": return `Sentence structure with ${visual.parts?.length || 0} clauses`;
-      case "spelling_pattern":   return `Spelling pattern: ${visual.word}`;
+      case "spelling_pattern":   return `Spelling pattern hint: ${visual.pattern ? visual.pattern.replace(/_/g, " ") : "look carefully"}`;
       case "punctuation":        return `Punctuation in: ${visual.sentence?.substring(0, 30)}`;
       case "word_class":         return `Word classes: ${visual.words?.map(w => w.word).join(" ")}`;
       case "nvr_shape_rotation": return `${visual.shape} rotated ${visual.degrees}° ${visual.clockwise ? "clockwise" : "anticlockwise"}`;
@@ -2584,6 +2712,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return <MagnetVis scenario={visual.scenario} />;
       case "photosynthesis":      return <PhotosynthesisVis highlighted={visual.highlighted} />;
       case "respiration":         return <RespirationVis respType={visual.respType} />;
+      case "basic_concept":       return <BasicConceptVis concept={visual.concept} label={visual.label} emoji={visual.emoji} />;
       case "pie_chart":           return <PieChartVis slices={visual.slices} />;
       case "pictogram":           return <PictogramVis items={visual.items} keyValue={visual.keyValue} />;
       case "line_graph":          return <LineGraphVis points={visual.points} xLabel={visual.xLabel} yLabel={visual.yLabel} title={visual.title} />;
@@ -2591,7 +2720,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "conversion_ladder":   return <ConversionLadderVis units={visual.units} factors={visual.factors} highlighted={visual.highlighted} />;
       case "carroll_diagram":     return <CarrollDiagramVis criteria1={visual.criteria1} criteria2={visual.criteria2} items={visual.items} />;
       case "sentence_structure": return <SentenceStructureVis parts={visual.parts} />;
-      case "spelling_pattern":   return <SpellingPatternVis word={visual.word} pattern={visual.pattern} highlighted={visual.highlighted} />;
+      case "spelling_pattern":   return <SpellingPatternVis word={visual.masked ? "" : visual.word} pattern={visual.pattern} highlighted={visual.highlighted} letterCount={visual.letterCount} masked={visual.masked} />;
       case "punctuation":        return <PunctuationVis sentence={visual.sentence} marks={visual.marks} missingPos={visual.missingPos} />;
       case "word_class":         return <WordClassVis words={visual.words} />;
       case "nvr_shape_rotation": return <NVRShapeRotationVis shape={visual.shape} degrees={visual.degrees} clockwise={visual.clockwise} />;

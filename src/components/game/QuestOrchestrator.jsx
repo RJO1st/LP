@@ -270,14 +270,21 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const [pendingMilestone, setPendingMilestone] = useState(null);
 
   // ── Read-aloud for KS1 scholars ───────────────────────────────────────────
-  const { speak, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1 } = useReadAloud(student);
+  const { speak, speakOptions, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1 } = useReadAloud(student);
 
   // Auto-speak question text when question changes (if enabled)
   const currentQuestionText = sessionQuestions[qIdx]?.q || "";
+  const currentOpts = sessionQuestions[qIdx]?.opts;
   useEffect(() => {
     if (!readAloudEnabled || !currentQuestionText || generating) return;
     // Small delay to ensure DOM has rendered the correct question
-    const timer = setTimeout(() => speak(currentQuestionText), 300);
+    const timer = setTimeout(async () => {
+      await speak(currentQuestionText);
+      // For KS1: also read answer options aloud after the question
+      if (isKS1 && currentOpts?.length) {
+        setTimeout(() => speakOptions(currentOpts), 400);
+      }
+    }, 300);
     return () => { clearTimeout(timer); stopSpeaking(); };
   }, [currentQuestionText, readAloudEnabled, generating]);
 
@@ -451,6 +458,8 @@ const year = rawYear;
 
   const handlePick = useCallback((idx) => {
     if (selected !== null || timerExpired) return;
+    // Stop any playing audio immediately when scholar clicks an answer
+    stopSpeaking();
     const q         = sessionQuestions[qIdx];
     const isCorrect = idx === q.a;
     const timeTaken = Date.now() - questionStartTime.current;
@@ -829,33 +838,37 @@ const year = rawYear;
               <h3 className="text-base sm:text-lg font-black text-slate-800 leading-snug flex-1">
                 {q.q}
               </h3>
-              {/* Read-aloud controls — visible for KS1, optional toggle for others */}
-              {(isKS1 || readAloudEnabled) && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => speak(q.q)}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                      speaking ? "bg-indigo-100 text-indigo-600 animate-pulse" : "bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-500"
-                    }`}
-                    title="Read aloud"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setReadAloud(!readAloudEnabled)}
-                    className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${
-                      readAloudEnabled ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-400"
-                    }`}
-                    title={readAloudEnabled ? "Disable read-aloud" : "Enable read-aloud"}
-                  >
-                    {readAloudEnabled ? "ON" : "OFF"}
-                  </button>
-                </div>
-              )}
+              {/* Read-aloud controls — always visible for all scholars */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => { if (!readAloudEnabled) setReadAloud(true); speak(q.q); }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    speaking ? "bg-indigo-100 text-indigo-600 animate-pulse" : "bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-500"
+                  }`}
+                  title="Read aloud"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    {readAloudEnabled ? (
+                      <>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      </>
+                    ) : (
+                      <line x1="23" y1="1" x2="17" y2="7" strokeWidth="2" />
+                    )}
+                  </svg>
+                </button>
+                <button
+                  onClick={() => { setReadAloud(!readAloudEnabled); if (readAloudEnabled) stopSpeaking(); }}
+                  className={`h-6 px-1.5 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${
+                    readAloudEnabled ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-400"
+                  }`}
+                  title={readAloudEnabled ? "Disable read-aloud" : "Enable read-aloud"}
+                >
+                  {readAloudEnabled ? "ON" : "OFF"}
+                </button>
+              </div>
             </div>
 
             {/* On mobile only: show passage/visual inline before options */}

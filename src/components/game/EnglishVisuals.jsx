@@ -88,9 +88,11 @@ export function SentenceStructureVis({ parts = [] }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. SPELLING PATTERN — letter boxes with highlighted pattern
 // ═══════════════════════════════════════════════════════════════════════════════
-export function SpellingPatternVis({ word = "", pattern = "", highlighted = [] }) {
-  if (!word) return null;
-  const letters = word.split("");
+export function SpellingPatternVis({ word = "", pattern = "", highlighted = [], letterCount = 0, masked = false }) {
+  // When masked, show "?" placeholders to avoid leaking the answer
+  const count = masked ? (letterCount || 5) : (word ? word.length : 0);
+  if (count === 0 && !pattern) return null;
+  const letters = masked ? Array.from({ length: count }, () => "?") : word.split("");
   const hiSet = new Set(highlighted);
 
   const PATTERN_LABELS = {
@@ -106,9 +108,18 @@ export function SpellingPatternVis({ word = "", pattern = "", highlighted = [] }
     suffix: "Suffix — added to the end",
   };
 
+  const PATTERN_HINTS = {
+    silent_k: "Look for a silent letter at the start!",
+    silent_w: "Look for a silent letter at the start!",
+    silent_b: "Look for a silent letter at the end!",
+    double_letter: "Spot the double letters!",
+    magic_e: "Watch out for the magic 'e' at the end!",
+    split_digraph: "Find the vowel-consonant-e pattern!",
+  };
+
   return (
     <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
-      ariaLabel={`Spelling pattern: ${word}`}>
+      ariaLabel={`Spelling pattern hint: ${pattern ? pattern.replace(/_/g, " ") : "look carefully"}`}>
       <Chip color={T.nebula} bg="white">Spelling Pattern</Chip>
       <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
         {letters.map((letter, i) => {
@@ -120,7 +131,7 @@ export function SpellingPatternVis({ word = "", pattern = "", highlighted = [] }
               background: isHi ? T.nebula : "white",
               border: `2px solid ${isHi ? T.nebula : T.slateBd}`,
               fontSize: 16, fontWeight: 800,
-              color: isHi ? "white" : T.text,
+              color: isHi ? "white" : T.textMid,
               fontFamily: "'DM Mono', monospace",
             }}>
               {letter}
@@ -129,8 +140,10 @@ export function SpellingPatternVis({ word = "", pattern = "", highlighted = [] }
         })}
       </div>
       {pattern && (
-        <p style={{ fontSize: 9, fontWeight: 600, color: T.nebula, textAlign: "center", maxWidth: 200 }}>
-          {PATTERN_LABELS[pattern] || pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+        <p style={{ fontSize: 10, fontWeight: 600, color: T.nebula, textAlign: "center", maxWidth: 220 }}>
+          {masked
+            ? (PATTERN_HINTS[pattern] || PATTERN_LABELS[pattern] || pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()))
+            : (PATTERN_LABELS[pattern] || pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()))}
         </p>
       )}
     </Panel>
