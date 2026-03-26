@@ -205,13 +205,51 @@ export async function promoteScholar(supabase, scholarId, toCurriculum, toYear, 
  * Does NOT create a progression log entry (only stage changes are logged).
  * If advancing would trigger a stage transition, returns { needsGraduation: true }
  * and the caller should open GraduationModal instead.
+ *
+ * v2: Now enforces mastery-based progression gates. The scholar must demonstrate
+ * sufficient composite mastery, retention stability, and distributed practice
+ * across their current year's topics before advancement is allowed.
+ * Pass `bypassMasteryCheck: true` to skip (e.g. for admin overrides).
  */
-export async function advanceScholarYear(supabase, scholarId, curriculum, currentYear) {
+export async function advanceScholarYear(supabase, scholarId, curriculum, currentYear, { bypassMasteryCheck = false } = {}) {
   const progression = getProgressionState(curriculum, currentYear);
 
   // If at stage end, signal graduation instead of simple increment
   if (progression.isAtStageEnd) {
     return { needsGraduation: true, progression };
+  }
+
+  // ── v2: Mastery-based progression gate ──────────────────────────────────
+  if (!bypassMasteryCheck) {
+    let checkProgressionReadiness;
+    try {
+      const engine = await import('@/lib/masteryEngine');
+      checkProgressionReadiness = engine.checkProgressionReadiness;
+    } catch {
+      // If masteryEngine unavailable, skip check
+      checkProgressionReadiness = null;
+    }
+
+    if (checkProgressionReadiness) {
+      const { data: masteryRecords } = await supabase
+        .from('scholar_topic_mastery')
+        .select('mastery_score, stability, spaced_review_count, practice_days, unique_practice_days')
+        .eq('scholar_id', scholarId)
+        .eq('curriculum', curriculum)
+        .eq('year_level', currentYear);
+
+      if (masteryRecords?.length) {
+        const readiness = checkProgressionReadiness(masteryRecords);
+        if (!readiness.ready) {
+          return {
+            needsGraduation: false,
+            blocked: true,
+            reasons: readiness.reasons,
+            stats: readiness.stats,
+          };
+        }
+      }
+    }
   }
 
   const { error } = await supabase

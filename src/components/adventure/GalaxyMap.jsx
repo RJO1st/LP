@@ -1,14 +1,14 @@
 "use client";
 /**
- * GalaxyMap.jsx
+ * GalaxyMap.jsx — Orbital Galaxy View
  * Deploy to: src/components/adventure/GalaxyMap.jsx
  *
- * Scholar-facing galaxy map replacing the SubjectCard grid (ROW 2).
- * • Planets fill the full container width at any subject count
- * • Vivid atmospheric planet orbs — each realm has its own colour palette
- * • Dynamic grid: 3 cols for ≤6 subjects, 4 for ≤8, 5 for ≤10, 6 for 12+
- * • Explored planets glow + progress ring; unexplored are misty/mysterious
- * • Tier (Building/On Track/Stellar) from scholar_topic_mastery records
+ * Orbital ring layout inspired by solar-system / "galaxy view" style.
+ * • Central hub with scholar XP + streak
+ * • Concentric orbital rings per mastery tier (Stellar → On Track → Building → Unexplored)
+ * • Planet orbs float on their orbital paths with gentle drift animations
+ * • GSAP entrance stagger + subtle continuous orbit pulse
+ * • Click any planet to launch quest
  *
  * Props:
  *   scholar        — scholar row from Supabase
@@ -17,19 +17,26 @@
  *   onLaunchQuest  — (subjectKey: string) => void
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { getRealmForSubject, getGalaxyStatusText } from "@/lib/narrativeEngine";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 
 // ─── Tier config ──────────────────────────────────────────────────
 const TIER = {
-  exceeding:  { label: "Stellar",  emoji: "🏆", ring: "#fbbf24", glow: "#fbbf24", badge: "#78350f", badgeBg: "#fef3c7" },
-  expected:   { label: "On Track", emoji: "⭐", ring: "#a78bfa", glow: "#a78bfa", badge: "#4c1d95", badgeBg: "#ede9fe" },
-  developing: { label: "Building", emoji: "🌱", ring: "#34d399", glow: "#34d399", badge: "#065f46", badgeBg: "#d1fae5" },
+  exceeding:  { label: "Stellar",  emoji: "🏆", ring: "#fbbf24", glow: "#fbbf24", badge: "#78350f", badgeBg: "#fef3c7", orbitIdx: 0 },
+  expected:   { label: "On Track", emoji: "⭐", ring: "#a78bfa", glow: "#a78bfa", badge: "#4c1d95", badgeBg: "#ede9fe", orbitIdx: 1 },
+  developing: { label: "Building", emoji: "🌱", ring: "#34d399", glow: "#34d399", badge: "#065f46", badgeBg: "#d1fae5", orbitIdx: 2 },
 };
 
+// Orbit ring colours (from inner → outer): Stellar gold, On Track purple, Building green, Unexplored grey
+const ORBIT_COLORS = [
+  { stroke: "#fbbf2444", glow: "#fbbf24" },
+  { stroke: "#a78bfa33", glow: "#a78bfa" },
+  { stroke: "#34d39933", glow: "#34d399" },
+  { stroke: "rgba(148,163,184,0.15)", glow: "#64748b" },
+];
+
 // ─── Per-realm vivid gradient palette ────────────────────────────
-// Two-stop gradient: highlight + base, plus an atmosphere colour
 const REALM_PALETTE = {
   number_nebula:   { hi: "#818cf8", base: "#4338ca", atm: "#6366f1" },
   word_galaxy:     { hi: "#f472b6", base: "#be185d", atm: "#ec4899" },
@@ -49,40 +56,21 @@ function realmPalette(realm) {
 }
 
 // ─── Deterministic star field ────────────────────────────────────
-const STARS = Array.from({ length: 80 }, (_, i) => ({
+const STARS = Array.from({ length: 90 }, (_, i) => ({
   x:  ((i * 97  + 11) % 100).toFixed(1),
   y:  ((i * 67  + 43) % 100).toFixed(1),
   r:  i % 9 === 0 ? 2.5 : i % 4 === 0 ? 1.8 : 1,
-  op: (0.12 + (i % 7) * 0.06).toFixed(2),
+  op: (0.10 + (i % 7) * 0.05).toFixed(2),
 }));
 
-// Deterministic nebula patches — colourful background clouds
+// Deterministic nebula patches
 const NEBULAS = [
-  { cx: 15,  cy: 25, rx: 180, ry: 120, color: "#6366f133" },
-  { cx: 80,  cy: 70, rx: 200, ry: 140, color: "#ec489922" },
-  { cx: 45,  cy: 85, rx: 160, ry: 100, color: "#0891b222" },
-  { cx: 70,  cy: 15, rx: 150, ry: 90,  color: "#f59e0b1a" },
-  { cx: 5,   cy: 60, rx: 130, ry: 100, color: "#8b5cf622" },
+  { cx: 15,  cy: 25, rx: 180, ry: 120, color: "#6366f122" },
+  { cx: 80,  cy: 70, rx: 200, ry: 140, color: "#ec489918" },
+  { cx: 45,  cy: 85, rx: 160, ry: 100, color: "#0891b218" },
+  { cx: 70,  cy: 15, rx: 150, ry: 90,  color: "#f59e0b14" },
+  { cx: 5,   cy: 60, rx: 130, ry: 100, color: "#8b5cf618" },
 ];
-
-// ─── SVG progress ring ────────────────────────────────────────────
-function Ring({ pct, size, stroke = 4, color }) {
-  const r   = (size - stroke * 2) / 2;
-  const c   = 2 * Math.PI * r;
-  const off = c - (Math.min(pct, 100) / 100) * c;
-  return (
-    <svg width={size} height={size} aria-hidden="true"
-      style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", pointerEvents: "none" }}>
-      <circle cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
-      <circle cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke={color} strokeWidth={stroke}
-        strokeDasharray={c.toFixed(2)} strokeDashoffset={off.toFixed(2)}
-        strokeLinecap="round"
-        style={{ transition: "stroke-dashoffset 1.2s ease" }} />
-    </svg>
-  );
-}
 
 // ─── Per-subject mastery aggregate ───────────────────────────────
 function getAggregate(subject, masteryRecords) {
@@ -97,207 +85,22 @@ function getAggregate(subject, masteryRecords) {
   return { tier, avgScore: Math.round(avg * 100) };
 }
 
-// ─── Column count from subject count ─────────────────────────────
-function getColumns(n) {
-  if (n <= 3)  return 3;
-  if (n <= 4)  return 4;
-  if (n <= 6)  return 3;
-  if (n <= 8)  return 4;
-  if (n <= 10) return 5;
-  return 6;
-}
-
-// ─── Orb size from column count ──────────────────────────────────
-function getOrbSize(cols) {
-  if (cols <= 3) return 96;
-  if (cols <= 4) return 88;
-  if (cols <= 5) return 80;
-  return 72;
-}
-
-// ─── Single planet card ───────────────────────────────────────────
-function PlanetCard({ subject, realm, tier, avgScore, isNext, orbSize, onClick }) {
-  const t      = tier ? TIER[tier] : null;
-  const pal    = realmPalette(realm);
-  const icon   = realm?.icon || "🪐";
-  const label  = getSubjectLabel(subject);
-  const rName  = realm?.name || "";
-  const hasData = tier !== null;
-
-  const orbInner = orbSize - 8; // inner orb leaves room for ring
-  const fontSize = orbSize >= 90 ? 34 : orbSize >= 80 ? 30 : 26;
-
-  // Card background: vivid tinted for explored, faint coloured for unexplored
-  const cardBg = hasData
-    ? `radial-gradient(ellipse at 50% 0%, ${pal.atm}30 0%, ${pal.atm}08 100%)`
-    : `radial-gradient(ellipse at 50% 0%, ${pal.atm}14 0%, ${pal.atm}04 100%)`;
-  const cardBorder = hasData
-    ? (isNext ? `2px solid ${pal.atm}cc` : `1px solid ${pal.atm}44`)
-    : (isNext ? `2px dashed rgba(255,255,255,0.3)` : `1px dashed ${pal.atm}33`);
-
+// ─── SVG mini-progress ring ──────────────────────────────────────
+function MiniRing({ pct, size, stroke = 3, color }) {
+  const r   = (size - stroke * 2) / 2;
+  const c   = 2 * Math.PI * r;
+  const off = c - (Math.min(pct, 100) / 100) * c;
   return (
-    <button
-      onClick={onClick}
-      aria-label={`${label}${t ? ` — ${t.label}` : " — unexplored"}. Start quest.`}
-      style={{
-        position: "relative",
-        background: cardBg,
-        border: cardBorder,
-        borderRadius: 18,
-        padding: "16px 8px 14px",
-        cursor: "pointer",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-        transition: "transform 0.18s ease, box-shadow 0.18s ease",
-        boxShadow: hasData
-          ? (isNext ? `0 0 28px ${pal.atm}55, 0 0 8px ${pal.atm}22` : `0 0 18px ${pal.atm}22`)
-          : "none",
-        WebkitTapHighlightColor: "transparent",
-        minWidth: 0,
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-5px) scale(1.03)";
-        e.currentTarget.style.boxShadow = `0 8px 32px ${pal.atm}55, 0 0 18px ${pal.atm}33`;
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0) scale(1)";
-        e.currentTarget.style.boxShadow = hasData
-          ? (isNext ? `0 0 28px ${pal.atm}55, 0 0 8px ${pal.atm}22` : `0 0 18px ${pal.atm}22`)
-          : "none";
-      }}
-    >
-      {/* NEXT UP badge */}
-      {isNext && (
-        <div style={{
-          position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)",
-          background: `linear-gradient(90deg, ${pal.hi}, ${pal.atm})`,
-          color: "#fff", fontSize: 9, fontWeight: 800, letterSpacing: "0.06em",
-          padding: "2px 10px", borderRadius: 6, whiteSpace: "nowrap",
-          boxShadow: `0 2px 8px ${pal.atm}66`,
-        }}>
-          NEXT UP
-        </div>
-      )}
-
-      {/* Planet orb */}
-      <div style={{ position: "relative", width: orbSize, height: orbSize, flexShrink: 0 }}>
-        {/* Outer atmosphere glow */}
-        {hasData && (
-          <div style={{
-            position: "absolute", inset: -6,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${pal.atm}30 0%, transparent 70%)`,
-            pointerEvents: "none",
-          }} />
-        )}
-
-        {/* Progress ring */}
-        {hasData && <Ring pct={avgScore} size={orbSize} stroke={4} color={t?.ring || "#34d399"} />}
-
-        {/* Planet sphere */}
-        <div style={{
-          position: "absolute",
-          top: 4, left: 4,
-          width: orbInner, height: orbInner,
-          borderRadius: "50%",
-          background: hasData
-            ? `radial-gradient(circle at 30% 28%, ${pal.hi}ff 0%, ${pal.base}ff 60%, ${pal.base}cc 100%)`
-            : `radial-gradient(circle at 30% 28%, ${pal.hi}bb 0%, ${pal.base}cc 60%, ${pal.base}99 100%)`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize,
-          boxShadow: hasData
-            ? `inset -4px -4px 12px rgba(0,0,0,0.5), inset 3px 3px 8px rgba(255,255,255,0.15), 0 0 24px ${pal.atm}55`
-            : `inset -3px -3px 10px rgba(0,0,0,0.4), inset 2px 2px 6px rgba(255,255,255,0.08), 0 0 16px ${pal.atm}33`,
-          transition: "all 0.3s ease",
-        }}>
-          {/* Surface sheen */}
-          <div style={{
-            position: "absolute", top: "8%", left: "14%",
-            width: "35%", height: "30%",
-            borderRadius: "50%",
-            background: hasData ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
-            filter: "blur(4px)",
-            pointerEvents: "none",
-          }} />
-          <span style={{ position: "relative", zIndex: 1, lineHeight: 1 }}>{icon}</span>
-          {/* Unexplored fog overlay */}
-          {!hasData && (
-            <div style={{
-              position: "absolute", inset: 0, borderRadius: "50%",
-              background: "rgba(8, 6, 20, 0.45)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: orbSize >= 88 ? 18 : 15,
-              color: "rgba(255,255,255,0.55)",
-              fontWeight: 800,
-              zIndex: 2,
-            }}>
-              ?
-            </div>
-          )}
-        </div>
-
-        {/* Tier crown overlay for Stellar */}
-        {tier === "exceeding" && (
-          <div style={{
-            position: "absolute", top: -4, right: -4,
-            fontSize: 16, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))",
-            zIndex: 10,
-          }}>🏆</div>
-        )}
-      </div>
-
-      {/* Subject name */}
-      <p style={{
-        fontSize: orbSize >= 88 ? 12 : 11,
-        fontWeight: 700, margin: 0, lineHeight: 1.3,
-        textAlign: "center", width: "100%",
-        color: hasData ? "rgba(255,255,255,0.92)" : `${pal.atm}cc`,
-        textShadow: hasData ? `0 0 12px ${pal.atm}88` : `0 0 8px ${pal.atm}44`,
-      }}>
-        {label}
-      </p>
-
-      {/* Realm name */}
-      {rName && orbSize >= 80 && (
-        <p style={{
-          fontSize: 9, fontWeight: 500, margin: "-4px 0 0", lineHeight: 1.2,
-          textAlign: "center", width: "100%",
-          color: hasData ? `${pal.atm}bb` : `${pal.atm}77`,
-        }}>
-          {rName}
-        </p>
-      )}
-
-      {/* Tier badge */}
-      {t ? (
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 3,
-          background: t.badgeBg, borderRadius: 5,
-          padding: "2px 7px",
-          fontSize: 10, fontWeight: 700, color: t.badge,
-          boxShadow: `0 1px 4px rgba(0,0,0,0.2)`,
-        }}>
-          {t.emoji} {t.label}
-        </div>
-      ) : (
-        <p style={{
-          fontSize: 9, fontWeight: 600, margin: 0,
-          color: "rgba(255,255,255,0.22)",
-          fontStyle: "italic",
-        }}>
-          Unexplored
-        </p>
-      )}
-
-      {/* Score */}
-      {hasData && (
-        <p style={{
-          fontSize: 10, fontWeight: 700, margin: "-4px 0 0",
-          color: `${pal.atm}cc`,
-        }}>
-          {avgScore}%
-        </p>
-      )}
-    </button>
+    <svg width={size} height={size} aria-hidden="true"
+      style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", pointerEvents: "none" }}>
+      <circle cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={c.toFixed(2)} strokeDashoffset={off.toFixed(2)}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 1.2s ease" }} />
+    </svg>
   );
 }
 
@@ -306,16 +109,8 @@ function Pill({ icon, label, gold, color }) {
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-      background: gold
-        ? "rgba(251,191,36,0.15)"
-        : color
-        ? `${color}18`
-        : "rgba(255,255,255,0.07)",
-      border: gold
-        ? "1px solid rgba(251,191,36,0.35)"
-        : color
-        ? `1px solid ${color}44`
-        : "1px solid rgba(255,255,255,0.1)",
+      background: gold ? "rgba(251,191,36,0.15)" : color ? `${color}18` : "rgba(255,255,255,0.07)",
+      border: gold ? "1px solid rgba(251,191,36,0.35)" : color ? `1px solid ${color}44` : "1px solid rgba(255,255,255,0.1)",
       borderRadius: 20, padding: "4px 12px",
       fontSize: 12, fontWeight: 600,
       color: gold ? "#fbbf24" : color ? `${color}ee` : "rgba(255,255,255,0.65)",
@@ -325,8 +120,150 @@ function Pill({ icon, label, gold, color }) {
   );
 }
 
+// ─── Distribute N points evenly around a ring ────────────────────
+function getOrbitPositions(count, ringRadius, centerX, centerY, offsetAngle = 0) {
+  if (count === 0) return [];
+  const step = (2 * Math.PI) / count;
+  return Array.from({ length: count }, (_, i) => {
+    const angle = offsetAngle + i * step - Math.PI / 2; // start from top
+    return {
+      x: centerX + ringRadius * Math.cos(angle),
+      y: centerY + ringRadius * Math.sin(angle),
+      angle: (angle * 180 / Math.PI),
+    };
+  });
+}
+
+// ─── Orbital Planet Node ─────────────────────────────────────────
+function OrbitalPlanet({ planet, pos, isNext, orbSize, idx, onClick }) {
+  const { subject, realm, tier, avgScore } = planet;
+  const t      = tier ? TIER[tier] : null;
+  const pal    = realmPalette(realm);
+  const icon   = realm?.icon || "🪐";
+  const label  = getSubjectLabel(subject);
+  const hasData = tier !== null;
+  const innerSize = orbSize - 6;
+
+  return (
+    <button
+      className="galaxy-planet-node"
+      data-idx={idx}
+      onClick={onClick}
+      aria-label={`${label}${t ? ` — ${t.label}` : " — unexplored"}. Start quest.`}
+      style={{
+        position: "absolute",
+        left: pos.x - orbSize / 2,
+        top: pos.y - orbSize / 2,
+        width: orbSize,
+        height: orbSize,
+        cursor: "pointer",
+        background: "none",
+        border: "none",
+        padding: 0,
+        zIndex: 5,
+        opacity: 0,
+        transform: "scale(0.3)",
+      }}
+    >
+      {/* Atmosphere glow */}
+      {hasData && (
+        <div style={{
+          position: "absolute", inset: -8,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${pal.atm}35 0%, transparent 70%)`,
+          pointerEvents: "none",
+        }} />
+      )}
+
+      {/* Progress ring */}
+      {hasData && <MiniRing pct={avgScore} size={orbSize} stroke={3} color={t?.ring || "#34d399"} />}
+
+      {/* Planet sphere */}
+      <div className="galaxy-planet-sphere" style={{
+        position: "absolute", top: 3, left: 3,
+        width: innerSize, height: innerSize,
+        borderRadius: "50%",
+        background: hasData
+          ? `radial-gradient(circle at 30% 28%, ${pal.hi} 0%, ${pal.base} 60%, ${pal.base}cc 100%)`
+          : `radial-gradient(circle at 30% 28%, ${pal.hi}bb 0%, ${pal.base}cc 60%, ${pal.base}99 100%)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: orbSize >= 64 ? 24 : 20,
+        boxShadow: hasData
+          ? `inset -3px -3px 10px rgba(0,0,0,0.5), inset 2px 2px 6px rgba(255,255,255,0.15), 0 0 20px ${pal.atm}55`
+          : `inset -2px -2px 8px rgba(0,0,0,0.4), inset 1px 1px 4px rgba(255,255,255,0.08), 0 0 12px ${pal.atm}22`,
+        transition: "box-shadow 0.3s ease, transform 0.3s ease",
+        willChange: "transform",
+      }}>
+        {/* Surface sheen */}
+        <div style={{
+          position: "absolute", top: "8%", left: "14%",
+          width: "35%", height: "28%",
+          borderRadius: "50%",
+          background: hasData ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
+          filter: "blur(3px)", pointerEvents: "none",
+        }} />
+        <span style={{ position: "relative", zIndex: 1, lineHeight: 1 }}>{icon}</span>
+        {/* Unexplored fog */}
+        {!hasData && (
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: "50%",
+            background: "rgba(8, 6, 20, 0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 800, zIndex: 2,
+          }}>?</div>
+        )}
+      </div>
+
+      {/* Tier crown for Stellar */}
+      {tier === "exceeding" && (
+        <div style={{
+          position: "absolute", top: -3, right: -3,
+          fontSize: 13, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))", zIndex: 10,
+        }}>🏆</div>
+      )}
+
+      {/* NEXT UP badge */}
+      {isNext && (
+        <div style={{
+          position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
+          background: `linear-gradient(90deg, ${pal.hi}, ${pal.atm})`,
+          color: "#fff", fontSize: 8, fontWeight: 800, letterSpacing: "0.06em",
+          padding: "2px 8px", borderRadius: 5, whiteSpace: "nowrap",
+          boxShadow: `0 2px 8px ${pal.atm}66`,
+        }}>NEXT UP</div>
+      )}
+
+      {/* Label below planet */}
+      <div style={{
+        position: "absolute",
+        bottom: -20,
+        left: "50%",
+        transform: "translateX(-50%)",
+        textAlign: "center",
+        whiteSpace: "nowrap",
+        pointerEvents: "none",
+      }}>
+        <p style={{
+          fontSize: 10, fontWeight: 700, margin: 0, lineHeight: 1.2,
+          color: hasData ? "rgba(255,255,255,0.88)" : `${pal.atm}99`,
+          textShadow: hasData ? `0 0 10px ${pal.atm}88` : `0 0 6px ${pal.atm}33`,
+        }}>{label}</p>
+        {hasData && (
+          <p style={{
+            fontSize: 9, fontWeight: 600, margin: "1px 0 0", lineHeight: 1,
+            color: `${t?.ring || pal.atm}cc`,
+          }}>{avgScore}%</p>
+        )}
+      </div>
+
+    </button>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────
 export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [], onLaunchQuest }) {
+  const containerRef = useRef(null);
+  const galaxyWrapRef = useRef(null);
   const yearLevel   = scholar?.year_level || scholar?.year || 1;
   const scholarName = scholar?.name || "Explorer";
 
@@ -345,12 +282,111 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
     return candidates.sort((a, b) => a.avgScore - b.avgScore)[0].subject;
   }, [planets]);
 
+  // ─── Group planets by orbital ring ─────────────────────────────
+  const orbits = useMemo(() => {
+    const stellar   = planets.filter(p => p.tier === "exceeding");
+    const onTrack   = planets.filter(p => p.tier === "expected");
+    const building  = planets.filter(p => p.tier === "developing");
+    const unexplored = planets.filter(p => p.tier === null);
+    return [stellar, onTrack, building, unexplored].filter(g => g.length > 0);
+  }, [planets]);
+
+  // ─── Responsive sizing — fill available width on desktop ────────
+  const totalPlanets = subjects.length;
+  const mapSize = totalPlanets <= 6 ? 520 : totalPlanets <= 10 ? 600 : 660;
+  const centerX = mapSize / 2;
+  const centerY = mapSize / 2;
+  const hubRadius = 44;
+  const orbSize = totalPlanets <= 6 ? 72 : totalPlanets <= 10 ? 64 : 56;
+
+  // Ring radii: evenly spaced from hub outward — more room between rings
+  const maxRingCount = orbits.length;
+  const ringStart = hubRadius + 60;
+  const ringEnd = mapSize / 2 - orbSize / 2 - 22;
+  const ringStep = maxRingCount > 1 ? (ringEnd - ringStart) / (maxRingCount - 1) : 0;
+
   const stellarCount    = planets.filter(p => p.tier === "exceeding").length;
   const discoveredCount = planets.filter(p => p.tier !== null).length;
   const statusMsg       = getGalaxyStatusText(scholarName, yearLevel, subjects.length, stellarCount);
 
-  const cols    = getColumns(subjects.length);
-  const orbSize = getOrbSize(cols);
+  // ─── GSAP entrance animation ───────────────────────────────────
+  useEffect(() => {
+    let gsapModule;
+    (async () => {
+      try {
+        gsapModule = await import("gsap");
+        const gsap = gsapModule.gsap || gsapModule.default || gsapModule;
+        if (!containerRef.current) return;
+
+        // Entrance: stagger planet nodes
+        const nodes = containerRef.current.querySelectorAll(".galaxy-planet-node");
+        gsap.fromTo(nodes,
+          { opacity: 0, scale: 0.3 },
+          { opacity: 1, scale: 1, duration: 0.6, stagger: 0.08, ease: "back.out(1.4)", delay: 0.2 }
+        );
+
+        // Continuous float handled by CSS @keyframes (no GSAP overhead)
+        // After entrance completes, add the float class
+        const totalEntrance = 0.2 + nodes.length * 0.08 + 0.6;
+        setTimeout(() => {
+          nodes.forEach(n => n.classList.add("galaxy-float-active"));
+        }, totalEntrance * 1000);
+
+        // Fade in the hub
+        const hub = containerRef.current.querySelector(".galaxy-hub");
+        if (hub) {
+          gsap.fromTo(hub,
+            { opacity: 0, scale: 0.5 },
+            { opacity: 1, scale: 1, duration: 0.8, ease: "elastic.out(1, 0.5)" }
+          );
+        }
+
+        // Orbit rings draw-in
+        const rings = containerRef.current.querySelectorAll(".orbit-ring-circle");
+        rings.forEach((ring) => {
+          const len = ring.getTotalLength?.() || 0;
+          if (len) {
+            gsap.fromTo(ring,
+              { strokeDasharray: len, strokeDashoffset: len },
+              { strokeDashoffset: 0, duration: 1.4, ease: "power2.out", delay: 0.1 }
+            );
+          }
+        });
+
+      } catch (_) { /* GSAP not available — elements stay visible via CSS fallback */ }
+    })();
+  }, [planets.length]);
+
+  // Responsive scaling: set --galaxy-scale CSS var based on wrapper width
+  useEffect(() => {
+    const wrap = galaxyWrapRef.current;
+    if (!wrap) return;
+    const update = () => {
+      const w = wrap.clientWidth;
+      const scale = Math.min(1, w / mapSize);
+      wrap.style.setProperty("--galaxy-scale", scale.toFixed(4));
+      wrap.style.height = `${mapSize * scale}px`;
+    };
+    update();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(wrap);
+    return () => { if (ro) ro.disconnect(); };
+  }, [mapSize]);
+
+  // Build a flat list of all positioned planets for rendering
+  const positioned = useMemo(() => {
+    const result = [];
+    let globalIdx = 0;
+    orbits.forEach((group, orbitIdx) => {
+      const radius = maxRingCount === 1 ? (ringStart + ringEnd) / 2 : ringStart + orbitIdx * ringStep;
+      const offsetAngle = orbitIdx * 0.35; // stagger start angles per ring
+      const positions = getOrbitPositions(group.length, radius, centerX, centerY, offsetAngle);
+      group.forEach((planet, i) => {
+        result.push({ planet, pos: positions[i], orbitIdx, idx: globalIdx++ });
+      });
+    });
+    return result;
+  }, [orbits, centerX, centerY, ringStart, ringEnd, ringStep, maxRingCount]);
 
   return (
     <div style={{
@@ -360,19 +396,19 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
       padding: "22px 20px 24px",
     }}>
 
-      {/* Nebula background — SVG, position absolute */}
+      {/* Nebula background */}
       <svg aria-hidden="true" style={{
         position: "absolute", inset: 0, width: "100%", height: "100%",
         pointerEvents: "none", borderRadius: 22,
       }} preserveAspectRatio="none">
         <defs>
-          <filter id="blur8"><feGaussianBlur stdDeviation="8"/></filter>
+          <filter id="gblur8"><feGaussianBlur stdDeviation="8"/></filter>
         </defs>
         {NEBULAS.map((n, i) => (
           <ellipse key={i}
             cx={`${n.cx}%`} cy={`${n.cy}%`}
             rx={n.rx} ry={n.ry}
-            fill={n.color} filter="url(#blur8)"
+            fill={n.color} filter="url(#gblur8)"
           />
         ))}
       </svg>
@@ -391,13 +427,13 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
       </div>
 
       {/* Header */}
-      <div style={{ position: "relative", zIndex: 2, marginBottom: 20 }}>
+      <div style={{ position: "relative", zIndex: 2, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
           <p style={{
             fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
             color: "rgba(255,255,255,0.4)", textTransform: "uppercase", margin: 0,
           }}>
-            🌌 Your Galaxy
+            🌌 Galaxy Command
           </p>
           <div style={{
             height: 1, flex: 1,
@@ -405,8 +441,8 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
           }} />
         </div>
         <p style={{
-          fontSize: 14, color: "rgba(255,255,255,0.82)", fontWeight: 500,
-          lineHeight: 1.6, maxWidth: 560, marginBottom: 14,
+          fontSize: 13, color: "rgba(255,255,255,0.78)", fontWeight: 500,
+          lineHeight: 1.5, maxWidth: 560, marginBottom: 12,
           textShadow: "0 1px 8px rgba(0,0,0,0.5)",
         }}>
           {statusMsg}
@@ -414,43 +450,141 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Pill icon="⭐" label={`${(scholar?.total_xp || 0).toLocaleString()} XP`} color="#818cf8" />
           <Pill icon="🔥" label={`${scholar?.streak || 0} day${(scholar?.streak || 0) !== 1 ? "s" : ""} streak`} color="#fb923c" />
-          <Pill icon="🌍" label={`${discoveredCount} / ${subjects.length} discovered`} color="#34d399" />
+          <Pill icon="🌍" label={`${discoveredCount}/${subjects.length} discovered`} color="#34d399" />
           {stellarCount > 0 && <Pill icon="🏆" label={`${stellarCount} mastered`} gold />}
         </div>
       </div>
 
-      {/* Planet grid — fills full width */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: 12,
+      {/* ═══ Orbital Map — responsive wrapper scales on small screens ═══ */}
+      <div ref={galaxyWrapRef} style={{
         position: "relative", zIndex: 2,
+        width: "100%", maxWidth: mapSize,
+        margin: "0 auto",
+        overflow: "visible",
       }}>
-        {planets.map(({ subject, realm, tier, avgScore }) => (
-          <PlanetCard
-            key={subject}
-            subject={subject}
-            realm={realm}
-            tier={tier}
-            avgScore={avgScore}
-            isNext={nextSubject === subject}
+      <div
+        ref={containerRef}
+        style={{
+          position: "absolute", inset: 0,
+          width: mapSize, height: mapSize,
+          transformOrigin: "top left",
+          transform: `scale(var(--galaxy-scale, 1))`,
+        }}
+      >
+        {/* SVG orbital rings + decorative dots */}
+        <svg
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+          viewBox={`0 0 ${mapSize} ${mapSize}`}
+        >
+          <defs>
+            <filter id="orbitGlow">
+              <feGaussianBlur stdDeviation="2.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Concentric orbit rings */}
+          {orbits.map((_, orbitIdx) => {
+            const radius = maxRingCount === 1
+              ? (ringStart + ringEnd) / 2
+              : ringStart + orbitIdx * ringStep;
+            const oc = ORBIT_COLORS[
+              orbits.length === 1 ? 0 :
+              orbits.length === 2 ? (orbitIdx === 0 ? 0 : 3) :
+              orbits.length === 3 ? [0, 1, 3][orbitIdx] :
+              orbitIdx
+            ] || ORBIT_COLORS[3];
+            return (
+              <circle
+                key={`ring-${orbitIdx}`}
+                className="orbit-ring-circle"
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke={oc.stroke}
+                strokeWidth={1.2}
+                strokeDasharray="4 6"
+                filter="url(#orbitGlow)"
+              />
+            );
+          })}
+
+          {/* Faint radial grid lines for depth */}
+          {[0, 60, 120, 180, 240, 300].map(deg => {
+            const rad = (deg * Math.PI) / 180;
+            const outerR = ringEnd + 10;
+            return (
+              <line
+                key={`rad-${deg}`}
+                x1={centerX}
+                y1={centerY}
+                x2={centerX + outerR * Math.cos(rad)}
+                y2={centerY + outerR * Math.sin(rad)}
+                stroke="rgba(255,255,255,0.03)"
+                strokeWidth={0.5}
+              />
+            );
+          })}
+        </svg>
+
+        {/* Central Hub */}
+        <div
+          className="galaxy-hub"
+          style={{
+            position: "absolute",
+            left: centerX - hubRadius,
+            top: centerY - hubRadius,
+            width: hubRadius * 2,
+            height: hubRadius * 2,
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 40% 35%, #1e1b4b 0%, #0f0e2a 50%, #06041a 100%)",
+            border: "2px solid rgba(139,92,246,0.4)",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            zIndex: 6,
+            boxShadow: "0 0 40px rgba(139,92,246,0.2), inset 0 0 20px rgba(139,92,246,0.15)",
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>🚀</span>
+          <p style={{
+            fontSize: 8, fontWeight: 800, letterSpacing: "0.08em",
+            color: "rgba(255,255,255,0.65)", margin: "2px 0 0",
+            textTransform: "uppercase",
+          }}>HQ</p>
+        </div>
+
+        {/* Planet nodes */}
+        {positioned.map(({ planet, pos, idx }) => (
+          <OrbitalPlanet
+            key={planet.subject}
+            planet={planet}
+            pos={pos}
+            isNext={nextSubject === planet.subject}
             orbSize={orbSize}
-            onClick={() => onLaunchQuest(subject)}
+            idx={idx}
+            onClick={() => onLaunchQuest(planet.subject)}
           />
         ))}
+      </div>
+      {/* Close responsive wrapper */}
       </div>
 
       {/* Legend */}
       <div style={{
         position: "relative", zIndex: 2,
         display: "flex", flexWrap: "wrap", gap: 16,
+        justifyContent: "center",
         marginTop: 18, paddingTop: 14,
         borderTop: "1px solid rgba(255,255,255,0.07)",
       }}>
         {[
-          { color: "#34d399", label: "Building"   },
-          { color: "#a78bfa", label: "On Track"   },
           { color: "#fbbf24", label: "Stellar"    },
+          { color: "#a78bfa", label: "On Track"   },
+          { color: "#34d399", label: "Building"   },
           { color: "rgba(255,255,255,0.18)", label: "Unexplored" },
         ].map(x => (
           <div key={x.label} style={{
@@ -466,6 +600,50 @@ export default function GalaxyMap({ scholar, subjects = [], masteryRecords = [],
           </div>
         ))}
       </div>
+
+      {/* CSS fallback + hover + float — no per-frame GSAP overhead */}
+      <style>{`
+        @keyframes galaxyPlanetFadeIn {
+          from { opacity: 0; transform: scale(0.3); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .galaxy-planet-node {
+          animation: galaxyPlanetFadeIn 0.5s ease-out forwards;
+          animation-delay: calc(var(--idx, 0) * 0.08s);
+          will-change: transform, opacity;
+        }
+        ${positioned.map(({ idx }) =>
+          `.galaxy-planet-node[data-idx="${idx}"] { --idx: ${idx}; --float-dur: ${3 + (idx % 4) * 0.5}s; --float-y: ${3 + (idx % 3) * 1.5}px; --float-delay: ${(idx * 0.15).toFixed(2)}s; }`
+        ).join("\n")}
+
+        /* CSS-only float replaces GSAP continuous tweens — zero JS overhead */
+        @keyframes galaxyFloat {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(calc(-1 * var(--float-y, 3px))); }
+        }
+        .galaxy-float-active {
+          animation: galaxyFloat var(--float-dur, 3s) ease-in-out infinite !important;
+          animation-delay: var(--float-delay, 0s) !important;
+        }
+
+        /* Planet hover — pure CSS, no per-node inline styles */
+        .galaxy-planet-node:hover .galaxy-planet-sphere {
+          transform: scale(1.12);
+          filter: brightness(1.15);
+        }
+
+        @keyframes orbitPulse {
+          0%, 100% { opacity: 0.6; }
+          50%      { opacity: 1; }
+        }
+        .orbit-ring-circle {
+          animation: orbitPulse 4s ease-in-out infinite;
+        }
+
+        .galaxy-hub {
+          animation: galaxyPlanetFadeIn 0.8s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }

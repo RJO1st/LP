@@ -16,10 +16,11 @@
  */
 
 import { useState } from "react";
-import { masteryColour, masteryToPercent, masteryToTier } from "@/lib/masteryEngine";
+import { masteryColour, masteryToPercent, masteryToTier, checkRetentionGate } from "@/lib/masteryEngine";
 import { getRealmForSubject } from "@/lib/narrativeEngine";
 import { estimateExamReadiness } from "@/lib/learningPathEngine";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import MasteryBreakdownPill from "@/components/game/MasteryBreakdownPill";
 
 const BAND_ICONS  = { foundation: "🧱", intermediate: "⚙️", advanced: "🚀", enrichment: "🌟" };
 const BAND_LABELS = { foundation: "Foundation", intermediate: "Intermediate", advanced: "Advanced", enrichment: "Enrichment" };
@@ -162,8 +163,10 @@ export default function LearningPathMap({ path, mastery = [], subject, onStartTo
                         const isActive   = item.topic === currentTopic;
                         const mastered   = item.masteryScore >= 0.8;
                         const inProgress = item.masteryScore > 0 && !mastered;
-                        const locked     = item.masteryScore === 0 && idx > 0
-                          && (items[idx - 1]?.masteryScore ?? 0) < 0.4;
+                        // Retention gate: previous topic must pass retention check to unlock next
+                        const prevRecord = idx > 0 ? items[idx - 1]?.masteryRecord : null;
+                        const prevGate = idx > 0 ? checkRetentionGate(prevRecord, 0.40) : { ready: true, reasons: [] };
+                        const locked     = item.masteryScore === 0 && idx > 0 && !prevGate.ready;
 
                         const colour = masteryColour(item.masteryScore);
                         const pct    = masteryToPercent(item.masteryScore);
@@ -201,7 +204,7 @@ export default function LearningPathMap({ path, mastery = [], subject, onStartTo
                                 <p className={`font-bold text-sm capitalize truncate ${
                                   isActive ? "text-indigo-300" : "text-white"
                                 }`}>
-                                  {item.display_name ?? item.topic.replace(/_/g, " ")}
+                                  {item.display_name ?? item.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                                 </p>
                                 {isActive && (
                                   <span className="text-xs bg-indigo-500 text-white px-1.5 py-0.5 rounded-full flex-shrink-0">
@@ -238,6 +241,24 @@ export default function LearningPathMap({ path, mastery = [], subject, onStartTo
                                     <span className="text-xs text-amber-400">· 🔄 Due review</span>
                                   )}
                                 </div>
+                              )}
+
+                              {/* v2: Mastery breakdown pill — shows acquisition/stability/recency */}
+                              {!locked && item.masteryRecord && item.masteryRecord.times_seen > 0 && (
+                                <div className="mt-1">
+                                  <MasteryBreakdownPill
+                                    masteryRecord={item.masteryRecord}
+                                    compact={true}
+                                    showTooltip={hoveredTopic === item.topic}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Retention gate warning for locked topics */}
+                              {locked && !prevGate.ready && prevGate.reasons.length > 0 && (
+                                <p className="text-xs text-slate-600 mt-0.5">
+                                  🔒 {prevGate.reasons[0]}
+                                </p>
                               )}
                             </div>
 
@@ -279,7 +300,7 @@ function EmptyPath({ subject, realm }) {
         <h2 className="text-2xl font-black text-white mb-3">No Path Yet</h2>
         <p className="text-slate-400 mb-6">
           Complete the quick assessment for{" "}
-          <span className="text-indigo-400 font-bold capitalize">{subject.replace(/_/g, " ")}</span>{" "}
+          <span className="text-indigo-400 font-bold capitalize">{subject.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>{" "}
           and Tara will build your personalised learning path.
         </p>
       </div>

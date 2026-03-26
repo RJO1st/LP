@@ -23,6 +23,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, Download, Share2, Star, Rocket, Award, CheckCircle, Trophy, Sparkles } from "lucide-react";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import { MasteryBreakdownInline } from "@/components/game/MasteryBreakdownPill";
 
 // ── STAGE CONFIG ──────────────────────────────────────────────────────────────
 const MASTERY_STAGES = {
@@ -165,6 +166,7 @@ export default function MasteryCertificate({
   topic        = "Topic",
   masteryTier  = "exceeding",
   masteryScore = 0.85,
+  masteryRecord = null,
   accuracy     = 100,
   xpEarned     = 0,
   date         = new Date(),
@@ -339,6 +341,17 @@ export default function MasteryCertificate({
               </div>
             ))}
           </div>
+
+          {/* v2: Mastery breakdown (acquisition / stability / recency) */}
+          {masteryRecord && (
+            <div style={{ marginBottom: 12 }}>
+              <p style={{
+                color: "#94a3b8", fontSize: 9, fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: "0.06em", margin: "0 0 6px", textAlign: "center",
+              }}>Mastery Breakdown</p>
+              <MasteryBreakdownInline masteryRecord={masteryRecord} />
+            </div>
+          )}
 
           {/* Stage progression bar */}
           <div style={{ marginBottom:16 }}>

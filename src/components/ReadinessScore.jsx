@@ -36,7 +36,7 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
       // Fetch mastery per subject
       const { data: mastery } = await supabase
         .from("scholar_topic_mastery")
-        .select("subject, topic, mastery_score")
+        .select("subject, topic, mastery_score, acquisition_score, stability, times_seen, unique_practice_days, spaced_review_count, last_seen_at, updated_at")
         .eq("scholar_id", scholarId)
         .in("subject", Object.keys(ELEVEN_PLUS_WEIGHTS));
 
@@ -57,22 +57,20 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
         });
       }
 
-      // ── Realistic readiness calculation ──────────────────────────────────
-      // A topic is only "exam-ready" when the scholar has:
-      //   1. Sufficient depth: at least MIN_QUESTIONS_FOR_CONFIDENCE answered
-      //   2. Demonstrated mastery: mastery_score above the exam threshold
-      //   3. Recent practice: mastery decays if not reviewed recently
+      // ── Realistic readiness calculation (v2 — uses composite mastery) ──
+      // Uses the v2 composite mastery system fields when available:
+      //   - mastery_score: pre-computed composite (acquisition × stability × recency)
+      //   - stability: SM-2 retention proof (0-1)
+      //   - unique_practice_days: distributed practice evidence
+      //   - spaced_review_count: successful spaced reviews
       //
-      // Per-topic readiness = mastery_score × confidence × recency
-      //   confidence = min(1, times_seen / MIN_QUESTIONS_FOR_CONFIDENCE)
-      //   recency    = 1.0 if reviewed within 7d, decays to 0.5 over 60d
+      // Per-topic readiness = compositeScore × confidenceFactor × retentionBonus
+      //   confidenceFactor = min(1, times_seen / MIN_QUESTIONS)
+      //   retentionBonus = 1.0 if stability > 0.3, scaled down below that
       //
       // Subject readiness = (sum of topic readiness / total required topics) × 100
       // Overall readiness = weighted average across subjects
       const MIN_QUESTIONS_FOR_CONFIDENCE = 10;
-      const RECENCY_FULL_DAYS = 7;
-      const RECENCY_DECAY_DAYS = 60;
-      const now = new Date();
 
       const subjectTopicReadiness = {};
 
@@ -80,24 +78,19 @@ export default function ReadinessScore({ scholarId, supabase, compact = false })
         const sub = m.subject;
         if (!subjectTopicReadiness[sub]) subjectTopicReadiness[sub] = [];
 
-        const score = m.mastery_score ?? 0;
+        // Use v2 composite mastery_score (already blends acquisition + stability + recency)
+        const composite = m.mastery_score ?? 0;
         const seen = m.times_seen ?? 1;
+        const stability = m.stability ?? 0;
 
-        // Confidence: how much can we trust this mastery score?
+        // Confidence: scales with question volume (same as before)
         const confidence = Math.min(1, seen / MIN_QUESTIONS_FOR_CONFIDENCE);
 
-        // Recency: how recently was this topic practised?
-        let recency = 1.0;
-        if (m.last_seen_at || m.updated_at) {
-          const lastSeen = new Date(m.last_seen_at || m.updated_at);
-          const daysSince = Math.max(0, (now - lastSeen) / (1000 * 60 * 60 * 24));
-          if (daysSince > RECENCY_FULL_DAYS) {
-            const decayPortion = Math.min(1, (daysSince - RECENCY_FULL_DAYS) / RECENCY_DECAY_DAYS);
-            recency = 1.0 - (decayPortion * 0.5); // decays to 0.5 minimum
-          }
-        }
+        // Retention bonus: reward topics with proven stability
+        // stability > 0.3 = full credit, below that = proportional scaling
+        const retentionBonus = stability >= 0.3 ? 1.0 : 0.7 + (stability / 0.3) * 0.3;
 
-        const topicReadiness = score * confidence * recency;
+        const topicReadiness = composite * confidence * retentionBonus;
         subjectTopicReadiness[sub].push(topicReadiness);
       });
 
