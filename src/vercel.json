@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/cron/reminders",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/batch-generate?curriculum=uk_11plus",

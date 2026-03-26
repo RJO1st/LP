@@ -17,6 +17,7 @@ import { CompassVis, MapGridVis, ClimateGraphVis, LayerDiagramVis, WaterCycleVis
 import { HumanBodyVis, SolarSystemVis, ClassificationKeyVis, LightDiagramVis, ElectricalSymbolsVis, MagnetVis, PhotosynthesisVis, RespirationVis} from "./ScienceVisuals_Ext";
 import { SentenceStructureVis, SpellingPatternVis, PunctuationVis, WordClassVis } from "./EnglishVisuals";
 import { NVRShapeRotationVis, NVRCodeVis, NVRPlanElevationVis } from "./NVRVisuals_Ext";
+import { FlowchartVis, BinaryVis, BooleanLogicVis, NetworkDiagramVis, CodeBlockVis, SortingVis, DatabaseTableVis, HTMLStructureVis } from "./ComputingVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 import InteractiveGraph from "./InteractiveGraph";
 import DataTable from "./DataTable";
@@ -1968,6 +1969,144 @@ function parseHistory(topicStr, questionStr, yearLevel) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COMPUTING / COMPUTER SCIENCE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseComputing(topicStr, questionStr, yearLevel) {
+  const t = (topicStr || "").toLowerCase();
+  const q = (questionStr || "").toLowerCase();
+
+  // ── FLOWCHART / ALGORITHM ────────────────────────────────────────────────
+  if (t.includes("flowchart") || t.includes("algorithm") || t.includes("sequence") ||
+      /flowchart|algorithm|step.*by.*step|instructions|decompos/i.test(questionStr)) {
+    // Try to parse steps from the question
+    const stepMatches = [...(questionStr || "").matchAll(/(?:step\s*\d+[:.]\s*|(?:\d+)[.)]\s*)([^.\n]{3,50})/gi)];
+    const steps = stepMatches.length >= 2
+      ? [
+          { type: "terminal", text: "Start" },
+          ...stepMatches.map(m => ({ type: "process", text: m[1].trim() })),
+          { type: "terminal", text: "End" },
+        ]
+      : [];
+    return { type: "flowchart", steps, title: t.includes("algorithm") ? "Algorithm" : "Flowchart" };
+  }
+
+  // ── SELECTION / IF-ELSE ─────────────────────────────────────────────────
+  if (t.includes("selection") || t.includes("if_else") || t.includes("conditional") ||
+      /\bif\b.*\bthen\b|selection|conditional|branch/i.test(questionStr)) {
+    return { type: "code_block", concept: "selection", lines: [] };
+  }
+
+  // ── LOOPS ──────────────────────────────────────────────────────────────
+  if (t.includes("loop") || t.includes("iteration") || t.includes("repeat") ||
+      /\bfor\b.*loop|\bwhile\b.*loop|repeat|iteration|iterate/i.test(questionStr)) {
+    return { type: "code_block", concept: "loop", lines: [] };
+  }
+
+  // ── VARIABLES / DATA TYPES ─────────────────────────────────────────────
+  if (t.includes("variable") || t.includes("data_type") ||
+      /variable|data type|integer|string|boolean|float|assign/i.test(questionStr)) {
+    return { type: "code_block", concept: "variable", lines: [] };
+  }
+
+  // ── FUNCTIONS / PROCEDURES ─────────────────────────────────────────────
+  if (t.includes("function") || t.includes("procedure") || t.includes("subroutine") ||
+      /function|procedure|subroutine|parameter|argument|return/i.test(questionStr)) {
+    return { type: "code_block", concept: "function", lines: [] };
+  }
+
+  // ── BINARY / NUMBER SYSTEMS ────────────────────────────────────────────
+  if (t.includes("binary") || t.includes("denary") || t.includes("hexadecimal") ||
+      /binary|base.?2|bit|byte|denary|convert.*decimal|decimal.*convert/i.test(questionStr)) {
+    const numMatch = (questionStr || "").match(/\b(\d{1,3})\b/);
+    const value = numMatch ? parseInt(numMatch[1]) : 42;
+    const bits = value > 127 ? 8 : 8;
+    return { type: "binary", value: Math.min(value, 255), bits };
+  }
+
+  // ── BOOLEAN LOGIC / LOGIC GATES ────────────────────────────────────────
+  if (t.includes("boolean") || t.includes("logic_gate") || t.includes("logic") ||
+      /\bAND\b|\bOR\b|\bNOT\b|\bXOR\b|\bNAND\b|logic gate|truth table|boolean/i.test(questionStr)) {
+    const gates = ["AND", "OR", "NOT", "XOR", "NAND", "NOR"];
+    const gate = gates.find(g => q.includes(g.toLowerCase())) || "AND";
+    const aMatch = /input\s*A\s*[=:]\s*(true|false|1|0)/i.exec(questionStr);
+    const bMatch = /input\s*B\s*[=:]\s*(true|false|1|0)/i.exec(questionStr);
+    const inputA = aMatch ? (aMatch[1] === "true" || aMatch[1] === "1") : true;
+    const inputB = bMatch ? (bMatch[1] === "true" || bMatch[1] === "1") : false;
+    return { type: "boolean_logic", gate, inputA, inputB };
+  }
+
+  // ── NETWORKS / INTERNET ────────────────────────────────────────────────
+  if (t.includes("network") || t.includes("internet") || t.includes("topology") ||
+      /network|topology|server|router|LAN|WAN|switch|hub|IP address|protocol|packet|TCP|HTTP/i.test(questionStr)) {
+    const topologies = ["star", "bus", "ring", "internet"];
+    const topology = topologies.find(tp => q.includes(tp)) ||
+      (/internet|http|tcp|ip|web|browser/i.test(questionStr) ? "internet" :
+       /ring/i.test(questionStr) ? "ring" :
+       /bus/i.test(questionStr) ? "bus" : "star");
+    return { type: "network_diagram", topology, highlighted: "" };
+  }
+
+  // ── SORTING / SEARCHING ALGORITHMS ─────────────────────────────────────
+  if (t.includes("sort") || t.includes("search") ||
+      /bubble sort|selection sort|insertion sort|merge sort|linear search|binary search|sorting|searching/i.test(questionStr)) {
+    const algorithms = { "bubble": "bubble", "selection": "selection", "insertion": "insertion", "merge": "merge", "linear search": "linear", "binary search": "binary" };
+    let algorithm = "bubble";
+    for (const [key, val] of Object.entries(algorithms)) {
+      if (q.includes(key)) { algorithm = val; break; }
+    }
+    // Extract numbers from question if available
+    const numMatches = (questionStr || "").match(/\b\d{1,2}\b/g);
+    const values = numMatches ? numMatches.slice(0, 10).map(Number).filter(n => n > 0 && n <= 99) : [7, 3, 9, 1, 5, 8, 2, 6];
+    return { type: "sorting", values: values.length >= 3 ? values : [7, 3, 9, 1, 5, 8, 2, 6], algorithm, highlightIdx: [] };
+  }
+
+  // ── DATABASES ──────────────────────────────────────────────────────────
+  if (t.includes("database") || t.includes("sql") || t.includes("table") ||
+      /database|table|field|record|primary key|SQL|query|SELECT|FROM|WHERE/i.test(questionStr)) {
+    const tableMatch = (questionStr || "").match(/(?:table|database)\s+(?:called\s+)?["']?(\w+)["']?/i);
+    return { type: "database_table", tableName: tableMatch?.[1] || "Students", fields: [], records: [] };
+  }
+
+  // ── WEB DEVELOPMENT / HTML / CSS ───────────────────────────────────────
+  if (t.includes("html") || t.includes("css") || t.includes("web_dev") ||
+      /\bHTML\b|\bCSS\b|web page|webpage|tag|element|<\w+>/i.test(questionStr)) {
+    const tagMatch = (questionStr || "").match(/<(\w+)>/);
+    return { type: "html_structure", tag: tagMatch?.[1] || "body", children: [] };
+  }
+
+  // ── PROGRAMMING (general) — pseudocode ─────────────────────────────────
+  if (t.includes("program") || t.includes("python") || t.includes("coding") || t.includes("debug") ||
+      /program|code|pseudocode|python|scratch|debug|output|print|input/i.test(questionStr)) {
+    return { type: "code_block", concept: "sequence", lines: [] };
+  }
+
+  // ── CYBER SECURITY ─────────────────────────────────────────────────────
+  if (t.includes("cyber") || t.includes("security") || t.includes("safety") ||
+      /cyber|phishing|malware|virus|password|firewall|encryption|hacker/i.test(questionStr)) {
+    // Use a flowchart to show security processes
+    return {
+      type: "flowchart",
+      steps: [
+        { type: "terminal", text: "Start" },
+        { type: "decision", text: "Trusted source?" },
+        { type: "process", text: "Check URL" },
+        { type: "decision", text: "Secure (HTTPS)?" },
+        { type: "terminal", text: "Safe to proceed" },
+      ],
+      title: "Cyber Security Check",
+    };
+  }
+
+  // ── DATA REPRESENTATION (fallback for e.g. data_collecting_presenting) ─
+  if (t.includes("data") || /data|chart|graph|represent/i.test(questionStr)) {
+    return { type: "database_table", tableName: "Survey Data", fields: [], records: [] };
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN EXPORT — resolveVisual
 // ═══════════════════════════════════════════════════════════════════════════════
 export function resolveVisual(question, subject, yearLevel) {
@@ -1982,7 +2121,8 @@ export function resolveVisual(question, subject, yearLevel) {
   const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
   const isGeography  = subj.includes("geograph") || subj.includes("hass") || subj.includes("social_stud");
   const isHistory    = subj.includes("histor");
-  if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce && !isGeography && !isHistory) return null;
+  const isComputing  = subj.includes("comput") || subj.includes("digital") || subj === "ict";
+  if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce && !isGeography && !isHistory && !isComputing) return null;
 
   let enrichedSubject = subject || "";
   if (subj === "science" || subj.includes("science")) {
@@ -2022,6 +2162,10 @@ export function resolveVisual(question, subject, yearLevel) {
   if (isNVR) {
     const nvrExt = parseNVRExt(topicStr, questionStr, year);
     if (nvrExt) return nvrExt;
+  }
+  if (isComputing) {
+    const compVis = parseComputing(topicStr, questionStr, year);
+    if (compVis) return compVis;
   }
 
   // Pie chart
@@ -2217,6 +2361,14 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "nvr_shape_rotation": return `${visual.shape} rotated ${visual.degrees}° ${visual.clockwise ? "clockwise" : "anticlockwise"}`;
       case "nvr_code":           return `Code cipher: ${visual.encoded}`;
       case "nvr_plan_elevation": return `Plan and elevation of ${visual.shape3d}`;
+      case "flowchart":          return `Flowchart: ${visual.title || "Algorithm"}`;
+      case "binary":             return `Binary representation of ${visual.value}`;
+      case "boolean_logic":      return `${visual.gate} logic gate`;
+      case "network_diagram":    return `${visual.topology} network topology`;
+      case "code_block":         return `Code: ${visual.concept || "pseudocode"}`;
+      case "sorting":            return `${visual.algorithm} sorting visualisation`;
+      case "database_table":     return `Database table: ${visual.tableName}`;
+      case "html_structure":     return `HTML structure: ${visual.tag} element`;
       default:                 return "Maths visual aid";
     }
   })();
@@ -2322,6 +2474,14 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "percentage_bar":     return <PercentageBarVis value={visual.value} />;
       case "probability":        return <ProbabilityVis total={visual.total} favourable={visual.favourable} context={visual.context} />;
       case "symmetry":           return <SymmetryVis shape={visual.shape} />;
+      case "flowchart":          return <FlowchartVis steps={visual.steps} title={visual.title} />;
+      case "binary":             return <BinaryVis value={visual.value} bits={visual.bits} />;
+      case "boolean_logic":      return <BooleanLogicVis gate={visual.gate} inputA={visual.inputA} inputB={visual.inputB} />;
+      case "network_diagram":    return <NetworkDiagramVis topology={visual.topology} highlighted={visual.highlighted} />;
+      case "code_block":         return <CodeBlockVis lines={visual.lines} concept={visual.concept} />;
+      case "sorting":            return <SortingVis values={visual.values} algorithm={visual.algorithm} highlightIdx={visual.highlightIdx} />;
+      case "database_table":     return <DatabaseTableVis tableName={visual.tableName} fields={visual.fields} records={visual.records} />;
+      case "html_structure":     return <HTMLStructureVis tag={visual.tag} children={visual.children} />;
       default:                return null;
     }
   })();
