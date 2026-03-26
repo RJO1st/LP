@@ -24,6 +24,7 @@ import ImageDisplay             from "./ImageDisplay";
 import MathsVisualiser, { canVisualise } from "./MathsVisualiser";
 import AnimatedVisualiser              from "./AnimatedVisualiser";
 import CelebrationBurst                from "./CelebrationBurst";
+import AnswerReaction                  from "./AnswerReaction";
 import ReadingComprehensionEngine from "./ReadingComprehensionEngine";
 import STEMEngine               from "./STEMEngine";
 import HumanitiesEngine         from "./HumanitiesEngine";
@@ -236,7 +237,7 @@ function LoadingCard({ subject }) {
 
 // ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
 
-function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic, BandQuizShell, band, friendlySubject }) {
+function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic, BandQuizShell, band, friendlySubject, assessmentType = "quest" }) {
   const perQTimer   = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj        = subject?.toLowerCase() || "mathematics";
   const theme       = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
@@ -254,6 +255,8 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const [timeLeft,         setTimeLeft]         = useState(perQTimer);
   const [timerExpired,     setTimerExpired]     = useState(false);
   const [topicSummary,     setTopicSummary]     = useState({});
+  const [reactionKey,      setReactionKey]      = useState(0);   // increments to re-trigger AnswerReaction
+  const [reactionData,     setReactionData]     = useState(null); // { isCorrect, correctAnswer }
 
   const timerRef        = useRef(null);
   const resultsRef      = useRef({ score: 0, answers: [] }); // stale-closure guard
@@ -470,6 +473,13 @@ const year = rawYear;
     });
 
     recordTopicResult(q.topic || subject, isCorrect);
+
+    // Trigger the visual answer reaction overlay
+    setReactionData({
+      isCorrect,
+      correctAnswer: typeof q.opts?.[q.a] === "string" ? q.opts[q.a] : (q.opts?.[q.a]?.text || ""),
+    });
+    setReactionKey(k => k + 1);
 
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
       // Milestone celebrations disabled for beta — tier crossings are shown
@@ -708,7 +718,28 @@ const year = rawYear;
       />
     ) : null;
 
+    const ageBandStr = student?.year_level <= 2 ? "ks1" : student?.year_level <= 6 ? "ks2" : student?.year_level <= 9 ? "ks3" : "ks4";
+
     return (
+      <>
+      {/* Celebration overlay — quests only (not mocktests, practice, exam) */}
+      {assessmentType === "quest" && (
+        <AnswerReaction
+          key={`reaction-${reactionKey}`}
+          show={reactionData !== null && reactionKey > 0}
+          isCorrect={reactionData?.isCorrect || false}
+          correctAnswer={reactionData?.correctAnswer || ""}
+          ageBand={ageBandStr}
+          scholarName={student?.name?.split(" ")[0]}
+          streak={results.answers.filter((a, i, arr) => {
+            // Count current correct streak from the end
+            for (let j = arr.length - 1; j >= i; j--) {
+              if (!arr[j].isCorrect) return false;
+            }
+            return a.isCorrect;
+          }).length}
+        />
+      )}
       <BandQuizShell
         question={q.q}
         options={q.opts || []}
@@ -737,6 +768,7 @@ const year = rawYear;
         taraEIBWidget={taraEIBWidget}
         canProceed={canProceed}
       />
+      </>
     );
   }
   return (
@@ -1073,6 +1105,7 @@ export default function QuestOrchestrator({
   student, subject, curriculum,
   questionCount: questionCountProp, previousQuestionIds = [],
   questData = {}, onClose, onComplete, taraEnabled = true,
+  assessmentType = "quest", // "quest" | "mocktest" | "practice" | "exam"
 }) {
   const subj = (typeof subject === "string" ? subject : subject?.subject || subject?.name || "mathematics").toLowerCase();
   const band = getAgeBand(student?.year_level || student?.year, student?.curriculum);
@@ -1315,6 +1348,7 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
       BandQuizShell={BandQuizShell}
       band={band}
       friendlySubject={friendlySubject}
+      assessmentType={assessmentType}
     />
   );
 }

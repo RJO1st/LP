@@ -686,9 +686,29 @@ export default function ParentDashboard() {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [graduatingScholar, setGraduatingScholar] = useState(null);
   const [newExamMode, setNewExamMode] = useState(null);
+  const [newSchoolId, setNewSchoolId] = useState(null);
+  const [schoolSearch, setSchoolSearch] = useState("");
+  const [schoolResults, setSchoolResults] = useState([]);
+  const [schoolDropOpen, setSchoolDropOpen] = useState(false);
+  const [creatingSchool, setCreatingSchool] = useState(false);
+  const [newSchoolName, setNewSchoolName] = useState("");
+  const [newSchoolRegion, setNewSchoolRegion] = useState("");
+  const [newSchoolType, setNewSchoolType] = useState("primary");
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactMessage, setContactMessage] = useState("");
   const [contactSent, setContactSent] = useState(false);
+
+  // ── School edit for existing scholars ──────────────────────────────────
+  const [editingSchoolFor, setEditingSchoolFor] = useState(null); // scholar id
+  const [editSchoolSearch, setEditSchoolSearch] = useState("");
+  const [editSchoolResults, setEditSchoolResults] = useState([]);
+  const [editSchoolDropOpen, setEditSchoolDropOpen] = useState(false);
+  const [editSchoolId, setEditSchoolId] = useState(null);
+  const [editCreatingSchool, setEditCreatingSchool] = useState(false);
+  const [editNewSchoolName, setEditNewSchoolName] = useState("");
+  const [editNewSchoolRegion, setEditNewSchoolRegion] = useState("");
+  const [editNewSchoolType, setEditNewSchoolType] = useState("primary");
+  const [savingSchool, setSavingSchool] = useState(false);
 
   const resetTour  = useTourReset("parent", user?.id);
   const currDef    = CURRICULA[newCurriculum];
@@ -697,6 +717,148 @@ export default function ParentDashboard() {
   const isUkKs4    = needsSubjectSelection(newCurriculum, newGrade);
   const isUkKs2    = newCurriculum === "uk_national" && Number(newGrade) >= 3 && Number(newGrade) <= 6;
   const provInfo   = isCanadian && newProvince ? CANADIAN_PROVINCES.find(p => p.code === newProvince) : null;
+
+  // ── School autocomplete search ──────────────────────────────────────────
+  useEffect(() => {
+    if (schoolSearch.length < 2) { setSchoolResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await supabase.from("schools")
+          .select("id, name, region, country, school_type")
+          .ilike("name", `%${schoolSearch}%`)
+          .limit(8);
+        setSchoolResults(data || []);
+        setSchoolDropOpen(true);
+      } catch { setSchoolResults([]); }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [schoolSearch, supabase]);
+
+  const selectSchool = (school) => {
+    setNewSchoolId(school.id);
+    setSchoolSearch(school.name);
+    setSchoolDropOpen(false);
+  };
+
+  const clearSchool = () => {
+    setNewSchoolId(null);
+    setSchoolSearch("");
+    setSchoolResults([]);
+    setCreatingSchool(false);
+  };
+
+  // Map curriculum to country code for school creation
+  const curriculumCountry = (curr) => {
+    if (!curr) return "GB";
+    if (curr.startsWith("ng_")) return "NG";
+    if (curr.startsWith("ca_")) return "CA";
+    if (curr.startsWith("us_")) return "US";
+    if (curr.startsWith("aus_")) return "AU";
+    if (curr.startsWith("ib_")) return "GB";
+    return "GB";
+  };
+
+  const handleCreateSchool = async () => {
+    if (!newSchoolName.trim()) return;
+    try {
+      const country = curriculumCountry(newCurriculum);
+      const { data, error: insertErr } = await supabase.from("schools").insert([{
+        name: newSchoolName.trim(),
+        region: newSchoolRegion.trim() || null,
+        country,
+        curriculum: newCurriculum,
+        school_type: newSchoolType,
+        verified: false,
+      }]).select().single();
+      if (insertErr) { setError(`Failed to add school: ${insertErr.message}`); return; }
+      if (data) {
+        setNewSchoolId(data.id);
+        setSchoolSearch(data.name);
+        setCreatingSchool(false);
+        setNewSchoolName("");
+        setNewSchoolRegion("");
+      }
+    } catch (err) {
+      setError(`School creation failed: ${err?.message || "Please try again."}`);
+    }
+  };
+
+  // ── School edit autocomplete for existing scholars ──────────────────
+  useEffect(() => {
+    if (editSchoolSearch.length < 2) { setEditSchoolResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await supabase.from("schools")
+          .select("id, name, region, country, school_type")
+          .ilike("name", `%${editSchoolSearch}%`)
+          .limit(8);
+        setEditSchoolResults(data || []);
+        setEditSchoolDropOpen(true);
+      } catch { setEditSchoolResults([]); }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [editSchoolSearch, supabase]);
+
+  const selectEditSchool = (school) => {
+    setEditSchoolId(school.id);
+    setEditSchoolSearch(school.name);
+    setEditSchoolDropOpen(false);
+  };
+
+  const cancelEditSchool = () => {
+    setEditingSchoolFor(null);
+    setEditSchoolId(null);
+    setEditSchoolSearch("");
+    setEditSchoolResults([]);
+    setEditCreatingSchool(false);
+    setEditNewSchoolName("");
+    setEditNewSchoolRegion("");
+  };
+
+  const handleEditCreateSchool = async (scholarCurriculum) => {
+    if (!editNewSchoolName.trim()) return;
+    try {
+      const country = curriculumCountry(scholarCurriculum);
+      const { data, error: insertErr } = await supabase.from("schools").insert([{
+        name: editNewSchoolName.trim(),
+        region: editNewSchoolRegion.trim() || null,
+        country,
+        curriculum: scholarCurriculum,
+        school_type: editNewSchoolType,
+        verified: false,
+      }]).select().single();
+      if (insertErr) { setError(`Failed to add school: ${insertErr.message}`); return; }
+      if (data) {
+        setEditSchoolId(data.id);
+        setEditSchoolSearch(data.name);
+        setEditCreatingSchool(false);
+        setEditNewSchoolName("");
+        setEditNewSchoolRegion("");
+      }
+    } catch (err) {
+      setError(`School creation failed: ${err?.message || "Please try again."}`);
+    }
+  };
+
+  const handleSaveSchoolEdit = async (scholarId) => {
+    if (!editSchoolId) { setError("Please select or create a school."); return; }
+    setSavingSchool(true); setError(null);
+    try {
+      const { error: updateErr } = await supabase.from("scholars")
+        .update({ school_id: editSchoolId })
+        .eq("id", scholarId)
+        .eq("parent_id", user.id);
+      if (updateErr) { setError(`Failed to update school: ${updateErr.message}`); return; }
+      setScholars(prev => prev.map(s => s.id === scholarId ? { ...s, school_id: editSchoolId } : s));
+      cancelEditSchool();
+    } catch (err) {
+      setError(`Something went wrong: ${err?.message || "Please try again."}`);
+    } finally {
+      setSavingSchool(false);
+    }
+  };
+
+  const scholarsMissingSchool = scholars.filter(s => !s.school_id && !s.archived_at);
 
   const toggleSubject = (value) =>
     setSelectedSubjects(prev => prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]);
@@ -803,6 +965,7 @@ export default function ParentDashboard() {
       setError("A scholar with this name already exists. Please choose a different name."); return;
     }
     if (scholars.length >= MAX_SCHOLARS) { setError(`Maximum of ${MAX_SCHOLARS} scholars on your current plan.`); return; }
+    if (!newSchoolId) { setError("Please select or create a school for this scholar."); return; }
     if (newCurriculum === "ng_sss" && !newStream) { setError("Please select a stream for this SSS scholar."); return; }
 
     setIsAdding(true); setError(null);
@@ -820,6 +983,7 @@ export default function ParentDashboard() {
         trade_subject: isNgSss ? (newTrade || null) : null,
         selected_subjects: isUkKs4 && selectedSubjects.length > 0 ? selectedSubjects : null,
         exam_mode: isUkKs2 ? (newExamMode || null) : null,
+        school_id: newSchoolId || null,
         access_code: code,
         total_xp: 0, coins: 0, streak: 0, personal_best: 0, codename: null,
         avatar: { base: "astronaut", background: "🌌" },
@@ -859,7 +1023,8 @@ export default function ParentDashboard() {
         setScholars(prev => [...prev, data]);
         setNewName(""); setNewCurriculum("uk_national"); setNewGrade(1);
         setNewProvince(""); setNewStream(""); setNewTrade("");
-        setSelectedSubjects([]); setNewExamMode(null); setError(null);
+        setSelectedSubjects([]); setNewExamMode(null);
+        setNewSchoolId(null); setSchoolSearch(""); setError(null);
       }
     } catch (err) {
       console.error("[ParentDashboard] Scholar creation error:", err);
@@ -1209,6 +1374,22 @@ export default function ParentDashboard() {
               </details>
             )}
 
+            {/* School missing banner */}
+            {scholarsMissingSchool.length > 0 && (
+              <div className="mb-4 bg-amber-50 border-2 border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                <span className="text-2xl shrink-0">🏫</span>
+                <div className="flex-1">
+                  <p className="font-black text-sm text-amber-900">School info needed</p>
+                  <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                    {scholarsMissingSchool.length === 1
+                      ? `${scholarsMissingSchool[0].name} doesn\u2019t have a school assigned yet.`
+                      : `${scholarsMissingSchool.length} scholars don\u2019t have schools assigned yet.`}
+                    {' '}Click <strong>&quot;Add School&quot;</strong> on their card below to update this.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Scholar grid + Add Scholar card */}
             <div id="scholars-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
 
@@ -1294,6 +1475,124 @@ export default function ParentDashboard() {
                           </span>
                         )}
                       </div>
+
+                      {/* School missing — inline edit */}
+                      {!scholar.school_id && !isArchived && (
+                        editingSchoolFor === scholar.id ? (
+                          <div className="mb-3 bg-amber-50 rounded-lg p-3 border-2 border-amber-200">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">Assign School</p>
+                            {!editCreatingSchool ? (
+                              <>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    placeholder="Type to search for school..."
+                                    value={editSchoolSearch}
+                                    onChange={e => { setEditSchoolSearch(e.target.value); if (editSchoolId) setEditSchoolId(null); }}
+                                    onFocus={() => editSchoolResults.length > 0 && setEditSchoolDropOpen(true)}
+                                    onBlur={() => setTimeout(() => setEditSchoolDropOpen(false), 200)}
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg font-bold text-xs outline-none placeholder:text-slate-400 transition-colors pr-8 ${
+                                      editSchoolId ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200 focus:border-amber-400"
+                                    }`}
+                                  />
+                                  {editSchoolId && (
+                                    <button type="button" onClick={() => { setEditSchoolId(null); setEditSchoolSearch(""); }}
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs font-black">
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                                {editSchoolDropOpen && editSchoolResults.length > 0 && (
+                                  <div className="mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-36 overflow-y-auto z-10 relative">
+                                    {editSchoolResults.map(s => (
+                                      <button key={s.id} type="button"
+                                        onMouseDown={() => selectEditSchool(s)}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0">
+                                        <p className="text-xs font-bold text-slate-800">{s.name}</p>
+                                        <p className="text-[10px] text-slate-400">
+                                          {s.region ? `${s.region}, ` : ""}{s.country} · {s.school_type || "school"}
+                                        </p>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {editSchoolDropOpen && editSchoolSearch.length >= 2 && editSchoolResults.length === 0 && !editSchoolId && (
+                                  <div className="mt-1 bg-white border border-slate-200 rounded-lg p-2">
+                                    <p className="text-[10px] text-slate-500 font-semibold mb-1">No schools found</p>
+                                    <button type="button"
+                                      onMouseDown={() => { setEditCreatingSchool(true); setEditNewSchoolName(editSchoolSearch); setEditSchoolDropOpen(false); }}
+                                      className="text-[10px] font-bold text-amber-700 hover:text-amber-900">
+                                      + Add &quot;{editSchoolSearch}&quot; as new school
+                                    </button>
+                                  </div>
+                                )}
+                                {!editSchoolId && !editSchoolDropOpen && editSchoolSearch.length < 2 && (
+                                  <button type="button" onClick={() => setEditCreatingSchool(true)}
+                                    className="mt-1 text-[10px] font-bold text-amber-600 hover:text-amber-800">
+                                    Can&apos;t find the school? Add it manually
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              /* Create new school inline */
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Add new school</p>
+                                <input placeholder="School name" value={editNewSchoolName}
+                                  onChange={e => setEditNewSchoolName(e.target.value)}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400" />
+                                <input placeholder="Region / City (optional)" value={editNewSchoolRegion}
+                                  onChange={e => setEditNewSchoolRegion(e.target.value)}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400" />
+                                <div className="flex gap-2">
+                                  <select value={editNewSchoolType} onChange={e => setEditNewSchoolType(e.target.value)}
+                                    className="flex-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400">
+                                    <option value="primary">Primary</option>
+                                    <option value="secondary">Secondary</option>
+                                    <option value="all_through">All-through</option>
+                                    <option value="grammar">Grammar</option>
+                                    <option value="independent">Independent</option>
+                                  </select>
+                                  <button type="button" onClick={() => handleEditCreateSchool(scholar.curriculum)}
+                                    disabled={!editNewSchoolName.trim()}
+                                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg transition-colors">
+                                    Add
+                                  </button>
+                                  <button type="button" onClick={() => { setEditCreatingSchool(false); setEditNewSchoolName(""); setEditNewSchoolRegion(""); }}
+                                    className="px-2 py-1.5 text-slate-400 hover:text-slate-600 font-bold text-xs">
+                                    Back
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {editSchoolId && (
+                              <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ School selected</p>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                              <button type="button" onClick={() => handleSaveSchoolEdit(scholar.id)}
+                                disabled={!editSchoolId || savingSchool}
+                                className="flex-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-black text-xs rounded-lg transition-colors">
+                                {savingSchool ? "Saving..." : "Save School"}
+                              </button>
+                              <button type="button" onClick={cancelEditSchool}
+                                className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-700 font-bold text-xs rounded-lg transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { cancelEditSchool(); setEditingSchoolFor(scholar.id); }}
+                            className="w-full mb-3 flex items-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-300 rounded-lg transition-colors text-left"
+                          >
+                            <span className="text-base">🏫</span>
+                            <div className="flex-1">
+                              <p className="text-[10px] font-black text-amber-800">Add School</p>
+                              <p className="text-[9px] text-amber-600 font-semibold">Assign a school to {scholar.name}</p>
+                            </div>
+                            <span className="text-amber-400 text-xs font-black">+</span>
+                          </button>
+                        )
+                      )}
 
                       {/* Access code — compact */}
                       <div className="mb-3 bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 flex justify-between items-center">
@@ -1408,6 +1707,118 @@ export default function ParentDashboard() {
                       {currDef.grades.map(g => <option key={g} value={g}>{currDef.gradeLabel} {g}</option>)}
                     </select>
 
+                    {/* School (required — search or create) */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                        School <span className="text-red-400">*</span>
+                      </label>
+
+                      {!creatingSchool ? (
+                        <>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Type to search for school..."
+                              value={schoolSearch}
+                              onChange={e => { setSchoolSearch(e.target.value); if (newSchoolId) setNewSchoolId(null); }}
+                              onFocus={() => schoolResults.length > 0 && setSchoolDropOpen(true)}
+                              onBlur={() => setTimeout(() => setSchoolDropOpen(false), 200)}
+                              className={`w-full px-3 py-2 bg-slate-50 border rounded-lg font-bold text-sm outline-none placeholder:text-slate-400 transition-colors pr-8 ${
+                                newSchoolId ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200 focus:border-amber-400"
+                              }`}
+                            />
+                            {newSchoolId && (
+                              <button type="button" onClick={clearSchool}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs font-black">
+                                ✕
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Dropdown results */}
+                          {schoolDropOpen && schoolResults.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                              {schoolResults.map(s => (
+                                <button key={s.id} type="button"
+                                  onMouseDown={() => selectSchool(s)}
+                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b border-slate-50 last:border-0 transition-colors">
+                                  <span className="text-sm font-bold text-slate-800">{s.name}</span>
+                                  <span className="block text-[10px] text-slate-400 font-semibold">
+                                    {s.region ? `${s.region}, ` : ""}{s.country} · {s.school_type || "school"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* No results + create prompt */}
+                          {schoolDropOpen && schoolSearch.length >= 2 && schoolResults.length === 0 && !newSchoolId && (
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-center">
+                              <p className="text-xs text-slate-500 font-semibold mb-2">No schools found for &quot;{schoolSearch}&quot;</p>
+                              <button type="button"
+                                onMouseDown={() => { setCreatingSchool(true); setNewSchoolName(schoolSearch); setSchoolDropOpen(false); }}
+                                className="px-3 py-1.5 bg-amber-100 text-amber-800 font-black text-xs rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors">
+                                + Add &quot;{schoolSearch}&quot; as new school
+                              </button>
+                            </div>
+                          )}
+
+                          {newSchoolId && (
+                            <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ School selected</p>
+                          )}
+
+                          {/* Subtle "can't find?" link */}
+                          {!newSchoolId && !schoolDropOpen && (
+                            <button type="button" onClick={() => setCreatingSchool(true)}
+                              className="text-[10px] text-amber-600 font-bold mt-1 hover:underline">
+                              Can&apos;t find the school? Add it manually
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        /* ── Create new school inline form ── */
+                        <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Add new school</p>
+                          <input
+                            type="text"
+                            placeholder="School name"
+                            value={newSchoolName}
+                            onChange={e => setNewSchoolName(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400"
+                          />
+                          <input
+                            type="text"
+                            placeholder="City / Region (e.g. Lagos, London, Toronto)"
+                            value={newSchoolRegion}
+                            onChange={e => setNewSchoolRegion(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400"
+                          />
+                          <div className="flex gap-2">
+                            <select value={newSchoolType} onChange={e => setNewSchoolType(e.target.value)}
+                              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer">
+                              <option value="primary">Primary</option>
+                              <option value="secondary">Secondary</option>
+                              <option value="mixed">Mixed / All-through</option>
+                            </select>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-semibold">
+                            Country auto-detected from curriculum: <strong>{curriculumCountry(newCurriculum)}</strong>
+                          </p>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={handleCreateSchool}
+                              disabled={!newSchoolName.trim()}
+                              className="flex-1 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-lg border-b-2 border-amber-700 disabled:opacity-50 transition-all">
+                              Add School
+                            </button>
+                            <button type="button" onClick={() => { setCreatingSchool(false); setNewSchoolName(""); setNewSchoolRegion(""); }}
+                              className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Canadian province selector */}
                     {isCanadian && (
                       <>
@@ -1517,7 +1928,7 @@ export default function ParentDashboard() {
                       );
                     })()}
 
-                    <button type="submit" disabled={isAdding || !newName.trim() || (isNgSss && !newStream)}
+                    <button type="submit" disabled={isAdding || !newName.trim() || !newSchoolId || (isNgSss && !newStream)}
                       className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
                       {isAdding ? "Creating…" : "Create Scholar"}
                     </button>

@@ -92,6 +92,12 @@ export async function sendStreakMilestoneEmail({ parentEmail, parentName, schola
   return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
 }
 
+export async function sendSchoolReminderEmail({ parentEmail, parentName, scholarNames }) {
+  const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
+  const t = EMAIL_TEMPLATES.schoolReminder(parentName, scholarNames);
+  return sendEmail({ to: parentEmail, subject: t.subject, htmlContent: t.htmlContent });
+}
+
 export async function sendPasswordResetEmail({ parentEmail, parentName, resetUrl }) {
   const { EMAIL_TEMPLATES } = await import('./emailTemplates.js');
   const t = EMAIL_TEMPLATES.passwordReset(parentName, resetUrl);

@@ -20,6 +20,7 @@ import { NVRShapeRotationVis, NVRCodeVis, NVRPlanElevationVis } from "./NVRVisua
 import { FlowchartVis, BinaryVis, BooleanLogicVis, NetworkDiagramVis, CodeBlockVis, SortingVis, DatabaseTableVis, HTMLStructureVis } from "./ComputingVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 import InteractiveGraph from "./InteractiveGraph";
+import JSXGraphBoard, { createLinearGraphProps, createQuadraticGraphProps, createTrigGraphProps, createGeometryProps, createSliderExplorerProps } from "./JSXGraphBoard";
 import DataTable from "./DataTable";
 import LongMultiplication from "./LongMultiplication";
 
@@ -424,6 +425,80 @@ function CountingVis({ count }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// OBJECT GROUPS — coloured physical objects (bricks, beads, marbles, etc.)
+// ═══════════════════════════════════════════════════════════════════════════════
+const OBJ_COLOUR_MAP = {
+  red: "#ef4444", blue: "#3b82f6", green: "#22c55e", yellow: "#eab308",
+  orange: "#f97316", purple: "#a855f7", pink: "#ec4899", white: "#f1f5f9",
+  black: "#1e293b", brown: "#92400e", grey: "#94a3b8", gray: "#94a3b8",
+  striped: "#6366f1", spotted: "#f59e0b",
+};
+const OBJ_SHAPE_MAP = {
+  brick: (cx, cy, r, fill) => <rect x={cx-r} y={cy-r*0.6} width={r*2} height={r*1.2} rx={3} fill={fill} stroke="#0002" strokeWidth={1} />,
+  bead: (cx, cy, r, fill) => <><circle cx={cx} cy={cy} r={r} fill={fill} stroke="#0002" strokeWidth={1} /><ellipse cx={cx-r*0.25} cy={cy-r*0.25} rx={r*0.3} ry={r*0.2} fill="#fff4" /></>,
+  marble: (cx, cy, r, fill) => <><circle cx={cx} cy={cy} r={r} fill={fill} stroke="#0002" strokeWidth={1} /><circle cx={cx-r*0.3} cy={cy-r*0.3} r={r*0.25} fill="#fff3" /></>,
+  ball: (cx, cy, r, fill) => <><circle cx={cx} cy={cy} r={r} fill={fill} stroke="#0002" strokeWidth={1} /><ellipse cx={cx-r*0.25} cy={cy-r*0.25} rx={r*0.3} ry={r*0.2} fill="#fff4" /></>,
+  star: (cx, cy, r, fill) => { const pts = Array.from({length:5},(_,i)=>{const a1=(i*72-90)*Math.PI/180;const a2=((i*72+36)-90)*Math.PI/180;const oR=r;const iR=r*0.4;return`${cx+oR*Math.cos(a1)},${cy+oR*Math.sin(a1)} ${cx+iR*Math.cos(a2)},${cy+iR*Math.sin(a2)}`;}).join(' '); return <polygon points={pts} fill={fill} stroke="#0002" strokeWidth={1}/>; },
+};
+const defaultObjShape = (cx, cy, r, fill) => <circle cx={cx} cy={cy} r={r} fill={fill} stroke="#0002" strokeWidth={1} />;
+
+function ObjectGroupsVis({ groups, total, operation }) {
+  if (!groups || groups.length === 0) return null;
+  const maxPerRow = 6;
+  const dotR = total <= 10 ? 10 : total <= 15 ? 8 : 6;
+  const gap = dotR * 2.6;
+  const groupPad = 12;
+  // Layout each group side by side
+  let globalX = groupPad;
+  const renderedGroups = groups.map((g, gi) => {
+    const cols = Math.min(g.count, maxPerRow);
+    const rows = Math.ceil(g.count / maxPerRow);
+    const gw = cols * gap;
+    const gh = rows * gap;
+    const x0 = globalX;
+    globalX += gw + groupPad;
+    const fill = OBJ_COLOUR_MAP[g.color] || "#6366f1";
+    const shapeFn = OBJ_SHAPE_MAP[g.object] || defaultObjShape;
+    const items = Array.from({ length: g.count }, (_, i) => {
+      const col = i % maxPerRow;
+      const row = Math.floor(i / maxPerRow);
+      const cx = x0 + gap / 2 + col * gap;
+      const cy = groupPad + gap / 2 + row * gap;
+      return <g key={`${gi}-${i}`}>{shapeFn(cx, cy, dotR, fill)}</g>;
+    });
+    const labelX = x0 + gw / 2;
+    const labelY = groupPad + rows * gap + 14;
+    return (
+      <g key={gi}>
+        {items}
+        <text x={labelX} y={labelY} textAnchor="middle" fontSize={9} fontWeight={700} fill={fill}>
+          {g.count} {g.color}
+        </text>
+      </g>
+    );
+  });
+  const maxRows = Math.max(...groups.map(g => Math.ceil(g.count / maxPerRow)));
+  const svgW = globalX;
+  const svgH = groupPad + maxRows * gap + 24;
+  const opLabel = operation === "add" ? `${groups.map(g => g.count).join(" + ")} = ?`
+    : operation === "subtract" ? `${groups[0]?.count} − ${groups[1]?.count} = ?`
+    : `${total} objects`;
+  return (
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}>
+      <svg width={Math.min(svgW, 260)} height={Math.min(svgH, 140)} viewBox={`0 0 ${svgW} ${svgH}`}>
+        {renderedGroups}
+        {operation === "add" && groups.length >= 2 && (
+          <text x={svgW / 2} y={svgH - 2} textAnchor="middle" fontSize={10} fontWeight={800} fill={T.indigo}>+</text>
+        )}
+      </svg>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.indigo, textAlign: "center", marginTop: 2 }}>
+        {opLabel}
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // NVR VISUAL — shape sequences
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -609,21 +684,53 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   // ── MATHS ────────────────────────────────────────────────────────────────
   if (!subj.includes("math")) return null;
 
-  if ((t.includes("count") || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
-    const n = nums[0];
-    if (n && n <= 25) return { type: "counting", count: n };
-    // If no number in question text, try to infer from the correct answer option
-    if (!n && question?.opts?.length) {
-      const correctIdx = question?.a ?? 0;
-      const ansNum = parseInt(question.opts[correctIdx], 10);
-      if (ansNum && ansNum <= 25) return { type: "counting", count: ansNum };
-    }
+  // ── KS1 OBJECT GROUPS — "4 red bricks and 5 blue bricks", "5 green beads and 4 yellow beads" ──
+  // Must run BEFORE counting detection to avoid "4 bricks" → counting=4
+  const COLOURS = "red|blue|green|yellow|orange|purple|pink|white|black|brown|grey|gray|striped|spotted";
+  const OBJECTS = "brick|bead|marble|ball|sweet|sweet|button|block|cube|counter|stone|sticker|flower|apple|banana|car|toy|star|shell|coin|lego|pencil|crayon|egg|sock|bear|fish|bird|frog|bug|ant|spider|butterfly|ladybird|cat|dog";
+  const objGroupRx = new RegExp(`(\\d+)\\s+(?:${COLOURS})\\s+(?:${OBJECTS})s?`, "gi");
+  const objGroups = [...(questionStr || "").matchAll(objGroupRx)];
+  if (objGroups.length >= 2 && yearLevel <= 4) {
+    // Extract color and object from each match
+    const colRx = new RegExp(`(${COLOURS})`, "i");
+    const objRx = new RegExp(`(${OBJECTS})s?`, "i");
+    const groups = objGroups.map(m => ({
+      count: parseInt(m[1]),
+      color: (m[0].match(colRx) || [])[1]?.toLowerCase() || "blue",
+      object: (m[0].match(objRx) || [])[1]?.toLowerCase() || "brick",
+    }));
+    const total = groups.reduce((s, g) => s + g.count, 0);
+    const isAddition = /altogether|total|in all|how many|add/i.test(questionStr);
+    const isSubtraction = /more than|fewer|less than|difference|take away|left/i.test(questionStr);
+    return {
+      type: "object_groups",
+      groups,
+      total,
+      operation: isSubtraction ? "subtract" : isAddition ? "add" : "show",
+    };
   }
 
+  // ── EXPLICIT ADDITION (with + symbol) ───────────────────────────────────
   const addMatch = (questionStr || "").match(/(\d+)\s*[+＋]\s*(\d+)/);
   if (addMatch) {
     const a = parseInt(addMatch[1]), b = parseInt(addMatch[2]);
     if (a + b <= 20 && yearLevel <= 2) return { type: "addition", a, b };
+  }
+
+  // ── COUNTING (only when NOT a word problem with 2+ numbers) ─────────────
+  if ((t.includes("count") || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
+    // Skip counting if this looks like an addition/subtraction word problem
+    const hasMultipleNums = nums.length >= 2;
+    const isWordProblem = /altogether|total|in all|more|left|take away|add|join/i.test(questionStr);
+    if (!hasMultipleNums || !isWordProblem) {
+      const n = nums[0];
+      if (n && n <= 25) return { type: "counting", count: n };
+      if (!n && question?.opts?.length) {
+        const correctIdx = question?.a ?? 0;
+        const ansNum = parseInt(question.opts[correctIdx], 10);
+        if (ansNum && ansNum <= 25) return { type: "counting", count: ansNum };
+      }
+    }
   }
   if (t.includes("number_bond") && nums.length >= 1) {
     const whole = Math.max(...nums.slice(0,3));
@@ -632,6 +739,23 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
       return { type: "number_bond", whole, partA: parts[0], partB: null };
     }
     return { type: "number_bond", whole, partA: null, partB: null };
+  }
+
+  // ── SEQUENCE / ORDERING — "which number comes after/before", "what comes next", "order these" ─
+  const isSequenceQ = /(?:comes?\s+(?:immediately\s+)?(?:after|before|next|between))|(?:what\s+(?:comes?|is)\s+(?:next|after|before))|(?:order|arrange|sort|sequence|ascending|descending|(?:smallest|largest|biggest)\s+to\s+(?:smallest|largest|biggest))/i.test(questionStr);
+  const isChartDisplayQ = /(?:chart|list|table|sequence|pattern)\s+(?:displays?|shows?|contains?|has)/i.test(questionStr);
+  if ((isSequenceQ || isChartDisplayQ) && nums.length >= 3) {
+    const sorted = [...nums].sort((a, b) => a - b);
+    const min = sorted[0], max = sorted[sorted.length - 1];
+    const step = sorted.length >= 2 ? sorted[1] - sorted[0] : 1;
+    // Use number_line to show the sequence context
+    return {
+      type: "number_line",
+      min: Math.max(0, min - step),
+      max: max + step,
+      marked: nums,
+      label: isSequenceQ ? "Number sequence" : "Numbers shown",
+    };
   }
 
   const subMatch = (questionStr || "").match(/(\d+)\s*[−\-–]\s*(\d+)/)
@@ -643,7 +767,9 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
 
   // ── WORD PROBLEM DETECTION (Y1/Y2) ────────────────────────────────────────
   const isComparisonQ = /which is greater|which is (?:bigger|larger|more|less|smaller)|greater than|less than|compare|more than|fewer than/i.test(questionStr);
-  if (!isComparisonQ && yearLevel <= 2 && nums.length >= 2) {
+  // Allow word problems even when isChartDisplayQ matched but had <3 numbers (so sequence didn't fire)
+  const chartBlockedByNums = isChartDisplayQ && nums.length < 3;
+  if (!isComparisonQ && !isSequenceQ && (!isChartDisplayQ || chartBlockedByNums) && yearLevel <= 2 && nums.length >= 2) {
     const a = nums[0], b = nums[1];
     const takeAwayMatch = (questionStr || "").match(/take away\s+(\d+)\s+from\s+(\d+)/i)
       || (questionStr || "").match(/subtract\s+(\d+)\s+from\s+(\d+)/i);
@@ -2266,7 +2392,11 @@ export function resolveVisual(question, subject, yearLevel) {
     }
   }
 
-  return parseVisual(topicStr, questionStr, enrichedSubject, year, question);
+  // Extended parser — handles number line, bar chart, coordinates, angles, data tables, etc.
+  const ext = parseVisualExtended(topicStr, questionStr, enrichedSubject, year, question);
+  if (ext) return ext;
+
+  return null;
 }
 
 export function canVisualise(question, subject, yearLevel) {
@@ -2292,6 +2422,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "number_bond":      return `Number bond: ${visual.whole} splits into ${visual.partA} and ${visual.partB}`;
       case "place_value":      return `Place value: ${visual.tens} tens and ${visual.ones} ones`;
       case "counting":         return `Counting visual: ${visual.count} objects`;
+      case "object_groups":    return `${visual.groups?.map(g => `${g.count} ${g.color} ${g.object}s`).join(" and ")}${visual.operation === "add" ? " — how many altogether?" : ""}`;
       case "clock":            return `Clock showing ${visual.hours}:${String(visual.minutes||0).padStart(2,'0')}`;
       case "money":            return `Money visual: ${visual.total}p in coins`;
       case "ruler":            return `Ruler measuring ${visual.cm} centimetres`;
@@ -2382,6 +2513,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "fraction":        return <FractionVis       {...visual} />;
       case "number_bond":     return <NumberBondVis     {...visual} />;
       case "counting":        return <CountingVis       {...visual} />;
+      case "object_groups":   return <ObjectGroupsVis   {...visual} />;
       case "nvr":             return <NVRVis            {...visual} />;
       case "nvr_reflection":  return <NVRReflectionVis  {...visual} />;
       case "nvr_shape_reflection": return <NVRShapeReflectionVis shape={visual.shape} horizontal={visual.horizontal} direction={visual.direction} />;
@@ -2482,6 +2614,28 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "sorting":            return <SortingVis values={visual.values} algorithm={visual.algorithm} highlightIdx={visual.highlightIdx} />;
       case "database_table":     return <DatabaseTableVis tableName={visual.tableName} fields={visual.fields} records={visual.records} />;
       case "html_structure":     return <HTMLStructureVis tag={visual.tag} children={visual.children} />;
+
+      // ── JSXGraph interactive visual types ──────────────────────────────
+      case "jsxgraph":           return <JSXGraphBoard {...visual} ageBand={ageBand} />;
+      case "jsxgraph_function":  return <JSXGraphBoard mode="function" functions={visual.functions || [{ expr: visual.equation || visual.expr }]} xRange={visual.xRange} yRange={visual.yRange} ageBand={ageBand} title={visual.title} readOnly={visual.readOnly} />;
+      case "jsxgraph_quadratic": {
+        const qp = createQuadraticGraphProps(visual.a ?? 1, visual.b ?? 0, visual.c ?? 0, { ageBand });
+        return <JSXGraphBoard {...qp} title={visual.title} readOnly={visual.readOnly} />;
+      }
+      case "jsxgraph_trig": {
+        const tp = createTrigGraphProps(visual.fnType || "sin", visual.amplitude ?? 1, visual.period ?? 1, { ageBand });
+        return <JSXGraphBoard {...tp} title={visual.title} readOnly={visual.readOnly} />;
+      }
+      case "jsxgraph_geometry":  return <JSXGraphBoard mode="geometry" elements={visual.elements || []} xRange={visual.xRange} yRange={visual.yRange} ageBand={ageBand} title={visual.title} readOnly={visual.readOnly} />;
+      case "jsxgraph_slider": {
+        const sp = createSliderExplorerProps(visual.expr || visual.equation || "x^2", visual.sliders || [], { ageBand });
+        return <JSXGraphBoard {...sp} title={visual.title} readOnly={visual.readOnly} />;
+      }
+      case "jsxgraph_simultaneous": {
+        const fns = (visual.equations || []).map(eq => ({ expr: eq, label: eq }));
+        return <JSXGraphBoard mode="function" functions={fns} xRange={visual.xRange || [-8, 8]} yRange={visual.yRange || [-8, 8]} ageBand={ageBand} title={visual.title || "Simultaneous Equations"} readOnly={visual.readOnly} />;
+      }
+
       default:                return null;
     }
   })();
@@ -2657,20 +2811,26 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     );
   }
 
-  const mx = marked != null ? toX(marked) : null;
+  // Support marked as single number OR array of numbers (for sequences)
+  const markedArr = Array.isArray(marked) ? marked : (marked != null ? [marked] : []);
+  const MARK_COLOURS = [T.amber, T.indigo, T.nebula, T.emerald, "#f43f5e", "#a78bfa"];
   return (
     <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.amber} strokeWidth={2.5} className="vis-axis"/>
         <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.amber}/>
         {ticks}
-        {mx != null && (
-          <g className="vis-mark">
-            <circle cx={mx} cy={37} r={6} fill={T.amber}/>
-            <text x={mx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.amber}>{marked}</text>
-            <line x1={mx} y1={25} x2={mx} y2={31} stroke={T.amber} strokeWidth={1.5}/>
-          </g>
-        )}
+        {markedArr.map((val, i) => {
+          const mx = toX(val);
+          const col = MARK_COLOURS[i % MARK_COLOURS.length];
+          return (
+            <g key={i} className="vis-mark">
+              <circle cx={mx} cy={37} r={markedArr.length > 1 ? 5 : 6} fill={col}/>
+              <text x={mx} y={24} textAnchor="middle" fontSize={markedArr.length > 3 ? 8 : 9} fontWeight="800" fill={col}>{val}</text>
+              <line x1={mx} y1={25} x2={mx} y2={31} stroke={col} strokeWidth={1.5}/>
+            </g>
+          );
+        })}
       </svg>
       {label && <Chip color={T.amber} bg="white">{label}</Chip>}
     </Panel>
@@ -2756,7 +2916,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
 
   // ── SIMULTANEOUS EQUATIONS / COORDINATE GRAPH ────────────────────────────
   // Triggers: "simultaneous", "y = mx + c", "graph of", "plot the line"
-  if (topicStr.includes("simultaneous") || topicStr.includes("linear_graph") || topicStr.includes("graphs_linear") ||
+  if (t.includes("simultaneous") || t.includes("linear_graph") || t.includes("graphs_linear") ||
       /simultaneous|solve.*graphically|plot.*(?:y\s*=)|graph.*(?:y\s*=)/i.test(questionStr)) {
     const eqMatches = [...(questionStr || "").matchAll(/y\s*=\s*[+-]?\d*\.?\d*\s*x\s*[+-]?\s*\d+\.?\d*/gi)];
     if (eqMatches.length >= 1) {
@@ -2787,7 +2947,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── LONG MULTIPLICATION — "multiply 234 × 56", "long multiplication" ───
-  if (topicStr.includes("long_multiplication") || topicStr.includes("multiplication_2digit") || topicStr.includes("multiplication_3digit") ||
+  if (t.includes("long_multiplication") || t.includes("multiplication_2digit") || t.includes("multiplication_3digit") ||
       /long multiplication|partial products|column multiplication/i.test(questionStr)) {
     const mulMatch = (questionStr || "").match(/(\d{2,4})\s*[×x]\s*(\d{2,4})/i);
     if (mulMatch) {
@@ -2798,13 +2958,80 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
     }
   }
 
+  // ── JSXGraph TRIGONOMETRIC — "sin", "cos", "tan", "trigonometric graph" ─
+  if (/trigonometric.*graph|graph.*(?:sin|cos|tan)|sketch.*(?:sin|cos|tan)|y\s*=\s*\d*\s*(?:sin|cos|tan)\s*\(?/i.test(questionStr) ||
+      t.includes("trig") && /graph|sketch|plot|draw/i.test(questionStr)) {
+    const fnMatch = (questionStr || "").match(/(?:sin|cos|tan)/i);
+    const fnType = fnMatch ? fnMatch[0].toLowerCase() : "sin";
+    const ampMatch = (questionStr || "").match(/(\d+)\s*(?:sin|cos|tan)/i);
+    const amplitude = ampMatch ? parseFloat(ampMatch[1]) : 1;
+    const perMatch = (questionStr || "").match(/(?:sin|cos|tan)\s*\(?\s*(\d+)/i);
+    const period = perMatch ? parseFloat(perMatch[1]) : 1;
+    return { type: "jsxgraph_trig", fnType, amplitude, period, title: `y = ${amplitude === 1 ? "" : amplitude}${fnType}(${period === 1 ? "" : period}x)` };
+  }
+
+  // ── JSXGraph QUADRATIC (interactive) — "y = ax² + bx + c", "sketch the parabola" ─
+  if (/sketch.*(?:parabola|quadratic)|interactive.*quadratic|drag.*(?:vertex|parabola)|explore.*quadratic/i.test(questionStr) ||
+      (t.includes("quadratic") && /sketch|graph|plot|draw|explore/i.test(questionStr))) {
+    const coeffMatch = (questionStr || "").match(/(-?\d*\.?\d*)x\s*[²^2]+\s*([+-]\s*\d*\.?\d*)x?\s*([+-]\s*\d+\.?\d*)?/i);
+    let a = 1, b = 0, c = 0;
+    if (coeffMatch) {
+      a = coeffMatch[1] ? parseFloat(coeffMatch[1].replace(/\s/g, "")) : 1;
+      b = coeffMatch[2] ? parseFloat(coeffMatch[2].replace(/\s/g, "")) : 0;
+      c = coeffMatch[3] ? parseFloat(coeffMatch[3].replace(/\s/g, "")) : 0;
+    }
+    return { type: "jsxgraph_quadratic", a, b, c };
+  }
+
+  // ── JSXGraph GEOMETRY CONSTRUCTION — "construct", "bisect", "perpendicular" ─
+  if (/construct.*(?:triangle|perpendicular|bisector|circle)|bisect.*angle|locus|geometric.*construction/i.test(questionStr) ||
+      (t.includes("construction") || t.includes("loci")) && subj.includes("math")) {
+    const elems = [];
+    const coordPairs = [...(questionStr || "").matchAll(/\((-?\d+),\s*(-?\d+)\)/g)];
+    coordPairs.forEach((m, i) => {
+      elems.push({ type: "point", coords: [parseFloat(m[1]), parseFloat(m[2])], name: String.fromCharCode(65 + i), draggable: true });
+    });
+    if (coordPairs.length >= 3) {
+      elems.push({ type: "polygon", vertices: coordPairs.map((_, i) => String.fromCharCode(65 + i)) });
+    }
+    return { type: "jsxgraph_geometry", elements: elems.length ? elems : [
+      { type: "point", coords: [-3, -2], name: "A", draggable: true },
+      { type: "point", coords: [3, -2], name: "B", draggable: true },
+      { type: "point", coords: [0, 3], name: "C", draggable: true },
+      { type: "polygon", vertices: ["A", "B", "C"] },
+    ]};
+  }
+
+  // ── JSXGraph SLIDER EXPLORER — "explore how a/b/c changes the graph" ──
+  if (/explore.*(?:parameter|slider|coefficient)|how.*(?:changing|varying).*(?:a|b|c|m|k).*affect/i.test(questionStr) ||
+      t.includes("graph_transform") || t.includes("function_transform")) {
+    const expr = (questionStr || "").match(/y\s*=\s*([^,.\n]+)/i)?.[1]?.trim() || "a*x^2 + b*x + c";
+    return {
+      type: "jsxgraph_slider",
+      expr,
+      sliders: [
+        { name: "a", min: -5, max: 5, value: 1 },
+        { name: "b", min: -5, max: 5, value: 0 },
+        { name: "c", min: -10, max: 10, value: 0 },
+      ],
+    };
+  }
+
+  // ── JSXGraph SIMULTANEOUS (interactive upgrade) — already coordinate_graph but if interactive requested ─
+  if (/interactive.*simultaneous|drag.*(?:intersection|line)|simultaneous.*interactive/i.test(questionStr)) {
+    const eqMatches = [...(questionStr || "").matchAll(/y\s*=\s*[+-]?\d*\.?\d*\s*x\s*[+-]?\s*\d+\.?\d*/gi)];
+    if (eqMatches.length >= 1) {
+      return { type: "jsxgraph_simultaneous", equations: eqMatches.map(m => m[0].trim()) };
+    }
+  }
+
   // ── INTERACTIVE PLOT — "plot the coordinates", "plot these points" ──────
   if (/plot.*(?:point|coordinate)|place.*(?:point|coordinate).*grid|mark.*point.*grid/i.test(questionStr)) {
     return { type: "interactive_plot", equation: null };
   }
 
   // ── COORDINATES ────────────────────────────────────────────────────────────
-  if (topicStr.includes("coord") || topicStr.includes("plot") || /\(\s*-?\d+\s*,\s*-?\d+\s*\)/.test(questionStr)) {
+  if (t.includes("coord") || t.includes("plot") || /\(\s*-?\d+\s*,\s*-?\d+\s*\)/.test(questionStr)) {
     const ptMatches = [...(questionStr||"").matchAll(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)];
     if (ptMatches.length) {
       const points = ptMatches.map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]) }));
@@ -2817,9 +3044,26 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── NUMBER LINE ────────────────────────────────────────────────────────────
-  if (topicStr.includes("number_line") || topicStr.includes("rounding") || topicStr.includes("round") ||
+  if (t.includes("number_line") || t.includes("rounding") || t.includes("round") ||
       /round.*nearest|nearest.*\d+|number line/i.test(questionStr)) {
+    // "number line from X to Y" or "number line 1 to 10"
+    const rangeMatch = (questionStr || "").match(/number line.*?(\d+)\s*to\s*(\d+)/i)
+                    || (questionStr || "").match(/from\s+(\d+)\s+to\s+(\d+)/i);
+    if (rangeMatch) {
+      const lo = parseInt(rangeMatch[1]), hi = parseInt(rangeMatch[2]);
+      const marked = nums.filter(n => n >= lo && n <= hi);
+      return { type: "number_line", min: lo, max: hi, marked: marked.length ? marked : [lo, hi],
+        label: `${lo} to ${hi}` };
+    }
     const pos = nums.filter(n => n >= 0);
+    if (pos.length >= 2 && !(/round|nearest/i.test(questionStr))) {
+      // Two numbers mentioned — use them as range bounds
+      const lo = Math.min(...pos), hi = Math.max(...pos);
+      if (hi - lo <= 100 && hi - lo >= 2) {
+        return { type: "number_line", min: lo, max: hi, marked: pos,
+          label: `${lo} to ${hi}` };
+      }
+    }
     if (pos.length >= 1) {
       const val  = pos[0];
       // round to nearest 10 or 100
@@ -2832,7 +3076,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── VENN DIAGRAM ──────────────────────────────────────────────────────────
-  if (topicStr.includes("venn") || topicStr.includes("set") || /factors? of|multiples? of|venn/i.test(questionStr)) {
+  if (t.includes("venn") || t.includes("set") || /factors? of|multiples? of|venn/i.test(questionStr)) {
     // Multiples/factors Venn: "factors of 12 and factors of 18"
     const factorMatch = (questionStr||"").match(/factors? of (\d+) and factors? of (\d+)/i);
     const multipleMatch = (questionStr||"").match(/multiples? of (\d+) and multiples? of (\d+)/i);
@@ -2853,7 +3097,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── BAR CHART ──────────────────────────────────────────────────────────────
-  if (topicStr.includes("bar_chart") || topicStr.includes("pictogram") || topicStr.includes("statistics") || topicStr.includes("tally") ||
+  if (t.includes("bar_chart") || t.includes("pictogram") || t.includes("statistics") || t.includes("tally") ||
       /bar chart|how many more|frequency/i.test(questionStr)) {
     // Try to parse: "Mon: 5, Tue: 8, Wed: 3" or "apples: 6, bananas: 4"
     const barMatch = [...(questionStr||"").matchAll(/([A-Za-z][A-Za-z ]{0,10}):\s*(\d+)/g)];
@@ -2863,8 +3107,28 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
     }
   }
 
+  // ── KS1 CHART WITH COLOURED OBJECTS — "chart shows 5 green beads and 4 yellow beads" ──
+  if (/chart|tally|pictogram/i.test(questionStr) && nums.length >= 2 && nums.length < 3) {
+    const COLOURS = "red|blue|green|yellow|orange|purple|pink|white|black|brown";
+    const colourRx = new RegExp(`(\\d+)\\s+(${COLOURS})\\s+(\\w+)`, "gi");
+    const colourGroups = [...(questionStr || "").matchAll(colourRx)];
+    if (colourGroups.length >= 2) {
+      const bars = colourGroups.slice(0, 6).map(m => ({
+        label: `${m[2]} ${m[3]}`.trim(), value: parseInt(m[1]),
+      }));
+      return { type: "bar_chart", bars };
+    }
+    // Fallback: just use the numbers with generic labels
+    if (nums.length === 2) {
+      return { type: "bar_chart", bars: [
+        { label: "Group 1", value: nums[0] },
+        { label: "Group 2", value: nums[1] },
+      ]};
+    }
+  }
+
   // ── ANGLES ────────────────────────────────────────────────────────────────
-  if (topicStr.includes("angle") || topicStr.includes("geometry") ||
+  if (t.includes("angle") || t.includes("geometry") ||
       /acute|obtuse|reflex|right angle|\d+\s*°|\d+\s*degrees/i.test(questionStr)) {
 
     // Multi-angle scenarios — "angles on a straight line"
@@ -2909,10 +3173,10 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
 
       // NVR enhanced visuals
   if (isNVR) {
-    const nvrExt = parseNVRExt(topicStr, questionStr, year);
+    const nvrExt = parseNVRExt(t, questionStr, year);
     if (nvrExt) return nvrExt;
   }
- 
+
     // Generate punch positions based on question content
     const punches = /corner/i.test(questionStr) ? [[0.8, 0.2]]
       : /centre|center|middle/i.test(questionStr) ? [[0.5, 0.5]]
@@ -2922,7 +3186,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── AREA / PERIMETER ──────────────────────────────────────────────────────
-  if ((topicStr.includes("area") || topicStr.includes("perimeter")) && subj.includes("math")) {
+  if ((t.includes("area") || t.includes("perimeter")) && subj.includes("math")) {
     // Match "5cm × 6cm", "5 by 6", "5x6", "3m × 4m" — allow optional unit suffix on first number
     const byMatch = (questionStr||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:by|×|x)\s*(\d+)/i);
     const lwMatch = (questionStr||"").match(/length[^\d]*(\d+)[^\d]*width[^\d]*(\d+)/i);
@@ -2932,35 +3196,35 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
       const w = parseInt(m[1]), h = parseInt(m[2]);
       // Cap at 12×10 so the grid stays renderable
       if (w<=12 && h<=10 && w>0 && h>0)
-        return { type:"area", width:w, height:h, mode: topicStr.includes("perim") ? "perimeter" : "area" };
+        return { type:"area", width:w, height:h, mode: t.includes("perim") ? "perimeter" : "area" };
     }
   }
 
   // ── FORMULA TRIANGLE ──────────────────────────────────────────────────────
   if (subj.includes("physics") || subj.includes("science") || subj.includes("chemistry")) {
     // Speed/distance/time
-    if (/speed|distance|time|v\s*=|s\s*=|d\s*=|t\s*=/.test(q) && topicStr.includes("speed") || topicStr.includes("distance") || topicStr.includes("velocity")) {
+    if (/speed|distance|time|v\s*=|s\s*=|d\s*=|t\s*=/.test(q) && t.includes("speed") || t.includes("distance") || t.includes("velocity")) {
       const unknown = /find.*speed|what.*speed|calculat.*speed/i.test(questionStr) ? "top"
         : /find.*distance|what.*distance/i.test(questionStr) ? "left"
         : /find.*time|what.*time/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"v", left:"d", right:"t", unknown, title:"Speed = Distance ÷ Time" };
     }
     // Force = mass × acceleration
-    if (/force|mass|acceleration|f\s*=|m\s*=|a\s*=/.test(q) && (topicStr.includes("f_ma") || topicStr.includes("newton"))) {
+    if (/force|mass|acceleration|f\s*=|m\s*=|a\s*=/.test(q) && (t.includes("f_ma") || t.includes("newton"))) {
       const unknown = /find.*force/i.test(questionStr) ? "top"
         : /find.*mass/i.test(questionStr) ? "left"
         : /find.*accel/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"F", left:"m", right:"a", unknown, title:"F = m × a" };
     }
     // Power = current × voltage
-    if (/power|current|voltage|p\s*=|i\s*=|v\s*=/.test(q) && topicStr.includes("power")) {
+    if (/power|current|voltage|p\s*=|i\s*=|v\s*=/.test(q) && t.includes("power")) {
       const unknown = /find.*power/i.test(questionStr) ? "top"
         : /find.*current/i.test(questionStr) ? "left"
         : /find.*voltage/i.test(questionStr) ? "right" : null;
       return { type:"formula_triangle", top:"P", left:"I", right:"V", unknown, title:"P = I × V" };
     }
     // Density = mass / volume
-    if (/density|mass|volume/.test(q) && topicStr.includes("density")) {
+    if (/density|mass|volume/.test(q) && t.includes("density")) {
       const unknown = /find.*density/i.test(questionStr) ? "top"
         : /find.*mass/i.test(questionStr) ? "left"
         : /find.*volume/i.test(questionStr) ? "right" : null;
@@ -2970,7 +3234,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
 
   // ── MOTION GRAPH ──────────────────────────────────────────────────────────
   if ((subj.includes("physics") || subj.includes("science")) &&
-      (topicStr.includes("distance_time") || topicStr.includes("velocity_time") || topicStr.includes("motion_graph") ||
+      (t.includes("distance_time") || t.includes("velocity_time") || t.includes("motion_graph") ||
        /distance.time graph|velocity.time graph|d-t graph|v-t graph/i.test(questionStr))) {
     const motionType = /velocity.time|v.t graph/i.test(questionStr) ? "velocity_time" : "distance_time";
     const curveType = /constant speed|uniform/i.test(questionStr) ? "constant"
@@ -2983,13 +3247,13 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
 
   // ── CIRCUIT ───────────────────────────────────────────────────────────────
   if ((subj.includes("physics") || subj.includes("science")) &&
-      (topicStr.includes("circuit") || /series circuit|parallel circuit|bulb|battery/i.test(questionStr))) {
+      (t.includes("circuit") || /series circuit|parallel circuit|bulb|battery/i.test(questionStr))) {
     const circType = /parallel/i.test(questionStr) ? "parallel" : "series";
     return { type:"circuit", circuitType: circType };
   }
 
   // ── QUADRATIC ─────────────────────────────────────────────────────────────
-  if (subj.includes("math") && (topicStr.includes("quadratic") || topicStr.includes("parabola") ||
+  if (subj.includes("math") && (t.includes("quadratic") || t.includes("parabola") ||
       /x²|x\^2|ax²|roots? of|discriminant/i.test(questionStr))) {
     // Parse ax² + bx + c = 0
     const coeffMatch = (questionStr||"").match(/(-?\d*)\s*x[²\^2]\s*([+\-]\s*\d*)\s*x\s*([+\-]\s*\d+)/);
@@ -3012,7 +3276,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
 
   // ── PERIODIC TABLE ELEMENT ────────────────────────────────────────────────
   if ((subj.includes("chemistry") || subj.includes("science")) &&
-      (topicStr.includes("periodic") || topicStr.includes("element") || topicStr.includes("atom"))) {
+      (t.includes("periodic") || t.includes("element") || t.includes("atom"))) {
     const ELEMENTS = {
       H:  {name:"Hydrogen",  n:1,  mass:"1.008",  group:1,  period:1, groupType:"nonmetal"},
       He: {name:"Helium",    n:2,  mass:"4.003",  group:18, period:1, groupType:"noble"},
@@ -3050,7 +3314,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── PERCENTAGE BAR ─────────────────────────────────────────────────────────
-  if (subj.includes("math") && (topicStr.includes("percent") || /%/.test(questionStr) || /percent/i.test(questionStr))) {
+  if (subj.includes("math") && (t.includes("percent") || /%/.test(questionStr) || /percent/i.test(questionStr))) {
     const pctMatch = (questionStr || "").match(/(\d+)\s*%\s*(?:of\s*)?(\d+)/i)
       || (questionStr || "").match(/(\d+)\s*percent(?:\s+of)?\s+(\d+)/i);
     if (pctMatch) {
@@ -3091,7 +3355,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── EQUATION SOLVER — "solve", "find x", algebraic equations ───────────────
-  if (subj.includes("math") && (topicStr.includes("algebra") || topicStr.includes("equation") || topicStr.includes("solve") ||
+  if (subj.includes("math") && (t.includes("algebra") || t.includes("equation") || t.includes("solve") ||
       /solve|find\s*(?:the\s+value\s+of\s+)?[xyz]|what is [xyz]/i.test(questionStr))) {
     const eqLine = (questionStr || "").match(/\d+[xyz]\s*[+\-]\s*\d+\s*=\s*\d+/i) ||
                    (questionStr || "").match(/[xyz]\s*[+\-]\s*\d+\s*=\s*\d+/i);
@@ -3103,7 +3367,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── PROBABILITY TREE — "probability", "tree diagram", "outcomes" ────────────
-  if (subj.includes("math") && (topicStr.includes("probability") || topicStr.includes("tree") ||
+  if (subj.includes("math") && (t.includes("probability") || t.includes("tree") ||
       /probability|tree diagram|outcome|coin.*dice|dice.*coin|heads.*tails/i.test(questionStr))) {
     if (/tree diagram|draw.*tree|show.*outcomes/i.test(questionStr)) {
       return { type: "probability_tree", branches: [
@@ -3114,7 +3378,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── PLACE VALUE — "place value", "hundreds tens units", "value of the digit" ─
-  if (subj.includes("math") && (topicStr.includes("place_value") || topicStr.includes("place value") ||
+  if (subj.includes("math") && (t.includes("place_value") || t.includes("place value") ||
       /place value|value of the digit|hundreds.*tens|tens.*units|what does the \d+ represent/i.test(questionStr))) {
     const pvNum = nums.find(n => n >= 10 && n <= 9999);
     if (pvNum) {
@@ -3123,7 +3387,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── CLOCK FACE — "time", "clock", "quarter past", "half past" ───────────────
-  if (subj.includes("math") && (topicStr.includes("time") || topicStr.includes("clock") ||
+  if (subj.includes("math") && (t.includes("time") || t.includes("clock") ||
       /what time|quarter past|half past|o'clock|minutes past|minutes to|analogue|clock/i.test(questionStr))) {
     const timeMatch = (questionStr || "").match(/(\d{1,2}):(\d{2})/);
     const pastMatch = (questionStr || "").match(/(\d{1,2})\s*(?:o'clock|oclock)/i);
@@ -3144,7 +3408,7 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── TALLY CHART — "tally", data with counts ─────────────────────────────────
-  if (subj.includes("math") && (topicStr.includes("tally") ||
+  if (subj.includes("math") && (t.includes("tally") ||
       /tally|how many.*votes|count.*tally/i.test(questionStr))) {
     const tallyMatch = [...(questionStr || "").matchAll(/([A-Za-z][\w ]{0,12}):\s*(\d+)/g)];
     if (tallyMatch.length >= 2) {

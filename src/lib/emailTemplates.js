@@ -247,6 +247,31 @@ export const EMAIL_TEMPLATES = {
     };
   },
 
+  // ── School reminder (sent when scholar is missing school_id) ────────────────
+  schoolReminder(parentName, scholarNames = []) {
+    const list = scholarNames.length === 1
+      ? `<strong>${scholarNames[0]}</strong>`
+      : scholarNames.map(n => `<strong>${n}</strong>`).join(', ');
+    const plural = scholarNames.length > 1;
+    const body = `
+      <p>Hi ${parentName ?? 'there'},</p>
+      <p>Quick heads-up — ${plural ? 'some of your scholars don\'t' : `${list} doesn't`} have a school assigned yet on LaunchPard.</p>
+      <p>Adding a school helps us personalise their learning experience even further. It only takes a moment:</p>
+      <ol style="color:#374151;font-size:15px;line-height:2;">
+        <li>Open your <strong>Guardian Dashboard</strong></li>
+        <li>Find the <strong>"Add School"</strong> button on ${plural ? 'their cards' : 'their card'}</li>
+        <li>Search for the school or add it manually</li>
+      </ol>
+      <a href="${BASE_URL}/dashboard/parent" class="cta">Go to Dashboard →</a>
+      <div class="tip"><p>🏫 ${plural ? `Scholars needing a school: ${list}` : `Scholar: ${list}`}</p></div>
+      <p style="font-size:13px;color:#94a3b8;">No rush — but the sooner you add it, the better we can tailor their quests!</p>
+    `;
+    return {
+      subject: '🏫 Quick reminder: add a school for your scholar',
+      htmlContent: shell('School Info Needed', 'Help us personalise learning', body),
+    };
+  },
+
   // ── Password reset (if using custom auth flow) ─────────────────────────────
   passwordReset(parentName, resetUrl) {
     const body = `
