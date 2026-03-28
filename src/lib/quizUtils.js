@@ -67,6 +67,23 @@ export function validateAndFixQuestion(q, idx = 0) {
     return null;
   }
 
+  // ── KS1/KS2 quality gate: reject questions too abstract for young scholars ──
+  const yearLvl = q.year_level || q.yearLevel || 0;
+  if (yearLvl >= 1 && yearLvl <= 6) {
+    // Reject questions referencing diagrams/charts/graphs with no image
+    const VISUAL_REFS = /\b(look at|refer to|shown in|displayed in|chart displays|chart shows|diagram shows|in the diagram|in the chart|in the graph)\b/i;
+    const ABSTRACT_DOTS = /\bdots?\b.*(represent|altogether|in the|total|chart|diagram|row|group)/i;
+    const ADVANCED_CHARTS = /\b(bar chart|pie chart|histogram|frequency|tally chart)\b/i;
+    if (!q.image_url && (VISUAL_REFS.test(lower) || ABSTRACT_DOTS.test(lower))) {
+      console.warn(`[quizUtils] Discarding Q${idx + 1} Y${yearLvl} — references visual without image.`);
+      return null;
+    }
+    if (yearLvl <= 2 && ADVANCED_CHARTS.test(lower)) {
+      console.warn(`[quizUtils] Discarding Q${idx + 1} Y${yearLvl} — chart type too advanced for KS1.`);
+      return null;
+    }
+  }
+
   const v = { ...q, opts: q.opts.map(String) };
 
   if (typeof v.a !== 'number' || v.a < 0 || v.a >= v.opts.length) {
@@ -253,6 +270,7 @@ export async function saveQuizResult(supabase, {
         score: finalScore,
         total: questions.length,
         yearLevel: parseInt(questions[0]?.year_level || questions[0]?._studentYear || 4, 10),
+        curriculum: curriculum || undefined,
       });
     } catch (journalErr) {
       console.warn('[saveQuizResult] Journal entry failed (non-fatal):', journalErr?.message);

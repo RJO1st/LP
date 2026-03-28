@@ -34,26 +34,81 @@ export const TIER_COLORS = {
 };
 
 export const AVATAR_ITEMS = {
+  // ── BASE CHARACTERS (space suits with unique helmet designs) ───────────
+  // First 3 are free starters, rest are coin-purchasable / badge-unlocked
+  base_astronaut:  { name: 'Astronaut',  category: 'base', icon: '🚀', coinCost: 0,   rarity: 'common',    free: true,  description: 'Classic round helmet with breathing tube' },
+  base_explorer:   { name: 'Explorer',   category: 'base', icon: '🧭', coinCost: 0,   rarity: 'common',    free: true,  description: 'Angular helmet with chin guard & side vents' },
+  base_scientist:  { name: 'Scientist',  category: 'base', icon: '🔬', coinCost: 0,   rarity: 'common',    free: true,  description: 'Bulb helmet with oversized dome visor' },
+  base_pilot:      { name: 'Pilot',      category: 'base', icon: '🛩️', coinCost: 100, rarity: 'rare',      description: 'Wide panoramic visor with large ear cups' },
+  base_captain:    { name: 'Captain',    category: 'base', icon: '⚓', coinCost: 200, rarity: 'epic',      description: 'Commander helmet with side fins & crown gems' },
+  base_ranger:     { name: 'Ranger',     category: 'base', icon: '🎯', coinCost: 300, rarity: 'epic',      description: 'Tactical helmet with antenna array & HUD bar' },
+  base_guardian:   { name: 'Guardian',   category: 'base', icon: '🛡️', coinCost: 0,   rarity: 'legendary', badgeRequired: 'streak_14', description: 'Ornate helmet with twin antennae & jewels' },
+  base_vanguard:   { name: 'Vanguard',   category: 'base', icon: '⚡', coinCost: 0,   rarity: 'legendary', badgeRequired: 'quest_master', description: 'Sleek teardrop helmet with centre ridge' },
+
+  // ── FREE STARTER ITEMS (available to all scholars immediately) ──────────
+  // Hats — free
+  hat_beanie:          { name: 'Space Beanie',     category: 'hat',        icon: '🧶', coinCost: 0,   rarity: 'common', free: true },
+  hat_headband:        { name: 'Star Headband',    category: 'hat',        icon: '🌠', coinCost: 0,   rarity: 'common', free: true },
+  hat_cap:             { name: 'Explorer Cap',     category: 'hat',        icon: '🧢', coinCost: 0,   rarity: 'common', free: true },
+  // Accessories — free
+  accessory_sparkle:   { name: 'Sparkle Dust',     category: 'accessory',  icon: '✨', coinCost: 0,   rarity: 'common', free: true },
+  accessory_orbit:     { name: 'Orbit Ring',       category: 'accessory',  icon: '🪐', coinCost: 0,   rarity: 'common', free: true },
+  // Pets — free
+  pet_star:            { name: 'Star Buddy',       category: 'pet',        icon: '⭐', coinCost: 0,   rarity: 'common', free: true },
+  pet_moonling:        { name: 'Moonling',         category: 'pet',        icon: '🌙', coinCost: 0,   rarity: 'common', free: true },
+  // Backgrounds — free
+  background_nebula:   { name: 'Nebula Cloud',     category: 'background', icon: '☁️', coinCost: 0,   rarity: 'common', free: true },
+  background_starfield:{ name: 'Starfield',        category: 'background', icon: '🌃', coinCost: 0,   rarity: 'common', free: true },
+  // Skin tones — free (new category for true personalization)
+  skin_light:          { name: 'Light',            category: 'skin',       icon: '🟡', coinCost: 0,   rarity: 'common', free: true },
+  skin_medium_light:   { name: 'Medium Light',     category: 'skin',       icon: '🟠', coinCost: 0,   rarity: 'common', free: true },
+  skin_medium:         { name: 'Medium',           category: 'skin',       icon: '🟤', coinCost: 0,   rarity: 'common', free: true },
+  skin_medium_dark:    { name: 'Medium Dark',      category: 'skin',       icon: '🤎', coinCost: 0,   rarity: 'common', free: true },
+  skin_dark:           { name: 'Dark',             category: 'skin',       icon: '🖤', coinCost: 0,   rarity: 'common', free: true },
+  // Hair styles — free (new category)
+  hair_short:          { name: 'Short',            category: 'hair',       icon: '💇', coinCost: 0,   rarity: 'common', free: true },
+  hair_curly:          { name: 'Curly',            category: 'hair',       icon: '🌀', coinCost: 0,   rarity: 'common', free: true },
+  hair_braids:         { name: 'Braids',           category: 'hair',       icon: '🎀', coinCost: 0,   rarity: 'common', free: true },
+  hair_afro:           { name: 'Afro',             category: 'hair',       icon: '🦁', coinCost: 0,   rarity: 'common', free: true },
+  hair_long:           { name: 'Long',             category: 'hair',       icon: '💆', coinCost: 0,   rarity: 'common', free: true },
+  hair_mohawk:         { name: 'Mohawk',           category: 'hair',       icon: '🦔', coinCost: 0,   rarity: 'common', free: true },
+  // Expression — free (new category)
+  expression_happy:    { name: 'Happy',            category: 'expression', icon: '😊', coinCost: 0,   rarity: 'common', free: true },
+  expression_cool:     { name: 'Cool',             category: 'expression', icon: '😎', coinCost: 0,   rarity: 'common', free: true },
+  expression_focused:  { name: 'Focused',          category: 'expression', icon: '🤔', coinCost: 0,   rarity: 'common', free: true },
+  expression_excited:  { name: 'Excited',          category: 'expression', icon: '🤩', coinCost: 0,   rarity: 'common', free: true },
+
+  // ── COIN-PURCHASABLE ITEMS ─────────────────────────────────────────────
   hat_wizard:          { name: 'Wizard Hat',       category: 'hat',        icon: '🧙', coinCost: 50,  rarity: 'rare'      },
+  hat_detective:       { name: 'Detective Hat',    category: 'hat',        icon: '🕵️', coinCost: 75,  rarity: 'rare'      },
+  hat_cowboy:          { name: 'Cowboy Hat',       category: 'hat',        icon: '🤠', coinCost: 60,  rarity: 'common'    },
+  hat_pirate:          { name: 'Pirate Hat',       category: 'hat',        icon: '🏴‍☠️', coinCost: 70,  rarity: 'rare'      },
+  hat_viking:          { name: 'Viking Helm',      category: 'hat',        icon: '⚔️', coinCost: 80,  rarity: 'rare'      },
+  accessory_stars:     { name: 'Star Aura',        category: 'accessory',  icon: '🌟', coinCost: 100, rarity: 'epic'      },
+  accessory_lightning: { name: 'Lightning Bolt',   category: 'accessory',  icon: '⚡', coinCost: 120, rarity: 'epic'      },
+  accessory_crystal:   { name: 'Crystal Aura',     category: 'accessory',  icon: '💎', coinCost: 80,  rarity: 'rare'      },
+  accessory_comet:     { name: 'Comet Trail',      category: 'accessory',  icon: '☄️', coinCost: 90,  rarity: 'rare'      },
+  pet_cat:             { name: 'Space Cat',        category: 'pet',        icon: '🐱', coinCost: 200, rarity: 'common'    },
+  pet_alien:           { name: 'Alien Pal',        category: 'pet',        icon: '👽', coinCost: 500, rarity: 'epic'      },
+  pet_rocket:          { name: 'Pet Rocket',       category: 'pet',        icon: '🚀', coinCost: 300, rarity: 'epic'      },
+  pet_asteroid:        { name: 'Pet Asteroid',     category: 'pet',        icon: '🪨', coinCost: 150, rarity: 'common'    },
+  background_space:    { name: 'Deep Space',       category: 'background', icon: '🔭', coinCost: 150, rarity: 'rare'      },
+  background_sunset:   { name: 'Sunset Sky',       category: 'background', icon: '🌅', coinCost: 100, rarity: 'common'    },
+  background_ocean:    { name: 'Ocean Depths',     category: 'background', icon: '🌊', coinCost: 180, rarity: 'rare'      },
+  background_aurora:   { name: 'Aurora Borealis',  category: 'background', icon: '🎆', coinCost: 200, rarity: 'epic'      },
+
+  // ── BADGE-UNLOCKED ITEMS (achievement rewards) ─────────────────────────
   hat_crown:           { name: 'Crown',            category: 'hat',        icon: '👑', coinCost: 0,   badgeRequired: 'accuracy_100', rarity: 'legendary' },
   hat_astronaut:       { name: 'Astronaut Helmet', category: 'hat',        icon: '🪖', coinCost: 0,   badgeRequired: 'maths_silver', rarity: 'rare' },
   hat_graduation:      { name: 'Graduation Cap',   category: 'hat',        icon: '🎓', coinCost: 0,   badgeRequired: 'english_silver', rarity: 'rare' },
-  hat_detective:       { name: 'Detective Hat',    category: 'hat',        icon: '🕵️', coinCost: 75,  rarity: 'rare'      },
-  hat_cowboy:          { name: 'Cowboy Hat',       category: 'hat',        icon: '🤠', coinCost: 60,  rarity: 'common'    },
-  accessory_stars:     { name: 'Star Aura',        category: 'accessory',  icon: '✨', coinCost: 100, rarity: 'epic'      },
   accessory_flame:     { name: 'Flame Trail',      category: 'accessory',  icon: '🔥', coinCost: 0,   badgeRequired: 'streak_7', rarity: 'rare' },
-  accessory_lightning: { name: 'Lightning Bolt',   category: 'accessory',  icon: '⚡', coinCost: 120, rarity: 'epic'      },
-  accessory_rainbow:   { name: 'Crystal Aura',     category: 'accessory',  icon: '💎', coinCost: 80,  rarity: 'rare'      },
-  pet_cat:             { name: 'Space Cat',        category: 'pet',        icon: '🐱', coinCost: 200, rarity: 'common'    },
+  accessory_galaxy_wings: { name: 'Galaxy Wings',  category: 'accessory',  icon: '🦋', coinCost: 0,   badgeRequired: 'streak_30', rarity: 'legendary' },
   pet_robot:           { name: 'Robot Buddy',      category: 'pet',        icon: '🤖', coinCost: 0,   badgeRequired: 'maths_gold', rarity: 'legendary' },
   pet_owl:             { name: 'Owl Companion',    category: 'pet',        icon: '🦉', coinCost: 0,   badgeRequired: 'english_gold', rarity: 'legendary' },
-  pet_alien:           { name: 'Alien Pal',        category: 'pet',        icon: '👽', coinCost: 500, rarity: 'epic'      },
   pet_dragon:          { name: 'Micro Dragon',     category: 'pet',        icon: '🐉', coinCost: 0,   badgeRequired: 'quest_master', rarity: 'legendary' },
-  pet_rocket:          { name: 'Pet Rocket',       category: 'pet',        icon: '🚀', coinCost: 300, rarity: 'epic'      },
-  background_space:    { name: 'Deep Space',       category: 'background', icon: '🪐', coinCost: 150, rarity: 'rare'      },
+  pet_phoenix:         { name: 'Phoenix',          category: 'pet',        icon: '🐦‍🔥', coinCost: 0,   badgeRequired: 'mastery_10_topics', rarity: 'legendary' },
   background_galaxy:   { name: 'Galaxy',           category: 'background', icon: '🌌', coinCost: 0,   badgeRequired: 'verbal_gold', rarity: 'legendary' },
-  background_sunset:   { name: 'Sunset Sky',       category: 'background', icon: '🌅', coinCost: 100, rarity: 'common'    },
-  background_ocean:    { name: 'Ocean Depths',     category: 'background', icon: '🌊', coinCost: 180, rarity: 'rare'      },
+  background_supernova:{ name: 'Supernova',        category: 'background', icon: '💥', coinCost: 0,   badgeRequired: 'science_gold', rarity: 'legendary' },
 };
 
 export const RARITY_COLORS = {

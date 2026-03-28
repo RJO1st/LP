@@ -21,6 +21,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { PAPER_CONFIGS, CATEGORIES } from "../../lib/mockTestCatalogue";
+import { calculatePercentage as pct } from "@/lib/calculationUtils";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt = (secs) => {
@@ -29,8 +30,6 @@ const fmt = (secs) => {
   const s = (secs % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 };
-
-const pct = (n, total) => (total === 0 ? 0 : Math.round((n / total) * 100));
 
 const getGrade = (score) => {
   if (score >= 85) return { label: "Distinction", color: "#10b981" };

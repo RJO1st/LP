@@ -54,7 +54,8 @@ function TopicNode({ emoji, icon, title, subtitle, percent, locked, color = "#3b
 
 export default function KS1Dashboard({ scholar, stars = 4, streak = 3, petStage = "egg", petWarmth = 80, subjects = [],
   skillProficiency = {}, onStartQuest, onSignOut, taraMessage, onTaraSend,
-  earnedBadgeIds = [], questsCompleted = 0, bestAccuracy = 0, totalXP = 0 }) {
+  earnedBadgeIds = [], questsCompleted = 0, bestAccuracy = 0, totalXP = 0,
+  leaderboard = [], recentQuizzes = [], journal = [] }) {
   const [activeTab, setActiveTab] = useState("adventure");
 
   const PET_ICONS = { egg: "egg", hatchling: "cruelty_free", chick: "flutter", bird: "flutter_dash" };
@@ -159,38 +160,39 @@ export default function KS1Dashboard({ scholar, stars = 4, streak = 3, petStage 
         milestones={{ questsCompleted, streak, accuracy: bestAccuracy, totalXP }}
       />
 
-      {/* ═══ JOURNAL ═════════════════════════════════════════════ */}
+      {/* ═══ JOURNAL — real data from recentQuizzes ══════════════ */}
       <NurseryCard id="section-journal">
         <div className="flex items-center gap-2 mb-4">
           <MIcon name="menu_book" size={22} className="text-violet-600" />
           <h3 className="text-xl font-bold text-slate-800" style={F}>Quest Journal</h3>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100">
-            <MIcon name="check_circle" filled size={20} className="text-amber-500" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-slate-700" style={F}>The Magic Spells</p>
-              <p className="text-[10px] text-slate-400" style={F}>Completed yesterday — 8/10 correct</p>
+          {recentQuizzes.length > 0 ? recentQuizzes.slice(0, 5).map((q, i) => {
+            const d = getSubjectDisplay(q.subject || "mathematics", "ks1");
+            const pct = q.total > 0 ? Math.round((q.score / q.total) * 100) : 0;
+            const starCount = pct >= 90 ? 3 : pct >= 60 ? 2 : 1;
+            return (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl"
+                style={{ background: `${d.color}08`, border: `1px solid ${d.color}15` }}>
+                <MIcon name={pct >= 60 ? "check_circle" : "circle"} filled size={20} style={{ color: d.color }} />
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-slate-700" style={F}>{d.label} Adventure</p>
+                  <p className="text-[10px] text-slate-400" style={F}>{q.date || "Recently"} — {q.score}/{q.total} correct</p>
+                </div>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 3 }).map((_, si) => (
+                    <MIcon key={si} name="star" filled={si < starCount} size={12}
+                      className={si < starCount ? "text-amber-400" : "text-amber-200/40"} />
+                  ))}
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="text-center py-6">
+              <MIcon name="auto_awesome" size={32} className="text-amber-300/40 mx-auto mb-2" />
+              <p className="text-xs text-slate-400" style={F}>Complete adventures to fill your journal!</p>
             </div>
-            <div className="flex gap-0.5">
-              <MIcon name="star" filled size={12} className="text-amber-400" />
-              <MIcon name="star" filled size={12} className="text-amber-400" />
-              <MIcon name="star" size={12} className="text-amber-200" />
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-2xl border border-blue-100">
-            <MIcon name="check_circle" filled size={20} className="text-blue-500" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-slate-700" style={F}>Counting Adventure</p>
-              <p className="text-[10px] text-slate-400" style={F}>2 days ago — 9/10 correct</p>
-            </div>
-            <div className="flex gap-0.5">
-              <MIcon name="star" filled size={12} className="text-amber-400" />
-              <MIcon name="star" filled size={12} className="text-amber-400" />
-              <MIcon name="star" filled size={12} className="text-amber-400" />
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 text-center pt-1" style={F}>Complete more adventures to fill your journal!</p>
+          )}
         </div>
       </NurseryCard>
     </div>
@@ -203,32 +205,39 @@ export default function KS1Dashboard({ scholar, stars = 4, streak = 3, petStage 
         message={taraMessage || `Hi ${name}! You did so well with your numbers yesterday. Today let's try some counting puzzles. Ready?`}
         onSendMessage={onTaraSend} />
 
-      {/* Star Collectors leaderboard */}
+      {/* Star Collectors leaderboard — real data from props */}
       <div className="p-4 rounded-[24px] bg-white" style={{ border: "2px solid rgba(245,158,11,0.1)", boxShadow: "0 4px 16px rgba(0,0,0,0.03)" }}>
         <h3 className="text-base font-bold text-slate-700 mb-3 flex items-center gap-2" style={F}>
           <MIcon name="military_tech" filled size={18} className="text-amber-400" /> Star Collectors
         </h3>
         <div className="space-y-2">
-          {[
-            { rank: 1, name: "Leo the Lion", s: 12, hi: false, bg: "#bfdbfe" },
-            { rank: 2, name: "You!", s: stars, hi: true, bg: "#fbcfe8" },
-            { rank: 3, name: "Bella Bunny", s: 3, hi: false, bg: "#d1fae5" },
-            { rank: 4, name: "Max the Dog", s: 2, hi: false, bg: "#fef3c7" },
-          ].map((e) => (
-            <div key={e.rank} className="flex items-center justify-between p-2.5 rounded-xl"
-              style={{ background: e.hi ? "#FFF9E3" : e.rank === 1 ? "#fffbeb" : "transparent",
-                border: e.hi ? "1px solid rgba(245,158,11,0.2)" : "1px solid transparent" }}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black w-4" style={{ ...F, color: e.rank === 1 ? "#f59e0b" : "#94a3b8" }}>{e.rank}</span>
-                <div className="w-7 h-7 rounded-full" style={{ background: e.bg }} />
-                <span className="text-sm font-semibold" style={F}>{e.name}</span>
+          {(leaderboard.length > 0 ? leaderboard.slice(0, 6) : [
+            { id: "you", name: name, total_xp: stars, rank: 1 },
+          ]).map((entry, i) => {
+            const isMe = entry.id === scholar?.id || entry.name === name;
+            const rankNum = entry.rank || i + 1;
+            const avatarColors = ["#bfdbfe", "#fbcfe8", "#d1fae5", "#fef3c7", "#e9d5ff", "#cffafe"];
+            return (
+              <div key={entry.id || i} className="flex items-center justify-between p-2.5 rounded-xl"
+                style={{ background: isMe ? "#FFF9E3" : rankNum === 1 ? "#fffbeb" : "transparent",
+                  border: isMe ? "1px solid rgba(245,158,11,0.2)" : "1px solid transparent" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black w-4" style={{ ...F, color: rankNum <= 1 ? "#f59e0b" : "#94a3b8" }}>{rankNum}</span>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{ background: avatarColors[i % avatarColors.length], color: "#475569" }}>
+                    {(entry.codename || entry.name || "?")[0].toUpperCase()}
+                  </div>
+                  <span className="text-sm font-semibold" style={F}>
+                    {isMe ? "You!" : entry.codename || entry.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <span className="text-sm font-bold" style={F}>{entry.total_xp || 0}</span>
+                  <MIcon name="star" filled size={14} className="text-amber-400" />
+                </div>
               </div>
-              <div className="flex items-center gap-0.5">
-                <span className="text-sm font-bold" style={F}>{e.s}</span>
-                <MIcon name="star" filled size={14} className="text-amber-400" />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -255,7 +264,11 @@ export default function KS1Dashboard({ scholar, stars = 4, streak = 3, petStage 
         <h3 className="text-base font-bold mb-1 flex items-center gap-2" style={F}>
           <MIcon name="menu_book" size={18} /> Quest Journal
         </h3>
-        <p className="text-sm text-white/70" style={F}>You finished 'The Magic Spells' yesterday. Great job!</p>
+        <p className="text-sm text-white/70" style={F}>
+          {recentQuizzes.length > 0
+            ? `You finished '${getSubjectDisplay(recentQuizzes[0].subject || "mathematics", "ks1").label} Adventure' recently. Great job!`
+            : "Complete adventures to start your journal!"}
+        </p>
       </div>
     </>
   );

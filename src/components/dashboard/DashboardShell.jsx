@@ -184,15 +184,18 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 space-y-1 px-1">
+      <nav className="flex-1 space-y-1 px-1" aria-label="Dashboard navigation">
         {items.map((item) => {
           const active = activeTab === item.key;
           return (
             <button
               key={item.key}
               onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200"
+              aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
               style={{
+                "--tw-ring-color": cfg.accent,
                 background: active ? cfg.accentBg : "transparent",
                 color: active ? (isDark ? "#fff" : cfg.accent) : cfg.textMuted,
                 borderLeft: active ? `3px solid ${cfg.accent}` : "3px solid transparent",
@@ -242,6 +245,8 @@ function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-2 pb-6 pt-3 z-50"
+      role="tablist"
+      aria-label="Dashboard sections"
       style={{
         background: isDark ? "rgba(10,14,28,0.95)" : "rgba(255,255,255,0.95)",
         backdropFilter: "blur(20px)",
@@ -253,8 +258,11 @@ function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
         return (
           <button
             key={item.key}
+            role="tab"
+            aria-selected={active}
+            aria-label={item.label}
             onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
-            className="flex flex-col items-center justify-center rounded-xl transition-all"
+            className="flex flex-col items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2"
             style={{
               color: active ? cfg.accent : cfg.textMuted,
               background: active ? cfg.accentBg : "transparent",
@@ -344,6 +352,12 @@ export default function DashboardShell({
 
   return (
     <div className="dashboard-shell min-h-screen relative" style={{ background: cfg.bodyBg, fontFamily: cfg.font }}>
+      {/* Skip to content link — keyboard accessibility */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-bold"
+        style={{ background: cfg.accent, color: "#fff" }}>
+        Skip to main content
+      </a>
+
       {/* Google Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -401,10 +415,10 @@ export default function DashboardShell({
       {/* Content Area */}
       <div className="pt-14 pb-20 lg:pb-0 lg:ml-[260px] relative z-10" style={{ minHeight: "100vh", background: "transparent" }}>
         <div className="flex min-h-[calc(100vh-3.5rem)]">
-          <main className="flex-1 px-3 pt-1 pb-0 lg:px-5 lg:pt-1 lg:pb-0 overflow-y-auto">{mainContent}</main>
+          <main id="main-content" role="main" aria-label="Dashboard content" className="flex-1 px-3 pt-1 pb-0 lg:px-5 lg:pt-1 lg:pb-0 overflow-y-auto">{mainContent}</main>
 
           {rightSidebar && (
-            <aside className={`
+            <aside role="complementary" aria-label="Dashboard sidebar" className={`
               hidden xl:block right-0 top-14 bottom-0 w-[300px] xl:w-[300px] z-30
               border-l overflow-y-auto transition-transform duration-300 shrink-0
               ${showRightPanel ? "fixed translate-x-0 !block" : "translate-x-full xl:translate-x-0"}
@@ -422,6 +436,7 @@ export default function DashboardShell({
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          role="dialog" aria-modal="true" aria-label="Sign out confirmation"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowLogoutConfirm(false); }}>
           <div style={{
@@ -474,6 +489,23 @@ export default function DashboardShell({
         #__next, #__next > div, #__next > div > div, #__next > main, main { background: transparent !important; background-color: transparent !important; }
         /* Kill any stray white backgrounds from layout wrappers */
         body > div, body > div > div, body > div > div > div { background-color: transparent !important; }
+        /* Respect user preference for reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+        /* Focus visible styling for keyboard navigation */
+        .dashboard-shell *:focus-visible {
+          outline: 2px solid ${cfg.accent};
+          outline-offset: 2px;
+          border-radius: 4px;
+        }
+        /* Screen reader only utility */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        .sr-only:focus, .focus\\:not-sr-only:focus { position: fixed; width: auto; height: auto; padding: initial; margin: initial; overflow: visible; clip: auto; white-space: normal; }
       `}</style>
     </div>
   );

@@ -167,7 +167,7 @@ async function loadScholarContext(supabase, scholarId, curriculum, subject, cach
 // Anti-repetition: tracks last 3 topics played (from masteryRows updated_at).
 // After 2 consecutive sessions on the same topic, forces rotation to next priority.
 // This prevents scholars from getting stuck on one topic endlessly.
-function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
+function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLevel = null) {
   const now = new Date();
   const subjectRows = masteryRows.filter(r => r.subject === subject);
 
@@ -181,6 +181,20 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
   // Anti-repeat: if same topic was practised in last 2 sessions, exclude it from priority 2+3
   const lastTwo = recentTopics.slice(0, 2);
   const repeatedTopic = lastTwo.length === 2 && lastTwo[0] === lastTwo[1] ? lastTwo[0] : null;
+
+  // ── Year-level strand mapping ──────────────────────────────────────────────
+  // KS3/4 students (Year 7+) should start from intermediate/advanced topics,
+  // not from "place_value" or "addition". Determines the minimum strand for
+  // Priority 3 (new topic introduction) so older students get age-appropriate
+  // topics. Foundation topics are still used in Priority 1/2 if the student
+  // has actual mastery data on them (meaning they WERE assigned those topics).
+  const year = parseInt(yearLevel, 10) || 0;
+  const foundationTopics = new Set(sequence?.foundation || []);
+  const intermediateTopics = new Set(sequence?.intermediate || []);
+  // Year 7+ (KS3): start from intermediate strand
+  // Year 10+ (KS4): start from advanced strand
+  const skipFoundation = year >= 7;
+  const skipIntermediate = year >= 10;
 
   // ── Priority 1: Spaced repetition — overdue review (always wins, even if repeated)
   const overdue = subjectRows
@@ -213,11 +227,24 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
   }
 
   // ── Priority 3: Introduce a new topic (unseen, from sequence)
+  // For older students, skip below-level strands so they don't get "addition"
+  // when they should be learning "algebra_basics" or "trigonometry"
   const topicList = getTopicList(sequence);
   const seenTopics = new Set(subjectRows.map(r => r.topic));
-  const unseen = topicList.filter(t => !seenTopics.has(t));
+  const ageFilteredList = topicList.filter(t => {
+    if (skipIntermediate && (foundationTopics.has(t) || intermediateTopics.has(t))) return false;
+    if (skipFoundation && foundationTopics.has(t)) return false;
+    return true;
+  });
+  const unseen = ageFilteredList.filter(t => !seenTopics.has(t));
   if (unseen.length > 0) {
     return { topic: unseen[0], reason: 'new_introduction' };
+  }
+
+  // If all age-appropriate topics are seen, fall back to any unseen topic
+  const anyUnseen = topicList.filter(t => !seenTopics.has(t));
+  if (anyUnseen.length > 0) {
+    return { topic: anyUnseen[0], reason: 'new_introduction' };
   }
 
   // ── Priority 4: Reinforce — stalest on-track topic (mastery 0.7-0.85)
@@ -239,15 +266,16 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
     return { topic: currentTopic, reason: 'learning_path' };
   }
 
-  // ── Priority 6: First in sequence (brand new scholar)
+  // ── Priority 6: First in sequence (brand new scholar) — year-aware
+  // For KS3/4 scholars, pick the first age-appropriate topic, not "place_value"
+  const firstAgeTopic = ageFilteredList[0];
+  if (firstAgeTopic) return { topic: firstAgeTopic, reason: 'sequence_start' };
+  // Fallback to any first topic if age-filtered list is empty
   const firstTopic = topicList[0];
   if (firstTopic) return { topic: firstTopic, reason: 'sequence_start' };
 
-  // ── Priority 7: First topic from hardcoded foundation as absolute last resort
+  // ── Priority 7: Hardcoded defaults — year-aware absolute last resort
   // Prevents null anchor which causes an unconstrained broad DB fetch.
-  // An unconstrained fetch for Y1 maths returns questions from ALL topics at
-  // year_level 0-2, including division-with-remainders, multi-correct number
-  // bonds etc. Better to pin to 'place_value' / 'addition' than fetch broadly.
   const FOUNDATION_DEFAULTS = {
     mathematics: 'place_value', maths: 'place_value',
     english: 'phonics', english_studies: 'phonics',
@@ -255,7 +283,26 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence) {
     verbal_reasoning: 'word_relationships', verbal: 'word_relationships',
     non_verbal_reasoning: 'pattern_recognition', nvr: 'pattern_recognition',
   };
-  const defaultTopic = FOUNDATION_DEFAULTS[subject] ?? null;
+  // Year-appropriate defaults for older students
+  const INTERMEDIATE_DEFAULTS = {
+    mathematics: 'algebra_basics', maths: 'algebra_basics',
+    english: 'comprehension', english_studies: 'comprehension',
+    science: 'cells_and_tissues', basic_science: 'cells_and_tissues',
+    verbal_reasoning: 'analogies', verbal: 'analogies',
+    non_verbal_reasoning: 'matrix_puzzles', nvr: 'matrix_puzzles',
+  };
+  const ADVANCED_DEFAULTS = {
+    mathematics: 'pythagoras_theorem', maths: 'pythagoras_theorem',
+    english: 'literary_devices', english_studies: 'literary_devices',
+    science: 'genetics', basic_science: 'genetics',
+    verbal_reasoning: 'logic_puzzles', verbal: 'logic_puzzles',
+    non_verbal_reasoning: 'spatial_reasoning', nvr: 'spatial_reasoning',
+  };
+  const defaultTopic = skipIntermediate
+    ? (ADVANCED_DEFAULTS[subject] ?? INTERMEDIATE_DEFAULTS[subject] ?? FOUNDATION_DEFAULTS[subject])
+    : skipFoundation
+      ? (INTERMEDIATE_DEFAULTS[subject] ?? FOUNDATION_DEFAULTS[subject])
+      : (FOUNDATION_DEFAULTS[subject] ?? null);
   if (defaultTopic) return { topic: defaultTopic, reason: 'foundation_default' };
 
   return { topic: null, reason: 'fallback' };
@@ -476,6 +523,7 @@ async function fetchPassageGroup(supabase, curriculum, subject, year, topic, exc
       .from('question_bank')
       .select('*')
       .eq('passage_id', passage.id)
+      .eq('is_active', true)
       .limit(maxQuestions);
 
     if (qErr || !linkedQs?.length || linkedQs.length < 2) continue;
@@ -506,6 +554,7 @@ async function fetchPassageGroup(supabase, curriculum, subject, year, topic, exc
       .from('question_bank')
       .select('*')
       .eq('passage_id', fallback.id)
+      .eq('is_active', true)
       .limit(maxQuestions);
 
     if (fbQs?.length >= 2) {
@@ -545,6 +594,7 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
     .select('*')
     .eq('curriculum', dbCurriculum)
     .eq('subject', dbSubject)
+    .eq('is_active', true)
     .gte('year_level', yearLow)
     .lte('year_level', yearHigh)
     .limit(limit);
@@ -1162,8 +1212,12 @@ export async function getSmartQuestions(
     // ── 0.5. Resolve subject-specific year level ──────────────────────────
     // Override year with subject-specific level from scholar_subject_levels
     // All downstream code (fetchQuestions, passages, fallbacks) uses this
-    const subjectYear = await resolveSubjectYear(supabase, scholarId, activeSubject, year);
-    year = subjectYear; // shadow the parameter — subject-specific from here on
+    // EXCEPTION: When focusedTopic is set (scholar clicked a specific topic on
+    // their dashboard), honour the dashboard year — don't redirect to a lower level.
+    if (!focusedTopic) {
+      const subjectYear = await resolveSubjectYear(supabase, scholarId, activeSubject, year);
+      year = subjectYear; // shadow the parameter — subject-specific from here on
+    }
 
     // ── 1. Load topic sequence + scholar context (2 queries max, 1 with cache) ──
     // Validate examMode against EXAM_MODES — rejects unknown/legacy strings silently.
@@ -1182,7 +1236,7 @@ export async function getSmartQuestions(
     // If focusedTopic is provided (from JourneyMap), use it directly — skip auto-resolution
     const { topic: anchorTopic, reason: selectionReason } = focusedTopic
       ? { topic: focusedTopic, reason: "journey_map_selected" }
-      : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence);
+      : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence, year);
 
     if (!anchorTopic) {
       console.warn(
@@ -1374,6 +1428,7 @@ export async function getSmartQuestions(
         .select('*')
         .eq('curriculum', dbCurriculum)
         .eq('subject', dbSubject)
+        .eq('is_active', true)
         .gte('year_level', dbYear <= 2 ? dbYear : Math.max(1, dbYear - 1))
         .lte('year_level', dbYear <= 2 ? dbYear : dbYear + 1)
         .limit(Math.min(count * 5, 100));
@@ -1412,6 +1467,7 @@ export async function getSmartQuestions(
           .select('*')
           .eq('curriculum', fallbackCur)
           .eq('subject', dbSubject)
+          .eq('is_active', true)
           .gte('year_level', Math.max(1, dbYear - 1))
           .lte('year_level', dbYear + 1)
           .limit(Math.min(count * 5, 100));

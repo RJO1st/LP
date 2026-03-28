@@ -39,8 +39,13 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
       : `Tara: Copy that, ${name}. Can you explain *why* that answer is correct? 🤔`;
   }
 
+  // Year-aware maths keywords: KS3/KS4 scholars need higher-level terms
+  const mathsKW = scholarYear >= 7
+    ? ["equation","formula","theorem","pythagoras","hypotenuse","angle","triangle","sine","cosine","tangent","ratio","gradient","intercept","quadratic","linear","variable","coefficient","substitute","factorise","simplify","prove","because","therefore","hence","probability","vector","indices","standard form","circumference","area","volume","radius","diameter","parallel","perpendicular","congruent","similar","proportion","inverse","sequence","nth term","inequality","simultaneous","rearrange","expand","expression"]
+    : ["add","total","units","tens","carry","subtract","equals","because","calculate","divide","multiply","fraction","percent","factor","multiple","prime","square","ratio","place","value","hundred","thousand"];
+
   const keywords = {
-    maths:      ["add","total","units","tens","carry","subtract","equals","because","calculate","divide","multiply","fraction","percent","factor","multiple","prime","square","ratio","place","value","hundred","thousand"],
+    maths:      mathsKW,
     english:    ["verb","noun","adjective","adverb","action","describes","word","sentence","because","grammar","clause","prefix","suffix","tense","metaphor","simile","synonym","antonym"],
     verbal:     ["pattern","sequence","opposite","similar","letter","next","because","odd","order","skip","code","analogy","alphabet","relationship","category"],
     nvr:        ["shape","pattern","colour","color","rotate","flip","size","odd","different","same","repeat","mirror","reflect","symmetr","transform"],
@@ -78,8 +83,12 @@ const LOCAL_FEEDBACK = (text, subject, scholarName, scholarYear) => {
     government: [`Tara: Excellent civic thinking, ${name}! 🏛️`, `Tara: Outstanding, ${name}! You understand governance! 📋`],
   };
 
+  const mathsNudge = scholarYear >= 7
+    ? `Tara: Almost, ${name}! Try using maths terms like 'equation', 'formula', 'theorem', or 'because'. Can you show your working? 📐`
+    : `Tara: Almost, ${name}! Try explaining using words like 'place value', 'hundreds', or 'because'. 🔢`;
+
   const nudges = {
-    maths:      `Tara: Almost, ${name}! Try explaining using words like 'place value', 'hundreds', or 'because'. 🔢`,
+    maths:      mathsNudge,
     english:    `Tara: Good attempt! Try naming the grammar rule — noun, verb, tense, etc. 📖`,
     verbal:     `Tara: Nearly there! Describe the pattern or relationship you see. 🔍`,
     nvr:        `Tara: Good try! Describe what shape, colour, or transformation makes it different. 👁️`,
@@ -103,8 +112,56 @@ const LOCAL_FOLLOWUP_FEEDBACK = (scholarName) => {
   return `Tara: Great question, ${name}! Keep that curiosity — it's what makes great learners. You've got this! 🚀`;
 };
 
+// ─── BAND-THEMED STYLING ──────────────────────────────────────────────────────
+const BAND_THEMES = {
+  ks1: {
+    container: "bg-purple-50 border-purple-200",
+    title: "text-purple-800",
+    input: "border-purple-200 focus:border-purple-400",
+    button: "bg-purple-500 border-purple-700",
+    response: "border-purple-100 text-purple-900",
+    followUpLabel: "text-purple-700",
+    followUpBtn: "text-purple-700 border-purple-300 hover:bg-purple-50",
+    accent: "purple",
+    label: "Tara's Challenge",
+  },
+  ks2: {
+    container: "bg-cyan-950/60 border-cyan-700/30",
+    title: "text-cyan-300",
+    input: "border-cyan-700/40 focus:border-cyan-400 bg-cyan-950/40 text-cyan-100 placeholder:text-cyan-600",
+    button: "bg-cyan-600 border-cyan-800",
+    response: "border-cyan-800/30 text-cyan-200 bg-cyan-950/50",
+    followUpLabel: "text-cyan-400",
+    followUpBtn: "text-cyan-300 border-cyan-700/40 hover:bg-cyan-900/40 bg-cyan-950/30",
+    accent: "cyan",
+    label: "TARA DEBRIEF",
+  },
+  ks3: {
+    container: "bg-slate-800/60 border-slate-600/30",
+    title: "text-teal-300",
+    input: "border-slate-600/40 focus:border-teal-400 bg-slate-800/40 text-slate-100 placeholder:text-slate-500",
+    button: "bg-teal-600 border-teal-800",
+    response: "border-slate-700/30 text-slate-200 bg-slate-800/50",
+    followUpLabel: "text-teal-400",
+    followUpBtn: "text-teal-300 border-slate-600/40 hover:bg-slate-700/40 bg-slate-800/30",
+    accent: "teal",
+    label: "Tara's Challenge",
+  },
+  ks4: {
+    container: "bg-slate-900/60 border-indigo-700/30",
+    title: "text-indigo-300",
+    input: "border-indigo-700/40 focus:border-indigo-400 bg-slate-900/40 text-slate-100 placeholder:text-indigo-500",
+    button: "bg-indigo-600 border-indigo-800",
+    response: "border-indigo-800/30 text-indigo-200 bg-slate-900/50",
+    followUpLabel: "text-indigo-400",
+    followUpBtn: "text-indigo-300 border-indigo-700/40 hover:bg-indigo-900/40 bg-slate-900/30",
+    accent: "indigo",
+    label: "Tara's Challenge",
+  },
+};
+
 // ─── TARA EIB COMPONENT ───────────────────────────────────────────────────────
-export default function TaraEIB({ student, subject, currentQ, correctAnswer, scholarAnswer, onFeedbackReceived }) {
+export default function TaraEIB({ student, subject, currentQ, correctAnswer, scholarAnswer, onFeedbackReceived, band, onSpeak }) {
   const [text,          setText]          = useState("");
   const [feedback,      setFeedback]      = useState("");
   const [loading,       setLoading]       = useState(false);
@@ -118,7 +175,15 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
   const [followUpLocked,   setFollowUpLocked]   = useState(false);
   const [followUpWarn,     setFollowUpWarn]     = useState(false);
 
-  const scholarYear = parseInt(student?.year_level || student?.year || 4);
+  // Map curriculum + year_level to effective UK-equivalent year
+  // ng_jss Year 1-3 → UK Year 7-9, ng_sss Year 1-3 → UK Year 10-12
+  const rawYear = parseInt(student?.year_level || student?.year || 4);
+  const cur = (student?.curriculum || "").toLowerCase();
+  const scholarYear = cur === "ng_jss" ? rawYear + 6
+    : cur === "ng_sss" ? rawYear + 9
+    : cur.startsWith("ng_") && rawYear <= 6 ? rawYear + 5  // ng_primary → roughly +5
+    : rawYear;
+  const t = BAND_THEMES[band] || BAND_THEMES.ks1;
 
   const handleSubmit = useCallback(async () => {
     if (!text.trim() || locked) return;
@@ -144,6 +209,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
           scholarName: student?.name,
           scholarYear,
           question: currentQ,
+          curriculum: student?.curriculum || "",
         }),
       });
       clearTimeout(timeout);
@@ -151,15 +217,18 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
       const data = await res.json();
       if (!data.feedback) throw new Error("Empty feedback");
       setFeedback(data.feedback);
+      onSpeak?.(data.feedback);
     } catch {
       clearTimeout(timeout);
-      setFeedback(LOCAL_FEEDBACK(text, subject, student?.name, scholarYear));
+      const fallback = LOCAL_FEEDBACK(text, subject, student?.name, scholarYear);
+      setFeedback(fallback);
+      onSpeak?.(fallback);
     } finally {
       setLoading(false);
       setLocked(true);
       onFeedbackReceived?.();
     }
-  }, [text, locked, subject, correctAnswer, currentQ, student, scholarYear, onFeedbackReceived]);
+  }, [text, locked, subject, correctAnswer, currentQ, student, scholarYear, onFeedbackReceived, onSpeak]);
 
   const handleFollowUp = useCallback(async () => {
     if (!followUpText.trim() || followUpLocked) return;
@@ -190,6 +259,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
           question:    currentQ,
           mode:        "followup",
           context:     feedback,
+          curriculum:  student?.curriculum || "",
         }),
       });
       clearTimeout(timeout);
@@ -197,14 +267,17 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
       const data = await res.json();
       if (!data.feedback) throw new Error("Empty");
       setFollowUpFeedback(data.feedback);
+      onSpeak?.(data.feedback);
     } catch {
       clearTimeout(timeout);
-      setFollowUpFeedback(LOCAL_FOLLOWUP_FEEDBACK(student?.name));
+      const fallback = LOCAL_FOLLOWUP_FEEDBACK(student?.name);
+      setFollowUpFeedback(fallback);
+      onSpeak?.(fallback);
     } finally {
       setFollowUpLoading(false);
       setFollowUpLocked(true);
     }
-  }, [followUpText, followUpLocked, subject, correctAnswer, currentQ, student, scholarYear, feedback]);
+  }, [followUpText, followUpLocked, subject, correctAnswer, currentQ, student, scholarYear, feedback, onSpeak]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey && !locked) { e.preventDefault(); handleSubmit(); }
@@ -215,11 +288,11 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
   };
 
   return (
-    <div className="bg-amber-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-200 mb-3">
+    <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border mb-3 ${t.container}`}>
 
       {/* ── Challenge prompt ── */}
-      <p className="text-amber-800 font-bold text-xs sm:text-sm mb-2 sm:mb-3">
-        <span className="font-black">Tara's Challenge:</span>{" "}
+      <p className={`font-bold text-xs sm:text-sm mb-2 sm:mb-3 ${t.title}`}>
+        <span className="font-black">{t.label}:</span>{" "}
         {scholarAnswer && scholarAnswer !== correctAnswer ? (
           <>You chose <span className="underline">{scholarAnswer}</span>, but the correct answer is{" "}
           <span className="underline font-black">{correctAnswer}</span>. Can you explain why?</>
@@ -243,27 +316,27 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
         disabled={locked}
         rows={2}
         placeholder="Type your reasoning and press Enter…"
-        className="w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border border-amber-200 font-bold text-xs sm:text-sm bg-white mb-2 resize-none focus:outline-none focus:border-amber-400 disabled:opacity-60"
+        className={`w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border font-bold text-xs sm:text-sm mb-2 resize-none focus:outline-none disabled:opacity-60 ${t.input}`}
       />
       <button
         onClick={handleSubmit}
         disabled={!text.trim() || loading || locked}
-        className="w-full bg-amber-500 text-white font-black py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1 transition-all active:border-b-0 active:translate-y-0.5"
+        className={`w-full text-white font-black py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs uppercase tracking-widest border-b-2 disabled:opacity-50 flex items-center justify-center gap-1 transition-all active:border-b-0 active:translate-y-0.5 ${t.button}`}
       >
         <Zap size={12} /> {loading ? "Thinking…" : "Tell Tara ✨"}
       </button>
 
       {/* ── Tara's first response ── */}
       {feedback && (
-        <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-amber-100 text-amber-900 font-bold italic text-xs sm:text-sm leading-relaxed">
+        <div className={`mt-2 sm:mt-3 p-2 sm:p-3 rounded-lg sm:rounded-xl border font-bold italic text-xs sm:text-sm leading-relaxed ${t.response}`}>
           {feedback}
         </div>
       )}
 
       {/* ── Follow-up section (only shown after Tara's first reply) ── */}
       {feedback && !followUpFeedback && (
-        <div className="mt-3 border-t border-amber-100 pt-3">
-          <p className="text-amber-700 font-bold text-xs mb-2 flex items-center gap-1">
+        <div className="mt-3 border-t border-current/10 pt-3">
+          <p className={`font-bold text-xs mb-2 flex items-center gap-1 ${t.followUpLabel}`}>
             <MessageCircle size={12} />
             Still curious? Ask Tara a follow-up question
           </p>
@@ -281,12 +354,12 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
             disabled={followUpLocked}
             rows={2}
             placeholder={`e.g. "Can you explain more?" or "What about...?"`}
-            className="w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border border-amber-200 font-bold text-xs sm:text-sm bg-white mb-2 resize-none focus:outline-none focus:border-amber-400 disabled:opacity-60"
+            className={`w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border font-bold text-xs sm:text-sm mb-2 resize-none focus:outline-none disabled:opacity-60 ${t.input}`}
           />
           <button
             onClick={handleFollowUp}
             disabled={!followUpText.trim() || followUpLoading || followUpLocked}
-            className="w-full bg-white text-amber-700 font-black py-2 rounded-lg text-xs uppercase tracking-widest border-2 border-amber-300 hover:bg-amber-50 disabled:opacity-40 flex items-center justify-center gap-1 transition-all"
+            className={`w-full font-black py-2 rounded-lg text-xs uppercase tracking-widest border-2 disabled:opacity-40 flex items-center justify-center gap-1 transition-all ${t.followUpBtn}`}
           >
             <MessageCircle size={12} /> {followUpLoading ? "Tara is thinking…" : "Ask Tara →"}
           </button>
@@ -295,12 +368,12 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
 
       {/* ── Tara's follow-up response ── */}
       {followUpFeedback && (
-        <div className="mt-3 border-t border-amber-100 pt-3">
-          <p className="text-amber-700 font-bold text-xs mb-1 flex items-center gap-1">
+        <div className="mt-3 border-t border-current/10 pt-3">
+          <p className={`font-bold text-xs mb-1 flex items-center gap-1 ${t.followUpLabel}`}>
             <MessageCircle size={12} /> Your follow-up
           </p>
-          <p className="text-amber-600 text-xs italic mb-2">"{followUpText}"</p>
-          <div className="p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-amber-100 text-amber-900 font-bold italic text-xs sm:text-sm leading-relaxed">
+          <p className={`text-xs italic mb-2 opacity-70 ${t.title}`}>"{followUpText}"</p>
+          <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border font-bold italic text-xs sm:text-sm leading-relaxed ${t.response}`}>
             {followUpFeedback}
           </div>
         </div>

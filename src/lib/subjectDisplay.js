@@ -143,3 +143,21 @@ export function getSubjectDisplay(subject, band) {
     label: getSubjectLabel(subject, band),
   };
 }
+
+/**
+ * Get the full SUBJECT_DISPLAY map (read-only).
+ * Useful for components that need to iterate all known subjects.
+ * @returns {Record<string, { label: string, icon: string, color: string }>}
+ */
+export function getAllSubjects() {
+  return { ...SUBJECT_DISPLAY };
+}
+
+/**
+ * Check if a subject key is recognised by the display system.
+ * @param {string} subject
+ * @returns {boolean}
+ */
+export function isKnownSubject(subject) {
+  return (subject || "").toLowerCase() in SUBJECT_DISPLAY;
+}

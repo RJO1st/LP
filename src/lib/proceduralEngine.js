@@ -165,6 +165,7 @@ async function fetchQuestionsWithDedup({ curriculum, subject, yearLevel, difficu
       .eq('curriculum',     dbCurriculum)
       .eq('subject',        dbSubject)
       .eq('year_level',     yearLevel)
+      .eq('is_active', true)
       .limit(fetchLimit);
 
     if (recentIds.length > 0) {
@@ -335,6 +336,7 @@ export const generateSession = async ({
           .eq('subject',    s)
           .eq('year_level', year)
           .eq('curriculum', curriculum)
+          .eq('is_active', true)
           .order('last_used', { ascending: true, nullsFirst: true })
           .limit(fetchLimit);
 

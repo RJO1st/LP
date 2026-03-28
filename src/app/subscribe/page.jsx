@@ -203,7 +203,7 @@ export default function SubscribePage() {
                   className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-black text-lg py-5 rounded-2xl shadow-2xl shadow-purple-500/50 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group mb-4"
                 >
                   <span className="relative z-10">
-                    {loading ? "Processing..." : "🚀 Start 7-Day Free Trial"}
+                    {loading ? "Processing..." : "🚀 Start 30-Day Free Trial"}
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
                 </button>
@@ -305,8 +305,8 @@ export default function SubscribePage() {
                 a: "Yes! LaunchPard Pro includes up to 3 children at no extra cost. Perfect for families with multiple learners."
               },
               {
-                q: "How does the 7-day free trial work?",
-                a: "Start your trial without entering payment details. You'll get full access to all features. If you love it, subscribe after 7 days. No automatic charges during trial."
+                q: "How does the 30-day free trial work?",
+                a: "Start your trial without entering payment details. You'll get full access to all features for 30 days. If you love it, subscribe when you're ready. No automatic charges during trial."
               },
               {
                 q: "Can I cancel anytime?",

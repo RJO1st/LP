@@ -6,7 +6,7 @@
  * Used by student dashboard to gate quest starts, Tara access, and feature visibility.
  *
  * Tier model:
- *   - "trial"  → full Pro access (14 days)
+ *   - "trial"  → full Pro access (30 days)
  *   - "active" → paid Pro subscriber
  *   - "free"   → 10 questions/day, no Tara, no parent dashboard, 1 scholar
  *   - other    → treated as Free

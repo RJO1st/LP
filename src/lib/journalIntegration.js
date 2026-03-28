@@ -25,11 +25,11 @@ import { getAgeBand } from './ageBandConfig';
  * Only creates entries for KS1 and KS2 scholars.
  */
 export async function createJournalEntry(supabase, {
-  scholarId, subject, topic, score, total, yearLevel,
+  scholarId, subject, topic, score, total, yearLevel, curriculum,
 }) {
   if (!supabase || !scholarId) return;
 
-  const band = getAgeBand(yearLevel, scholar?.curriculum);
+  const band = getAgeBand(yearLevel, curriculum);
   // Only KS1 and KS2 get journal entries
   if (band !== 'ks1' && band !== 'ks2') return;
 

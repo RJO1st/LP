@@ -1,18 +1,29 @@
 "use client";
 /**
- * useDashboardData.js (v6)
+ * useDashboardData.js (v7)
  * Deploy to: src/hooks/useDashboardData.js
  *
- * v6 fixes:
+ * v7 changes:
+ *   - Integrated with analyticsService.js for cached, centralised queries
+ *   - Safe exam date validation (no NaN)
+ *   - Exports recentQuizzes, mockTests, revisionSessions, leaderboard for KS dashboards
  *   - getAgeBand now receives curriculum (ng_jss→ks3, ng_sss→ks4)
  *   - effectiveYear maps JSS1-3→Y7-9, SSS1-3→Y10-12 for DB queries
- *   - question_bank query uses effectiveYear, not raw yearLevel
- *   - No more Y2 Addition/Subtraction topics for JSS2 scholars
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { getAgeBand, getBandConfig, getEncouragement, getQuestNarrative } from "@/lib/ageBandConfig";
 import { computeExamReadinessIndex, predictGrade, fetchExamBoardData } from "@/lib/learningPathEngine";
+import {
+  getMasteryData,
+  getQuizResults,
+  getWeeklySummary,
+  getExamReadiness,
+  getSubjectProficiency,
+  getReviewSchedule,
+  getActivityCalendar,
+  invalidateCache,
+} from "@/lib/analyticsService";
 
 // ── Year mapping: scholar.year_level → DB year_level ─────────────────────────
 function getEffectiveYear(yearLevel, curriculum) {
@@ -31,17 +42,24 @@ const MATHS_TOPICS_BY_BAND = {
 };
 
 export default function useDashboardData(scholar, supabase) {
-  const [stats, setStats]               = useState({});
-  const [topics, setTopics]             = useState([]);
-  const [journal, setJournal]           = useState([]);
-  const [dailyAdventure, setDaily]      = useState(null);
-  const [encouragement, setEncourage]   = useState(null);
-  const [careerTopic, setCareerTopic]   = useState(null);
-  const [examData, setExamData]         = useState(null);
-  const [masteryData, setMasteryData]   = useState([]);
-  const [peerComparisons, setPeerComp]  = useState([]);
-  const [pastMocks, setPastMocks]       = useState([]);
-  const [loading, setLoading]           = useState(true);
+  const [stats, setStats]                     = useState({});
+  const [topics, setTopics]                   = useState([]);
+  const [journal, setJournal]                 = useState([]);
+  const [dailyAdventure, setDaily]            = useState(null);
+  const [encouragement, setEncourage]         = useState(null);
+  const [careerTopic, setCareerTopic]         = useState(null);
+  const [examData, setExamData]               = useState(null);
+  const [masteryData, setMasteryData]         = useState([]);
+  const [peerComparisons, setPeerComp]        = useState([]);
+  const [pastMocks, setPastMocks]             = useState([]);
+  const [recentQuizzes, setRecentQuizzes]     = useState([]);
+  const [mockTests, setMockTests]             = useState([]);
+  const [revisionSessions, setRevisionSess]   = useState([]);
+  const [leaderboard, setLeaderboard]         = useState([]);
+  const [subjectProficiency, setSubjProf]     = useState({});
+  const [reviewSchedule, setReviewSchedule]   = useState({ dueNow: [], upcoming: [] });
+  const [activityCalendar, setActivityCal]    = useState([]);
+  const [loading, setLoading]                 = useState(true);
 
   const scholarId  = scholar?.id;
   const yearLevel  = parseInt(scholar?.year_level || scholar?.year, 10) || 4;
@@ -55,20 +73,11 @@ export default function useDashboardData(scholar, supabase) {
     setLoading(true);
 
     try {
-      const [masteryResult, quizResult, streakResult, journalResult, adventureResult, dbTopicsResult] = await Promise.all([
-        supabase.from("scholar_topic_mastery")
-          .select("topic, subject, mastery_score, times_seen, updated_at, next_review_at")
-          .eq("scholar_id", scholarId)
-          .eq("curriculum", curriculum),
-        supabase.from("quiz_results")
-          .select("*")
-          .eq("scholar_id", scholarId)
-          .order("created_at", { ascending: false })
-          .limit(100),
-        supabase.from("scholars")
-          .select("*")
-          .eq("id", scholarId)
-          .single(),
+      // ── Use analyticsService for cached, centralised queries ──────
+      const [masteryRows, quizzes, weeklySummary, journalResult, adventureResult, dbTopicsResult, subjProf, schedule, activityCal] = await Promise.all([
+        getMasteryData(scholarId, curriculum, supabase),
+        getQuizResults(scholarId, supabase, 100),
+        getWeeklySummary(scholarId, curriculum, supabase),
         config.dashboard.questJournal
           ? supabase.from("quest_journal").select("entry_date, entry_text, icon")
               .eq("scholar_id", scholarId).order("created_at", { ascending: false }).limit(5)
@@ -87,10 +96,15 @@ export default function useDashboardData(scholar, supabase) {
           .eq("is_active", true)
           .gte("year_level", Math.max(1, effectiveYear - 1))
           .lte("year_level", effectiveYear + 1),
+        getSubjectProficiency(scholarId, curriculum, supabase),
+        getReviewSchedule(scholarId, curriculum, supabase),
+        getActivityCalendar(scholarId, supabase, 90),
       ]);
 
-      const masteryRows = masteryResult.data ?? [];
       setMasteryData(masteryRows);
+      setSubjProf(subjProf);
+      setReviewSchedule(schedule);
+      setActivityCal(activityCal);
 
       // ── Build available topics per subject from question_bank ──────
       const dbTopicRows = dbTopicsResult.data ?? [];
@@ -192,31 +206,34 @@ export default function useDashboardData(scholar, supabase) {
 
       setTopics(allTopics);
 
-      // ── Stats ──────────────────────────────────────────────────────
-      const quizzes = quizResult.data ?? [];
-      const weekAgo = new Date(Date.now() - 7 * 86400000);
+      // ── Stats (via analyticsService weeklySummary) ───────────────
       const getDate = (q) => q.completed_at || q.created_at;
-      const weekQuizzes = quizzes.filter(q => getDate(q) && new Date(getDate(q)) > weekAgo);
-      const todayQuizzes = quizzes.filter(q => getDate(q) && new Date(getDate(q)).toDateString() === new Date().toDateString());
-      const totalXp = streakResult.data?.total_xp ?? weekQuizzes.reduce((s, q) => s + (q.score ?? 0) * 10, 0);
-      const seenRows = masteryRows.filter(r => (r.times_seen ?? 0) > 0);
-      const masteryPct = seenRows.length > 0
-        ? Math.round(seenRows.reduce((s, r) => s + (r.mastery_score ?? 0), 0) / seenRows.length * 100)
-        : 0;
+      const masteryPct = weeklySummary.masteryPct ?? 0;
 
       setStats({
-        xp: totalXp,
-        xpToday: todayQuizzes.reduce((s, q) => s + (q.score ?? 0) * 10, 0),
-        questsCompleted: quizzes.length,
-        streak: streakResult.data?.current_streak ?? 0,
-        streakBest: streakResult.data?.best_streak ?? 0,
+        xp: weeklySummary.xp ?? 0,
+        xpToday: weeklySummary.xpToday ?? 0,
+        questsCompleted: weeklySummary.questsCompleted ?? 0,
+        streak: weeklySummary.streak ?? 0,
+        streakBest: weeklySummary.streakBest ?? 0,
         masteryPct,
-        topicCount: seenRows.length,
-        timeMinutes: weekQuizzes.length * 8,
+        topicCount: weeklySummary.topicCount ?? 0,
+        totalTopics: weeklySummary.totalTopics ?? 0,
+        timeMinutes: weeklySummary.timeMinutes ?? 0,
         predictedGrade: band === "ks4" ? predictGrade(masteryPct, null, curriculum).grade : null,
         mocksCompleted: quizzes.filter(q => q.details?.mock).length,
-        stickersCollected: Math.floor(totalXp / 10),
+        stickersCollected: weeklySummary.stickersCollected ?? 0,
       });
+
+      // ── Recent quizzes for KS dashboard sidebar ──────────────────
+      setRecentQuizzes(quizzes.slice(0, 5).map(q => ({
+        id: q.id,
+        subject: q.subject || q.details?.subject || "mathematics",
+        topic: q.topic || q.details?.topic || "",
+        score: q.score ?? 0,
+        total: q.total_questions ?? q.questions_total ?? 0,
+        date: getDate(q),
+      })));
 
       // ── Journal ────────────────────────────────────────────────────
       setJournal((journalResult.data ?? []).map(e => ({
@@ -236,10 +253,12 @@ export default function useDashboardData(scholar, supabase) {
       }
 
       // ── Encouragement ──────────────────────────────────────────────
-      if (checkTrigger(config, quizzes.length, streakResult.data?.current_streak ?? 0)) {
+      const currentStreak = weeklySummary.streak ?? 0;
+      const weeklyQuizCount = weeklySummary.weeklyQuizCount ?? quizzes.length;
+      if (checkTrigger(config, quizzes.length, currentStreak)) {
         const currentTopic = allTopics.find(t => t.status === "current");
         const msg = getEncouragement(band, {
-          n: weekQuizzes.length, streak: streakResult.data?.current_streak ?? 0,
+          n: weeklyQuizCount, streak: currentStreak,
           topic: currentTopic?.label ?? "your studies", pct: masteryPct,
         });
         setEncourage({ text: msg.text, visible: true });
@@ -250,76 +269,37 @@ export default function useDashboardData(scholar, supabase) {
         setCareerTopic(quizzes[0].details?.[0]?.topic ?? null);
       }
 
-      // ── Exam data (KS4) — Dynamic Exam Readiness Index ─────────────
+      // ── Exam data (KS4) — via analyticsService with NaN-safe dates ──
       if (band === "ks4") {
-        const mastered = masteryRows.filter(r => (r.mastery_score ?? 0) >= 0.7).length;
-        const examDate = scholar?.exam_date ?? null;
-        const daysUntilExam = examDate
-          ? Math.max(0, Math.ceil((new Date(examDate) - new Date()) / 86400000))
-          : null;
-
-        // Compute per-subject readiness using the real engine
-        const subjectGroups = {};
-        masteryRows.forEach(r => {
-          if (!subjectGroups[r.subject]) subjectGroups[r.subject] = [];
-          subjectGroups[r.subject].push(r);
-        });
-
-        // Fetch exam board data once (scholar may have exam_board_id)
-        let primaryExamBoardData = null;
-        const primarySubject = Object.keys(subjectGroups)[0] || "mathematics";
-        if (scholar?.exam_board_id && supabase) {
-          try {
-            primaryExamBoardData = await fetchExamBoardData(scholar.exam_board_id, primarySubject, supabase);
-          } catch { /* graceful fallback */ }
+        const examReadiness = await getExamReadiness(scholar, supabase);
+        if (examReadiness) {
+          const mastered = masteryRows.filter(r => (r.mastery_score ?? 0) >= 0.7).length;
+          setExamData({
+            ...examReadiness,
+            topicsRemaining: allTopics.length - mastered,
+            mocksCompleted: quizzes.filter(q => q.details?.mock).length,
+            revisionPlan: buildRevisionPlan(masteryRows),
+          });
         }
 
-        // Compute readiness for the primary subject (shown in predicted grade HUD)
-        const primaryRecords = subjectGroups[primarySubject] || masteryRows;
-        const readiness = computeExamReadinessIndex(primaryRecords, primarySubject, {
-          examBoardData: primaryExamBoardData,
-          examDate,
-          curriculum,
-        });
+        // ── Mock tests & revision sessions for KS4Dashboard props ──
+        setMockTests(quizzes
+          .filter(q => q.details?.mock || (q.total_questions ?? q.questions_total ?? 0) >= 20)
+          .slice(0, 5)
+          .map(q => ({
+            id: q.id,
+            subject: q.subject || q.details?.subject || "mathematics",
+            score: q.score ?? 0,
+            total: q.total_questions ?? q.questions_total ?? 0,
+            date: getDate(q),
+            predictedGrade: predictGrade(
+              Math.round(((q.score ?? 0) / Math.max(q.total_questions ?? q.questions_total ?? 1, 1)) * 100),
+              null, curriculum
+            ).grade,
+          }))
+        );
 
-        // Also compute an overall grade using all mastery data
-        const overallReadiness = computeExamReadinessIndex(masteryRows, primarySubject, {
-          examBoardData: primaryExamBoardData,
-          examDate,
-          curriculum,
-        });
-
-        setExamData({
-          predictedGrade: readiness.grade,
-          previousGrade: null,
-          examName: scholar?.exam_mode === "gcse" ? "GCSE" : scholar?.exam_mode === "waec" ? "WAEC" : "Exam",
-          daysUntilExam,
-          examDate,
-          topicsRemaining: allTopics.length - mastered,
-          mocksCompleted: quizzes.filter(q => q.details?.mock).length,
-          revisionPlan: buildRevisionPlan(masteryRows),
-          // New readiness data for Phase 1 KS4 visualizations
-          readiness: {
-            score: readiness.score,
-            grade: readiness.grade,
-            nextGrade: readiness.nextGrade,
-            pointsToNext: readiness.pointsToNext,
-            scale: readiness.scale,
-            label: readiness.label,
-            colour: readiness.colour,
-            coverage: readiness.coverage,
-            retention: readiness.retention,
-            urgency: readiness.urgency,
-            topicsNeeded: readiness.topicsNeeded,
-          },
-          // Per-subject readiness for heatmap/breakdown
-          subjectReadiness: Object.fromEntries(
-            Object.entries(subjectGroups).map(([subj, records]) => [
-              subj,
-              computeExamReadinessIndex(records, subj, { examDate, curriculum }),
-            ])
-          ),
-        });
+        setRevisionSess(buildRevisionPlan(masteryRows));
       }
 
       // ── Peer comparisons ───────────────────────────────────────────
@@ -350,10 +330,59 @@ export default function useDashboardData(scholar, supabase) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // ── Real-time Supabase subscriptions ─────────────────────────────
+  useEffect(() => {
+    if (!scholarId || !supabase) return;
+
+    const channel = supabase
+      .channel(`dashboard-${scholarId}`)
+      // Listen for mastery updates (topic completion, spaced repetition)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "scholar_topic_mastery",
+          filter: `scholar_id=eq.${scholarId}`,
+        },
+        () => {
+          invalidateCache(`mastery:${scholarId}`);
+          invalidateCache(`weeklySummary:${scholarId}`);
+          invalidateCache(`subjectProf:${scholarId}`);
+          invalidateCache(`examReadiness:${scholarId}`);
+          fetchAll();
+        }
+      )
+      // Listen for new quiz completions
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "quiz_results",
+          filter: `scholar_id=eq.${scholarId}`,
+        },
+        () => {
+          invalidateCache(`quizResults:${scholarId}`);
+          invalidateCache(`weeklySummary:${scholarId}`);
+          invalidateCache(`activityCal:${scholarId}`);
+          fetchAll();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [scholarId, supabase, fetchAll]);
+
   return {
     stats, topics, journal, dailyAdventure, encouragement,
     careerTopic, examData, masteryData, peerComparisons, pastMocks,
+    recentQuizzes, mockTests, revisionSessions, leaderboard,
+    subjectProficiency, reviewSchedule, activityCalendar,
     loading, refetch: fetchAll,
+    invalidateCache: () => invalidateCache(`mastery:${scholarId}`),
   };
 }
 

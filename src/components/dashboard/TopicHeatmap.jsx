@@ -40,6 +40,7 @@ export default function TopicHeatmap({
   subject = "mathematics",
   onTopicClick,
   compact = false,
+  band = "ks2",
 }) {
   const [hoveredTopic, setHoveredTopic] = useState(null);
 
@@ -75,22 +76,26 @@ export default function TopicHeatmap({
   const cols = compact ? 4 : Math.min(6, Math.max(3, Math.ceil(Math.sqrt(topicData.length))));
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative" }} role="figure" aria-label={`Topic mastery heatmap for ${subject}`}>
       <div style={{
         display: "grid",
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: compact ? 4 : 6,
+        gap: compact ? 4 : (band === "ks1" ? 8 : 6),
       }}>
         {topicData.map((t) => (
           <div
             key={t.topic}
+            role="button"
+            tabIndex={0}
+            aria-label={`${t.displayName}: ${t.mastery}% mastery, practiced ${t.timesSeen} times`}
             onClick={() => onTopicClick?.(t.topic, subject)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTopicClick?.(t.topic, subject); } }}
             onMouseEnter={() => setHoveredTopic(t.topic)}
             onMouseLeave={() => setHoveredTopic(null)}
             style={{
               position: "relative",
-              padding: compact ? "6px 4px" : "10px 8px",
-              borderRadius: compact ? 6 : 8,
+              padding: compact ? "6px 4px" : (band === "ks1" ? "12px 8px" : "10px 8px"),
+              borderRadius: compact ? 6 : (band === "ks1" ? 12 : 8),
               background: t.bg,
               border: `1px solid ${hoveredTopic === t.topic ? t.text : t.border}`,
               cursor: "pointer",

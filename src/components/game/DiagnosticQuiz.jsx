@@ -21,6 +21,7 @@
 import { useState, useEffect, useRef } from "react";
 import { scoreDiagnostic } from "@/lib/masteryEngine";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import { calculatePercentage } from "@/lib/calculationUtils";
 
 const TARA_MESSAGES = {
   start:    "No pressure — just answer what you know. I use this to build your perfect learning path! 🗺️",
@@ -50,7 +51,7 @@ export default function DiagnosticQuiz({
 
   const total   = questions.length;
   const current = questions[currentIdx];
-  const pct     = total > 0 ? Math.round((currentIdx / total) * 100) : 0;
+  const pct     = calculatePercentage(currentIdx, total);
 
   // Clear timer on unmount
   useEffect(() => () => clearTimeout(timerRef.current), []);
@@ -148,7 +149,7 @@ export default function DiagnosticQuiz({
   // ── RESULTS PHASE ──────────────────────────────────────────────────────────
   if (phase === "results" && results) {
     const correct = answers.filter(a => a.correct).length;
-    const pctCorrect = Math.round((correct / total) * 100);
+    const pctCorrect = calculatePercentage(correct, total);
 
     const levelLabels = {
       above_year:  { emoji: "🌟", label: "Above Year Level",  desc: "You've got strong foundations. We'll start with more advanced topics." },

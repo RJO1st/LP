@@ -9,24 +9,8 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { getSubjectLabel } from "@/lib/subjectDisplay";
-
-const SUBJECT_COLORS = {
-  mathematics: "#6366f1", maths: "#6366f1",
-  english: "#e11d48", english_studies: "#e11d48",
-  science: "#10b981", basic_science: "#10b981",
-  verbal_reasoning: "#7c3aed",
-  non_verbal_reasoning: "#0891b2",
-  history: "#92400e", geography: "#065f46",
-  computing: "#475569",
-  physics: "#0ea5e9", chemistry: "#dc2626", biology: "#16a34a",
-  languages: "#8b5cf6", music: "#ec4899", art: "#f97316", pe: "#84cc16",
-  social_studies: "#0891b2", civic_education: "#2563eb",
-  religious_studies: "#a855f7", religious_education: "#a855f7",
-  design_and_technology: "#b45309",
-};
-
-// Subject labels now come from getSubjectLabel() in subjectDisplay.js
+import { getSubjectLabel, getSubjectColor } from "@/lib/subjectDisplay";
+import { calculatePercentage } from "@/lib/calculationUtils";
 
 export default function SubjectProgressChart({ masteryData = [], subjects = [] }) {
   const { band, theme: t, isDark } = useTheme();
@@ -49,8 +33,8 @@ export default function SubjectProgressChart({ masteryData = [], subjects = [] }
     .map(([subj, { total, count }]) => ({
       subject: subj,
       label: getSubjectLabel(subj, band),
-      pct: count > 0 ? Math.round((total / count) * 100) : 0,
-      color: SUBJECT_COLORS[subj] || t.colours.accent,
+      pct: calculatePercentage(total, count),
+      color: getSubjectColor(subj) || t.colours.accent,
     }))
     .sort((a, b) => b.pct - a.pct);
 

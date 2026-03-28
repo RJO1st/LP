@@ -349,14 +349,47 @@ export function TriangleAngleDiagram({ knownAngles, unknownLabel = "?" }) {
   const total = knownAngles.reduce((s, a) => s + (a || 0), 0);
   const unknown = 180 - total;
   const colors = [T.indigo, T.nebula, T.rose];
+  const allDegs = [...knownAngles, unknown];
 
-  // Triangle vertices
-  const verts = [
-    { x: 90, y: 15 },   // top
-    { x: 20, y: 125 },  // bottom-left
-    { x: 160, y: 125 }, // bottom-right
-  ];
-  const angles = [...knownAngles.map(a => ({ deg: a, known: true })), { deg: unknown, known: false }];
+  // Detect if this is a right triangle (any angle is 90°)
+  const hasRightAngle = allDegs.some(a => a === 90);
+
+  // Triangle vertices — use right-angled shape when appropriate
+  const verts = hasRightAngle
+    ? [
+        { x: 20, y: 15 },    // top-left
+        { x: 20, y: 125 },   // bottom-left (right angle here)
+        { x: 155, y: 125 },  // bottom-right
+      ]
+    : [
+        { x: 90, y: 15 },    // top
+        { x: 20, y: 125 },   // bottom-left
+        { x: 160, y: 125 },  // bottom-right
+      ];
+
+  // Reorder angles so the 90° angle aligns with the right-angle vertex (index 1 = bottom-left)
+  let angles;
+  if (hasRightAngle) {
+    const rightIdx = allDegs.findIndex(a => a === 90);
+    const reordered = [...allDegs];
+    // Move right angle to position 1 (bottom-left vertex)
+    if (rightIdx !== 1) {
+      const temp = reordered[1];
+      reordered[1] = reordered[rightIdx];
+      reordered[rightIdx] = temp;
+    }
+    angles = reordered.map((deg, i) => ({
+      deg,
+      known: i < knownAngles.length ? (i === 1 ? allDegs[rightIdx] === 90 && knownAngles.includes(90) : knownAngles.includes(deg)) : false,
+    }));
+    // Simpler: mark known based on original
+    angles = reordered.map(deg => ({
+      deg,
+      known: knownAngles.includes(deg),
+    }));
+  } else {
+    angles = [...knownAngles.map(a => ({ deg: a, known: true })), { deg: unknown, known: false }];
+  }
 
   return (
     <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}
@@ -368,8 +401,12 @@ export function TriangleAngleDiagram({ knownAngles, unknownLabel = "?" }) {
         {/* Angle labels at each vertex */}
         {angles.slice(0, 3).map((angle, i) => {
           const v = verts[i];
-          const offsetX = i === 0 ? 0 : i === 1 ? 14 : -14;
-          const offsetY = i === 0 ? 28 : -10;
+          const offsetX = hasRightAngle
+            ? (i === 0 ? 18 : i === 1 ? 14 : -14)
+            : (i === 0 ? 0 : i === 1 ? 14 : -14);
+          const offsetY = hasRightAngle
+            ? (i === 0 ? 14 : i === 1 ? -14 : -10)
+            : (i === 0 ? 28 : -10);
           const color = angle.known ? colors[i % colors.length] : T.rose;
           return (
             <g key={i}>

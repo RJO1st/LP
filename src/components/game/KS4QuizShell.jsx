@@ -50,11 +50,17 @@ export default function KS4QuizShell({
           <span className="hidden md:inline text-cyan-400 text-xs font-semibold underline underline-offset-4 decoration-cyan-400/50">Exam Mode</span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold tabular-nums" style={{ color: "rgba(167,139,250,0.7)" }}>
+            Q{questionIndex + 1}<span style={{ color: "rgba(167,139,250,0.35)" }}>/{totalQuestions}</span>
+          </span>
           {timeLeft != null && (
-            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="text-sm font-bold text-white tabular-nums">{formatTime(timeLeft)}</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border" style={{
+              background: timeLeft <= 10 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.05)",
+              borderColor: timeLeft <= 10 ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.1)",
+            }}>
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: timeLeft <= 10 ? "#f87171" : "#22d3ee" }} />
+              <span className="text-sm font-bold tabular-nums" style={{ color: timeLeft <= 10 ? "#f87171" : "#fff" }}>{formatTime(timeLeft)}</span>
             </div>
           )}
           <button onClick={() => setShowExitConfirm(true)} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors text-violet-400"
@@ -64,10 +70,10 @@ export default function KS4QuizShell({
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ─── LEFT: Case Study ────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-6 md:p-10 flex-1 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-6 md:p-10 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none" style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}>
           {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
           {leftPanelContent ? (
             <div className="h-full">{leftPanelContent}</div>
@@ -139,7 +145,7 @@ export default function KS4QuizShell({
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#a78bfa" : "rgba(255,255,255,0.06)",
                     transform: selected ? "scale(1.01)" : "scale(1)",
                   }}>
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0"
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0"
                     style={{
                       background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#a78bfa" : "rgba(255,255,255,0.05)",
                       color: selected || correct || wrong ? "#fff" : "rgba(255,255,255,0.3)",

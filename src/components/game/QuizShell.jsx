@@ -13,6 +13,7 @@ import {
   AlertTriangle, Lightbulb, Clock, ChevronDown, ChevronUp, ChevronRight,
 } from "lucide-react";
 import TaraEIB from "./TaraEIB";
+import { getAgeBand } from "../../lib/ageBandConfig";
 import AnswerReview from "../AnswerReview";
 import AdaptiveTimer from './AdaptiveTimer';
 
@@ -318,7 +319,7 @@ export function MCQOptions({ opts, correctIdx, selected, onPick }) {
 export function FeedbackArea({
   selected, isCorrectAnswer, canProceed, currentQ, student, subject,
   scholarAnswer, themeBg, themeBorder, themeAccent, taraFeedbackReceived, onNext, isLast,
-  taraEnabled,
+  taraEnabled, onSpeakTara,
 }) {
   if (selected === null) return null;
 
@@ -344,6 +345,8 @@ export function FeedbackArea({
           correctAnswer={currentQ?.opts?.[currentQ?.a]}
           scholarAnswer={chosenText}
           onFeedbackReceived={taraFeedbackReceived}
+          band={getAgeBand(student?.year_level, student?.curriculum)}
+          onSpeak={onSpeakTara}
         />
       )}
 

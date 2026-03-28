@@ -20,6 +20,8 @@ import UpgradeModal from "../../../components/UpgradeModal";
 import JourneyMap from "../../../components/JourneyMap";
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import AdaptiveDashboardLayout from '@/components/dashboard/AdaptiveDashboardLayout';
+import DashboardRouter from '@/components/dashboard/DashboardRouter';
+import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundary';
 import useDashboardData from '@/hooks/useDashboardData';
 import { getAgeBand } from '@/lib/ageBandConfig';
 import DashboardTour from "@/components/DashboardTour";
@@ -45,6 +47,16 @@ const FullAvatarShop = dynamic(
   { ssr: false, loading: () => <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontWeight: 700 }}>Loading shop…</div> }
 );
 
+const AvatarCustomiser = dynamic(
+  () => import("../../../components/game/AvatarCustomiser"),
+  { ssr: false, loading: () => <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontWeight: 700 }}>Loading customiser…</div> }
+);
+
+const BossBattleUI = dynamic(
+  () => import("../../../components/game/BossBattleUI"),
+  { ssr: false, loading: () => <LoadingScreen message="Preparing Boss Battle…" /> }
+);
+
 const StoryUnlockModal = dynamic(
   () => import("../../../components/adventure/StoryUnlockModal"),
   { ssr: false }
@@ -66,6 +78,22 @@ import {
   markWeeklyTestDone,
   MIN_YEAR_FOR_TESTS,
 } from "../../../components/WeeklyTestFlow";
+
+// ── Phase 1: Mastery & Progression components ────────────────────
+const SpacedReviewIndicator = dynamic(
+  () => import("@/components/dashboard/SpacedReviewIndicator"),
+  { ssr: false, loading: () => null }
+);
+const ExamReadinessCard = dynamic(
+  () => import("@/components/dashboard/ExamReadinessCard"),
+  { ssr: false, loading: () => null }
+);
+
+// ── Phase 3: UX Differentiation components ───────────────────────
+const MasteryCelebration = dynamic(
+  () => import("@/components/phaser/MasteryCelebration"),
+  { ssr: false, loading: () => null }
+);
 
 const PaperEngine = dynamic(
   () => import("../../../components/game/PaperEngine"),
@@ -186,7 +214,7 @@ function AvatarDisplay({ avatar, size = "md", onClick }) {
                   hover:scale-105 transition-transform`}
     >
       <span className={sizeCfg.emoji} style={{ lineHeight: 1 }}>
-        {{ astronaut: "👨‍🚀", explorer: "👩‍🚀", hero: "🦸", wizard: "🧙", fox: "🦊", cat: "🐱", robot: "🤖", unicorn: "🦄" }[avatar?.base] || "🚀"}
+        {{ astronaut: "👨‍🚀", explorer: "🧭", scientist: "🔬", pilot: "🛩️", captain: "⚓", ranger: "🎯", guardian: "🛡️", vanguard: "⚡", hero: "🦸", wizard: "🧙", fox: "🦊", cat: "🐱", robot: "🤖", unicorn: "🦄" }[(avatar?.base || "").replace(/^base_/, "")] || "🚀"}
       </span>
       {avatar?.hat && (
         <span className={`absolute -top-1.5 -right-1.5 ${sizeCfg.hat}`}>{AVATAR_ITEMS[avatar.hat]?.icon}</span>
@@ -336,7 +364,7 @@ function CertificatesPanel({ records, scholarName, subjects }) {
 }
 
 // ─── AVATAR SHOP MODAL — wraps the full AvatarShop component ─────
-function AvatarShopModal({ scholarId, onClose }) {
+function AvatarShopModal({ scholarId, onClose, onAvatarChange }) {
   return (
     <div
       className="fixed inset-0 z-[8000] flex items-center justify-center p-3 sm:p-4"
@@ -366,7 +394,7 @@ function AvatarShopModal({ scholarId, onClose }) {
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >✕</button>
-        <FullAvatarShop scholarId={scholarId} />
+        <FullAvatarShop scholarId={scholarId} onAvatarChange={onAvatarChange} />
       </div>
     </div>
   );
@@ -415,7 +443,9 @@ function Leaderboard({ entries, currentScholarId }) {
                 : "bg-slate-50 border-2 border-transparent"
             }`}>
             <span className="text-lg w-8 text-center">{medal}</span>
-            <AvatarDisplay avatar={entry.avatar} size="sm" />
+            <div className="w-10 h-10 shrink-0">
+              <AvatarRendererLazy avatar={entry.avatar || { base: "astronaut" }} size="sm" animated={false} />
+            </div>
             <div className="flex-1 min-w-0">
               <p className={`font-black text-sm truncate ${isMe ? "text-indigo-700" : "text-slate-700"}`}>
                 {entry.codename || entry.name}{isMe ? " (You)" : ""}
@@ -434,61 +464,10 @@ function Leaderboard({ entries, currentScholarId }) {
 
 // ─── HERO AVATAR ──────────────────────────────────────────────────
 // Large illustrated character for hero card — all accessories layered
-const BG_GRADIENTS_MAP = {
-  planet:  "from-blue-900 via-slate-800 to-blue-950",
-  galaxy:  "from-indigo-900 via-purple-900 to-slate-900",
-  sunset:  "from-orange-700 via-rose-800 to-purple-900",
-  ocean:   "from-blue-800 via-cyan-900 to-slate-900",
-};
-function HeroAvatar({ avatar, onClick }) {
-  // Background gradient from avatar.background icon key or default
-  const bgKey = avatar?.background === "🪐" ? "planet"
-              : avatar?.background === "🌌" ? "galaxy"
-              : avatar?.background === "🌅" ? "sunset"
-              : avatar?.background === "🌊" ? "ocean"
-              : null;
-  const bg  = bgKey ? BG_GRADIENTS_MAP[bgKey] : "from-indigo-700 via-violet-800 to-indigo-900";
-  const baseEmoji = avatar?.base === "astronaut" ? "👨‍🚀" : "🚀";
-  const hat = avatar?.hat       ? AVATAR_ITEMS[avatar.hat]       : null;
-  const acc = avatar?.accessory ? AVATAR_ITEMS[avatar.accessory] : null;
-  const pet = avatar?.pet       ? AVATAR_ITEMS[avatar.pet]       : null;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-[100px] h-[100px] rounded-full bg-gradient-to-br ${bg}
-                  flex items-center justify-center relative overflow-visible
-                  shadow-2xl border-[3px] border-white/25
-                  hover:scale-105 transition-transform select-none`}
-    >
-      {/* Accessory aura (behind) */}
-      {acc && (
-        <span className="absolute inset-0 flex items-center justify-center text-4xl opacity-60 pointer-events-none select-none">
-          {acc.icon}
-        </span>
-      )}
-      {/* Base character — large */}
-      <span className="text-[58px] leading-none z-10 select-none"
-        style={{ filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.5))" }}>
-        {baseEmoji}
-      </span>
-      {/* Hat overlay top-right */}
-      {hat && (
-        <span className="absolute -top-3 -right-2 text-[28px] z-20 select-none"
-          style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}>
-          {hat.icon}
-        </span>
-      )}
-      {/* Pet bottom-right */}
-      {pet && (
-        <span className="absolute -bottom-2 -right-3 text-2xl z-20 select-none"
-          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}>
-          {pet.icon}
-        </span>
-      )}
-    </button>
-  );
-}
+const AvatarRendererLazy = dynamic(
+  () => import("../../../components/game/AvatarRenderer"),
+  { ssr: false, loading: () => <div className="w-[100px] h-[100px] rounded-full bg-indigo-800 animate-pulse" /> }
+);
 
 // ─── STREAK TIMER DISPLAY ─────────────────────────────────────────
 // Standalone countdown showing HH:MM:SS until midnight
@@ -679,10 +658,12 @@ export default function StudentDashboard() {
 
   const [scholar,          setScholar]          = useState(null);
   const [activeSubject,    setActiveSubject]    = useState(null);
+  const [focusedTopic,     setFocusedTopic]     = useState(null);
   const lastSubjectRef = React.useRef(null);
   const [unlockModal,      setUnlockModal]      = useState(null); // { tier, subject, topic } | null
   const [showNebulaTrials,   setShowNebulaTrials]   = useState(false);
   const [view,             setView]             = useState("dashboard"); // "dashboard" | "tests" | "weekly_test" | "debrief"
+  const [masteryCelebration, setMasteryCelebration] = useState(null); // {tier, subjectName} or null
   const [prevQuestionIds,  setPrevQuestionIds]  = useState([]);
   const [weeklyTestConfig, setWeeklyTestConfig] = useState(null);
   const [weeklyTestResult, setWeeklyTestResult] = useState(null);
@@ -702,6 +683,8 @@ export default function StudentDashboard() {
   const [skillProficiency, setSkillProficiency] = useState({});
   const [recentQuizzes,    setRecentQuizzes]    = useState([]);
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
+  const [showAvatarCustomiser, setShowAvatarCustomiser] = useState(false);
+  const [activeBossBattle, setActiveBossBattle] = useState(null); // boss quest data or null
   const [soundOn,          setSoundOn]          = useState(true);
   const [lbMode,           setLbMode]           = useState("year");
   const [trialInfo,        setTrialInfo]        = useState(null);
@@ -718,15 +701,16 @@ export default function StudentDashboard() {
 
   // ── Age-adaptive dashboard ─────────────────────────────────────────
   const adaptiveData = useDashboardData(scholar, supabase);
-  const [dashboardMode, setDashboardMode] = useState("adaptive"); 
+  const [dashboardMode, setDashboardMode] = useState("adaptive");
 
   // ── Free tier: derived access info ──────────────────────────────
   const effectiveTier = parentInfo ? getEffectiveTier(parentInfo) : "pro"; // default pro during load
   const featureAccess = getFeatureAccess(effectiveTier);
 
   // Gated quest launch — checks daily limit for Free tier before starting
-  const launchQuest = useCallback(async (subject) => {
+  const launchQuest = useCallback(async (subject, topicSlug = null) => {
     lastSubjectRef.current = subject; // Remember for return-to-subject
+    setFocusedTopic(topicSlug);       // Pass topic through to QuestOrchestrator
     if (effectiveTier === "pro") {
       setActiveSubject(subject);
       return;
@@ -761,6 +745,20 @@ export default function StudentDashboard() {
       if (scholar.parent_id) {
         loadTrialStatus(scholar.parent_id);
       }
+      // Always re-fetch fresh from DB to pick up avatar/coin changes from other sessions
+      (async () => {
+        try {
+          const { data: fresh } = await supabase
+            .from("scholars")
+            .select("*")
+            .eq("id", scholar.id)
+            .single();
+          if (fresh) {
+            setScholar(fresh);
+            localStorage.setItem("active_scholar", JSON.stringify(fresh));
+          }
+        } catch (_) {}
+      })();
     } else {
       router.push("/");
     }
@@ -1015,6 +1013,12 @@ export default function StudentDashboard() {
         topic:   tierCrossed.topic   || null,
         subject: activeSubject       || "mathematics",
       });
+      // Phase 3: Trigger Phaser mastery celebration overlay
+      const subjectLabel = (activeSubject || "mathematics").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      setMasteryCelebration({
+        tier: tierCrossed.tier || "developing",
+        subjectName: subjectLabel,
+      });
     }
 
     // check_and_award_badges — non-fatal, skip gracefully if RPC doesn't exist
@@ -1256,6 +1260,27 @@ const UK_NATIONAL_SUBJECTS = {
     );
   }
 
+  // ── Active boss battle ─────────────────────────────────────────────
+  if (activeBossBattle) {
+    return (
+      <BossBattleUI
+        scholar={scholar}
+        bossQuest={activeBossBattle}
+        supabase={supabase}
+        onClose={() => setActiveBossBattle(null)}
+        onVictory={async (rewards) => {
+          setActiveBossBattle(null);
+          // Refresh scholar data to pick up XP/coin changes
+          if (scholar?.id) {
+            const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
+            if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }
+          }
+          loadQuests();
+        }}
+      />
+    );
+  }
+
   // ── Active quiz (Routed via QuestOrchestrator) ───────────────────
   if (activeSubject) {
     return (
@@ -1263,11 +1288,12 @@ const UK_NATIONAL_SUBJECTS = {
         student={scholar}
         subject={activeSubject}
         curriculum={curriculum}
-        onClose={() => setActiveSubject(null)}
+        onClose={() => { setActiveSubject(null); setFocusedTopic(null); }}
         onComplete={handleQuestComplete}
         questionCount={effectiveTier === "free" ? Math.min(10, 10 - todayQCount) : undefined}
         previousQuestionIds={prevQuestionIds}
         taraEnabled={featureAccess.taraAI}
+        focusedTopic={focusedTopic}
       />
     );
   }
@@ -1286,9 +1312,44 @@ const UK_NATIONAL_SUBJECTS = {
       {showAvatarShop && (
         <AvatarShopModal
           scholarId={scholar?.id}
+          onAvatarChange={(newAvatar) => {
+            // Real-time update: use FUNCTIONAL setState to avoid stale-closure bugs.
+            // The closure captures `scholar` at render-time which can be stale.
+            setScholar(prev => {
+              const updated = { ...prev, avatar: newAvatar };
+              localStorage.setItem("active_scholar", JSON.stringify(updated));
+              return updated;
+            });
+          }}
           onClose={async () => {
             setShowAvatarShop(false);
-            // Refresh scholar data to pick up coin/avatar changes from the full shop
+            // Final refresh to pick up coin balance + any last-second changes
+            if (scholar?.id) {
+              const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
+              if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }
+            }
+          }}
+        />
+      )}
+      {showAvatarCustomiser && (
+        <AvatarCustomiser
+          scholar={scholar}
+          onSave={async (updatedAvatar) => {
+            if (!scholar?.id) return;
+            // Persist avatar config to scholars.avatar JSONB column
+            const { error } = await supabase
+              .from("scholars")
+              .update({ avatar: updatedAvatar })
+              .eq("id", scholar.id);
+            if (error) { console.error("Avatar save failed:", error); return; }
+            // Refresh local state
+            const merged = { ...scholar, avatar: updatedAvatar };
+            setScholar(merged);
+            localStorage.setItem("active_scholar", JSON.stringify(merged));
+            setShowAvatarCustomiser(false);
+          }}
+          onClose={async () => {
+            setShowAvatarCustomiser(false);
             if (scholar?.id) {
               const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
               if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }
@@ -1356,7 +1417,50 @@ const UK_NATIONAL_SUBJECTS = {
           </div>
         </div>
       )}
-     {dashboardMode === "adaptive" ? (
+     {dashboardMode === "redesigned" ? (
+        <DashboardErrorBoundary band={getAgeBand(scholar?.year_level, scholar?.curriculum)}>
+        <ThemeProvider yearLevel={scholar?.year_level} curriculum={scholar?.curriculum}>
+          <DashboardRouter
+            scholar={{
+              ...scholar,
+              name: scholar.name || scholar.codename || "Scholar",
+              year_level: scholar.year_level || scholar.year || 4,
+              curriculum: curriculum,
+              exam_mode: scholar.exam_mode,
+            }}
+            adaptiveData={adaptiveData}
+            subjects={subjects}
+            leaderboard={leaderboard}
+            onStartQuest={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
+            onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics", t.slug || t.topic || null)}
+            onStartAdventure={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
+            onStartMock={(config) => setView("tests")}
+            onExamModeSwitch={(mode) => {
+              supabase.from("scholars").update({ exam_mode: mode }).eq("id", scholar.id);
+              const updated = { ...scholar, exam_mode: mode };
+              setScholar(updated);
+              localStorage.setItem("active_scholar", JSON.stringify(updated));
+            }}
+            onStartRevisionTopic={(topic) => {
+              // topic can be a string (subject) or object { topic, subject }
+              if (typeof topic === "object" && topic !== null) {
+                launchQuest(topic.subject || subjects[0] || "mathematics", topic.topic || null);
+              } else {
+                launchQuest(topic || subjects[0] || "mathematics");
+              }
+            }}
+            onSignOut={handleSignOut}
+            onAvatar={() => setShowAvatarShop(true)}
+            coins={scholar.coins || 0}
+            todayQCount={todayQCount}
+            effectiveTier={effectiveTier}
+            earnedBadgeIds={earnedBadges}
+            supabase={supabase}
+          />
+        </ThemeProvider>
+        </DashboardErrorBoundary>
+      ) : dashboardMode === "adaptive" ? (
+        <DashboardErrorBoundary band={getAgeBand(scholar?.year_level, scholar?.curriculum)}>
         <ThemeProvider yearLevel={scholar?.year_level} curriculum={scholar?.curriculum}>
           <AdaptiveDashboardLayout
             scholar={{
@@ -1378,8 +1482,14 @@ const UK_NATIONAL_SUBJECTS = {
             masteryData={adaptiveData.masteryData}
             peerComparisons={adaptiveData.peerComparisons}
             pastMocks={adaptiveData.pastMocks}
+            recentQuizzes={adaptiveData.recentQuizzes}
+            mockTests={adaptiveData.mockTests}
+            revisionSessions={adaptiveData.revisionSessions}
+            subjectProficiency={adaptiveData.subjectProficiency}
+            reviewSchedule={adaptiveData.reviewSchedule}
+            activityCalendar={adaptiveData.activityCalendar}
             onStartQuest={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
-            onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics")}
+            onTopicClick={(t) => launchQuest(t.subject || subjects[0] || "mathematics", t.slug || t.topic || null)}
             onDismissEncourage={() => {}}
             onDismissCareer={() => {}}
             onStartAdventure={(subj) => launchQuest(subj || subjects[0] || "mathematics")}
@@ -1390,7 +1500,14 @@ const UK_NATIONAL_SUBJECTS = {
               setScholar(updated);
               localStorage.setItem("active_scholar", JSON.stringify(updated));
             }}
-            onStartRevisionTopic={(topic) => launchQuest(topic || subjects[0] || "mathematics")}
+            onStartRevisionTopic={(topic) => {
+              // topic can be a string (subject) or object { topic, subject }
+              if (typeof topic === "object" && topic !== null) {
+                launchQuest(topic.subject || subjects[0] || "mathematics", topic.topic || null);
+              } else {
+                launchQuest(topic || subjects[0] || "mathematics");
+              }
+            }}
             leaderboard={leaderboard}
             scholarId={scholar.id}
             supabase={supabase}
@@ -1403,6 +1520,7 @@ const UK_NATIONAL_SUBJECTS = {
             onAvatar={() => setShowAvatarShop(true)}
           />
         </ThemeProvider>
+        </DashboardErrorBoundary>
         ) : dashboardMode === "Adaptive" ? (
 <DashboardTour type="scholar" userId={scholar.id} band={getAgeBand(scholar.year_level, scholar.curriculum)} />
       ) : (
@@ -1421,18 +1539,11 @@ const UK_NATIONAL_SUBJECTS = {
             style={{ background: "radial-gradient(circle, rgba(167,139,250,0.35) 0%, rgba(99,102,241,0.12) 60%, transparent 80%)" }} />
 
           <div className="flex items-center gap-3 sm:gap-5 relative z-10">
-            {/* Scholar avatar — large illustrated character with customisation ring */}
-            <div className="relative shrink-0 cursor-pointer group" onClick={() => setShowAvatarShop(true)}>
-              {/* Outer cyan glow ring — matches PDF design */}
-              <div className="absolute -inset-[4px] rounded-full pointer-events-none"
-                style={{ boxShadow: "0 0 0 3px rgba(34,211,238,0.6), 0 0 28px rgba(34,211,238,0.25)" }} />
-              <HeroAvatar avatar={scholar.avatar} onClick={() => setShowAvatarShop(true)} />
-              {/* Edit badge */}
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-cyan-400 border-2 border-white
-                              flex items-center justify-center text-xs shadow-md
-                              group-hover:scale-110 transition-transform z-10" title="Customise avatar">
-                ✏️
-              </div>
+            {/* Scholar avatar — illustrated SVG, same renderer as leaderboard */}
+            <div className="relative shrink-0 cursor-pointer" onClick={() => setShowAvatarShop(true)}>
+              <AvatarRendererLazy avatar={scholar.avatar || { base: "astronaut" }} size="lg" animated />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-cyan-400 border-2 border-white
+                              flex items-center justify-center text-[10px] shadow-md z-10">✏️</div>
             </div>
 
             {/* Name + badges */}
@@ -1471,6 +1582,16 @@ const UK_NATIONAL_SUBJECTS = {
           weeklyStats={weeklyStats}
           onStart={handleWeeklyChallengeStart}
         />
+
+        {/* ── SPACED REVIEW INDICATOR (Phase 1) ──────────────────────── */}
+        {journeyTopics.length > 0 && (
+          <SpacedReviewIndicator
+            masteryRecords={journeyTopics}
+            onStartReview={(subject) => launchQuest(subject)}
+            maxItems={5}
+            ageBand={getAgeBand(scholar.year_level || scholar.year, curriculum)}
+          />
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════
             ROW 1: Quick Launch · Mission Control · Daily Streak  (3-col)
@@ -1589,6 +1710,16 @@ const UK_NATIONAL_SUBJECTS = {
           />
         </section>
 
+        {/* ── EXAM READINESS (Phase 1 — only for scholars with an exam mode) */}
+        {scholar.exam_mode && journeyTopics.length > 0 && (
+          <ExamReadinessCard
+            examType={scholar.exam_mode}
+            masteryData={journeyTopics}
+            onPracticeSubject={(subject) => launchQuest(subject)}
+            scholarYear={scholar.year_level || scholar.year}
+          />
+        )}
+
         {/* ══════════════════════════════════════════════════════════════════
             ROW 3: Active Quests · This Week · Leaderboard  (3-col)
         ══════════════════════════════════════════════════════════════════ */}
@@ -1601,7 +1732,7 @@ const UK_NATIONAL_SUBJECTS = {
               <span className="text-base">🚀</span>
             </div>
             <div className="px-3 pb-3">
-              <QuestPanel scholarId={scholar.id} />
+              <QuestPanel scholarId={scholar.id} onBossBattle={(quest) => setActiveBossBattle(quest)} />
             </div>
           </div>
 
@@ -1741,6 +1872,14 @@ const UK_NATIONAL_SUBJECTS = {
             </div>
           </div>
         )}
+
+      {/* ── MASTERY CELEBRATION OVERLAY (Phase 3 — Phaser confetti) ──── */}
+      <MasteryCelebration
+        tier={masteryCelebration?.tier || "developing"}
+        isOpen={!!masteryCelebration}
+        onClose={() => setMasteryCelebration(null)}
+        subjectName={masteryCelebration?.subjectName || ""}
+      />
     </div>
   );
 }

@@ -68,8 +68,9 @@ function FocusCard({ time, title, priority }) {
   );
 }
 
-export default function KS3Dashboard({ scholar, masteryPercent = 72, timeSpent = "8.3h", streak = 7, ranking = "Top 15%",
-  subjects = [], skillProficiency = {}, onStartQuest, onSignOut, taraMessage, onTaraSend }) {
+export default function KS3Dashboard({ scholar, masteryPercent = 0, timeSpent = "0h", streak = 0, ranking = "—",
+  subjects = [], skillProficiency = {}, onStartQuest, onSignOut, taraMessage, onTaraSend,
+  leaderboard = [], recentQuizzes = [], weeklyGoals = [], focusSessions = [] }) {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const mainContent = (
@@ -105,9 +106,7 @@ export default function KS3Dashboard({ scholar, masteryPercent = 72, timeSpent =
       <section id="section-skills" className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
         <h2 className="text-lg font-bold text-slate-800 mb-5">Skill Map</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          // REPLACE WITH:
- 
-{(subjects || ["mathematics", "english", "science"]).map((subj) => {
+          {(subjects || ["mathematics", "english", "science"]).map((subj) => {
   const d = getSubjectDisplay(subj, "ks3");
   return (
     <SkillBar
@@ -140,15 +139,20 @@ export default function KS3Dashboard({ scholar, masteryPercent = 72, timeSpent =
         </div>
       </section>
 
-      {/* ═══ PLANNER ═════════════════════════════════════════════ */}
+      {/* ═══ PLANNER — data from focusSessions prop ═════════════ */}
       <section id="section-planner" className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
           <MIcon name="event_note" size={20} className="text-sky-500" /> Focus Sessions
         </h2>
         <div className="space-y-3">
-          <FocusCard time="Today — 16:30" title="Algebra: Solving Equations" priority="high" />
-          <FocusCard time="Tomorrow — 14:00" title="Science: Forces Revision" priority="medium" />
-          <FocusCard time="Wednesday — 10:00" title="History: Source Analysis" priority="low" />
+          {focusSessions.length > 0 ? focusSessions.slice(0, 5).map((s, i) => (
+            <FocusCard key={i} time={s.time || "Today"} title={s.title || s.topic || "Study session"} priority={s.priority || "medium"} />
+          )) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-slate-400">No focus sessions scheduled yet.</p>
+              <p className="text-xs text-slate-300 mt-1">Complete quests to unlock AI-planned study blocks.</p>
+            </div>
+          )}
           <button className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-xs font-semibold text-slate-400 hover:border-sky-300 hover:text-sky-500 transition-colors">
             + Add Study Block
           </button>
@@ -161,52 +165,57 @@ export default function KS3Dashboard({ scholar, masteryPercent = 72, timeSpent =
     <>
       <TaraPanel band="ks3" message={taraMessage || "Your recent quiz showed improvement in algebra, but ratio questions are still below target. I've queued 5 focused questions. Ready?"} onSendMessage={onTaraSend} />
 
-      {/* Weekly Goals */}
+      {/* Weekly Goals — data from weeklyGoals prop */}
       <div className="p-4 rounded-xl" style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}>
         <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
           <MIcon name="flag" size={16} className="text-sky-500" /> Weekly Goals
         </h3>
         <div className="space-y-2">
-          {[
-            { label: "Complete 5 quests", done: 3, total: 5 },
-            { label: "90% accuracy in Maths", done: 85, total: 100, pct: true },
-            { label: "Review 3 weak topics", done: 1, total: 3 },
-          ].map((g, i) => (
+          {(weeklyGoals.length > 0 ? weeklyGoals : [
+            { label: "Complete quests", done: recentQuizzes.length, total: 5 },
+            { label: "Overall mastery", done: masteryPercent, total: 100, pct: true },
+          ]).map((g, i) => (
             <div key={i}>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-600 font-medium">{g.label}</span>
                 <span className="text-slate-400 font-semibold">{g.pct ? `${g.done}%` : `${g.done}/${g.total}`}</span>
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-sky-400" style={{ width: `${g.pct ? g.done : (g.done / g.total) * 100}%` }} />
+                <div className="h-full rounded-full bg-sky-400" style={{ width: `${Math.min(g.pct ? g.done : (g.done / Math.max(g.total, 1)) * 100, 100)}%` }} />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Year Group Standings */}
+      {/* Year Group Standings — data from leaderboard prop */}
       <div className="p-4 rounded-xl" style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}>
-        <h3 className="text-sm font-bold text-slate-700 mb-3">Year 9 Standings</h3>
-        <div className="space-y-2">
-          {[
-            { rank: 3, name: "Alex M.", xp: "9,100" },
-            { rank: 4, name: "You", xp: "8,290", hi: true },
-            { rank: 5, name: "Jamie L.", xp: "7,100" },
-            { rank: 6, name: "Sarah W.", xp: "6,950" },
-            { rank: 7, name: "Tom R.", xp: "6,400" },
-          ].map((s, i) => (
-            <div key={i} className="flex items-center gap-2.5 p-2 rounded-lg"
-              style={{ background: s.hi ? "rgba(14,165,233,0.06)" : "transparent", border: s.hi ? "1px solid rgba(14,165,233,0.15)" : "1px solid transparent" }}>
-              <span className="text-[10px] font-black w-4" style={{ color: s.hi ? "#0ea5e9" : "#94a3b8" }}>{s.rank}</span>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-                style={{ background: s.hi ? "#e0f2fe" : "#f1f5f9", color: s.hi ? "#0369a1" : "#64748b" }}>{s.name[0]}</div>
-              <span className="text-xs font-semibold flex-1 text-slate-700">{s.name}{s.hi ? " (You)" : ""}</span>
-              <span className="text-[10px] font-bold text-slate-400">{s.xp} XP</span>
-            </div>
-          ))}
-        </div>
-        <button className="w-full mt-3 text-[10px] font-bold text-sky-500 uppercase tracking-wider">View Full Leaderboard</button>
+        <h3 className="text-sm font-bold text-slate-700 mb-3">
+          {scholar?.year_level ? `Year ${scholar.year_level} Standings` : "Standings"}
+        </h3>
+        {leaderboard.length > 0 ? (
+          <div className="space-y-2">
+            {leaderboard.slice(0, 8).map((entry, i) => {
+              const isMe = entry.id === scholar?.id;
+              return (
+                <div key={entry.id || i} className="flex items-center gap-2.5 p-2 rounded-lg"
+                  style={{ background: isMe ? "rgba(14,165,233,0.06)" : "transparent", border: isMe ? "1px solid rgba(14,165,233,0.15)" : "1px solid transparent" }}>
+                  <span className="text-[10px] font-black w-4" style={{ color: isMe ? "#0ea5e9" : i < 3 ? "#fbbf24" : "#94a3b8" }}>{entry.rank || i + 1}</span>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{ background: isMe ? "#e0f2fe" : "#f1f5f9", color: isMe ? "#0369a1" : "#64748b" }}>
+                    {(entry.codename || entry.name || "?")[0].toUpperCase()}
+                  </div>
+                  <span className="text-xs font-semibold flex-1 text-slate-700">
+                    {entry.codename || entry.name}{isMe ? " (You)" : ""}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400">{(entry.total_xp || 0).toLocaleString()} XP</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-slate-400 text-sm py-3">Complete quests to appear on the board!</p>
+        )}
       </div>
 
       {/* Streak */}

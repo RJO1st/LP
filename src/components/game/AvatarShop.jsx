@@ -1,21 +1,21 @@
 "use client";
 // ============================================================================
-// Avatar Shop - Purchase and Manage Avatar Items
+// Avatar Shop - Purchase, Equip, and Live-Preview Avatar Items
 // src/components/game/AvatarShop.jsx
 //
-// ENHANCED:
-//   - Stronger card backgrounds — locked items now use rarity-tinted bg instead of #f8fafc
-//   - Locked items show full-colour icon + gentle bounce/pulse animation (not greyed out)
-//   - "How to Earn Coins" collapsible banner
-//   - Richer shimmer for epic + legendary items
+// REBUILT:
+//   - Live AvatarRenderer preview (replaces broken LottieAvatar)
+//   - Optimistic equip — instant visual feedback, then DB write
+//   - RLS-compatible upsert for free items
+//   - Each item card shows a mini AvatarRenderer with that item applied
+//   - "None" button to unequip within a category
 //   - purchaseItem uses spend_coins() RPC (atomic, race-condition safe)
 // ============================================================================
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { AVATAR_ITEMS, RARITY_COLORS } from "@/lib/gamificationEngine";
 import gsap from "gsap";
 import AvatarRenderer from "./AvatarRenderer";
-import LottieAvatar from "./LottieAvatar";
 
 const CoinsIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,22 +42,21 @@ const StarIcon = ({ size = 14 }) => (
   </svg>
 );
 
-// ── Rarity-tinted locked backgrounds — STRONG FILL for visibility ────────────
+// ── Rarity-tinted backgrounds ───────────────────────────────────────────────
 const LOCKED_BG = {
   common:    "linear-gradient(145deg, #e2e8f0 0%, #cbd5e1 50%, #d1d8e0 100%)",
   rare:      "linear-gradient(145deg, #dbeafe 0%, #93c5fd 50%, #bfdbfe 100%)",
   epic:      "linear-gradient(145deg, #ede9fe 0%, #c4b5fd 50%, #ddd6fe 100%)",
   legendary: "linear-gradient(145deg, #fef3c7 0%, #fcd34d 50%, #fde68a 100%)",
 };
-
 const LOCKED_BORDER = {
-  common:    "#94a3b8",
-  rare:      "#3b82f6",
-  epic:      "#8b5cf6",
-  legendary: "#f59e0b",
+  common: "#94a3b8", rare: "#3b82f6", epic: "#8b5cf6", legendary: "#f59e0b",
+};
+const RARITY_GLOW = {
+  common: "rgba(100,116,139,0.18)", rare: "rgba(59,130,246,0.3)",
+  epic: "rgba(139,92,246,0.35)", legendary: "rgba(234,179,8,0.45)",
 };
 
-// ── "How to Earn Coins" data — matches coins.js actual rates ─────────────────
 const EARN_METHODS = [
   { icon: "🎯", label: "Complete a quiz", detail: "+10 coins base award" },
   { icon: "⭐", label: "Perfect score (100%)", detail: "+20 coins bonus" },
@@ -67,16 +66,37 @@ const EARN_METHODS = [
   { icon: "🚀", label: "Mission complete", detail: "+50 coins for a full mission" },
 ];
 
-export default function AvatarShop({ scholarId }) {
+// ── Categories with display-friendly labels ─────────────────────────────────
+const CATEGORIES = [
+  { key: 'all',        icon: '🎨', label: 'All' },
+  { key: 'base',       icon: '🚀', label: 'Suit' },
+  { key: 'skin',       icon: '🎨', label: 'Skin' },
+  { key: 'hair',       icon: '💇', label: 'Hair' },
+  { key: 'expression', icon: '😊', label: 'Face' },
+  { key: 'hat',        icon: '🎩', label: 'Hats' },
+  { key: 'accessory',  icon: '✨', label: 'Gear' },
+  { key: 'pet',        icon: '🐾', label: 'Pets' },
+  { key: 'background', icon: '🌌', label: 'Scene' },
+];
+
+// Categories that support "None" (unequip)
+const UNEQUIPPABLE = new Set(['hat', 'pet', 'accessory', 'background']);
+
+export default function AvatarShop({ scholarId, onAvatarChange }) {
   const [scholar, setScholar] = useState(null);
   const [ownedItems, setOwnedItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
   const [showEarnInfo, setShowEarnInfo] = useState(false);
+  const [equipping, setEquipping] = useState(null);
   const gridRef = useRef(null);
-  const [previewItem, setPreviewItem] = useState(null);
+
+  // ── LIVE AVATAR STATE — this is the source of truth for the preview ────
+  // We track it locally so equip feels instant before DB confirms
+  const [liveAvatar, setLiveAvatar] = useState({ base: "astronaut" });
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -97,6 +117,7 @@ export default function AvatarShop({ scholarId }) {
 
       if (scholarError) throw scholarError;
       setScholar(scholarData);
+      setLiveAvatar(scholarData?.avatar || { base: "astronaut" });
 
       const { data: itemsData, error: itemsError } = await supabase
         .from('scholar_avatar_items')
@@ -114,7 +135,7 @@ export default function AvatarShop({ scholarId }) {
 
   const canUnlock = (item) => {
     if (!scholar) return false;
-    if (ownedItems.some(owned => owned.item_id === item.id)) return false;
+    if (isOwned(item.id || '')) return false;
     if (item.coinCost > 0 && scholar.coins < item.coinCost) return false;
     if (item.badgeRequired) {
       const badges = scholar.badges || [];
@@ -123,10 +144,24 @@ export default function AvatarShop({ scholarId }) {
     return true;
   };
 
-  const isOwned  = (itemId) => ownedItems.some(owned => owned.item_id === itemId);
-  const isEquipped = (itemId) => ownedItems.find(owned => owned.item_id === itemId)?.equipped || false;
+  const isOwned = (itemId) => {
+    const def = AVATAR_ITEMS[itemId];
+    if (def?.free) return true;
+    return ownedItems.some(owned => owned.item_id === itemId);
+  };
 
-  // ── UPDATED: uses spend_coins() RPC (atomic) ─────────────────────────────
+  const isEquipped = (itemId) => {
+    // Check live avatar state first (optimistic)
+    const def = AVATAR_ITEMS[itemId];
+    if (!def) return false;
+    const current = liveAvatar[def.category];
+    if (current === itemId) return true;
+    // Back-compat: old avatars store base as "astronaut" not "base_astronaut"
+    if (def.category === 'base' && current === itemId.replace(/^base_/, '')) return true;
+    return false;
+  };
+
+  // ── PURCHASE ──────────────────────────────────────────────────────────────
   const purchaseItem = async (itemId, item) => {
     if (!canUnlock(item) || purchasing) return;
     setPurchasing(itemId);
@@ -140,9 +175,7 @@ export default function AvatarShop({ scholarId }) {
           p_price:      item.coinCost,
           p_category:   item.category,
         });
-
         if (error) throw error;
-
         if (!data?.ok) {
           const messages = {
             insufficient_coins: "Not enough coins!",
@@ -165,6 +198,8 @@ export default function AvatarShop({ scholarId }) {
         if (insertError) throw insertError;
       }
 
+      // Auto-equip after purchase
+      await equipItem(itemId, item.category);
       await fetchData();
     } catch (error) {
       console.error('Error purchasing item:', error);
@@ -174,7 +209,71 @@ export default function AvatarShop({ scholarId }) {
     }
   };
 
+  // ── EQUIP — optimistic update + DB write ──────────────────────────────────
   const equipItem = async (itemId, category) => {
+    setEquipping(itemId);
+    setErrorMsg(null);
+
+    // 1. Optimistic: update liveAvatar immediately for instant feedback
+    // For base items, store bare name (e.g. "scientist" not "base_scientist")
+    // so AvatarRenderer BASES lookup works without normalisation
+    const avatarValue = category === 'base' ? itemId.replace(/^base_/, '') : itemId;
+    const newAvatar = { ...liveAvatar, [category]: avatarValue };
+    setLiveAvatar(newAvatar);
+
+    try {
+      // 2. Unequip all in category in tracking table
+      await supabase
+        .from('scholar_avatar_items')
+        .update({ equipped: false })
+        .eq('scholar_id', scholarId)
+        .eq('item_category', category);
+
+      // 3. Upsert the item row (free items may not have a row yet)
+      const { error: upsertErr } = await supabase
+        .from('scholar_avatar_items')
+        .upsert({
+          scholar_id:    scholarId,
+          item_id:       itemId,
+          item_category: category,
+          equipped:      true,
+          unlocked_at:   new Date().toISOString(),
+        }, { onConflict: 'scholar_id,item_id' });
+
+      if (upsertErr) console.warn('Upsert warning:', upsertErr);
+
+      // 4. Update scholars.avatar JSONB
+      const { error: avatarErr } = await supabase
+        .from('scholars')
+        .update({ avatar: newAvatar })
+        .eq('id', scholarId);
+
+      if (avatarErr) throw avatarErr;
+
+      // Flash success
+      showSuccess(`${AVATAR_ITEMS[itemId]?.name || 'Item'} equipped!`);
+
+      // Update local scholar state
+      setScholar(prev => prev ? { ...prev, avatar: newAvatar } : prev);
+
+      // Notify parent (dashboard) so HeroAvatar updates in real-time
+      if (onAvatarChange) onAvatarChange(newAvatar);
+    } catch (error) {
+      console.error('Error equipping item:', error);
+      setErrorMsg('Failed to equip — please try again.');
+      // Rollback optimistic update
+      setLiveAvatar(scholar?.avatar || { base: "astronaut" });
+    } finally {
+      setEquipping(null);
+    }
+  };
+
+  // ── UNEQUIP (set category to null) ────────────────────────────────────────
+  const unequipCategory = async (category) => {
+    setEquipping(`none_${category}`);
+    const newAvatar = { ...liveAvatar, [category]: null };
+    setLiveAvatar(newAvatar);
+
     try {
       await supabase
         .from('scholar_avatar_items')
@@ -183,65 +282,63 @@ export default function AvatarShop({ scholarId }) {
         .eq('item_category', category);
 
       await supabase
-        .from('scholar_avatar_items')
-        .update({ equipped: true })
-        .eq('scholar_id', scholarId)
-        .eq('item_id', itemId);
+        .from('scholars')
+        .update({ avatar: newAvatar })
+        .eq('id', scholarId);
 
-      await fetchData();
+      setScholar(prev => prev ? { ...prev, avatar: newAvatar } : prev);
+      showSuccess(`${category} removed`);
+
+      // Notify parent (dashboard) so HeroAvatar updates in real-time
+      if (onAvatarChange) onAvatarChange(newAvatar);
     } catch (error) {
-      console.error('Error equipping item:', error);
+      console.error('Error unequipping:', error);
+      setLiveAvatar(scholar?.avatar || { base: "astronaut" });
+    } finally {
+      setEquipping(null);
     }
   };
 
-  // Build current equipped avatar for live preview
-  const equippedAvatar = useMemo(() => {
-    const base = { base: scholar?.avatar?.base || "astronaut", hat: null, pet: null, accessory: null, background: null };
-    ownedItems.forEach(oi => {
-      if (oi.equipped) { const def = AVATAR_ITEMS[oi.item_id]; if (def) base[def.category] = oi.item_id; }
-    });
-    return base;
-  }, [scholar, ownedItems]);
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 2000);
+  };
 
-  // Preview avatar = equipped + hovered item overlaid
-  const previewAvatar = useMemo(() => {
-    const pv = { ...equippedAvatar };
-    if (previewItem) { const def = AVATAR_ITEMS[previewItem]; if (def) pv[def.category] = previewItem; }
-    return pv;
-  }, [equippedAvatar, previewItem]);
-
-  const categories = ['all', 'hat', 'pet', 'accessory', 'background'];
-  const CATEGORY_ICONS = { all: '🎨', hat: '🎩', pet: '🐾', accessory: '✨', background: '🌌' };
   const filteredItems = Object.entries(AVATAR_ITEMS).filter(([id, item]) =>
     selectedCategory === 'all' || item.category === selectedCategory
   );
 
-  const RARITY_GLOW = {
-    common: "rgba(100,116,139,0.18)",
-    rare: "rgba(59,130,246,0.3)",
-    epic: "rgba(139,92,246,0.35)",
-    legendary: "rgba(234,179,8,0.45)",
+  // Build a preview avatar for a specific item (for mini preview thumbnails)
+  const previewFor = (itemId) => {
+    const def = AVATAR_ITEMS[itemId];
+    if (!def) return liveAvatar;
+    const val = def.category === 'base' ? itemId.replace(/^base_/, '') : itemId;
+    return { ...liveAvatar, [def.category]: val };
   };
 
-  // GSAP stagger entrance on grid items — must be BEFORE any conditional return
+  // GSAP stagger entrance
   useEffect(() => {
     if (loading || !gridRef.current) return;
     const cards = gridRef.current.querySelectorAll(".shop-card");
     if (!cards.length) return;
     gsap.fromTo(cards,
       { y: 24, opacity: 0, scale: 0.92 },
-      { y: 0, opacity: 1, scale: 1, duration: 0.4, stagger: 0.045, ease: "back.out(1.6)" }
+      { y: 0, opacity: 1, scale: 1, duration: 0.4, stagger: 0.04, ease: "back.out(1.6)" }
     );
   }, [selectedCategory, loading]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl p-6 border-2 border-slate-100 animate-pulse">
-        <div className="h-8 bg-slate-200 rounded w-1/3 mb-6"></div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-40 bg-slate-100 rounded-2xl"></div>
-          ))}
+      <div style={{ background: "#f8fafc", borderRadius: 24, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
+          <div style={{ width: 160, height: 160, borderRadius: "50%", background: "#e2e8f0" }} className="animate-pulse" />
+          <div>
+            <div style={{ width: 140, height: 24, background: "#e2e8f0", borderRadius: 8, marginBottom: 8 }} className="animate-pulse" />
+            <div style={{ width: 100, height: 16, background: "#e2e8f0", borderRadius: 8 }} className="animate-pulse" />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[1,2,3,4,5,6].map(i => <div key={i} style={{ height: 160, background: "#e2e8f0", borderRadius: 16 }} className="animate-pulse" />)}
         </div>
       </div>
     );
@@ -249,90 +346,99 @@ export default function AvatarShop({ scholarId }) {
 
   return (
     <div style={{
-      background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
-      borderRadius: 24, padding: "16px", position: "relative",
-      border: "2px solid #e0e7ff",
-      boxShadow: "0 4px 32px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+      background: "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
+      borderRadius: 24, padding: 0, position: "relative", overflow: "hidden",
     }}>
 
-      {/* ── Header with live avatar preview + coin balance ──────────────── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      {/* ── HERO SECTION — large live avatar preview ─────────────────────── */}
+      <div style={{
+        padding: "24px 20px 20px",
+        background: "linear-gradient(180deg, rgba(99,102,241,0.15) 0%, transparent 100%)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+          {/* Live Avatar Preview */}
           <div style={{ position: "relative" }}>
-            <div style={{ position: "relative", width: 140, height: 140 }}>
-              {/* Lottie ambient ring behind */}
-              <div style={{
-                position: "absolute", inset: -12, borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)",
-                animation: "shopAvatarPulse 3s ease-in-out infinite",
-              }} />
-              <LottieAvatar
-                avatar={previewAvatar}
-                size="lg"
-                role={scholar?.avatar?.role}
-                streak={scholar?.streak || 0}
-                mastery={scholar?.total_xp ? Math.min(100, Math.round(scholar.total_xp / 50)) : 0}
-              />
+            <div style={{
+              position: "absolute", inset: -8, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)",
+              animation: "shopAvatarPulse 3s ease-in-out infinite",
+            }} />
+            <div style={{
+              borderRadius: "50%", overflow: "hidden",
+              border: "3px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(99,102,241,0.4)",
+            }}>
+              <AvatarRenderer avatar={liveAvatar} size="xl" animated />
             </div>
-            {previewItem && (
+            {/* Success badge */}
+            {successMsg && (
               <div style={{
-                position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
-                background: "#6366f1", color: "white", fontSize: 9, fontWeight: 800,
-                padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap",
-              }}>Preview</div>
+                position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)",
+                background: "#10b981", color: "white", fontSize: 10, fontWeight: 800,
+                padding: "4px 12px", borderRadius: 12, whiteSpace: "nowrap",
+                boxShadow: "0 4px 12px rgba(16,185,129,0.4)",
+                animation: "successPop 0.3s ease-out",
+              }}>{successMsg}</div>
             )}
           </div>
-          <div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: "#1e293b", margin: 0 }}>Avatar Shop</h2>
-            <p style={{ fontSize: 12, color: "#64748b", fontWeight: 600, margin: "4px 0 0" }}>Customise your space explorer</p>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: "white", margin: 0 }}>
+              Avatar Shop
+            </h2>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 600, margin: "4px 0 12px" }}>
+              Tap any item to equip it instantly
+            </p>
+            {/* Coin balance */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "8px 16px", borderRadius: 12,
+              background: "linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.1))",
+              border: "1px solid rgba(251,191,36,0.3)",
+            }}>
+              <CoinsIcon size={18} />
+              <span style={{ fontWeight: 900, color: "#fbbf24", fontSize: 18 }}>
+                {scholar?.coins || 0}
+              </span>
+              <span style={{ fontSize: 10, color: "rgba(251,191,36,0.7)", fontWeight: 700 }}>coins</span>
+            </div>
           </div>
-        </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 18px", borderRadius: 14,
-          background: "linear-gradient(135deg, #fef3c7, #fde68a)",
-          border: "2px solid #fbbf24",
-          boxShadow: "0 4px 16px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.6)",
-        }}>
-          <CoinsIcon size={22} />
-          <span style={{ fontWeight: 900, color: "#92400e", fontSize: 20 }}>{scholar?.coins || 0}</span>
         </div>
       </div>
 
-      {/* ── "How to Earn Coins" collapsible banner ──────────────────────── */}
-      <div style={{
-        marginBottom: 16, borderRadius: 14, overflow: "hidden",
-        border: "2px solid #fde68a",
-        background: "linear-gradient(135deg, #fffbeb, #fef9c3)",
-      }}>
+      {/* ── "How to Earn Coins" collapsible ──────────────────────────────── */}
+      <div style={{ margin: "0 16px", borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
         <button
           onClick={() => setShowEarnInfo(!showEarnInfo)}
           style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "10px 16px", border: "none", cursor: "pointer",
-            background: "transparent", textAlign: "left",
+            background: "rgba(255,255,255,0.05)", borderRadius: showEarnInfo ? "14px 14px 0 0" : 14,
+            textAlign: "left",
           }}
         >
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, color: "#92400e" }}>
-            <span style={{ fontSize: 18 }}>💰</span> How to Earn Coins
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 800, color: "#fbbf24" }}>
+            💰 How to Earn Coins
           </span>
-          <span style={{ fontSize: 18, color: "#d97706", transform: showEarnInfo ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.25s ease" }}>
-            ▾
-          </span>
+          <span style={{ fontSize: 16, color: "#fbbf24", transform: showEarnInfo ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.25s ease" }}>▾</span>
         </button>
         {showEarnInfo && (
-          <div style={{ padding: "0 16px 14px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+          <div style={{
+            padding: "12px 16px", display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8,
+            background: "rgba(255,255,255,0.03)", borderRadius: "0 0 14px 14px",
+          }}>
             {EARN_METHODS.map((m, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 12px", borderRadius: 10,
-                background: "rgba(255,255,255,0.7)",
-                border: "1px solid #fde68a",
+                padding: "8px 10px", borderRadius: 10,
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
               }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{m.icon}</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{m.icon}</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{m.label}</div>
-                  <div style={{ fontSize: 10, color: "#78716c", fontWeight: 600 }}>{m.detail}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "white" }}>{m.label}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{m.detail}</div>
                 </div>
               </div>
             ))}
@@ -340,213 +446,235 @@ export default function AvatarShop({ scholarId }) {
         )}
       </div>
 
-      {/* ── Error banner ────────────────────────────────────────────────── */}
+      {/* ── Error / Success banners ──────────────────────────────────────── */}
       {errorMsg && (
         <div style={{
-          marginBottom: 14, padding: "10px 16px", borderRadius: 12,
-          background: "#fef2f2", border: "2px solid #fecaca",
+          margin: "12px 16px 0", padding: "10px 16px", borderRadius: 12,
+          background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          fontSize: 13, fontWeight: 700, color: "#b91c1c",
+          fontSize: 12, fontWeight: 700, color: "#fca5a5",
         }}>
           {errorMsg}
-          <button onClick={() => setErrorMsg(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", fontSize: 16, marginLeft: 12 }}>✕</button>
+          <button onClick={() => setErrorMsg(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", fontSize: 14, marginLeft: 12 }}>✕</button>
         </div>
       )}
 
-      {/* ── Category Filter ─────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
-        {categories.map(cat => (
+      {/* ── Category Tabs ────────────────────────────────────────────────── */}
+      <div style={{
+        display: "flex", gap: 6, padding: "16px 16px 0", overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}>
+        {CATEGORIES.map(cat => (
           <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            key={cat.key}
+            onClick={() => setSelectedCategory(cat.key)}
             style={{
-              padding: "8px 18px", borderRadius: 12,
-              fontWeight: 900, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5,
-              background: selectedCategory === cat
+              padding: "8px 14px", borderRadius: 10,
+              fontWeight: 800, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5,
+              background: selectedCategory === cat.key
                 ? "linear-gradient(135deg, #6366f1, #7c3aed)"
-                : "rgba(255,255,255,0.8)",
-              color: selectedCategory === cat ? "white" : "#475569",
-              border: selectedCategory === cat ? "2px solid #6366f1" : "2px solid #e2e8f0",
+                : "rgba(255,255,255,0.06)",
+              color: selectedCategory === cat.key ? "white" : "rgba(255,255,255,0.5)",
+              border: selectedCategory === cat.key ? "2px solid rgba(129,140,248,0.5)" : "2px solid rgba(255,255,255,0.08)",
               cursor: "pointer", whiteSpace: "nowrap",
-              boxShadow: selectedCategory === cat ? "0 4px 12px rgba(99,102,241,0.3)" : "0 1px 3px rgba(0,0,0,0.05)",
-              transform: selectedCategory === cat ? "scale(1.05)" : "scale(1)",
+              boxShadow: selectedCategory === cat.key ? "0 4px 12px rgba(99,102,241,0.3)" : "none",
               transition: "all 0.2s ease",
+              flexShrink: 0,
             }}
           >
-            {CATEGORY_ICONS[cat]} {cat}
+            {cat.icon} {cat.label}
           </button>
         ))}
       </div>
 
-      {/* ── Items Grid — animated ───────────────────────────────────────── */}
-      <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 14 }}>
+      {/* ── "None" unequip button for applicable categories ──────────────── */}
+      {selectedCategory !== 'all' && UNEQUIPPABLE.has(selectedCategory) && liveAvatar[selectedCategory] && (
+        <div style={{ padding: "12px 16px 0" }}>
+          <button
+            onClick={() => unequipCategory(selectedCategory)}
+            disabled={equipping === `none_${selectedCategory}`}
+            style={{
+              padding: "8px 16px", borderRadius: 10, fontSize: 11, fontWeight: 800,
+              background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+              color: "#fca5a5", cursor: "pointer", transition: "all 0.2s ease",
+            }}
+          >
+            {equipping === `none_${selectedCategory}` ? "Removing..." : `Remove ${selectedCategory}`}
+          </button>
+        </div>
+      )}
+
+      {/* ── Items Grid ───────────────────────────────────────────────────── */}
+      <div ref={gridRef} style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+        gap: 10, padding: 16,
+      }}>
         {filteredItems.map(([itemId, item]) => {
           const owned = isOwned(itemId);
           const equipped = isEquipped(itemId);
-          const canBuy = canUnlock(item);
+          const canBuy = !owned && canUnlock(item);
           const isPurchasing = purchasing === itemId;
+          const isEquippingThis = equipping === itemId;
           const isLocked = !owned;
-
-          // Rarity-specific animation class for the card (drives child icon animation)
-          const lockedAnimClass = isLocked
-            ? item.rarity === "legendary" ? "locked-float-legendary"
-            : item.rarity === "epic" ? "locked-float-epic"
-            : ""
-            : "";
 
           return (
             <div
               key={itemId}
-              className={`shop-card ${lockedAnimClass}`}
-              onMouseEnter={() => setPreviewItem(itemId)}
-              onMouseLeave={() => setPreviewItem(null)}
+              className={`shop-card ${isLocked ? "shop-locked" : ""}`}
+              onClick={() => {
+                // Tap-to-equip for owned items
+                if (owned && !equipped && !equipping) equipItem(itemId, item.category);
+              }}
               style={{
-                padding: 16, borderRadius: 16, cursor: "pointer",
-                border: `2px solid ${equipped ? "#818cf8" : owned ? "#6ee7b7" : LOCKED_BORDER[item.rarity] || "#cbd5e1"}`,
+                padding: 12, borderRadius: 16, cursor: owned ? "pointer" : "default",
+                border: `2px solid ${equipped ? "rgba(129,140,248,0.6)" : owned ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)"}`,
                 background: equipped
-                  ? "linear-gradient(145deg, #eef2ff, #e0e7ff)"
+                  ? "linear-gradient(145deg, rgba(99,102,241,0.2), rgba(99,102,241,0.08))"
                   : owned
-                  ? "linear-gradient(145deg, #ecfdf5, #d1fae5)"
-                  : LOCKED_BG[item.rarity] || LOCKED_BG.common,
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(255,255,255,0.02)",
                 boxShadow: equipped
-                  ? "0 4px 20px rgba(99,102,241,0.25), inset 0 1px 0 rgba(255,255,255,0.8)"
-                  : `0 3px 12px ${RARITY_GLOW[item.rarity] || "rgba(0,0,0,0.06)"}`,
+                  ? "0 4px 20px rgba(99,102,241,0.3), inset 0 0 0 1px rgba(129,140,248,0.2)"
+                  : isLocked ? "none" : "0 2px 8px rgba(0,0,0,0.1)",
                 transition: "all 0.25s ease",
                 position: "relative", overflow: "hidden",
+                opacity: isLocked ? 0.6 : 1,
               }}
             >
-              {/* Shimmer overlay for epic + legendary (even when locked) */}
+              {/* Equipped indicator */}
+              {equipped && (
+                <div style={{
+                  position: "absolute", top: 6, right: 6,
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #6366f1, #7c3aed)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 2px 8px rgba(99,102,241,0.4)",
+                }}>
+                  <CheckIcon size={11} />
+                </div>
+              )}
+
+              {/* Equipping spinner */}
+              {isEquippingThis && (
+                <div style={{
+                  position: "absolute", inset: 0, background: "rgba(99,102,241,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 14, zIndex: 5,
+                }}>
+                  <div style={{
+                    width: 24, height: 24, border: "3px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "white", borderRadius: "50%",
+                    animation: "spin 0.6s linear infinite",
+                  }} />
+                </div>
+              )}
+
+              {/* Lock overlay */}
+              {isLocked && (
+                <div style={{
+                  position: "absolute", top: 6, right: 6,
+                  background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+                  borderRadius: 6, padding: "2px 6px",
+                  display: "flex", alignItems: "center", gap: 2,
+                  color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 800,
+                }}>
+                  <LockIcon size={9} />
+                </div>
+              )}
+
+              {/* Shimmer for epic/legendary */}
               {(item.rarity === "legendary" || item.rarity === "epic") && (
                 <div style={{
                   position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
                   background: item.rarity === "legendary"
-                    ? "linear-gradient(135deg, transparent 30%, rgba(234,179,8,0.12) 50%, transparent 70%)"
-                    : "linear-gradient(135deg, transparent 30%, rgba(139,92,246,0.08) 50%, transparent 70%)",
+                    ? "linear-gradient(135deg, transparent 30%, rgba(234,179,8,0.15) 50%, transparent 70%)"
+                    : "linear-gradient(135deg, transparent 30%, rgba(139,92,246,0.1) 50%, transparent 70%)",
                   backgroundSize: "250% 250%",
                   animation: "shimmer 3s linear infinite",
                   borderRadius: 14, pointerEvents: "none",
                 }} />
               )}
 
-              {/* Lock badge overlay (top-right) */}
-              {isLocked && (
-                <div style={{
-                  position: "absolute", top: 8, right: 8,
-                  background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
-                  borderRadius: 8, padding: "3px 6px",
-                  display: "flex", alignItems: "center", gap: 3,
-                  color: "white", fontSize: 9, fontWeight: 800,
-                }}>
-                  <LockIcon size={10} />
-                </div>
-              )}
-
-              {/* Item icon — FULL COLOUR even when locked, with stage bg + hover anim */}
+              {/* Mini avatar preview showing what the avatar looks like WITH this item */}
               <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 80, height: 80, margin: "0 auto 10px",
-                borderRadius: "50%",
-                background: isLocked
-                  ? `radial-gradient(circle, ${item.rarity === "legendary" ? "rgba(251,191,36,0.35)" : item.rarity === "epic" ? "rgba(139,92,246,0.28)" : item.rarity === "rare" ? "rgba(59,130,246,0.22)" : "rgba(100,116,139,0.18)"} 0%, ${item.rarity === "legendary" ? "rgba(251,191,36,0.08)" : item.rarity === "epic" ? "rgba(139,92,246,0.06)" : item.rarity === "rare" ? "rgba(59,130,246,0.05)" : "rgba(100,116,139,0.04)"} 70%)`
-                  : `radial-gradient(circle, ${equipped ? "rgba(99,102,241,0.22)" : "rgba(16,185,129,0.18)"} 0%, ${equipped ? "rgba(99,102,241,0.05)" : "rgba(16,185,129,0.04)"} 70%)`,
-                border: isLocked
-                  ? `2px solid ${item.rarity === "legendary" ? "rgba(251,191,36,0.25)" : item.rarity === "epic" ? "rgba(139,92,246,0.2)" : item.rarity === "rare" ? "rgba(59,130,246,0.15)" : "rgba(100,116,139,0.12)"}`
-                  : "2px solid transparent",
-                transition: "all 0.3s ease",
+                width: 72, height: 72, margin: "0 auto 8px",
+                borderRadius: "50%", overflow: "hidden",
+                border: equipped ? "2px solid rgba(129,140,248,0.4)" : "2px solid rgba(255,255,255,0.08)",
+                transition: "border-color 0.2s ease",
               }}>
-                <div
-                  className={`shop-item-icon ${isLocked ? "shop-item-icon-locked" : "shop-item-icon-owned"}`}
-                  style={{
-                    fontSize: 52, textAlign: "center", lineHeight: 1,
-                  }}
-                >{item.icon}</div>
+                <AvatarRenderer avatar={previewFor(itemId)} size="md" animated={false} />
               </div>
 
+              {/* Item name */}
               <h3 style={{
-                fontWeight: 900, fontSize: 13, textAlign: "center",
-                color: "#1e293b", marginBottom: 3, lineHeight: 1.2,
+                fontWeight: 800, fontSize: 11, textAlign: "center",
+                color: "white", marginBottom: 2, lineHeight: 1.2,
               }}>{item.name}</h3>
 
-              {/* Rarity badge */}
-              <div style={{ textAlign: "center", marginBottom: 10 }}>
+              {/* Rarity + Price row */}
+              <div style={{ textAlign: "center", marginBottom: 8 }}>
                 <span style={{
-                  fontSize: 9, fontWeight: 800, textTransform: "uppercase",
-                  letterSpacing: 0.8, padding: "3px 10px", borderRadius: 8,
-                  display: "inline-flex", alignItems: "center", gap: 3,
-                  background: item.rarity === "legendary" ? "linear-gradient(135deg, #fef3c7, #fde68a)"
-                    : item.rarity === "epic" ? "linear-gradient(135deg, #f3e8ff, #ede9fe)"
-                    : item.rarity === "rare" ? "#dbeafe"
-                    : "#f1f5f9",
-                  color: item.rarity === "legendary" ? "#92400e"
-                    : item.rarity === "epic" ? "#7c3aed"
-                    : item.rarity === "rare" ? "#2563eb"
-                    : "#64748b",
+                  fontSize: 8, fontWeight: 800, textTransform: "uppercase",
+                  letterSpacing: 0.8, padding: "2px 8px", borderRadius: 6,
+                  display: "inline-flex", alignItems: "center", gap: 2,
+                  background: item.rarity === "legendary" ? "rgba(251,191,36,0.2)"
+                    : item.rarity === "epic" ? "rgba(139,92,246,0.2)"
+                    : item.rarity === "rare" ? "rgba(59,130,246,0.2)"
+                    : "rgba(255,255,255,0.08)",
+                  color: item.rarity === "legendary" ? "#fbbf24"
+                    : item.rarity === "epic" ? "#a78bfa"
+                    : item.rarity === "rare" ? "#60a5fa"
+                    : "rgba(255,255,255,0.5)",
                 }}>
-                  {(item.rarity === "legendary" || item.rarity === "epic") && <StarIcon size={9} />}
+                  {(item.rarity === "legendary" || item.rarity === "epic") && <StarIcon size={8} />}
                   {item.rarity}
                 </span>
               </div>
 
-              {/* Price */}
-              <div style={{ textAlign: "center", marginBottom: 10 }}>
-                {item.badgeRequired ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#7c3aed" }}>
-                    <LockIcon size={13} /> Badge Required
-                  </div>
-                ) : item.coinCost > 0 ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 14, fontWeight: 900, color: "#d97706" }}>
-                    <CoinsIcon size={16} /> {item.coinCost}
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#059669" }}>Free</span>
-                )}
-              </div>
-
-              {/* Action button */}
+              {/* Action area */}
               {owned ? (
                 equipped ? (
                   <div style={{
                     background: "linear-gradient(135deg, #6366f1, #7c3aed)",
-                    color: "white", fontWeight: 900, padding: "8px 0", borderRadius: 10,
-                    fontSize: 11, textAlign: "center",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                    boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
+                    color: "white", fontWeight: 900, padding: "6px 0", borderRadius: 8,
+                    fontSize: 10, textAlign: "center",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
                   }}>
-                    <CheckIcon size={13} /> Equipped
+                    <CheckIcon size={10} /> Wearing
                   </div>
                 ) : (
-                  <button
-                    onClick={() => equipItem(itemId, item.category)}
-                    style={{
-                      width: "100%", background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "white",
-                      fontWeight: 900, padding: "8px 0", borderRadius: 10,
-                      fontSize: 11, border: "none", cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      boxShadow: "0 2px 8px rgba(99,102,241,0.2)",
-                    }}
-                  >Equip</button>
+                  <div style={{
+                    background: "rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.6)", fontWeight: 800, padding: "6px 0", borderRadius: 8,
+                    fontSize: 10, textAlign: "center",
+                  }}>Tap to equip</div>
                 )
               ) : canBuy ? (
                 <button
-                  onClick={() => purchaseItem(itemId, item)}
+                  onClick={(e) => { e.stopPropagation(); purchaseItem(itemId, item); }}
                   disabled={isPurchasing}
                   style={{
-                    width: "100%", fontWeight: 900, padding: "8px 0", borderRadius: 10,
-                    fontSize: 11, border: "none", cursor: "pointer",
+                    width: "100%", fontWeight: 900, padding: "6px 0", borderRadius: 8,
+                    fontSize: 10, border: "none", cursor: "pointer",
                     background: "linear-gradient(135deg, #10b981, #059669)",
                     color: "white", opacity: isPurchasing ? 0.6 : 1,
                     transition: "all 0.2s ease",
-                    boxShadow: "0 2px 8px rgba(16,185,129,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                   }}
-                >{isPurchasing ? "Unlocking..." : "Unlock"}</button>
+                >
+                  {isPurchasing ? "..." : <><CoinsIcon size={11} /> {item.coinCost}</>}
+                </button>
               ) : (
                 <div style={{
-                  background: "linear-gradient(135deg, #cbd5e1, #94a3b8)",
-                  color: "white", fontWeight: 900, padding: "8px 0", borderRadius: 10,
-                  fontSize: 11, textAlign: "center",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                  color: "rgba(255,255,255,0.3)", fontWeight: 800, padding: "6px 0",
+                  fontSize: 9, textAlign: "center",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
                 }}>
-                  <CoinsIcon size={11} /> {item.coinCost > 0 ? `Need ${item.coinCost}` : "Locked"}
+                  {item.badgeRequired ? (
+                    <><LockIcon size={9} /> Badge</>
+                  ) : (
+                    <><CoinsIcon size={9} /> {item.coinCost}</>
+                  )}
                 </div>
               )}
             </div>
@@ -556,11 +684,11 @@ export default function AvatarShop({ scholarId }) {
 
       {filteredItems.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <p style={{ color: "#94a3b8", fontWeight: 700 }}>No items in this category</p>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>No items in this category</p>
         </div>
       )}
 
-      {/* ── CSS animations — robust hover with !important overrides ──── */}
+      {/* ── CSS animations ───────────────────────────────────────────────── */}
       <style>{`
         @keyframes shopAvatarPulse {
           0%, 100% { transform: scale(1); opacity: 0.7; }
@@ -570,70 +698,23 @@ export default function AvatarShop({ scholarId }) {
           0% { background-position: -250% -250% }
           100% { background-position: 250% 250% }
         }
-        @keyframes shopIconFloat {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
-        @keyframes shopIconFloatEpic {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-5px) rotate(1.5deg); }
-          75% { transform: translateY(-2px) rotate(-1.5deg); }
+        @keyframes successPop {
+          from { transform: translateX(-50%) scale(0.7); opacity: 0; }
+          to { transform: translateX(-50%) scale(1); opacity: 1; }
         }
-        @keyframes shopIconFloatLegendary {
-          0%, 100% { transform: translateY(0px) scale(1); }
-          33% { transform: translateY(-6px) scale(1.06); }
-          66% { transform: translateY(-2px) scale(0.97); }
-        }
-        @keyframes shopIconGlimmer {
-          0%, 100% { filter: brightness(1) drop-shadow(0 0 0px transparent); }
-          50% { filter: brightness(1.15) drop-shadow(0 0 10px rgba(251,191,36,0.5)); }
-        }
-        @keyframes shopHoverWiggle {
-          0% { transform: scale(1) rotate(0deg); }
-          15% { transform: scale(1.22) rotate(-10deg); }
-          30% { transform: scale(1.18) rotate(8deg); }
-          45% { transform: scale(1.2) rotate(-5deg); }
-          60% { transform: scale(1.18) rotate(3deg); }
-          75% { transform: scale(1.2) rotate(-1deg); }
-          100% { transform: scale(1.15) rotate(0deg); }
-        }
-        @keyframes shopHoverBounce {
-          0% { transform: scale(1) translateY(0px); }
-          30% { transform: scale(1.25) translateY(-10px); }
-          50% { transform: scale(1.1) translateY(0px); }
-          70% { transform: scale(1.18) translateY(-4px); }
-          100% { transform: scale(1.12) translateY(0px); }
-        }
-
-        /* ── Idle floating for locked icons ─── */
-        .shop-item-icon-locked {
-          animation: shopIconFloat 2.5s ease-in-out infinite !important;
-        }
-        .locked-float-epic .shop-item-icon-locked {
-          animation: shopIconFloatEpic 3s ease-in-out infinite !important;
-        }
-        .locked-float-legendary .shop-item-icon-locked {
-          animation: shopIconFloatLegendary 2.8s ease-in-out infinite, shopIconGlimmer 3s ease-in-out infinite !important;
-        }
-
-        /* ── Card hover lift ─── */
         .shop-card {
           transform-origin: center center;
-          transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
         }
         .shop-card:hover {
-          transform: translateY(-8px) scale(1.05) !important;
-          box-shadow: 0 20px 48px rgba(0,0,0,0.18), 0 8px 16px rgba(99,102,241,0.12) !important;
-          z-index: 2;
+          transform: translateY(-4px) scale(1.03) !important;
+          box-shadow: 0 12px 32px rgba(0,0,0,0.3) !important;
         }
-
-        /* ── HOVER: locked items do wiggle ─── */
-        .shop-card:hover .shop-item-icon-locked {
-          animation: shopHoverWiggle 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
-        }
-        /* ── HOVER: owned items do bounce ─── */
-        .shop-card:hover .shop-item-icon-owned {
-          animation: shopHoverBounce 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
+        .shop-card:active {
+          transform: scale(0.97) !important;
         }
       `}</style>
     </div>

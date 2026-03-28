@@ -12,12 +12,14 @@ import React, { useMemo } from "react";
 import { ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis, StateChangesVis, PHScaleVis, MoleculeVis, CellVis, PunnettVis, EnergyStoresVis, WaveVis, EMSpectrumVis, FreeBodyVis } from "./ScienceVisuals";
 import { NVRShapeItem, NVRVis, NVRShapePropertyVis, NVRReflectionVis, NVRNetVis, NVRRotationVis, NVROddOneOutVis, NVRMatrixVis, NVRPaperFoldVis, NVRShapeReflectionVis } from "./NVRVisuals";
 import { CoordinateVis, AngleVis, AngleOnLineDiagram, TriangleAngleDiagram, AnglesAtPointDiagram, VerticallyOppositeDiagram, AreaVis, RulerVis, FormulaTriangleVis } from "./GeometryVisuals";
-import { TAccountVis, BreakEvenVis, SupplyDemandVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
+import { TAccountVis, BreakEvenVis, SupplyDemandVis, ProfitLossVis, TradeFlowVis, OrgStructureVis, MarketingMixVis, MotionGraphVis, CircuitVis, QuadraticVis, ElementVis } from "./BusinessVisuals";
 import { CompassVis, MapGridVis, ClimateGraphVis, LayerDiagramVis, WaterCycleVis, TimelineVis, SourceAnalysisVis, MapRegionVis} from "./GeographyHistoryVisuals";
 import { HumanBodyVis, SolarSystemVis, ClassificationKeyVis, LightDiagramVis, ElectricalSymbolsVis, MagnetVis, PhotosynthesisVis, RespirationVis} from "./ScienceVisuals_Ext";
 import { SentenceStructureVis, SpellingPatternVis, PunctuationVis, WordClassVis } from "./EnglishVisuals";
 import { NVRShapeRotationVis, NVRCodeVis, NVRPlanElevationVis } from "./NVRVisuals_Ext";
 import { FlowchartVis, BinaryVis, BooleanLogicVis, NetworkDiagramVis, CodeBlockVis, SortingVis, DatabaseTableVis, HTMLStructureVis } from "./ComputingVisuals";
+import { CONCEPT_VISUALS } from "./KS12ScienceVisuals";
+import { CivicEducationVis, GovernmentVis, ReligiousStudiesVis, DesignTechVis, AgricultureVis, EconomicsVis, TopicCardVis } from "./HumanitiesVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 import InteractiveGraph from "./InteractiveGraph";
 import JSXGraphBoard, { createLinearGraphProps, createQuadraticGraphProps, createTrigGraphProps, createGeometryProps, createSliderExplorerProps } from "./JSXGraphBoard";
@@ -104,8 +106,24 @@ function Dot({ color, bg, border, size = 20, strikethrough = false }) {
   );
 }
 
-// ─── BASIC CONCEPT — simple inline SVG visuals for KS1/KS2 science ──────────
-function BasicConceptVis({ concept, label, emoji }) {
+// ─── BASIC CONCEPT — rich animated SVG visuals for KS1/KS2 science ──────────
+// Uses CONCEPT_VISUALS from KS12ScienceVisuals for rich animated components.
+// Falls back to inline SVGs for plant topics, then emoji as last resort.
+function BasicConceptVis({ concept, label, emoji, question }) {
+  // 1) Check for a rich animated component from KS12ScienceVisuals
+  const RichComponent = CONCEPT_VISUALS[concept] || null;
+  if (RichComponent) {
+    return (
+      <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd} ariaLabel={label}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: T.emerald, textTransform: "uppercase", letterSpacing: 1 }}>
+          {label}
+        </span>
+        <RichComponent question={question} />
+      </Panel>
+    );
+  }
+
+  // 2) Inline SVGs for basic plant concepts (leaf, root, stem, flower, seed, plant_parts)
   const CONCEPT_SVGS = {
     leaf: (
       <svg width="120" height="100" viewBox="0 0 120 100">
@@ -122,14 +140,10 @@ function BasicConceptVis({ concept, label, emoji }) {
     ),
     plant_parts: (
       <svg width="120" height="120" viewBox="0 0 120 120">
-        {/* Roots */}
         <path d="M60,95 Q50,105 40,115 M60,95 Q55,110 50,118 M60,95 Q65,110 70,118 M60,95 Q70,105 80,115" stroke="#92400e" strokeWidth="2" fill="none" />
-        {/* Stem */}
         <line x1="60" y1="30" x2="60" y2="95" stroke="#16a34a" strokeWidth="3" />
-        {/* Leaves */}
         <ellipse cx="42" cy="60" rx="18" ry="10" fill="#22c55e" transform="rotate(-30 42 60)" />
         <ellipse cx="78" cy="50" rx="18" ry="10" fill="#22c55e" transform="rotate(30 78 50)" />
-        {/* Flower */}
         <circle cx="60" cy="22" r="4" fill="#fbbf24" />
         <ellipse cx="60" cy="12" rx="5" ry="8" fill="#f472b6" />
         <ellipse cx="52" cy="18" rx="5" ry="8" fill="#f472b6" transform="rotate(72 52 18)" />
@@ -243,8 +257,47 @@ function Op({ s }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ADDITION ────────────────────────────────────────────────────────────────────
-function AdditionVis({ a, b }) {
+function AdditionVis({ a, b, objectIcon }) {
   const bridges = a + b > 10;
+  const hasIcon = objectIcon && CTX_ICONS[objectIcon];
+  const iconSize = 28;
+  const gap = iconSize + 4;
+  const maxPerRow = 5;
+
+  if (hasIcon) {
+    // Contextual icon mode: show actual objects (books, apples, etc.)
+    const renderIconCluster = (count, labelColor) => {
+      const safe = Math.min(count, 12);
+      const cols = Math.min(safe, maxPerRow);
+      const rows = Math.ceil(safe / cols);
+      const w = cols * gap + 8;
+      const h = rows * gap + 24;
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: labelColor, letterSpacing: 0.5 }}>{count}</span>
+          <svg width={w} height={h - 20} viewBox={`0 0 ${w} ${h - 20}`}>
+            {Array.from({ length: safe }, (_, i) => {
+              const col = i % cols;
+              const row = Math.floor(i / cols);
+              return <g key={i}><CtxIcon cx={8 + col * gap + iconSize / 2} cy={4 + row * gap + iconSize / 2} s={iconSize} iconKey={objectIcon} /></g>;
+            })}
+          </svg>
+        </div>
+      );
+    };
+    return (
+      <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {renderIconCluster(a, T.indigo)}
+          <Op s="+" />
+          {renderIconCluster(b, T.nebula)}
+        </div>
+        {bridges && <Chip color={T.amber} bg={T.amberBg}>bridges 10</Chip>}
+      </Panel>
+    );
+  }
+
+  // Default: dot cluster mode
   return (
     <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
@@ -259,13 +312,51 @@ function AdditionVis({ a, b }) {
   );
 }
 
-// SUBTRACTION — cross-out dots, not colour-only ───────────────────────────────
-function SubtractionVis({ from, remove }) {
+// SUBTRACTION — cross-out dots/icons, not colour-only ─────────────────────────
+function SubtractionVis({ from, remove, objectIcon }) {
   const safe = Math.min(from, 15);
   const kept = safe - remove;
+  const hasIcon = objectIcon && CTX_ICONS[objectIcon];
+  const iconSize = 28;
+
+  if (hasIcon) {
+    const cols = Math.min(safe, 5);
+    const rows = Math.ceil(safe / cols);
+    const gap = iconSize + 6;
+    const w = cols * gap + 8;
+    const h = rows * gap + 8;
+    return (
+      <Panel accent={T.rose} bg={T.roseBg} bd={T.roseBd}>
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          {Array.from({ length: safe }, (_, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const cx = 8 + col * gap + iconSize / 2;
+            const cy = 8 + row * gap + iconSize / 2;
+            const removed = i >= kept;
+            return (
+              <g key={i} opacity={removed ? 0.3 : 1}>
+                <CtxIcon cx={cx} cy={cy} s={iconSize} iconKey={objectIcon} />
+                {removed && (
+                  <line x1={cx - iconSize * 0.4} y1={cy + iconSize * 0.4}
+                        x2={cx + iconSize * 0.4} y2={cy - iconSize * 0.4}
+                        stroke={T.rose} strokeWidth={2.5} strokeLinecap="round" />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 10, fontWeight: 600, color: T.text }}>
+          <span>{kept} kept</span>
+          <span style={{ color: T.rose }}>{remove} taken away</span>
+        </div>
+      </Panel>
+    );
+  }
+
+  // Default: dot mode
   return (
     <Panel accent={T.rose} bg={T.roseBg} bd={T.roseBd}>
-      {/* Dots: kept = solid indigo, removed = faded + strikethrough */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, maxWidth: 210, justifyContent: "center" }}>
         {Array.from({ length: safe }).map((_, i) => (
           i < kept
@@ -273,7 +364,6 @@ function SubtractionVis({ from, remove }) {
             : <Dot key={i} color={T.textMid} bg="#f1f5f9" border="#cbd5e1" size={22} strikethrough />
         ))}
       </div>
-      {/* Shape legend — no colour dependency */}
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <Dot color={T.indigo} bg="#c7d2fe" border={T.indigo} size={14} />
@@ -465,8 +555,36 @@ const DICE = {
   4:[[25,28],[75,28],[25,72],[75,72]],5:[[25,28],[75,28],[50,50],[25,72],[75,72]],
   6:[[25,22],[75,22],[25,50],[75,50],[25,78],[75,78]],
 };
-function CountingVis({ count }) {
+function CountingVis({ count, objectIcon }) {
   const safe = Math.min(count, 25);
+  const hasIcon = objectIcon && CTX_ICONS[objectIcon];
+
+  // Contextual icon mode: show actual objects
+  if (hasIcon) {
+    const iconSize = safe <= 10 ? 30 : 24;
+    const cols = Math.min(safe, 5);
+    const rows = Math.ceil(safe / cols);
+    const gap = iconSize + 6;
+    const pad = 8;
+    const w = pad * 2 + cols * gap;
+    const h = pad * 2 + rows * gap;
+    return (
+      <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
+        <svg width={Math.min(w, 200)} height={Math.min(h, 160)} viewBox={`0 0 ${w} ${h}`}>
+          <rect x={2} y={2} width={w - 4} height={h - 4} rx={12} fill="white" stroke={T.amberBd} strokeWidth={2} />
+          {Array.from({ length: safe }, (_, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            return <g key={i}><CtxIcon cx={pad + col * gap + iconSize / 2} cy={pad + row * gap + iconSize / 2} s={iconSize} iconKey={objectIcon} /></g>;
+          })}
+        </svg>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.amber, textAlign: "center", marginTop: 4 }}>
+          Count them!
+        </div>
+      </Panel>
+    );
+  }
+
   const layout = safe <= 10 ? DICE[safe] : null;
 
   // For counts > 10, use a grid of dots
@@ -530,6 +648,293 @@ const OBJ_SHAPE_MAP = {
   star: (cx, cy, r, fill) => { const pts = Array.from({length:5},(_,i)=>{const a1=(i*72-90)*Math.PI/180;const a2=((i*72+36)-90)*Math.PI/180;const oR=r;const iR=r*0.4;return`${cx+oR*Math.cos(a1)},${cy+oR*Math.sin(a1)} ${cx+iR*Math.cos(a2)},${cy+iR*Math.sin(a2)}`;}).join(' '); return <polygon points={pts} fill={fill} stroke="#0002" strokeWidth={1}/>; },
 };
 const defaultObjShape = (cx, cy, r, fill) => <circle cx={cx} cy={cy} r={r} fill={fill} stroke="#0002" strokeWidth={1} />;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTEXTUAL OBJECT ICONS — renders books/apples/cars etc. instead of dots
+// ═══════════════════════════════════════════════════════════════════════════════
+const CTX_ICONS = {
+  book: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={1} y={2} width={s-2} height={s-4} rx={2} fill="#3b82f6" />
+      <rect x={3} y={4} width={s-8} height={s-8} rx={1} fill="#dbeafe" />
+      <line x1={s*0.3} y1={s*0.35} x2={s*0.7} y2={s*0.35} stroke="#3b82f6" strokeWidth={1} opacity={0.5} />
+      <line x1={s*0.3} y1={s*0.5} x2={s*0.65} y2={s*0.5} stroke="#3b82f6" strokeWidth={1} opacity={0.4} />
+    </g>
+  ),
+  apple: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.55} r={s*0.38} fill="#ef4444" />
+      <ellipse cx={s/2} cy={s*0.55} rx={s*0.38} ry={s*0.35} fill="#ef4444" />
+      <line x1={s/2} y1={s*0.15} x2={s/2} y2={s*0.3} stroke="#92400e" strokeWidth={1.5} />
+      <ellipse cx={s*0.55} cy={s*0.2} rx={s*0.12} ry={s*0.08} fill="#22c55e" transform={`rotate(20 ${s*0.55} ${s*0.2})`} />
+    </g>
+  ),
+  sweet: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s/2} rx={s*0.3} ry={s*0.25} fill="#ec4899" />
+      <path d={`M${s*0.2},${s/2} L${s*0.05},${s*0.35} L${s*0.05},${s*0.65} Z`} fill="#fbbf24" opacity={0.7} />
+      <path d={`M${s*0.8},${s/2} L${s*0.95},${s*0.35} L${s*0.95},${s*0.65} Z`} fill="#fbbf24" opacity={0.7} />
+    </g>
+  ),
+  pencil: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.35} y={s*0.1} width={s*0.3} height={s*0.65} rx={1} fill="#fbbf24" />
+      <polygon points={`${s*0.35},${s*0.75} ${s*0.65},${s*0.75} ${s/2},${s*0.95}`} fill="#fde68a" />
+      <rect x={s*0.35} y={s*0.1} width={s*0.3} height={s*0.12} rx={1} fill="#f472b6" />
+      <circle cx={s/2} cy={s*0.93} r={s*0.03} fill="#1e293b" />
+    </g>
+  ),
+  car: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.1} y={s*0.4} width={s*0.8} height={s*0.3} rx={3} fill="#3b82f6" />
+      <path d={`M${s*0.25},${s*0.4} L${s*0.35},${s*0.2} L${s*0.65},${s*0.2} L${s*0.75},${s*0.4}`} fill="#60a5fa" />
+      <circle cx={s*0.28} cy={s*0.72} r={s*0.09} fill="#1e293b" />
+      <circle cx={s*0.72} cy={s*0.72} r={s*0.09} fill="#1e293b" />
+    </g>
+  ),
+  toy: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.35} r={s*0.2} fill="#fbbf24" />
+      <rect x={s*0.3} y={s*0.5} width={s*0.4} height={s*0.35} rx={3} fill="#ef4444" />
+      <circle cx={s*0.4} cy={s*0.3} r={s*0.04} fill="#1e293b" />
+      <circle cx={s*0.6} cy={s*0.3} r={s*0.04} fill="#1e293b" />
+    </g>
+  ),
+  egg: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s*0.52} rx={s*0.3} ry={s*0.38} fill="#fef3c7" stroke="#d97706" strokeWidth={1} />
+    </g>
+  ),
+  coin: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s/2} r={s*0.38} fill="#fbbf24" stroke="#d97706" strokeWidth={1.5} />
+      <text x={s/2} y={s*0.58} textAnchor="middle" fontSize={s*0.3} fontWeight="bold" fill="#92400e">p</text>
+    </g>
+  ),
+  flower: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s/2} r={s*0.15} fill="#fbbf24" />
+      {[0,60,120,180,240,300].map(a => (
+        <ellipse key={a} cx={s/2} cy={s*0.25} rx={s*0.1} ry={s*0.16} fill="#ec4899" opacity={0.8} transform={`rotate(${a} ${s/2} ${s/2})`} />
+      ))}
+    </g>
+  ),
+  tree: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.42} y={s*0.6} width={s*0.16} height={s*0.35} fill="#92400e" />
+      <circle cx={s/2} cy={s*0.38} r={s*0.32} fill="#22c55e" />
+    </g>
+  ),
+  bird: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s*0.5} rx={s*0.25} ry={s*0.2} fill="#60a5fa" />
+      <circle cx={s*0.65} cy={s*0.4} r={s*0.1} fill="#60a5fa" />
+      <polygon points={`${s*0.75},${s*0.4} ${s*0.9},${s*0.38} ${s*0.75},${s*0.44}`} fill="#f97316" />
+      <circle cx={s*0.68} cy={s*0.38} r={s*0.03} fill="#1e293b" />
+    </g>
+  ),
+  fish: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s/2} rx={s*0.35} ry={s*0.2} fill="#f97316" />
+      <polygon points={`${s*0.15},${s/2} ${s*0.0},${s*0.3} ${s*0.0},${s*0.7}`} fill="#f97316" />
+      <circle cx={s*0.65} cy={s*0.45} r={s*0.04} fill="#1e293b" />
+    </g>
+  ),
+  cat: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.5} r={s*0.28} fill="#f97316" />
+      <polygon points={`${s*0.3},${s*0.3} ${s*0.35},${s*0.15} ${s*0.45},${s*0.3}`} fill="#f97316" />
+      <polygon points={`${s*0.55},${s*0.3} ${s*0.65},${s*0.15} ${s*0.7},${s*0.3}`} fill="#f97316" />
+      <circle cx={s*0.42} cy={s*0.47} r={s*0.04} fill="#1e293b" />
+      <circle cx={s*0.58} cy={s*0.47} r={s*0.04} fill="#1e293b" />
+    </g>
+  ),
+  dog: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.5} r={s*0.28} fill="#92400e" />
+      <ellipse cx={s*0.32} cy={s*0.32} rx={s*0.1} ry={s*0.14} fill="#a16207" />
+      <ellipse cx={s*0.68} cy={s*0.32} rx={s*0.1} ry={s*0.14} fill="#a16207" />
+      <circle cx={s*0.42} cy={s*0.47} r={s*0.04} fill="#1e293b" />
+      <circle cx={s*0.58} cy={s*0.47} r={s*0.04} fill="#1e293b" />
+      <ellipse cx={s/2} cy={s*0.58} rx={s*0.08} ry={s*0.06} fill="#1e293b" />
+    </g>
+  ),
+  frog: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s*0.55} rx={s*0.32} ry={s*0.25} fill="#22c55e" />
+      <circle cx={s*0.35} cy={s*0.35} r={s*0.1} fill="#22c55e" />
+      <circle cx={s*0.65} cy={s*0.35} r={s*0.1} fill="#22c55e" />
+      <circle cx={s*0.35} cy={s*0.33} r={s*0.05} fill="#1e293b" />
+      <circle cx={s*0.65} cy={s*0.33} r={s*0.05} fill="#1e293b" />
+    </g>
+  ),
+  cookie: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s/2} r={s*0.38} fill="#d97706" />
+      <circle cx={s*0.4} cy={s*0.4} r={s*0.06} fill="#78350f" />
+      <circle cx={s*0.6} cy={s*0.55} r={s*0.06} fill="#78350f" />
+      <circle cx={s*0.45} cy={s*0.65} r={s*0.05} fill="#78350f" />
+    </g>
+  ),
+  cake: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.2} y={s*0.4} width={s*0.6} height={s*0.45} rx={3} fill="#fbbf24" />
+      <rect x={s*0.15} y={s*0.35} width={s*0.7} height={s*0.15} rx={3} fill="#ec4899" />
+      <rect x={s*0.46} y={s*0.15} width={s*0.08} height={s*0.2} fill="#fbbf24" />
+      <ellipse cx={s/2} cy={s*0.14} rx={s*0.04} ry={s*0.06} fill="#f97316" />
+    </g>
+  ),
+  banana: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <path d={`M${s*0.3},${s*0.7} Q${s*0.15},${s*0.3} ${s*0.5},${s*0.2} Q${s*0.75},${s*0.15} ${s*0.7},${s*0.5}`} stroke="#eab308" strokeWidth={s*0.15} fill="none" strokeLinecap="round" />
+    </g>
+  ),
+  orange: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.52} r={s*0.35} fill="#f97316" />
+      <ellipse cx={s/2} cy={s*0.2} rx={s*0.08} ry={s*0.06} fill="#22c55e" />
+    </g>
+  ),
+  strawberry: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <path d={`M${s/2},${s*0.9} Q${s*0.2},${s*0.5} ${s*0.35},${s*0.25} L${s*0.65},${s*0.25} Q${s*0.8},${s*0.5} ${s/2},${s*0.9}`} fill="#ef4444" />
+      <ellipse cx={s/2} cy={s*0.2} rx={s*0.15} ry={s*0.08} fill="#22c55e" />
+    </g>
+  ),
+  person: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <circle cx={s/2} cy={s*0.25} r={s*0.15} fill="#fbbf24" />
+      <rect x={s*0.32} y={s*0.42} width={s*0.36} height={s*0.35} rx={3} fill="#3b82f6" />
+      <line x1={s*0.4} y1={s*0.78} x2={s*0.4} y2={s*0.95} stroke="#1e293b" strokeWidth={2} />
+      <line x1={s*0.6} y1={s*0.78} x2={s*0.6} y2={s*0.95} stroke="#1e293b" strokeWidth={2} />
+    </g>
+  ),
+  shell: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s*0.55} rx={s*0.35} ry={s*0.3} fill="#fde68a" stroke="#d97706" strokeWidth={1} />
+      <path d={`M${s*0.25},${s*0.55} Q${s/2},${s*0.25} ${s*0.75},${s*0.55}`} fill="none" stroke="#d97706" strokeWidth={0.8} />
+    </g>
+  ),
+  cup: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.25} y={s*0.2} width={s*0.5} height={s*0.55} rx={3} fill="#dbeafe" stroke="#3b82f6" strokeWidth={1.5} />
+      <path d={`M${s*0.75},${s*0.35} Q${s*0.92},${s*0.35} ${s*0.92},${s*0.5} Q${s*0.92},${s*0.65} ${s*0.75},${s*0.65}`} fill="none" stroke="#3b82f6" strokeWidth={1.5} />
+    </g>
+  ),
+  balloon: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s*0.38} rx={s*0.28} ry={s*0.32} fill="#ef4444" />
+      <line x1={s/2} y1={s*0.7} x2={s/2} y2={s*0.95} stroke="#94a3b8" strokeWidth={1} />
+    </g>
+  ),
+  sock: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <path d={`M${s*0.4},${s*0.1} L${s*0.4},${s*0.6} Q${s*0.4},${s*0.85} ${s*0.65},${s*0.85} L${s*0.75},${s*0.85} Q${s*0.75},${s*0.65} ${s*0.6},${s*0.6} L${s*0.6},${s*0.1}`} fill="#ec4899" stroke="#be185d" strokeWidth={1} />
+    </g>
+  ),
+  hat: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.15} y={s*0.6} width={s*0.7} height={s*0.12} rx={2} fill="#1e293b" />
+      <rect x={s*0.3} y={s*0.2} width={s*0.4} height={s*0.42} rx={3} fill="#1e293b" />
+    </g>
+  ),
+  crayon: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.35} y={s*0.2} width={s*0.3} height={s*0.55} rx={2} fill="#ef4444" />
+      <polygon points={`${s*0.35},${s*0.75} ${s*0.65},${s*0.75} ${s/2},${s*0.92}`} fill="#ef4444" />
+      <rect x={s*0.35} y={s*0.2} width={s*0.3} height={s*0.08} fill="#1e293b" opacity={0.2} />
+    </g>
+  ),
+  lego: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <rect x={s*0.15} y={s*0.35} width={s*0.7} height={s*0.5} rx={3} fill="#ef4444" />
+      <circle cx={s*0.35} cy={s*0.32} r={s*0.1} fill="#dc2626" />
+      <circle cx={s*0.65} cy={s*0.32} r={s*0.1} fill="#dc2626" />
+    </g>
+  ),
+  sticker: (cx, cy, s) => {
+    const pts = Array.from({length:5},(_,i)=>{const a1=(i*72-90)*Math.PI/180;const a2=((i*72+36)-90)*Math.PI/180;const oR=s*0.38;const iR=s*0.17;return`${s/2+oR*Math.cos(a1)},${s/2+oR*Math.sin(a1)} ${s/2+iR*Math.cos(a2)},${s/2+iR*Math.sin(a2)}`;}).join(' ');
+    return (
+      <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+        <polygon points={pts} fill="#fbbf24" stroke="#d97706" strokeWidth={1} />
+      </g>
+    );
+  },
+  spider: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s/2} cy={s/2} rx={s*0.2} ry={s*0.15} fill="#1e293b" />
+      {[-1,1].map(d => [0.3,0.5,0.7].map((y,i) => (
+        <line key={`${d}-${i}`} x1={s/2} y1={s*y} x2={s*(0.5+d*0.4)} y2={s*(y+d*0.08*(i-1))} stroke="#1e293b" strokeWidth={1} />
+      )))}
+    </g>
+  ),
+  butterfly: (cx, cy, s) => (
+    <g transform={`translate(${cx - s/2},${cy - s/2})`}>
+      <ellipse cx={s*0.35} cy={s*0.45} rx={s*0.2} ry={s*0.28} fill="#a855f7" opacity={0.8} />
+      <ellipse cx={s*0.65} cy={s*0.45} rx={s*0.2} ry={s*0.28} fill="#ec4899" opacity={0.8} />
+      <rect x={s*0.47} y={s*0.25} width={s*0.06} height={s*0.5} rx={2} fill="#1e293b" />
+    </g>
+  ),
+};
+
+// Maps question-text nouns → icon key. Plural forms handled by stripping trailing "s"
+const NOUN_TO_ICON = {
+  book: "book", notebook: "book", textbook: "book",
+  apple: "apple",
+  sweet: "sweet", candy: "sweet", lollipop: "sweet", chocolate: "sweet",
+  pencil: "pencil", pen: "pencil",
+  car: "car", van: "car", bus: "car", truck: "car", lorry: "car",
+  toy: "toy", teddy: "toy", bear: "toy", doll: "toy",
+  egg: "egg",
+  coin: "coin", penny: "coin", pound: "coin", pence: "coin",
+  flower: "flower", daisy: "flower", rose: "flower", tulip: "flower",
+  tree: "tree",
+  bird: "bird", robin: "bird", sparrow: "bird", pigeon: "bird", parrot: "bird",
+  fish: "fish",
+  cat: "cat", kitten: "cat",
+  dog: "dog", puppy: "dog",
+  frog: "frog", toad: "frog",
+  cookie: "cookie", biscuit: "cookie",
+  cake: "cake", cupcake: "cake", muffin: "cake",
+  banana: "banana",
+  orange: "orange",
+  strawberry: "strawberry", berry: "strawberry",
+  child: "person", children: "person", student: "person", pupil: "person", friend: "person", boy: "person", girl: "person", person: "person", people: "person",
+  shell: "shell", seashell: "shell",
+  cup: "cup", mug: "cup", glass: "cup", bottle: "cup",
+  balloon: "balloon",
+  sock: "sock",
+  hat: "hat", cap: "hat",
+  crayon: "crayon",
+  lego: "lego", block: "lego",
+  sticker: "sticker", stamp: "sticker",
+  spider: "spider", ant: "spider", bug: "spider",
+  butterfly: "butterfly",
+  marble: "coin", button: "coin", counter: "coin",
+  star: "sticker",
+  packet: "sweet", bag: "sweet", box: "lego",
+};
+
+/** Extract the first recognisable object noun from question text. Returns icon key or null. */
+function extractObjectFromQuestion(questionStr) {
+  if (!questionStr) return null;
+  const q = questionStr.toLowerCase();
+  // Try to match known nouns (longest match first to prefer "butterfly" over "but")
+  const sortedNouns = Object.keys(NOUN_TO_ICON).sort((a, b) => b.length - a.length);
+  for (const noun of sortedNouns) {
+    // Match singular or plural (noun + optional "s"/"es"/"ies")
+    const rx = new RegExp(`\\b${noun}(?:s|es)?\\b`, "i");
+    if (rx.test(q)) return NOUN_TO_ICON[noun];
+  }
+  return null;
+}
+
+/** Render a contextual icon at SVG coordinates (cx, cy) with size s. Falls back to circle. */
+function CtxIcon({ cx, cy, s, iconKey, fallbackColor }) {
+  const renderer = iconKey ? CTX_ICONS[iconKey] : null;
+  if (renderer) return renderer(cx, cy, s);
+  return <circle cx={cx} cy={cy} r={s * 0.4} fill={fallbackColor || T.indigo} stroke="#0002" strokeWidth={1} />;
+}
 
 function ObjectGroupsVis({ groups, total, operation }) {
   if (!groups || groups.length === 0) return null;
@@ -2061,6 +2466,12 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
     }
   }
 
+  // ── KS1/KS2 COMMERCE — basic trade visual ──────────────────────────────────
+  if (isAccounting && yearLevel <= 6 &&
+      /trade|buy|sell|shop|market|goods|money|coins|price|spend|pay|cost|expensive|cheap|import|export/i.test(questionStr + " " + t)) {
+    return { type: "basic_concept", concept: "trade_basic", label: "Trade & Money", emoji: "🛒" };
+  }
+
   // ── ACCOUNTING / COMMERCE / ECONOMICS ────────────────────────────────────────
 
   if (isAccounting && (t.includes("t-account") || t.includes("t_account") || t.includes("double entry") || t.includes("debit") || t.includes("credit") || /\bdebit\b|\bcredit\b|ledger|journal/i.test(questionStr))) {
@@ -2082,9 +2493,60 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
   }
 
   if (isAccounting && (t.includes("supply") || t.includes("demand") || t.includes("equilibrium") || /supply|demand|equilibrium|market price|price mechanism/i.test(questionStr))) {
-    const pMatch = (questionStr||"").match(/price\s*(?:of|=|:)?\s*[£$]?(\d+)/i);
+    const pMatch = (questionStr||"").match(/price\s*(?:of|=|:)?\s*[£$₦]?(\d+)/i);
     const qMatch = (questionStr||"").match(/quantity\s*(?:of|=|:)?\s*(\d+)/i);
     return { type:"supply_demand", eqPrice: pMatch ? parseInt(pMatch[1]) : 50, eqQty: qMatch ? parseInt(qMatch[1]) : 50 };
+  }
+
+  // ── Profit & Loss / Income Statement ───────────────────────────────────────
+  if (isAccounting && /profit|loss|income statement|revenue|cost of (goods|sales)|gross profit|net profit|operating expenses|cogs/i.test(questionStr + " " + t)) {
+    const revM = (questionStr||"").match(/revenue\s*(?:of|=|:)?\s*[£$₦]?([\d,]+)/i);
+    const cogsM = (questionStr||"").match(/(?:cost of (?:goods|sales)|cogs)\s*(?:of|=|:)?\s*[£$₦]?([\d,]+)/i);
+    const expM = (questionStr||"").match(/(?:expenses?|operating costs?)\s*(?:of|=|:)?\s*[£$₦]?([\d,]+)/i);
+    return { type:"profit_loss",
+      revenue:  revM  ? parseInt(revM[1].replace(/,/g,""))  : 50000,
+      cogs:     cogsM ? parseInt(cogsM[1].replace(/,/g,"")) : 20000,
+      expenses: expM  ? parseInt(expM[1].replace(/,/g,""))  : 15000,
+    };
+  }
+
+  // ── Distribution Channel / Trade Flow ──────────────────────────────────────
+  if (isAccounting && /distribution|channel|middlemen|wholesal|retail|manufacturer|intermediar|auxiliar|import|export|international trade|shipping|customs/i.test(questionStr + " " + t)) {
+    let flowType = "distribution";
+    if (/international|import|export|customs|shipping/i.test(questionStr + " " + t)) flowType = "international";
+    if (/bank|deposit|borrow|savings|interest/i.test(questionStr + " " + t)) flowType = "banking";
+    return { type:"trade_flow", flowType };
+  }
+
+  // ── Business Organisation / Structure ──────────────────────────────────────
+  if (isAccounting && /sole (trader|proprietor)|partnership|limited (company|liability)|plc|public limited|cooperat|forms? of business|business organi[sz]/i.test(questionStr + " " + t)) {
+    let orgType = "sole_trader";
+    if (/partnership/i.test(questionStr + " " + t)) orgType = "partnership";
+    if (/limited (company|liability)|ltd\b/i.test(questionStr + " " + t)) orgType = "limited";
+    if (/plc|public limited/i.test(questionStr + " " + t)) orgType = "plc";
+    if (/cooperat/i.test(questionStr + " " + t)) orgType = "cooperative";
+    return { type:"org_structure", orgType };
+  }
+
+  // ── Marketing Mix (4Ps) ────────────────────────────────────────────────────
+  if (isAccounting && /marketing mix|four ps|4ps|\b(product|price|place|promotion)\b.*marketing|\bmarketing\b.*(product|price|place|promotion)/i.test(questionStr + " " + t)) {
+    let highlight = null;
+    if (/\bproduct\b/i.test(questionStr)) highlight = "Product";
+    else if (/\bprice\b|\bpricing\b/i.test(questionStr)) highlight = "Price";
+    else if (/\bplace\b|\bdistribut/i.test(questionStr)) highlight = "Place";
+    else if (/\bpromotion\b|\badvert/i.test(questionStr)) highlight = "Promotion";
+    return { type:"marketing_mix", highlight };
+  }
+
+  // ── Economics concepts ───────────────────────────────────────────────────
+  if (isAccounting && /inflation|deflation|price.*level|cost.*push|demand.*pull/i.test(questionStr + " " + t)) {
+    return { type: "economics", concept: "inflation" };
+  }
+  if (isAccounting && /gdp|gross.*domestic|national.*income|aggregate/i.test(questionStr + " " + t)) {
+    return { type: "economics", concept: "gdp" };
+  }
+  if (isAccounting && /demand.*supply|supply.*demand|equilibrium|market.*force/i.test(questionStr + " " + t)) {
+    return { type: "economics", concept: "demand_supply" };
   }
 
   return null;
@@ -2094,7 +2556,14 @@ function parseGeography(topicStr, questionStr, yearLevel) {
   const t = (topicStr || "").toLowerCase();
   const q = (questionStr || "").toLowerCase();
   const nums = ((questionStr || "").match(/\d+/g) || []).map(Number);
- 
+
+  // ── KS1/KS2 GEOGRAPHY — rich animated visuals ────────────────────────────
+  if (yearLevel <= 6) {
+    if (/continent|africa|asia|europe|north america|south america|antarctica|oceania|australasia|how many continents|world map|seven continents/i.test(questionStr + " " + t)) {
+      return { type: "basic_concept", concept: "continents", label: "Continents of the World", emoji: "🌍" };
+    }
+  }
+
   if (t.includes("compass") || t.includes("direction") || t.includes("bearing") ||
       /north|south|east|west|bearing|compass|cardinal/i.test(questionStr)) {
     const bearingMatch = (questionStr || "").match(/(\d+)\s*(?:°|degrees?)/i);
@@ -2173,7 +2642,28 @@ function parseHistory(topicStr, questionStr, yearLevel) {
   const t = (topicStr || "").toLowerCase();
   const q = (questionStr || "").toLowerCase();
   const nums = ((questionStr || "").match(/\d{3,4}/g) || []).map(Number);
- 
+
+  // ── KS1/KS2 HISTORY — rich animated visuals ──────────────────────────────
+  if (yearLevel <= 6) {
+    // Ancient civilisations
+    if (/egypt|pharaoh|pyramid|nile|hieroglyph|tutankhamun|mummy|sarcophagus/i.test(questionStr + " " + t)) {
+      return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Egypt", emoji: "🏛️", civilisation: "egypt" };
+    }
+    if (/rome|roman|gladiator|colosseum|emperor|centurion|toga|latin|aqueduct/i.test(questionStr + " " + t)) {
+      return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Rome", emoji: "🏛️", civilisation: "rome" };
+    }
+    if (/greece|greek|athens|sparta|olymp|parthenon|zeus|myth/i.test(questionStr + " " + t)) {
+      return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Greece", emoji: "🏛️", civilisation: "greece" };
+    }
+    if (/viking|norse|longship|rune|scandinav|raid|thor|odin|valhalla/i.test(questionStr + " " + t)) {
+      return { type: "basic_concept", concept: "ancient_civ", label: "The Vikings", emoji: "⚔️", civilisation: "viking" };
+    }
+    // Cause and consequence
+    if (/cause|consequence|because|led to|result|effect|why did|what happened/i.test(questionStr) && t.includes("histor")) {
+      return { type: "basic_concept", concept: "cause_consequence", label: "Cause & Consequence", emoji: "🔗" };
+    }
+  }
+
   if (t.includes("timeline") || t.includes("chronolog") ||
       /what year|when did|order.*events|which came first|put.*order|century|decade|timeline/i.test(questionStr)) {
     const yearMatches = [...(questionStr || "").matchAll(/(\d{3,4})\s*[-–:]\s*([^,.\n]{3,40})/g)];
@@ -2360,6 +2850,50 @@ function parseComputing(topicStr, questionStr, yearLevel) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Humanities / vocational subject parser
+// ═══════════════════════════════════════════════════════════════════════════════
+function parseHumanities(subjectKey, topicStr, qLower) {
+  const t = topicStr + " " + qLower;
+
+  if (subjectKey === "civic") {
+    if (/values|honesty|integrity|discipline|cooperation/i.test(t)) return { type: "civic_education", topic: "values" };
+    if (/citizen|duty|obligations|national pledge/i.test(t)) return { type: "civic_education", topic: "citizenship" };
+    return { type: "civic_education", topic: "rights" };
+  }
+
+  if (subjectKey === "government") {
+    if (/legislature|executive|judiciary|arm|separation.*power/i.test(t)) return { type: "government", system: "three_arms" };
+    if (/federal|state|local.*government|tier/i.test(t)) return { type: "government", system: "tiers" };
+    if (/democracy|election|vote|rule.*law|democratic/i.test(t)) return { type: "government", system: "democracy" };
+    return { type: "government", system: "three_arms" };
+  }
+
+  if (subjectKey === "religion") {
+    if (/islam|muslim|quran|mosque|muhammad|pillar/i.test(t)) return { type: "religious_studies", religion: "islam" };
+    if (/christ|bible|jesus|church|commandment|testament/i.test(t)) return { type: "religious_studies", religion: "christianity" };
+    return { type: "religious_studies", religion: "overview" };
+  }
+
+  if (subjectKey === "design_tech") {
+    if (/material|wood|metal|plastic|textile|ceramic|propert/i.test(t)) return { type: "design_tech", process: "materials" };
+    if (/food|hygiene|nutrition|safety|cook/i.test(t)) return { type: "design_tech", process: "food_safety" };
+    return { type: "design_tech", process: "design_cycle" };
+  }
+
+  if (subjectKey === "agriculture") {
+    if (/crop.*rotation|rotate|fallow|intercrop/i.test(t)) return { type: "agriculture", topic: "crop_rotation" };
+    if (/tool|cutlass|hoe|plough|tractor|harvester|implement/i.test(t)) return { type: "agriculture", topic: "farm_tools" };
+    return { type: "agriculture", topic: "soil_types" };
+  }
+
+  if (subjectKey === "cultural_arts") {
+    return { type: "topic_card", subject: "Creative Arts", topic: "Artistic Expression", color: "#f472b6" };
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN EXPORT — resolveVisual
 // ═══════════════════════════════════════════════════════════════════════════════
 export function resolveVisual(question, subject, yearLevel) {
@@ -2373,9 +2907,20 @@ export function resolveVisual(question, subject, yearLevel) {
   const isEnglish  = subj.includes("english");
   const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
   const isGeography  = subj.includes("geograph") || subj.includes("hass") || subj.includes("social_stud");
-  const isHistory    = subj.includes("histor");
+  const isHistory    = subj.includes("histor") || subj.includes("canadian_hist");
   const isComputing  = subj.includes("comput") || subj.includes("digital") || subj === "ict";
-  if (!isMaths && !isScience && !isNVR && !isEnglish && !isCommerce && !isGeography && !isHistory && !isComputing) return null;
+  const isCivic      = subj.includes("civic") || subj.includes("citizenship");
+  const isGovernment = subj.includes("government") || subj.includes("politic");
+  const isReligion   = subj.includes("religi") || subj === "re" || subj === "religious_studies" || subj === "religious_education";
+  const isDesignTech = subj.includes("design") && subj.includes("tech") || subj.includes("d&t") || subj.includes("pre_vocational");
+  const isAgriculture = subj.includes("agric");
+  const isCulturalArts = subj.includes("cultural") || subj.includes("creative_art") || subj.includes("art") || subj.includes("music");
+  const isFurtherMaths = subj.includes("further_math");
+  // Allow all subjects through — humanities get contextual visuals below
+  const isKnown = isMaths || isScience || isNVR || isEnglish || isCommerce || isGeography ||
+    isHistory || isComputing || isCivic || isGovernment || isReligion || isDesignTech ||
+    isAgriculture || isCulturalArts || isFurtherMaths;
+  if (!isKnown) return null;
 
   let enrichedSubject = subject || "";
   if (subj === "science" || subj.includes("science")) {
@@ -2395,10 +2940,10 @@ export function resolveVisual(question, subject, yearLevel) {
   const nums        = (questionStr.match(RX_NUM) || []).map(Number);
 
   const t4 = parseTier4(topicStr, questionStr, enrichedSubject, year);
-  if (t4) return t4;
+  if (t4) return enrichWithObjectIcon(t4, questionStr);
 
   const t3 = parseTier3(topicStr, questionStr, enrichedSubject, year);
-  if (t3) return t3;
+  if (t3) return enrichWithObjectIcon(t3, questionStr);
 
   if (isGeography || (isScience && /water cycle|rock cycle|soil|earth.*layer/i.test(questionStr + topicStr))) {
     const geo = parseGeography(topicStr, questionStr, year);
@@ -2420,6 +2965,15 @@ export function resolveVisual(question, subject, yearLevel) {
     const compVis = parseComputing(topicStr, questionStr, year);
     if (compVis) return compVis;
   }
+
+  // ── Humanities & vocational subject routing ──────────────────────────────
+  if (isCivic) return parseHumanities("civic", topicStr, qLower);
+  if (isGovernment) return parseHumanities("government", topicStr, qLower);
+  if (isReligion) return parseHumanities("religion", topicStr, qLower);
+  if (isDesignTech) return parseHumanities("design_tech", topicStr, qLower);
+  if (isAgriculture) return parseHumanities("agriculture", topicStr, qLower);
+  if (isFurtherMaths) return null; // Uses main maths visuals via parseTier3/4
+  if (isCulturalArts) return parseHumanities("cultural_arts", topicStr, qLower);
 
   // Pie chart
   if (subj.includes("math") && (topicStr.includes("pie_chart") || topicStr.includes("pie") || /pie chart|pie graph|sector|slice/i.test(qLower))) {
@@ -2497,12 +3051,68 @@ export function resolveVisual(question, subject, yearLevel) {
     return { type: "symmetry", shape };
   }
 
-  // Probability
+  // Probability — smart parsing of balls/marbles/counters/cards patterns
   if (subj.includes("math") && (topicStr.includes("probabil") || /chance|likely|unlikely|certain|impossible|spinner|dice|coin/i.test(qLower))) {
-    const total = nums.find(n => n > 1 && n <= 20) || 6;
-    const favourable = nums.find((n, i) => i > 0 && n >= 1 && n < total) || 1;
-    const context = /dice|die/i.test(qLower) ? "dice" : /coin/i.test(qLower) ? "coin" : "spinner";
-    return { type: "probability", total, favourable, context };
+    const context = /dice|die/i.test(qLower) ? "dice" : /coin/i.test(qLower) ? "coin" : /card/i.test(qLower) ? "cards" : "spinner";
+
+    // ── Pattern 1: "X red and Y blue [and Z green...]" — bag of items
+    // Matches "3 red balls and 2 blue balls", "5 red, 4 blue and 1 green marble"
+    const itemPattern = /(\d+)\s+(red|blue|green|yellow|white|black|pink|orange|purple|striped|spotted)/gi;
+    const itemMatches = [...(questionStr || "").matchAll(itemPattern)];
+
+    let total = 0, favourable = 0;
+    let hideAnswer = false; // suppress probability display to avoid revealing answer
+
+    if (itemMatches.length >= 2) {
+      // Build colour → count map
+      const colourCounts = {};
+      for (const m of itemMatches) {
+        const count = parseInt(m[1]);
+        const colour = m[2].toLowerCase();
+        colourCounts[colour] = (colourCounts[colour] || 0) + count;
+      }
+      total = Object.values(colourCounts).reduce((s, c) => s + c, 0);
+
+      // Detect which colour is being asked about — "probability of picking a red"
+      const askMatch = (questionStr || "").match(/(?:probability|chance|picking|drawing|selecting|getting|chosen?)\s+(?:a\s+)?(\w+)/i);
+      const askedColour = askMatch ? askMatch[1].toLowerCase() : null;
+      if (askedColour && colourCounts[askedColour]) {
+        favourable = colourCounts[askedColour];
+      } else {
+        // Can't determine which colour is asked — show total items but hide answer
+        favourable = Object.values(colourCounts)[0] || 1;
+      }
+      hideAnswer = true; // always hide for bag-of-items questions to avoid revealing answer
+    } else if (/dice|die/i.test(qLower)) {
+      // ── Pattern 2: Dice — "probability of rolling a 5"
+      total = 6;
+      const rollMatch = (questionStr || "").match(/(?:rolling|getting|landing)\s+(?:a\s+)?(\d)/i);
+      favourable = rollMatch ? 1 : 1; // single face
+      hideAnswer = true;
+    } else if (/coin/i.test(qLower)) {
+      // ── Pattern 3: Coin
+      total = 2;
+      favourable = 1;
+      hideAnswer = true;
+    } else if (/out of\s+(\d+)/i.test(qLower)) {
+      // ── Pattern 4: "X out of Y" style
+      const ooMatch = qLower.match(/(\d+)\s*out of\s*(\d+)/i);
+      if (ooMatch) { favourable = parseInt(ooMatch[1]); total = parseInt(ooMatch[2]); }
+      hideAnswer = true;
+    } else {
+      // ── Fallback: use first two distinct numbers from question
+      total = nums.find(n => n > 1 && n <= 52) || 6;
+      const allRelevant = nums.filter(n => n >= 1 && n <= total);
+      favourable = allRelevant.length >= 2 ? allRelevant[1] : 1;
+      hideAnswer = true;
+    }
+
+    // Clamp values
+    if (total < 2) total = 6;
+    if (favourable < 1) favourable = 1;
+    if (favourable > total) favourable = total;
+
+    return { type: "probability", total, favourable, context, hideAnswer };
   }
 
   // Percentage bar
@@ -2521,9 +3131,20 @@ export function resolveVisual(question, subject, yearLevel) {
 
   // Extended parser — handles number line, bar chart, coordinates, angles, data tables, etc.
   const ext = parseVisualExtended(topicStr, questionStr, enrichedSubject, year, question);
-  if (ext) return ext;
+  if (ext) return enrichWithObjectIcon(ext, questionStr);
 
   return null;
+}
+
+// Post-process: enrich maths visual types with contextual object icons from question text
+function enrichWithObjectIcon(visual, questionStr) {
+  if (!visual) return visual;
+  const ICON_TYPES = ["addition", "subtraction", "counting", "multiplication", "division", "division_equation", "number_bond"];
+  if (ICON_TYPES.includes(visual.type) && !visual.objectIcon) {
+    const icon = extractObjectFromQuestion(questionStr);
+    if (icon) visual.objectIcon = icon;
+  }
+  return visual;
 }
 
 export function canVisualise(question, subject, yearLevel) {
@@ -2628,19 +3249,22 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "sorting":            return `${visual.algorithm} sorting visualisation`;
       case "database_table":     return `Database table: ${visual.tableName}`;
       case "html_structure":     return `HTML structure: ${visual.tag} element`;
+      case "right_triangle":     return `Right-angled triangle${visual.sides ? `: sides ${visual.sides.filter(Boolean).join(", ")}` : ""}`;
+      case "circle_diagram":     return `Circle diagram${visual.radius ? ` with radius ${visual.radius}` : ""}${visual.mode ? ` — ${visual.mode}` : ""}`;
+      case "parallel_lines":     return `Parallel lines cut by a transversal${visual.angleType ? ` — ${visual.angleType} angles` : ""}`;
       default:                 return "Maths visual aid";
     }
   })();
 
   const inner = (() => {
     switch (visual.type) {
-      case "addition":        return <AdditionVis       {...visual} />;
-      case "subtraction":     return <SubtractionVis    {...visual} />;
+      case "addition":        return <AdditionVis       {...visual} objectIcon={visual.objectIcon} />;
+      case "subtraction":     return <SubtractionVis    {...visual} objectIcon={visual.objectIcon} />;
       case "place_value":     return <PlaceValueVis     {...visual} />;
       case "multiplication":  return <MultiplicationVis  {...visual} />;
       case "fraction":        return <FractionVis       {...visual} />;
       case "number_bond":     return <NumberBondVis     {...visual} />;
-      case "counting":        return <CountingVis       {...visual} />;
+      case "counting":        return <CountingVis       {...visual} objectIcon={visual.objectIcon} />;
       case "object_groups":   return <ObjectGroupsVis   {...visual} />;
       case "nvr":             return <NVRVis            {...visual} />;
       case "nvr_reflection":  return <NVRReflectionVis  {...visual} />;
@@ -2696,6 +3320,18 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "t_account":       return <TAccountVis         {...visual} />;
       case "break_even":      return <BreakEvenVis        {...visual} />;
       case "supply_demand":   return <SupplyDemandVis     {...visual} />;
+      case "profit_loss":     return <ProfitLossVis       {...visual} />;
+      case "trade_flow":      return <TradeFlowVis        {...visual} />;
+      case "org_structure":   return <OrgStructureVis     {...visual} />;
+      case "marketing_mix":   return <MarketingMixVis     {...visual} />;
+      // ── Humanities & vocational visuals ──────────────────────────────
+      case "civic_education":    return <CivicEducationVis   {...visual} />;
+      case "government":         return <GovernmentVis       {...visual} />;
+      case "religious_studies":  return <ReligiousStudiesVis {...visual} />;
+      case "design_tech":        return <DesignTechVis       {...visual} />;
+      case "agriculture":        return <AgricultureVis      {...visual} />;
+      case "economics":          return <EconomicsVis        {...visual} />;
+      case "topic_card":         return <TopicCardVis        {...visual} />;
       case "compass":         return <CompassVis          {...visual} />;
       case "map_grid":        return <MapGridVis          {...visual} />;
       case "climate_graph":   return <ClimateGraphVis     {...visual} />;
@@ -2712,7 +3348,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return <MagnetVis scenario={visual.scenario} />;
       case "photosynthesis":      return <PhotosynthesisVis highlighted={visual.highlighted} />;
       case "respiration":         return <RespirationVis respType={visual.respType} />;
-      case "basic_concept":       return <BasicConceptVis concept={visual.concept} label={visual.label} emoji={visual.emoji} />;
+      case "basic_concept":       return <BasicConceptVis concept={visual.concept} label={visual.label} emoji={visual.emoji} question={question} />;
       case "pie_chart":           return <PieChartVis slices={visual.slices} />;
       case "pictogram":           return <PictogramVis items={visual.items} keyValue={visual.keyValue} />;
       case "line_graph":          return <LineGraphVis points={visual.points} xLabel={visual.xLabel} yLabel={visual.yLabel} title={visual.title} />;
@@ -2733,7 +3369,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "clock_face":         return <ClockFaceVis hours={visual.hours} minutes={visual.minutes} label={visual.label} />;
       case "tally_chart":        return <TallyChartVis items={visual.items} title={visual.title} />;
       case "percentage_bar":     return <PercentageBarVis value={visual.value} />;
-      case "probability":        return <ProbabilityVis total={visual.total} favourable={visual.favourable} context={visual.context} />;
+      case "probability":        return <ProbabilityVis total={visual.total} favourable={visual.favourable} context={visual.context} hideAnswer={visual.hideAnswer} />;
       case "symmetry":           return <SymmetryVis shape={visual.shape} />;
       case "flowchart":          return <FlowchartVis steps={visual.steps} title={visual.title} />;
       case "binary":             return <BinaryVis value={visual.value} bits={visual.bits} />;
@@ -2743,6 +3379,11 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "sorting":            return <SortingVis values={visual.values} algorithm={visual.algorithm} highlightIdx={visual.highlightIdx} />;
       case "database_table":     return <DatabaseTableVis tableName={visual.tableName} fields={visual.fields} records={visual.records} />;
       case "html_structure":     return <HTMLStructureVis tag={visual.tag} children={visual.children} />;
+
+      // ── KS3/KS4 geometry visual types ─────────────────────────────────
+      case "right_triangle":     return <RightTriangleVis {...visual} />;
+      case "circle_diagram":     return <CircleDiagramVis {...visual} />;
+      case "parallel_lines":     return <ParallelLinesVis {...visual} />;
 
       // ── JSXGraph interactive visual types ──────────────────────────────
       case "jsxgraph":           return <JSXGraphBoard {...visual} ageBand={ageBand} />;
@@ -2776,6 +3417,333 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       <style>{`@keyframes lp-pulse{0%,100%{opacity:1}50%{opacity:0.6}}`}</style>
       {inner}
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KS3/KS4 GEOMETRY VISUALS — Right triangles, circles, parallel lines
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function RightTriangleVis({ sides = [], unknownSide, angle, trigRatio, showFormula, label }) {
+  const W = 240, H = 180, PAD = 36;
+  // Triangle vertices: right angle at bottom-left — inset more for label room
+  const Ax = PAD + 14, Ay = H - PAD - 6;      // bottom-left (right angle)
+  const Bx = W - PAD - 8, By = H - PAD - 6;   // bottom-right
+  const Cx = PAD + 14, Cy = PAD + 22;          // top-left
+
+  const a = sides[0] || "a";   // opposite (vertical)
+  const b = sides[1] || "b";   // adjacent (horizontal)
+  const c = sides[2] || "c";   // hypotenuse
+
+  const isUnknown = s => unknownSide && String(s).toLowerCase() === String(unknownSide).toLowerCase();
+
+  // Hypotenuse midpoint — offset label perpendicular to the line so it never overlaps
+  const hypMidX = (Bx + Cx) / 2;
+  const hypMidY = (By + Cy) / 2;
+  // Normal vector pointing outward (away from the right-angle vertex)
+  const dx = Bx - Cx, dy = By - Cy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx = -dy / len, ny = dx / len; // perpendicular
+  const hypLabelX = hypMidX + nx * 14;
+  const hypLabelY = hypMidY + ny * 14;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 300 }}>
+      {/* Triangle fill */}
+      <polygon points={`${Ax},${Ay} ${Bx},${By} ${Cx},${Cy}`} fill="rgba(99,102,241,0.08)" stroke={T.indigo} strokeWidth={2} strokeLinejoin="round" />
+
+      {/* Right-angle square — hidden when question asks to identify the triangle type */}
+      {showFormula !== false && (
+        <polyline points={`${Ax+12},${Ay} ${Ax+12},${Ay-12} ${Ax},${Ay-12}`} fill="none" stroke={T.indigo} strokeWidth={1.5} />
+      )}
+
+      {/* Side labels — positioned outside the triangle to avoid overlaps */}
+      {/* Vertical (opposite) — left side, offset further left */}
+      <text x={Ax - 16} y={(Ay + Cy) / 2 + 2} textAnchor="end" fontSize={11} fontWeight={isUnknown(a) ? "800" : "600"} fill={isUnknown(a) ? T.sun : T.indigo}>
+        {isUnknown(a) ? "?" : a}
+      </text>
+      {/* Horizontal (adjacent) — bottom, below the line */}
+      <text x={(Ax + Bx) / 2} y={Ay + 18} textAnchor="middle" fontSize={11} fontWeight={isUnknown(b) ? "800" : "600"} fill={isUnknown(b) ? T.sun : T.indigo}>
+        {isUnknown(b) ? "?" : b}
+      </text>
+      {/* Hypotenuse — perpendicular offset from the diagonal line */}
+      <text x={hypLabelX} y={hypLabelY} textAnchor="middle" fontSize={11} fontWeight={isUnknown(c) ? "800" : "600"} fill={isUnknown(c) ? T.sun : T.indigo}>
+        {isUnknown(c) ? "?" : c}
+      </text>
+
+      {/* Angle arc if trigonometry — inside the bottom-right angle */}
+      {angle && (
+        <g>
+          <path d={`M ${Bx - 26},${By} A 26,26 0 0,0 ${Bx - 18},${By - 18}`} fill="none" stroke={T.nebula} strokeWidth={1.5} />
+          <text x={Bx - 40} y={By - 10} fontSize={10} fontWeight="700" fill={T.nebula}>
+            {typeof angle === "number" ? `${angle}°` : "θ"}
+          </text>
+        </g>
+      )}
+
+      {/* Formula display — above the triangle, inside a subtle background */}
+      {showFormula && (
+        <g>
+          <rect x={W / 2 - 52} y={2} width={104} height={16} rx={4} fill="rgba(99,102,241,0.08)" />
+          <text x={W / 2} y={14} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.textMid}>
+            {trigRatio ? `${trigRatio}` : "a² + b² = c²"}
+          </text>
+        </g>
+      )}
+
+      {/* Label — below the triangle */}
+      {label && (
+        <text x={W / 2} y={H - 2} textAnchor="middle" fontSize={9} fill={T.textMid} fontWeight="600">{label}</text>
+      )}
+    </svg>
+  );
+}
+
+function CircleDiagramVis({ radius, mode, sectorAngle, label, theoremSubtype, knownAngles, arcAngles, chordLabels, intersectPoint }) {
+  const W = 220, H = 220, CX = W / 2, CY = H / 2, R = 72;
+  const displayR = radius || "r";
+  const isSector = mode === "sector" && sectorAngle;
+  const isTheorem = mode === "theorem";
+
+  // Sector endpoint
+  const angleRad = ((sectorAngle || 90) * Math.PI) / 180;
+  const sx = CX + R * Math.cos(-angleRad);
+  const sy = CY - R * Math.sin(-angleRad); // SVG y is inverted
+  const largeArc = (sectorAngle || 90) > 180 ? 1 : 0;
+
+  // Helper: point on circle at angle (degrees, 0 = right, clockwise in SVG)
+  const ptOnCircle = (deg) => ({
+    x: CX + R * Math.cos((deg * Math.PI) / 180),
+    y: CY + R * Math.sin((deg * Math.PI) / 180),
+  });
+
+  // ── Intersecting chords visual ──
+  const isIntersectingChords = theoremSubtype === "intersecting_chords";
+  // Place 4 points on the circle for two chords
+  const A = ptOnCircle(200);  // upper-left area
+  const B = ptOnCircle(20);   // upper-right area
+  const C = ptOnCircle(310);  // lower-right area
+  const D = ptOnCircle(130);  // lower-left area
+  // Intersection point of chords AB(A→B) and CD(C→D)
+  const lineIntersect = (x1, y1, x2, y2, x3, y3, x4, y4) => {
+    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(denom) < 0.001) return { x: CX, y: CY };
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+    return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+  };
+  const E = isIntersectingChords ? lineIntersect(A.x, A.y, B.x, B.y, D.x, D.y, C.x, C.y) : { x: CX, y: CY };
+  const chordNames = chordLabels || ["AB", "CD"];
+  const iPt = intersectPoint || "E";
+
+  // Arc labels for intersecting chords
+  const arc1 = (arcAngles && arcAngles[0]) || (knownAngles && knownAngles[0]);
+  const arc2 = (arcAngles && arcAngles[1]) || (knownAngles && knownAngles[1]);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 260 }}>
+      {/* Main circle */}
+      <circle cx={CX} cy={CY} r={R} fill="rgba(99,102,241,0.06)" stroke={T.indigo} strokeWidth={2} />
+
+      {/* ── Non-theorem modes ── */}
+      {!isTheorem && (
+        <g>
+          {/* Centre dot */}
+          <circle cx={CX} cy={CY} r={3} fill={T.indigo} />
+          {/* Radius line */}
+          <line x1={CX} y1={CY} x2={CX + R} y2={CY} stroke={T.indigo} strokeWidth={1.5} strokeDasharray={mode === "circumference" ? "none" : "5,3"} />
+          <text x={CX + R / 2} y={CY - 8} textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}>{displayR}</text>
+        </g>
+      )}
+
+      {/* Circumference highlight */}
+      {mode === "circumference" && (
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke={T.nebula} strokeWidth={3} strokeDasharray="6,4" opacity={0.7} />
+      )}
+
+      {/* Area shading */}
+      {mode === "area" && (
+        <circle cx={CX} cy={CY} r={R} fill="rgba(168,85,247,0.12)" stroke="none" />
+      )}
+
+      {/* Sector */}
+      {isSector && (
+        <g>
+          <path d={`M ${CX},${CY} L ${CX + R},${CY} A ${R},${R} 0 ${largeArc},0 ${sx},${sy} Z`} fill="rgba(251,191,36,0.2)" stroke={T.sun} strokeWidth={1.5} />
+          <line x1={CX} y1={CY} x2={sx} y2={sy} stroke={T.indigo} strokeWidth={1.5} />
+          <path d={`M ${CX + 20},${CY} A 20,20 0 ${largeArc},0 ${CX + 20 * Math.cos(-angleRad)},${CY - 20 * Math.sin(-angleRad)}`} fill="none" stroke={T.sun} strokeWidth={1.5} />
+          <text x={CX + 28} y={CY - 6} fontSize={9} fontWeight="700" fill={T.sun}>{sectorAngle}°</text>
+        </g>
+      )}
+
+      {/* ── Theorem: Intersecting Chords ── */}
+      {isTheorem && isIntersectingChords && (
+        <g>
+          {/* Chord 1: A → B */}
+          <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke={T.indigo} strokeWidth={2} />
+          {/* Chord 2: D → C */}
+          <line x1={D.x} y1={D.y} x2={C.x} y2={C.y} stroke={T.nebula} strokeWidth={2} />
+
+          {/* Points on circle */}
+          {[A, B, C, D].map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={i < 2 ? T.indigo : T.nebula} />
+          ))}
+
+          {/* Point labels */}
+          <text x={A.x - 12} y={A.y + 4} textAnchor="middle" fontSize={11} fontWeight="800" fill={T.indigo}>{chordNames[0]?.[0] || "A"}</text>
+          <text x={B.x + 12} y={B.y + 4} textAnchor="middle" fontSize={11} fontWeight="800" fill={T.indigo}>{chordNames[0]?.[1] || "B"}</text>
+          <text x={C.x + 10} y={C.y + 12} textAnchor="middle" fontSize={11} fontWeight="800" fill={T.nebula}>{chordNames[1]?.[1] || "D"}</text>
+          <text x={D.x - 10} y={D.y + 12} textAnchor="middle" fontSize={11} fontWeight="800" fill={T.nebula}>{chordNames[1]?.[0] || "C"}</text>
+
+          {/* Intersection point */}
+          <circle cx={E.x} cy={E.y} r={3.5} fill={T.sun} />
+          <text x={E.x + 10} y={E.y - 6} fontSize={10} fontWeight="800" fill={T.sun}>{iPt}</text>
+
+          {/* Arc angle labels — placed on arcs between points */}
+          {arc1 && (
+            <text x={CX} y={CY - R - 8} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.sun}>
+              {arc1}°
+            </text>
+          )}
+          {arc2 && (
+            <text x={CX} y={CY + R + 16} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.sun}>
+              {arc2}°
+            </text>
+          )}
+        </g>
+      )}
+
+      {/* ── Theorem: Semicircle ── */}
+      {isTheorem && theoremSubtype === "semicircle" && (
+        <g>
+          {/* Diameter */}
+          <line x1={CX - R} y1={CY} x2={CX + R} y2={CY} stroke={T.indigo} strokeWidth={2} />
+          {/* Point on circumference (top) */}
+          <circle cx={CX} cy={CY - R} r={3.5} fill={T.sun} />
+          <line x1={CX - R} y1={CY} x2={CX} y2={CY - R} stroke={T.nebula} strokeWidth={1.5} />
+          <line x1={CX + R} y1={CY} x2={CX} y2={CY - R} stroke={T.nebula} strokeWidth={1.5} />
+          {/* 90° square at top point */}
+          <rect x={CX - 7} y={CY - R + 2} width={7} height={7} fill="none" stroke={T.sun} strokeWidth={1.2} />
+          {/* Labels */}
+          <text x={CX - R - 8} y={CY + 4} textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}>A</text>
+          <text x={CX + R + 8} y={CY + 4} textAnchor="middle" fontSize={11} fontWeight="700" fill={T.indigo}>B</text>
+          <text x={CX + 2} y={CY - R - 8} textAnchor="middle" fontSize={11} fontWeight="700" fill={T.sun}>C</text>
+          <text x={CX} y={CY - R / 2 - 8} textAnchor="middle" fontSize={9} fontWeight="700" fill={T.sun}>90°</text>
+        </g>
+      )}
+
+      {/* ── Theorem: Generic / Cyclic / Inscribed / Tangent / Alternate Segment ── */}
+      {isTheorem && !isIntersectingChords && theoremSubtype !== "semicircle" && (
+        <g>
+          {/* Centre dot */}
+          <circle cx={CX} cy={CY} r={3} fill={T.indigo} />
+          <text x={CX + 8} y={CY - 6} fontSize={9} fontWeight="700" fill={T.textMid}>O</text>
+          {/* Diameter line (dashed) */}
+          <line x1={CX - R} y1={CY} x2={CX + R} y2={CY} stroke={T.nebula} strokeWidth={1.5} strokeDasharray="4,3" />
+          {/* Known angles display */}
+          {(knownAngles || []).map((deg, i) => (
+            <text key={i} x={CX + (i === 0 ? -30 : 30)} y={CY + 30 + i * 14} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.sun}>
+              {deg}°
+            </text>
+          ))}
+          {/* Tangent line if tangent theorem */}
+          {theoremSubtype === "tangent" && (
+            <g>
+              <line x1={CX + R} y1={CY - 40} x2={CX + R} y2={CY + 40} stroke={T.sun} strokeWidth={1.5} />
+              <line x1={CX} y1={CY} x2={CX + R} y2={CY} stroke={T.indigo} strokeWidth={1.5} />
+              <rect x={CX + R - 8} y={CY - 8} width={8} height={8} fill="none" stroke={T.sun} strokeWidth={1.2} />
+            </g>
+          )}
+        </g>
+      )}
+
+      {/* Formula / label */}
+      <text x={CX} y={H - 6} textAnchor="middle" fontSize={9} fontWeight="600" fill={T.textMid}>
+        {label || (mode === "area" ? `A = πr²` : mode === "circumference" ? `C = 2πr` : mode === "sector" ? `Sector` : "Circle")}
+      </text>
+    </svg>
+  );
+}
+
+function ParallelLinesVis({ knownAngle, angleType, label }) {
+  const W = 220, H = 160;
+  const deg = knownAngle || 55;
+
+  // Two horizontal parallel lines
+  const L1y = 45, L2y = 115;
+  const PAD = 15;
+
+  // Transversal: crosses both lines at an angle
+  const midX = W / 2;
+  const dx = 60; // horizontal run for transversal
+  const t1x = midX - dx, t1y = L1y - 25;
+  const t2x = midX + dx, t2y = L2y + 25;
+
+  // Intersection points
+  const frac1 = (L1y - t1y) / (t2y - t1y);
+  const ix1 = t1x + frac1 * (t2x - t1x);
+  const frac2 = (L2y - t1y) / (t2y - t1y);
+  const ix2 = t1x + frac2 * (t2x - t1x);
+
+  // Angle arc helper
+  const arcR = 18;
+  const transAngle = Math.atan2(t2y - t1y, t2x - t1x); // angle of transversal
+  const lineAngle = 0; // horizontal
+
+  // Angle between transversal going "up-left" and line going "right"
+  const startAng = -transAngle; // measured from +x axis
+  const endAng = 0;
+  const arcStartX = ix1 + arcR * Math.cos(lineAngle);
+  const arcStartY = ix1 ? L1y - arcR * Math.sin(startAng) : L1y;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 280 }}>
+      {/* Parallel line arrows */}
+      <text x={PAD - 2} y={L1y - 6} fontSize={8} fill={T.textMid}>↔</text>
+      <text x={PAD - 2} y={L2y - 6} fontSize={8} fill={T.textMid}>↔</text>
+
+      {/* Parallel lines */}
+      <line x1={PAD} y1={L1y} x2={W - PAD} y2={L1y} stroke={T.indigo} strokeWidth={2} />
+      <line x1={PAD} y1={L2y} x2={W - PAD} y2={L2y} stroke={T.indigo} strokeWidth={2} />
+
+      {/* Transversal */}
+      <line x1={t1x} y1={t1y} x2={t2x} y2={t2y} stroke={T.nebula} strokeWidth={2} />
+
+      {/* Known angle arc at top intersection */}
+      <path d={`M ${ix1 + arcR},${L1y} A ${arcR},${arcR} 0 0,0 ${ix1 + arcR * Math.cos(-transAngle)},${L1y + arcR * Math.sin(-transAngle)}`} fill="rgba(251,191,36,0.15)" stroke={T.sun} strokeWidth={1.5} />
+      <text x={ix1 + arcR + 6} y={L1y + 4} fontSize={10} fontWeight="700" fill={T.sun}>{deg}°</text>
+
+      {/* Unknown angle at bottom intersection */}
+      {angleType && (
+        <g>
+          {angleType === "alternate" && (
+            <>
+              <path d={`M ${ix2 - arcR},${L2y} A ${arcR},${arcR} 0 0,0 ${ix2 - arcR * Math.cos(-transAngle)},${L2y - arcR * Math.sin(-transAngle)}`} fill="rgba(99,102,241,0.12)" stroke={T.indigo} strokeWidth={1.5} />
+              <text x={ix2 - arcR - 10} y={L2y - 2} fontSize={10} fontWeight="800" fill={T.indigo}>?</text>
+            </>
+          )}
+          {angleType === "corresponding" && (
+            <>
+              <path d={`M ${ix2 + arcR},${L2y} A ${arcR},${arcR} 0 0,0 ${ix2 + arcR * Math.cos(-transAngle)},${L2y + arcR * Math.sin(-transAngle)}`} fill="rgba(99,102,241,0.12)" stroke={T.indigo} strokeWidth={1.5} />
+              <text x={ix2 + arcR + 6} y={L2y + 4} fontSize={10} fontWeight="800" fill={T.indigo}>?</text>
+            </>
+          )}
+          {angleType === "co-interior" && (
+            <>
+              <path d={`M ${ix2 + arcR},${L2y} A ${arcR},${arcR} 0 0,1 ${ix2 + arcR * Math.cos(transAngle)},${L2y - arcR * Math.sin(transAngle)}`} fill="rgba(99,102,241,0.12)" stroke={T.indigo} strokeWidth={1.5} />
+              <text x={ix2 + arcR + 6} y={L2y - 4} fontSize={10} fontWeight="800" fill={T.indigo}>?</text>
+            </>
+          )}
+          {!["alternate", "corresponding", "co-interior"].includes(angleType) && (
+            <text x={ix2 + arcR + 6} y={L2y + 4} fontSize={10} fontWeight="800" fill={T.indigo}>?</text>
+          )}
+        </g>
+      )}
+
+      {/* Label */}
+      <text x={W / 2} y={H - 4} textAnchor="middle" fontSize={9} fontWeight="600" fill={T.textMid}>
+        {label || (angleType ? `${angleType.charAt(0).toUpperCase() + angleType.slice(1)} angles` : "Parallel lines & transversal")}
+      </text>
+    </svg>
   );
 }
 
@@ -3256,6 +4224,307 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
     }
   }
 
+  // ── PYTHAGORAS THEOREM ─────────────────────────────────────────────────────
+  // Guard: if the question asks "what type/kind of triangle", suppress labels that
+  // reveal it's a right triangle — the scholar should work that out themselves.
+  const isIdentifyQ = /what\s+(?:type|kind)\s+of|identify|name\s+(?:the|this)\s+(?:triangle|shape)|classify/i.test(questionStr);
+  if (subj.includes("math") && (t.includes("pythag") || /pythagoras|pythagorean|hypotenuse/i.test(questionStr))) {
+    const sideNums = ((questionStr || "").match(/\b(\d+(?:\.\d+)?)\s*(?:cm|m|mm|km|units?)?\b/gi) || [])
+      .map(s => parseFloat(s)).filter(n => n > 0 && n < 1000);
+    const sides = sideNums.slice(0, 3);
+    const isFind = /find|calculat|what is|work out|length of the other|missing/i.test(questionStr);
+    const unknownSide = /hypotenuse/i.test(questionStr) ? "c" : "a";
+    return {
+      type: "right_triangle",
+      sides: sides.length >= 2 ? sides : [3, 4, 5],
+      unknownSide: isFind ? unknownSide : null,
+      showFormula: !isIdentifyQ,
+      label: isIdentifyQ ? "Triangle" : "Pythagoras' Theorem: a² + b² = c²",
+    };
+  }
+
+  // ── TRIGONOMETRY / SOHCAHTOA ──────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("trig") || t.includes("sohcahtoa") || t.includes("sine_rule") || t.includes("cosine_rule") ||
+      /\bsin\b|\bcos\b|\btan\b|sohcahtoa|opposite|adjacent|trigonometr/i.test(questionStr))) {
+    // Don't match trig GRAPH questions (handled separately)
+    if (/graph|sketch|plot|draw.*curve/i.test(questionStr)) { /* fall through */ }
+    else {
+      const angleMatch = (questionStr || "").match(/(\d+(?:\.\d+)?)\s*(?:°|degrees?)/i);
+      const angle = angleMatch ? parseFloat(angleMatch[1]) : 30;
+      const sideNums = ((questionStr || "").match(/\b(\d+(?:\.\d+)?)\s*(?:cm|m|mm|km)?\b/gi) || [])
+        .map(s => parseFloat(s)).filter(n => n > 0 && n < 1000 && n !== angle);
+      const ratio = /\bsin\b|opposite.*hyp/i.test(questionStr) ? "sin"
+        : /\bcos\b|adjacent.*hyp/i.test(questionStr) ? "cos"
+        : /\btan\b|opposite.*adj/i.test(questionStr) ? "tan" : "sin";
+      return {
+        type: "right_triangle",
+        sides: sideNums.length >= 1 ? sideNums : [10],
+        angle,
+        trigRatio: isIdentifyQ ? null : ratio,
+        showFormula: !isIdentifyQ,
+        label: isIdentifyQ ? "Triangle" : ratio === "sin" ? "sin θ = opp / hyp" : ratio === "cos" ? "cos θ = adj / hyp" : "tan θ = opp / adj",
+      };
+    }
+  }
+
+  // ── CIRCLE — area, circumference, arc, sector ────────────────────────────
+  if (subj.includes("math") && (t.includes("circle") || t.includes("circumference") ||
+      /circumference|radius|diameter|\bπ\b|pi\b|arc length|sector area/i.test(questionStr))) {
+    // Skip circle theorems — those need a different visual
+    if (t.includes("theorem")) { /* fall through */ }
+    else {
+      const radiusMatch = (questionStr || "").match(/radius[^\d]*(\d+(?:\.\d+)?)/i);
+      const diamMatch = (questionStr || "").match(/diameter[^\d]*(\d+(?:\.\d+)?)/i);
+      const radius = radiusMatch ? parseFloat(radiusMatch[1]) : diamMatch ? parseFloat(diamMatch[1]) / 2 : 5;
+      const mode = /circumference|perimeter/i.test(questionStr + t) ? "circumference"
+        : /sector/i.test(questionStr + t) ? "sector"
+        : /arc/i.test(questionStr + t) ? "arc" : "area";
+      const angleMatch = (questionStr || "").match(/(\d+)\s*(?:°|degrees?)/i);
+      return {
+        type: "circle_diagram",
+        radius,
+        mode,
+        sectorAngle: angleMatch ? parseInt(angleMatch[1]) : null,
+        label: mode === "circumference" ? `C = 2πr` : mode === "area" ? `A = πr²` : `${mode}`,
+      };
+    }
+  }
+
+  // ── ANGLES ON PARALLEL LINES ──────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("parallel") || /parallel lines|alternate|co-?interior|corresponding|transversal|allied angle/i.test(questionStr))) {
+    const allDegs = [...(questionStr || "").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    const angleType = /alternate/i.test(questionStr) ? "alternate"
+      : /co-?interior|allied/i.test(questionStr) ? "co-interior"
+      : "corresponding";
+    return {
+      type: "parallel_lines",
+      knownAngle: allDegs[0] || 65,
+      angleType,
+      label: `${angleType} angles`,
+    };
+  }
+
+  // ── SPEED / DISTANCE / TIME (for maths, not just physics) ─────────────────
+  if (subj.includes("math") && (t.includes("speed") || t.includes("distance") || t.includes("rate") ||
+      /speed.*distance.*time|distance.*time|average speed|how long.*travel|how far.*travel/i.test(questionStr))) {
+    const unknown = /find.*speed|what.*speed|calculat.*speed|average speed/i.test(questionStr) ? "top"
+      : /find.*distance|what.*distance|how far/i.test(questionStr) ? "left"
+      : /find.*time|what.*time|how long/i.test(questionStr) ? "right" : null;
+    return { type: "formula_triangle", top: "S", left: "D", right: "T", unknown, title: "Speed = Distance ÷ Time" };
+  }
+
+  // ── ALGEBRA: Solving equations ─────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("algebra_solving") || t.includes("linear_equation") ||
+      /solve.*(?:for|=)|find.*value.*(?:x|y|n)|(?:x|y)\s*[+=]/i.test(questionStr))) {
+    const eqMatch = (questionStr || "").match(/([^.?!]+=[^.?!]+)/);
+    const eq = eqMatch ? eqMatch[1].trim() : null;
+    if (eq) {
+      const variable = (eq.match(/\b([a-z])\b/i) || ["", "x"])[1];
+      return {
+        type: "equation_solver",
+        steps: [{ label: "Equation", value: eq }],
+        variable,
+      };
+    }
+  }
+
+  // ── PROBABILITY TREE DIAGRAMS ──────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("tree_diagram") || t.includes("probability_tree") ||
+      /tree diagram|two events|first.*then.*probability|without replacement/i.test(questionStr))) {
+    const eventA = (questionStr || "").match(/(?:probability of|P\()([^)=]+)/i)?.[1]?.trim() || "Event A";
+    return {
+      type: "probability_tree",
+      branches: [
+        { label: eventA, p: "p", children: [
+          { label: "Success", p: "p" },
+          { label: "Fail", p: "1-p" },
+        ]},
+        { label: `Not ${eventA}`, p: "1-p", children: [
+          { label: "Success", p: "p" },
+          { label: "Fail", p: "1-p" },
+        ]},
+      ],
+      title: "Probability Tree",
+    };
+  }
+
+  // ── QUADRATIC EQUATIONS (non-graph) ────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("quadratic") && !t.includes("graph")) &&
+      /solve|factoris|root|x²|x\^2/i.test(questionStr)) {
+    const eqMatch = (questionStr || "").match(/([\dx²\s+\-=]+)/i);
+    return {
+      type: "equation_solver",
+      steps: [{ label: "Quadratic", value: eqMatch ? eqMatch[1].trim() : "ax² + bx + c = 0" }],
+      variable: "x",
+    };
+  }
+
+  // ── STANDARD FORM ──────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("standard_form") || /standard form|×\s*10\^|×\s*10\s*\d/i.test(questionStr))) {
+    const sfMatch = (questionStr || "").match(/(\d+(?:\.\d+)?)\s*×\s*10\s*[⁰¹²³⁴⁵⁶⁷⁸⁹^]+\s*(-?\d+)/i);
+    const value = sfMatch ? parseFloat(sfMatch[1]) * Math.pow(10, parseInt(sfMatch[2])) : 3.5e4;
+    return { type: "number_line", min: 0, max: value * 2, marked: [value], label: "Standard form" };
+  }
+
+  // ── VECTORS ────────────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("vector") || /\bvector\b|column vector|magnitude.*direction/i.test(questionStr))) {
+    const vecMatch = (questionStr || "").match(/\(\s*(-?\d+)\s*[,\\]\s*(-?\d+)\s*\)/);
+    const vx = vecMatch ? parseInt(vecMatch[1]) : 3;
+    const vy = vecMatch ? parseInt(vecMatch[2]) : 4;
+    return {
+      type: "coordinate",
+      points: [{ x: 0, y: 0 }, { x: vx, y: vy }],
+      xRange: [Math.min(-2, vx - 2), Math.max(2, vx + 2)],
+      yRange: [Math.min(-2, vy - 2), Math.max(2, vy + 2)],
+      arrows: true,
+    };
+  }
+
+  // ── INDICES / POWERS ───────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("indic") || t.includes("power") || t.includes("exponent") ||
+      /\d+\s*[⁰¹²³⁴⁵⁶⁷⁸⁹^]+\s*\d+|index law|power rule/i.test(questionStr))) {
+    const baseMatch = (questionStr || "").match(/(\d+)\s*[⁰¹²³⁴⁵⁶⁷⁸⁹^]+\s*(\d+)/);
+    const base = baseMatch ? parseInt(baseMatch[1]) : 2;
+    const exp = baseMatch ? parseInt(baseMatch[2]) : 3;
+    return {
+      type: "equation_solver",
+      steps: [
+        { label: "Expression", value: `${base}^${exp}` },
+        { label: "Expanded", value: Array(exp).fill(base).join(" × ") },
+        { label: "Result", value: `${Math.pow(base, exp)}` },
+      ],
+      variable: null,
+    };
+  }
+
+  // ── PERCENTAGE INCREASE / DECREASE ─────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("percent") || /percentage.*(?:increase|decrease|change|profit|loss)|%.*(?:increase|decrease|off|discount)/i.test(questionStr))) {
+    const pctMatch = (questionStr || "").match(/(\d+(?:\.\d+)?)\s*%/);
+    const pct = pctMatch ? parseFloat(pctMatch[1]) : 25;
+    return { type: "percentage_bar", value: pct };
+  }
+
+  // ── HISTOGRAM / BOX PLOT / SCATTER (KS3/KS4 statistics) ───────────────────
+  if (subj.includes("math") && (t.includes("histogram") || /histogram|frequency density/i.test(questionStr))) {
+    return { type: "bar_chart", bars: [
+      { label: "0-10", value: 3 }, { label: "10-20", value: 7 },
+      { label: "20-30", value: 12 }, { label: "30-40", value: 8 }, { label: "40-50", value: 4 },
+    ]};
+  }
+
+  if (subj.includes("math") && (t.includes("box_plot") || /box plot|box.*whisker|median.*quartile/i.test(questionStr))) {
+    return { type: "number_line", min: 0, max: 100, marked: nums.length >= 5 ? nums.slice(0, 5) : [10, 25, 45, 65, 90],
+      label: "Box plot: min, Q1, median, Q3, max" };
+  }
+
+  if (subj.includes("math") && (t.includes("scatter") || /scatter.*diagram|scatter.*graph|correlation|line of best fit/i.test(questionStr))) {
+    return { type: "coordinate", points: [
+      { x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }, { x: 4, y: 4 },
+      { x: 5, y: 7 }, { x: 6, y: 6 }, { x: 7, y: 8 },
+    ], xRange: [0, 8], yRange: [0, 10] };
+  }
+
+  // ── SURDS ──────────────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("surd") || /√|simplify.*surd|rationalis/i.test(questionStr))) {
+    const surdMatch = (questionStr || "").match(/√\s*(\d+)/);
+    const n = surdMatch ? parseInt(surdMatch[1]) : 12;
+    return {
+      type: "equation_solver",
+      steps: [
+        { label: "Surd", value: `√${n}` },
+        { label: "Simplify", value: `Find largest square factor of ${n}` },
+      ],
+      variable: null,
+    };
+  }
+
+  // ── TRANSFORMATIONS — enlargement, rotation, reflection, translation ──────
+  if (subj.includes("math") && (t.includes("transform") || t.includes("enlargement") || t.includes("translation") ||
+      /scale factor|enlarge|translate|reflect.*(?:in|across)|rotation.*(?:about|around)/i.test(questionStr))) {
+    const coordPairs = [...(questionStr || "").matchAll(/\((-?\d+),\s*(-?\d+)\)/g)];
+    if (coordPairs.length >= 2) {
+      return {
+        type: "coordinate",
+        points: coordPairs.map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]) })),
+        xRange: [-8, 8],
+        yRange: [-8, 8],
+      };
+    }
+    return { type: "coordinate", points: [
+      { x: 1, y: 1 }, { x: 3, y: 1 }, { x: 3, y: 3 }, { x: 1, y: 3 },
+    ], xRange: [-6, 6], yRange: [-6, 6] };
+  }
+
+  // ── CIRCLE THEOREMS ────────────────────────────────────────────────────────
+  if (subj.includes("math") && (t.includes("circle_theorem") || /circle theorem|inscribed angle|angle.*semicircle|cyclic quadrilateral|tangent.*radius|intersect.*chord|chord.*intersect|arc.*measure|arc.*angle/i.test(questionStr))) {
+    const allDegs = [...(questionStr || "").matchAll(/(\d+)\s*(?:°|degrees?)/gi)].map(m => parseInt(m[1]));
+    const qLow = (questionStr || "").toLowerCase();
+
+    // Detect theorem sub-type for richer visual
+    const isIntersectingChords = /intersect.*chord|chord.*intersect|chord.*cross|chords?.*meet|point.*intersection.*chord/i.test(questionStr);
+    const isSemicircle = /semicircle|angle.*semicircle/i.test(questionStr);
+    const isTangent = /tangent/i.test(questionStr);
+    const isCyclic = /cyclic/i.test(questionStr);
+    const isInscribed = /inscribed angle|angle.*inscribed|angle.*circle.*arc|subtend/i.test(questionStr);
+    const isAlternateSegment = /alternate segment/i.test(questionStr);
+
+    // Parse arc measures — "arcs of 100° and 40°" or "arc AB = 100° and arc CD = 40°"
+    const arcMatches = [...(questionStr || "").matchAll(/arc\s*[A-Z]*\s*(?:=|is|measures?)?\s*(\d+)\s*°/gi)].map(m => parseInt(m[1]));
+    const arcAngles = arcMatches.length >= 2 ? arcMatches : allDegs.length >= 2 ? allDegs : [];
+
+    // Parse chord labels — "chords AB and CD"
+    const chordLabels = [...(questionStr || "").matchAll(/chord\s*([A-Z]{2})/gi)].map(m => m[1]);
+
+    // Intersecting point label — "intersect at E" / "meet at point P"
+    const pointMatch = (questionStr || "").match(/(?:intersect|meet|cross)\s+(?:at\s+)?(?:point\s+)?([A-Z])/i);
+    const intersectPoint = pointMatch ? pointMatch[1] : "E";
+
+    let theoremSubtype = "generic";
+    let theoremLabel = "Circle theorem";
+    if (isIntersectingChords) {
+      theoremSubtype = "intersecting_chords";
+      theoremLabel = "Intersecting chords theorem";
+    } else if (isSemicircle) {
+      theoremSubtype = "semicircle";
+      theoremLabel = "Angle in semicircle = 90°";
+    } else if (isTangent) {
+      theoremSubtype = "tangent";
+      theoremLabel = "Tangent ⊥ radius";
+    } else if (isCyclic) {
+      theoremSubtype = "cyclic";
+      theoremLabel = "Opposite angles = 180°";
+    } else if (isInscribed) {
+      theoremSubtype = "inscribed";
+      theoremLabel = "Inscribed angle theorem";
+    } else if (isAlternateSegment) {
+      theoremSubtype = "alternate_segment";
+      theoremLabel = "Alternate segment theorem";
+    }
+
+    return {
+      type: "circle_diagram",
+      mode: "theorem",
+      theoremSubtype,
+      knownAngles: allDegs,
+      arcAngles,
+      chordLabels: chordLabels.length >= 2 ? chordLabels : ["AB", "CD"],
+      intersectPoint,
+      label: theoremLabel,
+    };
+  }
+
+  // ── SIMULTANEOUS EQUATIONS (non-graph, algebraic) ──────────────────────────
+  if (subj.includes("math") && (t.includes("simultaneous") && !/graph/i.test(questionStr))) {
+    const eqs = [...(questionStr || "").matchAll(/([^.?!\n]*?=\s*[^.?!\n]+)/g)].map(m => m[1].trim()).slice(0, 2);
+    if (eqs.length >= 2) {
+      return {
+        type: "equation_solver",
+        steps: eqs.map((eq, i) => ({ label: `Equation ${i + 1}`, value: eq })),
+        variable: "x, y",
+      };
+    }
+  }
+
   // ── ANGLES ────────────────────────────────────────────────────────────────
   if (t.includes("angle") || t.includes("geometry") ||
       /acute|obtuse|reflex|right angle|\d+\s*°|\d+\s*degrees/i.test(questionStr)) {
@@ -3315,17 +4584,33 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── AREA / PERIMETER ──────────────────────────────────────────────────────
-  if ((t.includes("area") || t.includes("perimeter")) && subj.includes("math")) {
+  // Fire on topic tag OR question text mentioning shapes + area/perimeter keywords.
+  // This must stay BEFORE the quadratic detector so "rectangular garden" questions
+  // never fall through to a parabola graph.
+  const areaPerimTextMatch = subj.includes("math") &&
+    /rectangle|rectangular|garden|field|room|floor|wall|fence|playground|pool/i.test(questionStr) &&
+    /area|perimeter|fence|fencing|surround|border|cover/i.test(questionStr);
+  if (((t.includes("area") || t.includes("perimeter")) && subj.includes("math")) || areaPerimTextMatch) {
     // Match "5cm × 6cm", "5 by 6", "5x6", "3m × 4m" — allow optional unit suffix on first number
     const byMatch = (questionStr||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:by|×|x)\s*(\d+)/i);
     const lwMatch = (questionStr||"").match(/length[^\d]*(\d+)[^\d]*width[^\d]*(\d+)/i);
     const wlMatch = (questionStr||"").match(/width[^\d]*(\d+)[^\d]*height[^\d]*(\d+)/i);
-    const m = byMatch || lwMatch || wlMatch;
+    // Also match "10m and width of 8m" or "length is 10m, width is 8m" patterns
+    const andMatch = (questionStr||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)?\s*(?:and|,)\s*(?:a\s+)?(?:width|breadth|height)\s*(?:of|is|=)?\s*(\d+)/i);
+    const isMatch = (questionStr||"").match(/(?:length|side)\s*(?:of|is|=)\s*(\d+)\s*(?:cm|m{1,2}|km|in|ft)?[^.]*?(?:width|breadth|height)\s*(?:of|is|=)\s*(\d+)/i);
+    const m = byMatch || lwMatch || wlMatch || andMatch || isMatch;
     if (m) {
       const w = parseInt(m[1]), h = parseInt(m[2]);
       // Cap at 12×10 so the grid stays renderable
       if (w<=12 && h<=10 && w>0 && h>0)
-        return { type:"area", width:w, height:h, mode: t.includes("perim") ? "perimeter" : "area" };
+        return { type:"area", width:w, height:h, mode: /perim|fence|fencing|surround|border/i.test(questionStr+t) ? "perimeter" : "area" };
+    }
+    // Even if dimensions are too large for grid, still show a labelled rectangle
+    const anyW = (questionStr||"").match(/(\d+)\s*(?:cm|m{1,2}|km|in|ft)/);
+    const anyH = (questionStr||"").match(/(?:width|breadth|height|shorter)[^\d]*(\d+)/i);
+    if (anyW && anyH) {
+      return { type:"area", width: Math.min(parseInt(anyW[1]),12), height: Math.min(parseInt(anyH[1]),10),
+        mode: /perim|fence|fencing|surround|border/i.test(questionStr+t) ? "perimeter" : "area" };
     }
   }
 
@@ -3382,7 +4667,10 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   }
 
   // ── QUADRATIC ─────────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("quadratic") || t.includes("parabola") ||
+  // Guard: skip if the question is really about a physical shape's area/perimeter
+  const isPhysicalShapeQ = /rectangle|rectangular|garden|field|room|floor|wall|fence|playground|pool/i.test(questionStr) &&
+    /area|perimeter|fence|fencing|surround|border|cover|length.*width|width.*height/i.test(questionStr);
+  if (subj.includes("math") && !isPhysicalShapeQ && (t.includes("quadratic") || t.includes("parabola") ||
       /x²|x\^2|ax²|roots? of|discriminant/i.test(questionStr))) {
     // Parse ax² + bx + c = 0
     const coeffMatch = (questionStr||"").match(/(-?\d*)\s*x[²\^2]\s*([+\-]\s*\d*)\s*x\s*([+\-]\s*\d+)/);

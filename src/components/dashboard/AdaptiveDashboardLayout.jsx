@@ -53,6 +53,8 @@ import TaraEncouragement from "./TaraEncouragement";
 import SkillMap from "./SkillMap";
 import dynamic from "next/dynamic";
 const GalaxyMap = dynamic(() => import("@/components/adventure/GalaxyMap"), { ssr: false });
+const PhaserGalaxyMap = dynamic(() => import("@/components/phaser/PhaserGalaxyMap"), { ssr: false });
+const PhaserConstellationMap = dynamic(() => import("@/components/phaser/PhaserConstellationMap"), { ssr: false });
 import ConstellationMap from "./ConstellationMap";
 import QuestJournal from "./QuestJournal";
 import CareerPopup from "./CareerPopup";
@@ -72,7 +74,8 @@ import SubjectProgressChart from "./SubjectProgressChart";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
 
-// ── KS4 Phase 1 Visualizations ──────────────────────────────────────────────
+// ── KS4 Phase 1 Visualizations + Analytics Charts ──────────────────────────
+import MasteryProgressChart from "./ProgressChart";
 import TopicHeatmap from "./TopicHeatmap";
 import RetentionHealthRing from "./RetentionHealthRing";
 import StudySessionMetrics from "./StudySessionMetrics";
@@ -710,6 +713,141 @@ function BandKeyframes({ band }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WEEKLY ACTIVITY GRID — 7-day streak/activity visualisation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
+  const days = useMemo(() => {
+    const today = new Date();
+    const result = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().split("T")[0];
+      const entry = activityCalendar.find((a) => a.date === iso);
+      const dayLabel = d.toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2);
+      const isToday = i === 0;
+      result.push({
+        date: iso,
+        dayLabel,
+        isToday,
+        questionsAnswered: entry?.questionsAnswered ?? entry?.questions_answered ?? 0,
+        minutesSpent: entry?.minutesSpent ?? entry?.minutes_spent ?? 0,
+        hasActivity: (entry?.questionsAnswered ?? entry?.questions_answered ?? 0) > 0,
+      });
+    }
+    return result;
+  }, [activityCalendar]);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+        {days.map((day) => {
+          const intensity = Math.min(day.questionsAnswered / 15, 1); // max out at 15 questions
+          return (
+            <div key={day.date} style={{ flex: 1, textAlign: "center" }}>
+              <div style={{
+                fontSize: 9, fontWeight: 700, color: day.isToday ? "#7c3aed" : "rgba(30,27,75,0.35)",
+                marginBottom: 4, textTransform: "uppercase",
+              }}>
+                {day.dayLabel}
+              </div>
+              <div style={{
+                width: "100%", aspectRatio: "1", borderRadius: 8, minHeight: 28,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: day.hasActivity
+                  ? `rgba(124,58,237,${0.08 + intensity * 0.32})`
+                  : day.isToday ? "rgba(124,58,237,0.04)" : "rgba(30,27,75,0.02)",
+                border: day.isToday
+                  ? "2px solid rgba(124,58,237,0.3)"
+                  : day.hasActivity ? "1px solid rgba(124,58,237,0.12)" : "1px solid rgba(30,27,75,0.04)",
+                transition: "all 0.3s",
+              }}>
+                {day.hasActivity ? (
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed" }}>{day.questionsAnswered}</span>
+                ) : day.isToday ? (
+                  <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(124,58,237,0.4)" }}>today</span>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.3)" }}>
+          {days.filter((d) => d.hasActivity).length}/7 active days
+        </span>
+        <span style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed" }}>
+          {days.reduce((s, d) => s + d.questionsAnswered, 0)} total questions
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REVIEW SCHEDULE WIDGET — spaced repetition due topics
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, onTopicClick, subject }) {
+  const dueNow = reviewSchedule.dueNow || [];
+  const upcoming = reviewSchedule.upcoming || [];
+  if (dueNow.length === 0 && upcoming.length === 0) return null;
+
+  const titleCase = (s) => (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return (
+    <div>
+      {dueNow.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
+            Due Now ({dueNow.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {dueNow.slice(0, 5).map((item, i) => (
+              <button
+                key={i}
+                onClick={() => onTopicClick?.({ topic: item.topic, subject: item.subject || subject })}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "6px 10px", borderRadius: 8,
+                  background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#1e1b4b" }}>{titleCase(item.topic)}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444" }}>Review</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {upcoming.length > 0 && (
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
+            Upcoming ({upcoming.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {upcoming.slice(0, 4).map((item, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "5px 10px", borderRadius: 6,
+                background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)",
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.6)" }}>{titleCase(item.topic)}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(59,130,246,0.6)" }}>
+                  {item.next_review_at ? new Date(item.next_review_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // COIN SHOP BANNER — prominent "coins + open shop" shortcut in dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -785,6 +923,9 @@ export default function AdaptiveDashboardLayout({
   scholar = {}, stats = {}, topics = [], subjects = [], subject = "mathematics",
   journalEntries = [], dailyAdventure, encouragement, careerTopic, examData,
   masteryData = [], peerComparisons = [], pastMocks = [], leaderboard = [],
+  recentQuizzes = [], mockTests = [], revisionSessions = [],
+  subjectProficiency = {}, reviewSchedule = { dueNow: [], upcoming: [] },
+  activityCalendar = [],
   scholarId, supabase, coins = 0, todayQCount = 0, effectiveTier = "pro",
   earnedBadgeIds = [], isFirstLogin = false,
   onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
@@ -1004,13 +1145,14 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* Galaxy Map — orbital ring layout */}
+            {/* Galaxy Map — Phaser-powered orbital ring layout */}
             <BandCard band={band} glow data-section="galaxy">
               <SectionHeader band={band} icon="🌌" title="Galaxy Map" subtitle="orbital rings" />
-              <GalaxyMap
+              <PhaserGalaxyMap
                 scholar={scholar}
                 subjects={subjects}
                 masteryRecords={masteryData}
+                height={460}
                 onLaunchQuest={(subjectKey) => {
                   setActiveSubject(subjectKey);
                   if (onStartQuest) onStartQuest(subjectKey);
@@ -1406,6 +1548,24 @@ export default function AdaptiveDashboardLayout({
               <StudySessionMetrics stats={stats} examData={examData} masteryData={masteryData} />
             </BandCard>
 
+            {/* ── Weekly Activity + Review Schedule (2-col) ──── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <BandCard band={band}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Weekly Activity</div>
+                  <SectionTip tip="Your study activity over the past 7 days. Each cell shows questions answered that day." />
+                </div>
+                <WeeklyActivityGrid activityCalendar={activityCalendar} stats={stats} />
+              </BandCard>
+              <BandCard band={band}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Spaced Review</div>
+                  <SectionTip tip="Topics due for review based on spaced repetition scheduling. Reviewing at the right time strengthens long-term memory." />
+                </div>
+                <ReviewScheduleWidget reviewSchedule={reviewSchedule} onTopicClick={onTopicClick} subject={activeSubject} />
+              </BandCard>
+            </div>
+
             {/* Encouragement */}
             {encouragement && (
               <BandCard band={band}>
@@ -1417,14 +1577,15 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
-            {/* ── Constellation Star Chart (full-width for visibility) ──── */}
+            {/* ── Constellation Star Chart (Phaser-powered, full-width) ──── */}
             <div data-section="heatmap">
               <BandCard band={band} glow>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
-                <ConstellationMap
+                <PhaserConstellationMap
                   topics={topics} subjects={subjects} subject={activeSubject}
                   onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
+                  height={480}
                 />
               </BandCard>
             </div>
@@ -1472,6 +1633,22 @@ export default function AdaptiveDashboardLayout({
                 compact
               />
             </BandCard>
+
+            {/* ── Mastery Progress Chart (KS3/KS4 — Recharts line chart) ──── */}
+            {(band === "ks3" || band === "ks4") && (recentQuizzes.length > 0 || masteryData.length > 0) && (
+              <BandCard band={band}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Progress Trajectory</div>
+                  <SectionTip tip="Mastery % over time per subject. Filter subjects using the pills. Zoom into date ranges with the brush selector (KS3/4)." />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Mastery Over Time</div>
+                <MasteryProgressChart
+                  masteryData={masteryData}
+                  quizResults={recentQuizzes}
+                  band={band}
+                />
+              </BandCard>
+            )}
 
             {/* ── Retention Health + Certificate Progress (2-col) ──── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>

@@ -891,7 +891,7 @@ export default function ParentDashboard() {
 
       if (fetchError && fetchError.code === "PGRST116") {
         const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 14);
+        trialEnd.setDate(trialEnd.getDate() + 30);
         const { data: newParent } = await supabase.from("parents").upsert({
           id: user.id,
           full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Parent",
@@ -986,7 +986,7 @@ export default function ParentDashboard() {
         school_id: newSchoolId || null,
         access_code: code,
         total_xp: 0, coins: 0, streak: 0, personal_best: 0, codename: null,
-        avatar: { base: "astronaut", background: "🌌" },
+        avatar: { base: "astronaut", background: "background_space" },
       }]).select().single();
 
       if (insertError) { setError(`Failed to create scholar: ${insertError.message}`); return; }

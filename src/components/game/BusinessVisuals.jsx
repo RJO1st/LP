@@ -251,6 +251,120 @@ export function SupplyDemandVis({ eqPrice, eqQty, shift }) {
 // PARSER — TIER 4
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── Profit & Loss Statement ──────────────────────────────────────────────────
+export function ProfitLossVis({ revenue = 50000, cogs = 20000, expenses = 15000 }) {
+  const gross = revenue - cogs;
+  const net = gross - expenses;
+  const isProfit = net >= 0;
+  const fmt = (n) => (n < 0 ? "-" : "") + "₦" + Math.abs(n).toLocaleString();
+  const rows = [
+    { label: "Revenue", amount: revenue, color: T.emerald },
+    { label: "Cost of Goods Sold", amount: -cogs, color: T.rose },
+    { label: "Gross Profit", amount: gross, color: gross >= 0 ? T.emerald : T.rose, bold: true },
+    { label: "Operating Expenses", amount: -expenses, color: T.rose },
+    { label: isProfit ? "Net Profit" : "Net Loss", amount: net, color: isProfit ? T.emerald : T.rose, bold: true },
+  ];
+  return (
+    <Panel accent={T.emerald} bg="#fff" bd={T.emeraldBd} ariaLabel="Profit & Loss Statement">
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.emerald, textTransform: "uppercase", letterSpacing: 1 }}>Income Statement</span>
+      <div style={{ width: "100%", fontSize: 12 }}>
+        {rows.map((r, i) => (
+          <div key={i} style={{
+            display: "flex", justifyContent: "space-between", padding: "4px 8px",
+            borderBottom: r.bold ? `2px solid ${r.color}22` : `1px solid #f1f5f9`,
+            fontWeight: r.bold ? 800 : 500, color: r.bold ? r.color : T.text,
+          }}>
+            <span>{r.label}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(r.amount)}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ── Trade Flow / Distribution Channel ────────────────────────────────────────
+export function TradeFlowVis({ flowType = "distribution" }) {
+  const FLOWS = {
+    distribution: { label: "Distribution Channel", steps: ["Manufacturer", "Wholesaler", "Retailer", "Consumer"], colors: [T.indigo, T.nebula, T.amber, T.emerald] },
+    international: { label: "International Trade", steps: ["Exporter", "Customs", "Shipping", "Importer"], colors: [T.indigo, T.amber, T.emerald, T.nebula] },
+    banking: { label: "Banking Flow", steps: ["Depositor", "Bank", "Borrower", "Repayment"], colors: [T.emerald, T.indigo, T.amber, T.rose] },
+  };
+  const flow = FLOWS[flowType] || FLOWS.distribution;
+  return (
+    <Panel accent={T.indigo} bg="#fff" bd={T.indigoBd} ariaLabel={flow.label}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.indigo, textTransform: "uppercase", letterSpacing: 1 }}>{flow.label}</span>
+      <svg viewBox="0 0 220 50" style={{ width: "100%", maxWidth: 260 }}>
+        {flow.steps.map((step, i) => {
+          const x = 10 + i * 55;
+          return (
+            <g key={i}>
+              <rect x={x} y={8} width={44} height={22} rx={6} fill={`${flow.colors[i]}15`} stroke={flow.colors[i]} strokeWidth={1.5} />
+              <text x={x + 22} y={23} textAnchor="middle" fontSize={6} fontWeight="700" fill={flow.colors[i]}>{step}</text>
+              {i < flow.steps.length - 1 && (
+                <path d={`M${x + 46} 19 L${x + 53} 19`} stroke={T.textMid} strokeWidth={1.2} markerEnd="url(#arrowTF)" />
+              )}
+            </g>
+          );
+        })}
+        <defs><marker id="arrowTF" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L6,3 L0,6 Z" fill={T.textMid} /></marker></defs>
+      </svg>
+    </Panel>
+  );
+}
+
+// ── Business Organisation / Structure ────────────────────────────────────────
+export function OrgStructureVis({ orgType = "sole_trader" }) {
+  const ORGS = {
+    sole_trader:  { label: "Sole Proprietorship", icon: "👤", desc: "One owner, unlimited liability", color: T.amber },
+    partnership:  { label: "Partnership", icon: "🤝", desc: "2-20 partners, shared liability", color: T.indigo },
+    limited:      { label: "Limited Company", icon: "🏢", desc: "Shareholders, limited liability", color: T.emerald },
+    plc:          { label: "Public Ltd Company", icon: "📈", desc: "Shares traded publicly", color: T.nebula },
+    cooperative:  { label: "Cooperative", icon: "🤲", desc: "Member-owned, democratic control", color: T.rose },
+  };
+  const org = ORGS[orgType] || ORGS.sole_trader;
+  return (
+    <Panel accent={org.color} bg="#fff" bd={`${org.color}44`} ariaLabel={org.label}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: org.color, textTransform: "uppercase", letterSpacing: 1 }}>{org.label}</span>
+      <div style={{ fontSize: 36, lineHeight: 1 }}>{org.icon}</div>
+      <span style={{ fontSize: 11, color: T.textMid, fontWeight: 600, textAlign: "center" }}>{org.desc}</span>
+    </Panel>
+  );
+}
+
+// ── Marketing Mix (4Ps) ──────────────────────────────────────────────────────
+export function MarketingMixVis({ highlight }) {
+  const PS = [
+    { label: "Product", icon: "📦", color: T.indigo, desc: "What you sell" },
+    { label: "Price", icon: "💰", color: T.emerald, desc: "What you charge" },
+    { label: "Place", icon: "📍", color: T.amber, desc: "Where you sell" },
+    { label: "Promotion", icon: "📣", color: T.nebula, desc: "How you sell" },
+  ];
+  return (
+    <Panel accent={T.indigo} bg="#fff" bd={T.indigoBd} ariaLabel="Marketing Mix - 4Ps">
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.indigo, textTransform: "uppercase", letterSpacing: 1 }}>Marketing Mix</span>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%" }}>
+        {PS.map((p, i) => {
+          const isHL = highlight && p.label.toLowerCase() === highlight.toLowerCase();
+          return (
+            <div key={i} style={{
+              padding: "6px 8px", borderRadius: 8, textAlign: "center",
+              background: isHL ? `${p.color}15` : "#f8fafc",
+              border: `1.5px solid ${isHL ? p.color : "#e2e8f0"}`,
+              transform: isHL ? "scale(1.05)" : "none", transition: "all 0.2s",
+            }}>
+              <div style={{ fontSize: 18, marginBottom: 2 }}>{p.icon}</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: p.color }}>{p.label}</div>
+              <div style={{ fontSize: 8, color: T.textMid }}>{p.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIER 4 + EXTENDED PARSER + MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════════════

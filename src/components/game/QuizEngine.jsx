@@ -114,13 +114,25 @@ const getSmartQuestions = async (sbClient, scholarId, subject, curriculum, yearL
       return [];
     }
 
-    if (!data?.length) {
+    // Filter out questions that reference visual content (charts/tables/diagrams) but have
+    // no image_url AND no question_data — these are unanswerable without the missing visual
+    const VISUAL_REF_RE = /\b(the chart|the graph|the table|the diagram|the bar chart|the pie chart|the line graph|the histogram|the scatter|the figure|according to the|from the table|from the chart|from the graph|the picture shows|the image shows|look at the|refer to the|based on the chart|based on the graph|based on the table|based on the diagram|shown in the|displayed in the)\b/i;
+    const filtered = data?.filter(row => {
+      if (!row.image_url && !row.question_data && VISUAL_REF_RE.test(row.question_text || '')) {
+        return false; // skip unanswerable visual-reference question
+      }
+      return true;
+    });
+    const skipped = (data?.length || 0) - (filtered?.length || 0);
+    if (skipped > 0) console.log(`[QuizEngine] Filtered out ${skipped} visual-reference questions with no image/data`);
+
+    if (!filtered?.length) {
       console.warn(`[QuizEngine] 0 rows: subject=${dbSubject} curriculum=${dbCurriculum} year=${yr}±1`);
       return [];
     }
 
-    console.log(`[QuizEngine] Got ${data.length} rows from DB, returning ${count}`);
-    return [...data].sort(() => Math.random() - 0.5).slice(0, count);
+    console.log(`[QuizEngine] Got ${filtered.length} rows from DB (${skipped} visual-ref filtered), returning ${count}`);
+    return [...filtered].sort(() => Math.random() - 0.5).slice(0, count);
 
   } catch (err) {
     console.warn("[getSmartQuestions] exception:", err.message);
@@ -663,29 +675,91 @@ function dbRowToQuestion(row, fallbackSubject) {
 
   let correctIndex = null;
 
-  if (data.explanation) {
-    const numberMatch = data.explanation.match(/(\d+(?:\.\d+)?)(?!.*\d)/);
-    if (numberMatch) {
-      const lastNumber = numberMatch[1];
-      let matchIdx = opts.findIndex(opt => String(opt).includes(lastNumber));
-      if (matchIdx === -1) {
-        const expNum = parseFloat(lastNumber);
-        matchIdx = opts.findIndex(opt => {
-          const optNum = parseFloat(String(opt));
-          return !isNaN(optNum) && !isNaN(expNum) && Math.abs(optNum - expNum) < 0.001;
-        });
+  // ── Strategy 1: If `answer` field is explicitly set, match it against options ──
+  if (data.answer != null && String(data.answer).trim()) {
+    const ansStr = String(data.answer).trim();
+    const exactIdx = opts.findIndex(opt => String(opt).trim() === ansStr);
+    if (exactIdx !== -1) correctIndex = exactIdx;
+  }
+
+  // ── Strategy 2: Extract answer from explanation with multiple smart patterns ──
+  if (correctIndex == null && data.explanation) {
+    const exp = data.explanation;
+    // Pattern A: "the answer is X", "answer is X", "the missing number is X"
+    const directPatterns = [
+      /(?:the\s+)?answer\s+is\s+[:\-]?\s*(\d+(?:\.\d+)?)/i,
+      /(?:the\s+)?missing\s+(?:number|value)\s+is\s+(\d+(?:\.\d+)?)/i,
+      /(?:you\s+need|needs?)\s+(\d+)\s+more/i,
+      /(?:equals?|=)\s*(\d+(?:\.\d+)?)\s*[.!,]?\s*$/i,
+    ];
+    for (const pat of directPatterns) {
+      const m = exp.match(pat);
+      if (m) {
+        const val = m[1];
+        const idx = opts.findIndex(opt => String(opt).trim() === val);
+        if (idx !== -1) { correctIndex = idx; break; }
       }
-      if (matchIdx !== -1) {
-        correctIndex = matchIdx;
+    }
+
+    // Pattern B: "A + B = C" or "A × B = C" — extract the result C
+    if (correctIndex == null) {
+      const eqMatch = exp.match(/(\d+)\s*[+\-×x*÷/]\s*(\d+)\s*=\s*(\d+)/);
+      if (eqMatch) {
+        const result = eqMatch[3];
+        const idx = opts.findIndex(opt => String(opt).trim() === result);
+        // Also check if the question asks for a missing operand (e.g., "3 + ___ = 10")
+        // In that case, the answer might be one of the operands, not the result
+        const qText = (data.question_text || "").toLowerCase();
+        if (idx !== -1 && !qText.includes("___") && !qText.includes("missing")) {
+          correctIndex = idx;
+        }
+        // For missing-number questions, look for the operand that's NOT in the question
+        if (correctIndex == null && (qText.includes("___") || qText.includes("missing"))) {
+          // The equation shows the full solution — find which number solves the blank
+          const [, numA, numB, numC] = eqMatch.map(Number);
+          // If question has the first operand and result, the answer is the second operand
+          if (qText.includes(String(numA)) && qText.includes(String(numC))) {
+            const missingIdx = opts.findIndex(opt => String(opt).trim() === String(numB));
+            if (missingIdx !== -1) correctIndex = missingIdx;
+          }
+          // If question has the second operand and result, the answer is the first
+          if (correctIndex == null && qText.includes(String(numB)) && qText.includes(String(numC))) {
+            const missingIdx = opts.findIndex(opt => String(opt).trim() === String(numA));
+            if (missingIdx !== -1) correctIndex = missingIdx;
+          }
+        }
       }
     }
   }
 
+  // ── Strategy 3: Use correct_index from DB (may be wrong — last resort) ──
   if (correctIndex == null) {
     if (data.correct_index != null) {
       correctIndex = data.correct_index;
     } else if (row.a != null) {
       correctIndex = row.a;
+    }
+  }
+
+  // ── Strategy 4: Cross-validate correct_index against explanation ──
+  // If we ended up using correct_index, double-check it makes sense
+  if (correctIndex != null && data.explanation) {
+    const chosenOpt = String(opts[correctIndex] || "").trim();
+    const exp = data.explanation;
+    // If the chosen option's value does NOT appear in the explanation at all,
+    // but another option's value does appear prominently, flag it
+    if (chosenOpt && !exp.includes(chosenOpt)) {
+      for (let i = 0; i < opts.length; i++) {
+        if (i === correctIndex) continue;
+        const optVal = String(opts[i]).trim();
+        // Check if this option appears in a key answer position in the explanation
+        const isAnswer = exp.match(new RegExp(`(?:answer|missing|need)\\S*\\s+(?:is\\s+)?${optVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+        if (isAnswer) {
+          console.warn(`[Quiz] Corrected answer from "${chosenOpt}" (idx ${correctIndex}) to "${optVal}" (idx ${i}) based on explanation`);
+          correctIndex = i;
+          break;
+        }
+      }
     }
   }
 
@@ -959,7 +1033,7 @@ export default function QuizEngine({
 
   const handlePick = useCallback((idx) => {
     if (selected !== null) return;
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     setSelected(idx);
     const currQ     = sessionQuestions[qIdx];
     const isCorrect = idx === currQ?.a;
@@ -986,7 +1060,7 @@ export default function QuizEngine({
 
   const handleFreeTextSubmit = useCallback(() => {
     if (freeTextSubmitted || !freeTextInput.trim()) return;
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     setFreeTextSubmitted(true);
     const currQ   = sessionQuestions[qIdx];
     const norm    = v => String(v || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.,!?]/g, "");
@@ -1016,7 +1090,7 @@ export default function QuizEngine({
 
   const handleMultiSubmit = useCallback(() => {
     if (multiSubmitted) return;
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     setMultiSubmitted(true);
     const currQ      = sessionQuestions[qIdx];
     const correctSet = new Set(Array.isArray(currQ.a) ? currQ.a : [currQ.a]);
@@ -1046,6 +1120,11 @@ export default function QuizEngine({
   const timeExpiredRef = useRef(false);
 
   useEffect(() => {
+    // Clear any existing timer before starting a new one
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     const currQType = sessionQuestions[qIdx]?.type;
     if (selected !== null || finished || !sessionQuestions.length || generating || currQType === 'numerical_input') return;
     timeExpiredRef.current = false;
@@ -1053,6 +1132,7 @@ export default function QuizEngine({
       setTimeLeft(p => {
         if (p <= 1) {
           clearInterval(timerRef.current);
+          timerRef.current = null;
           // Mark as timed-out — the effect below will advance
           timeExpiredRef.current = true;
           return 0;
@@ -1060,21 +1140,32 @@ export default function QuizEngine({
         return p - 1;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [qIdx, selected, finished, sessionQuestions, generating]);
 
   // Auto-advance when timer hits 0
   useEffect(() => {
     if (timeLeft !== 0 || !timeExpiredRef.current) return;
     timeExpiredRef.current = false;
+    // Stop timer definitively before advancing
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     // Skip to next question without revealing answer
     if (qIdx < sessionQuestions.length - 1) {
       setQIdx(p => p + 1);
       resetQuestionState();
     } else {
+      // Clear timer on quiz finish
       setFinished(true);
     }
-  }, [timeLeft]);
+  }, [timeLeft, qIdx, sessionQuestions.length, resetQuestionState]);
 
   const handleEIB = async () => {
     if (!eibText.trim() || eibLocked) return;
@@ -1212,7 +1303,7 @@ export default function QuizEngine({
           curriculum,
           score:              finalScore,
           questions_total:    sessionQuestions.length,
-          time_spent_seconds: (sessionQuestions.length * 45) - timeLeft,
+          time_spent_seconds: sessionQuestions.length * 45,
           accuracy,
           topics:             JSON.stringify(topics),
         }).catch(e => console.error("[finishQuest] quiz_results insert:", e.message));

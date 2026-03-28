@@ -15,6 +15,7 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import AvatarRenderer from "@/components/game/AvatarRenderer";
 
 export default function AdaptiveLeaderboard({ entries = [], currentScholarId, maxEntries = 5 }) {
   const { band, theme: t, isDark } = useTheme();
@@ -94,23 +95,9 @@ export default function AdaptiveLeaderboard({ entries = [], currentScholarId, ma
                 {rank}
               </span>
 
-              {/* Avatar circle */}
-              <div style={{
-                width: band === "ks1" ? 32 : 28,
-                height: band === "ks1" ? 32 : 28,
-                borderRadius: 999,
-                background: `linear-gradient(135deg, ${t.colours.accent}, ${t.colours.accentDark})`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: band === "ks1" ? 16 : 14,
-                flexShrink: 0,
-              }}>
-                {entry.avatar?.base === "astronaut" ? "👨‍🚀"
-                  : entry.avatar?.base === "explorer" ? "👩‍🚀"
-                  : entry.avatar?.base === "fox" ? "🦊"
-                  : entry.avatar?.base === "cat" ? "🐱"
-                  : entry.avatar?.base === "robot" ? "🤖"
-                  : entry.avatar?.base === "unicorn" ? "🦄"
-                  : "🚀"}
+              {/* Avatar — illustrated SVG character */}
+              <div style={{ width: band === "ks1" ? 36 : 32, height: band === "ks1" ? 36 : 32, flexShrink: 0 }}>
+                <AvatarRenderer avatar={entry.avatar || { base: "astronaut" }} size="sm" animated={false} />
               </div>
 
               {/* Name */}

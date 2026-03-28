@@ -147,11 +147,11 @@ export async function POST(req) {
   const {
     text, subject = "mathematics", correctAnswer = "", scholarAnswer = "",
     scholarName = "Scholar", scholarYear = 4, question = null,
-    mode = "eib", context = "",
+    mode = "eib", context = "", curriculum = "",
   } = body;
 
   // ── Resolve age band ─────────────────────────────────────────────────────
-  const band   = getAgeBand(scholarYear);
+  const band   = getAgeBand(scholarYear, curriculum);
   const config = getBandConfig(band);
   const tara   = config.tara;
 
@@ -277,7 +277,7 @@ INSTRUCTIONS:
             : `Here is my explanation of why "${correctAnswer}" is the correct answer:\n\n"${text}"`
           },
         ],
-        max_tokens: tara.maxWords ? Math.min(tara.maxWords * 2, 200) : 150,
+        max_tokens: band === "ks4" ? 300 : tara.maxWords ? Math.min(tara.maxWords * 2, 200) : 150,
         temperature: band === "ks4" ? 0.4 : 0.6,
       }),
     });

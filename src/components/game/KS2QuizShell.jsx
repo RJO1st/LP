@@ -66,9 +66,9 @@ function ScanLines() {
 function DataReadout({ label, value, unit, color = CYAN }) {
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: 8, fontWeight: 700, color: `${color}60`, textTransform: "uppercase", letterSpacing: "0.15em", ...NB }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 900, color, lineHeight: 1.1, ...N }}>{value}</div>
-      {unit && <div style={{ fontSize: 8, color: `${color}40`, fontWeight: 600, ...NB }}>{unit}</div>}
+      <div style={{ fontSize: 10, fontWeight: 700, color: `${color}60`, textTransform: "uppercase", letterSpacing: "0.15em", ...NB }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 900, color, lineHeight: 1.1, ...N }}>{value}</div>
+      {unit && <div style={{ fontSize: 10, color: `${color}40`, fontWeight: 600, ...NB }}>{unit}</div>}
     </div>
   );
 }
@@ -162,13 +162,13 @@ export default function KS2QuizShell({
           {streak > 0 && <DataReadout label="Streak" value={streak} color="#fbbf24" />}
           {timeLeft != null && <DataReadout label="Time" value={formatTime(timeLeft)} />}
           <div style={{
-            width: 28, height: 28, borderRadius: 2,
-            border: `1px solid ${CYAN}20`,
+            minWidth: 32, height: 28, borderRadius: 4, padding: "0 6px",
+            border: `1px solid ${CYAN}30`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 11, fontWeight: 900, color: CYAN, ...N,
-            background: `${CYAN}05`,
+            background: `${CYAN}10`, whiteSpace: "nowrap", gap: 1,
           }}>
-            {String(questionIndex + 1).padStart(2, "0")}<span style={{ color: `${CYAN}30`, fontWeight: 600, fontSize: 8 }}>/{totalQuestions}</span>
+            {String(questionIndex + 1).padStart(2, "0")}<span style={{ color: `${CYAN}50`, fontWeight: 700, fontSize: 9 }}>/{totalQuestions}</span>
           </div>
           <button onClick={() => setShowExitConfirm(true)} className="flex items-center justify-center" style={{
             width: 28, height: 28, borderRadius: 2,
@@ -183,7 +183,7 @@ export default function KS2QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Mission Narrative ──────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
           style={{ borderRight: `1px solid ${CYAN}08` }}>
 
           {leftPanelContent ? (

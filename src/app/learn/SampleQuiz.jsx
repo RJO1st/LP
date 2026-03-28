@@ -51,7 +51,7 @@ export default function SampleQuiz({ questions, subject }) {
           href="/signup"
           className="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black px-6 py-3 rounded-xl text-sm shadow-lg"
         >
-          Get Full Access — Free for 14 Days →
+          Get Full Access — Free for 30 Days →
         </Link>
         <button
           onClick={() => { setCurrent(0); setSelected(null); setScore(0); setFinished(false); }}

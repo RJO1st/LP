@@ -42,11 +42,11 @@ import KeyboardShortcuts from '@/components/game/KeyboardShortcuts';
 import AdaptiveTimer from './AdaptiveTimer';
 import { getAgeBand } from "@/lib/ageBandConfig";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import { DifficultyController } from "@/lib/dynamicDifficulty";
 import KS1QuizShell from "./KS1QuizShell";
 import KS2QuizShell from "./KS2QuizShell";
 import KS3QuizShell from "./KS3QuizShell";
 import KS4QuizShell from "./KS4QuizShell";
-console.log({ KS1QuizShell, KS2QuizShell, KS3QuizShell, KS4QuizShell });
 const XP_PER_QUESTION = 10;
 
 // ─── TOPIC LABEL FORMATTER ────────────────────────────────────────────────────
@@ -259,8 +259,11 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const [reactionData,     setReactionData]     = useState(null); // { isCorrect, correctAnswer }
 
   const timerRef        = useRef(null);
+  const deadlineRef     = useRef(Date.now() + perQTimer * 1000); // wall-clock deadline for current question
+  const advanceTimerRef = useRef(null);                       // ← auto-advance timeout (must survive re-renders)
   const resultsRef      = useRef({ score: 0, answers: [] }); // stale-closure guard
   const sessionStartRef = useRef(Date.now());                // ← TIER 1: session timer
+  const difficultyRef   = useRef(new DifficultyController(student?.year_level || 4)); // ← Dynamic difficulty
   const shownMilestonesRef = useRef(new Set());              // track shown milestone popups
   const sessionPassageRef = useRef(null);                    // ← persistent passage across linked questions
   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
@@ -269,8 +272,8 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const questionStartTime  = useRef(Date.now());
   const [pendingMilestone, setPendingMilestone] = useState(null);
 
-  // ── Read-aloud for KS1 scholars ───────────────────────────────────────────
-  const { speak, speakOptions, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1 } = useReadAloud(student);
+  // ── Read-aloud for all scholars (KS1 ON by default, KS2-4 toggle) ────────
+  const { speak, speakOptions, speakExplanation, speakTaraResponse, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1, keyStage } = useReadAloud(student);
 
   // Auto-speak question text when question changes (if enabled)
   const currentQuestionText = sessionQuestions[qIdx]?.q || "";
@@ -287,6 +290,17 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
     }, 300);
     return () => { clearTimeout(timer); stopSpeaking(); };
   }, [currentQuestionText, readAloudEnabled, generating]);
+
+  // Auto-speak explanation after an answer is selected (all KS when enabled)
+  const currentExplanation = sessionQuestions[qIdx]?.exp || sessionQuestions[qIdx]?.explanation || "";
+  useEffect(() => {
+    if (selected === null || !readAloudEnabled || !currentExplanation) return;
+    // Delay so the answer reaction plays and visual explanation renders first
+    const timer = setTimeout(() => {
+      speakExplanation(currentExplanation);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [selected, currentExplanation, readAloudEnabled]);
 
   // ── Fetch questions ───────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async () => {
@@ -391,6 +405,7 @@ const year = rawYear;
     );
     setGenerating(false);
     sessionStartRef.current = Date.now(); // ← TIER 1: start clock once questions ready
+    deadlineRef.current = Date.now() + perQTimer * 1000; // ← wall-clock deadline for Q1
   }, [student, subject, curriculum, questionCount, previousQuestionIds]);
 
   // Only fetch on initial mount — do NOT re-fetch when student prop updates mid-quiz
@@ -403,16 +418,27 @@ const year = rawYear;
   }, [fetchQuestions]);
 
   // ── Per-question timer ────────────────────────────────────────────────────
+  // Uses wall-clock Date.now() so the countdown continues accurately even when
+  // the browser tab is backgrounded, the device sleeps, or the scholar switches
+  // apps. setInterval alone is throttled/paused by browsers in background tabs.
   useEffect(() => {
-    if (finished || generating || !sessionQuestions[qIdx]) return;
+    if (finished || generating || !sessionQuestions[qIdx] || selected !== null) {
+      clearInterval(timerRef.current);
+      return;
+    }
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setTimeLeft((p) => (p <= 1 ? 0 : p - 1));
-    }, 1000);
+      const remaining = Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+    }, 250); // 250ms for snappy catch-up after tab returns
     return () => clearInterval(timerRef.current);
-  }, [qIdx, generating, finished, sessionQuestions]);
+  }, [qIdx, generating, finished, sessionQuestions, selected]);
 
   // ── Timer expiry: lock question, record as wrong, auto-advance ──────────
+  // When time runs out: NO answer reveal, NO Tara challenge — just advance.
+  // IMPORTANT: We use advanceTimerRef (not a local variable) so that React's
+  // effect cleanup cycle does NOT cancel the advance timeout when state
+  // changes (timerExpired, selected) cause re-renders.
   useEffect(() => {
     if (timeLeft !== 0 || finished || generating || timerExpired) return;
     setTimerExpired(true);
@@ -438,13 +464,15 @@ const year = rawYear;
           return upd;
         });
         recordTopicResult(q.topic || subject, false);
+        difficultyRef.current.recordAnswer(false, timeTaken); // timer expired = wrong
         recordAnswer(q, false, -1, timeTaken);
       }
     }
 
-    // Auto-advance after 1.5 s so scholar sees "Time's up!" briefly
-    const advanceTimer = setTimeout(() => next(), 1500);
-    return () => clearTimeout(advanceTimer);
+    // Auto-advance after 2s — stored in a ref so cleanup can't cancel it
+    clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = setTimeout(() => next(), 2000);
+    // No cleanup return — intentionally survives re-renders
   }, [timeLeft, finished, generating, timerExpired, selected, sessionQuestions, qIdx]);
 
   // ── Answer handler ────────────────────────────────────────────────────────
@@ -490,6 +518,9 @@ const year = rawYear;
     });
     setReactionKey(k => k + 1);
 
+    // Track in dynamic difficulty controller for flow-state adaptation
+    difficultyRef.current.recordAnswer(isCorrect, timeTaken);
+
     recordAnswer(q, isCorrect, idx, timeTaken).then(() => {
       // Milestone celebrations disabled for beta — tier crossings are shown
       // via the certificate on the completion screen instead. The popup was
@@ -528,6 +559,7 @@ const year = rawYear;
       studentId: student?.id, subject, curriculum, questions: sessionQuestions,
       answers, topicSummary, xpPerQuestion: XP_PER_QUESTION,
       timeSpentSeconds,
+      difficultySummary: difficultyRef.current.getSessionSummary(),
     });
 
     onComplete?.(payload);
@@ -535,10 +567,12 @@ const year = rawYear;
       getSessionMilestones, getSessionStoryPoints]);
 
   const next = () => {
+    clearTimeout(advanceTimerRef.current); // cancel any pending auto-advance
     if (qIdx < sessionQuestions.length - 1) {
       setQIdx((p) => p + 1);
       setSelected(null);
       setTimerExpired(false);
+      deadlineRef.current = Date.now() + perQTimer * 1000; // reset wall-clock deadline
       setTimeLeft(perQTimer);
       resetTara();
     } else {
@@ -602,19 +636,19 @@ const year = rawYear;
   const hasVisual = (() => {
     if (q.image_url) return true; // explicit images always show
     if (!rawCanVisualise) return false;
-    // For word problems with multiple operations, basic dot grids don't help
+    // For KS1/KS2 word problems with multiple operations, basic dot grids don't help
     const qText = (q.q || q.question_text || "").toLowerCase();
-    const nums = (q.q || "").match(/\d+/g) || [];
-    const multiStep = nums.length >= 3; // 3+ numbers = likely multi-step
-    const hasMultiOps = /(\bthen\b|\band\b.*\bthen\b|removed|left|remaining|gave away|eaten|taken|after)/i.test(qText)
-      && /(\bshelves?\b|\brows?\b|\bboxes?\b|\bbags?\b|\bgroups?\b|\bpacks?\b|\bsets?\b)/i.test(qText);
     // Questions like "look at the diagram" should always try to visualise
     const explicitlyAsksForVisual = /look at|diagram|drawing|picture|image|chart|graph|table|map/i.test(qText);
     if (explicitlyAsksForVisual) return true;
-    // Filter out multi-step word problems where simple grids won't help
-    if (multiStep && hasMultiOps) return false;
-    // Filter out large number arithmetic (grids of 100+ dots aren't helpful)
-    if (nums.some(n => parseInt(n) > 50)) return false;
+    // Only filter multi-step word problems for younger years (dot grids won't help)
+    if (yearLvl <= 6) {
+      const nums = (q.q || "").match(/\d+/g) || [];
+      const multiStep = nums.length >= 3;
+      const hasMultiOps = /(\bthen\b|\band\b.*\bthen\b|removed|left|remaining|gave away|eaten|taken|after)/i.test(qText)
+        && /(\bshelves?\b|\brows?\b|\bboxes?\b|\bbags?\b|\bgroups?\b|\bpacks?\b|\bsets?\b)/i.test(qText);
+      if (multiStep && hasMultiOps) return false;
+    }
     return true;
   })();
 
@@ -691,27 +725,28 @@ const year = rawYear;
       </div>
     </div>
   ) : (
-    // Generic context panel — subject-appropriate copy
-    <div className="flex flex-col gap-3 h-full">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="w-6 h-6 rounded-md flex items-center justify-center text-white text-xs shrink-0"
-          style={{ backgroundColor: theme.accentHex || "#4f46e5" }}>
-          <BookOpen size={13} />
-        </span>
-        <div>
-          <p className="text-xs font-black text-slate-800">{labels.scenario}</p>
-          <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[160px]">
-            {q.topic ? q.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Read and answer"}
-          </p>
+    // No passage/visual — only show a context panel when there's a meaningful hint.
+    // For band shells (KS1-KS4), pass null so the shell uses its own fallback layout
+    // instead of showing a misleading "Primary Source" box with placeholder text.
+    q.hints?.[0] ? (
+      <div className="flex flex-col gap-3 h-full">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 rounded-md flex items-center justify-center text-white text-xs shrink-0"
+            style={{ backgroundColor: theme.accentHex || "#4f46e5" }}>
+            <BookOpen size={13} />
+          </span>
+          <div>
+            <p className="text-xs font-black text-slate-800">{labels.scenario}</p>
+            <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[160px]">
+              {q.topic ? q.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Read and answer"}
+            </p>
+          </div>
+        </div>
+        <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-500 leading-relaxed overflow-y-auto">
+          <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
         </div>
       </div>
-      <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 text-sm text-slate-500 leading-relaxed overflow-y-auto">
-        {q.hints?.[0]
-          ? <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
-          : <p className="italic text-slate-400">Answer the question on the right using what you know about <span className="font-semibold not-italic text-slate-500">{q.topic?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || subject}</span>.</p>
-        }
-      </div>
-    </div>
+    ) : null
   );
   // ── Band-specific quiz shell (KS1-KS4 split-screen layouts) ──────────────
   if (BandQuizShell && !finished) {
@@ -724,10 +759,12 @@ const year = rawYear;
         correctAnswer={q.opts?.[q.a]}
         scholarAnswer={typeof q.opts?.[selected] === "string" ? q.opts[selected] : q.opts?.[selected]?.text}
         onFeedbackReceived={onFeedbackReceived}
+        band={getAgeBand(student?.year_level, student?.curriculum || curriculum)}
+        onSpeak={readAloudEnabled ? speakTaraResponse : undefined}
       />
     ) : null;
 
-    const ageBandStr = student?.year_level <= 2 ? "ks1" : student?.year_level <= 6 ? "ks2" : student?.year_level <= 9 ? "ks3" : "ks4";
+    const ageBandStr = getAgeBand(student?.year_level, student?.curriculum || curriculum);
 
     return (
       <>
@@ -757,7 +794,7 @@ const year = rawYear;
         totalQuestions={sessionQuestions.length}
         selectedAnswer={selected}
         onSelect={(i) => { if (selected === null && !timerExpired) handlePick(i); }}
-        onSubmit={() => { if (canProceed && !timerExpired) next(); }}
+        onSubmit={() => { if (canProceed || timerExpired) { clearTimeout(advanceTimerRef.current); next(); } }}
         onSkip={() => next()}
         onClose={onClose}
         subjectLabel={friendlySubject || labels.header}
@@ -794,7 +831,7 @@ const year = rawYear;
       {/* Celebration burst on correct answer */}
       <CelebrationBurst
         active={isCorrectAnswer && selected !== null}
-        band={student?.year_level <= 2 ? "ks1" : student?.year_level <= 6 ? "ks2" : student?.year_level <= 9 ? "ks3" : "ks4"}
+        band={getAgeBand(student?.year_level, student?.curriculum || curriculum)}
         intensity={isCorrectAnswer ? "normal" : "subtle"}
       />
       {pendingMilestone && (
@@ -887,7 +924,8 @@ const year = rawYear;
               themeBg={theme.bg} themeBorder={theme.border} themeAccent={theme.accent}
               taraFeedbackReceived={onFeedbackReceived} onNext={next}
               isLast={qIdx === sessionQuestions.length - 1}
-               taraEnabled={taraEnabled}
+              taraEnabled={taraEnabled}
+              onSpeakTara={readAloudEnabled ? speakTaraResponse : undefined}
             />
           </div>
         </div>
@@ -1119,6 +1157,7 @@ export default function QuestOrchestrator({
   questionCount: questionCountProp, previousQuestionIds = [],
   questData = {}, onClose, onComplete, taraEnabled = true,
   assessmentType = "quest", // "quest" | "mocktest" | "practice" | "exam"
+  focusedTopic: focusedTopicProp = null, // topic slug from dashboard click
 }) {
   const subj = (typeof subject === "string" ? subject : subject?.subject || subject?.name || "mathematics").toLowerCase();
   const band = getAgeBand(student?.year_level || student?.year, student?.curriculum);
@@ -1148,7 +1187,7 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
   const [algorithmTopic, setAlgorithmTopic] = useState(null);
   const [topicReason,    setTopicReason]    = useState(null);
 
-  const rawTopic   = algorithmTopic || questData?.topic || subj;
+  const rawTopic   = focusedTopicProp || algorithmTopic || questData?.topic || subj;
   const topicLabel = formatTopicLabel(rawTopic, questData?.questions || []);
 
   // Load mastery for this subject
@@ -1175,7 +1214,7 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
         const sequence = await getTopicSequence(subj, curriculum, supabase);
         // Load scholar context for anchor resolution
         const { masteryRows, currentTopic } = await loadScholarContext(supabase, student.id, curriculum, subj, null);
-        const { topic, reason } = resolveAnchorTopic(masteryRows, currentTopic, subj, sequence);
+        const { topic, reason } = resolveAnchorTopic(masteryRows, currentTopic, subj, sequence, yearLevel);
         if (topic) {
           setAlgorithmTopic(topic);
           setTopicReason(reason);
@@ -1357,7 +1396,7 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
       questionCount={questionCount} previousQuestionIds={previousQuestionIds}
       onClose={onClose} onComplete={onComplete}
       taraEnabled={taraEnabled}
-      focusedTopic={algorithmTopic}
+      focusedTopic={focusedTopicProp || algorithmTopic}
       BandQuizShell={BandQuizShell}
       band={band}
       friendlySubject={friendlySubject}

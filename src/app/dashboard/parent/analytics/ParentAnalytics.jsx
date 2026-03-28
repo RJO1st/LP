@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   AreaChart,
   Area,
@@ -18,6 +19,11 @@ import {
   formatGradeLabel,
 } from "@/lib/gamificationEngine";
 
+const ParentInsightCards = dynamic(
+  () => import("@/components/dashboard/ParentInsightCards"),
+  { ssr: false, loading: () => null }
+);
+
 const ArrowLeftIcon = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="m12 19-7-7 7-7"/>
@@ -25,7 +31,53 @@ const ArrowLeftIcon = ({ size = 24 }) => (
   </svg>
 );
 
-export default function ParentAnalytics({ scholar, results }) {
+// ── Adapter: transform quiz_results rows → ParentInsightCards props ──
+function buildInsightProps(results) {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  weekStart.setHours(0, 0, 0, 0);
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
+  const thisWeek = results.filter(r => new Date(r.created_at) >= weekStart);
+  const lastWeek = results.filter(r => {
+    const d = new Date(r.created_at);
+    return d >= prevWeekStart && d < weekStart;
+  });
+
+  const aggregate = (rows) => ({
+    questionsAnswered: rows.reduce((a, r) => a + (r.total_questions || 0), 0),
+    correctAnswers: rows.reduce((a, r) => a + (r.score || 0), 0),
+    timeSpentMinutes: rows.reduce((a, r) => a + Math.round((r.time_spent_seconds || 0) / 60), 0),
+  });
+
+  // Build mastery map by subject
+  const masteryData = {};
+  const subjectBucket = {};
+  results.forEach(r => {
+    if (!subjectBucket[r.subject]) subjectBucket[r.subject] = { correct: 0, total: 0 };
+    subjectBucket[r.subject].correct += r.score || 0;
+    subjectBucket[r.subject].total += r.total_questions || 0;
+  });
+  Object.entries(subjectBucket).forEach(([subj, d]) => {
+    const score = d.total > 0 ? Math.round((d.correct / d.total) * 100) : 0;
+    masteryData[subj] = {
+      score,
+      tier: score >= 80 ? "mastered" : score >= 50 ? "developing" : "emerging",
+      questionsAnswered: d.total,
+    };
+  });
+
+  return {
+    weeklyStats: aggregate(thisWeek),
+    previousWeekStats: aggregate(lastWeek),
+    masteryData,
+    subjects: Object.keys(subjectBucket),
+  };
+}
+
+export default function ParentAnalytics({ scholar, scholars = [], results }) {
 
   if (!scholar) {
     return (
@@ -33,8 +85,9 @@ export default function ParentAnalytics({ scholar, results }) {
         <div className="text-center">
           <p className="text-5xl mb-4">📊</p>
           <p className="text-xl font-bold text-slate-700 mb-4">
-            No scholar data found
+            No scholars found
           </p>
+          <p className="text-slate-500 mb-6">Add a scholar from your dashboard to see their analytics.</p>
           <Link
             href="/dashboard/parent"
             className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors"
@@ -99,13 +152,30 @@ export default function ParentAnalytics({ scholar, results }) {
               <p className="text-xs text-slate-500">{scholar.name}&apos;s Progress</p>
             </div>
           </div>
-          <Link
-            href="/dashboard/parent"
-            className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 font-bold transition-colors"
-          >
-            <ArrowLeftIcon size={18} />
-            <span className="hidden sm:inline">Back</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* Scholar picker — shows when parent has multiple scholars */}
+            {scholars.length > 1 && (
+              <select
+                defaultValue={scholar.id}
+                onChange={(e) => {
+                  window.location.href = `/dashboard/parent/analytics?scholar=${e.target.value}`;
+                }}
+                className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Select scholar"
+              >
+                {scholars.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+            <Link
+              href="/dashboard/parent"
+              className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 font-bold transition-colors"
+            >
+              <ArrowLeftIcon size={18} />
+              <span className="hidden sm:inline">Back</span>
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -211,6 +281,21 @@ export default function ParentAnalytics({ scholar, results }) {
                   ))}
               </div>
             </div>
+
+            {/* ── Parent Insight Cards (Phase 1) ─────────────────────── */}
+            {(() => {
+              const insight = buildInsightProps(results);
+              return (
+                <ParentInsightCards
+                  scholarName={scholar.name}
+                  subjects={insight.subjects}
+                  masteryData={insight.masteryData}
+                  weeklyStats={insight.weeklyStats}
+                  previousWeekStats={insight.previousWeekStats}
+                  onViewFullReport={null}
+                />
+              );
+            })()}
           </>
         )}
       </main>

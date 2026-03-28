@@ -111,7 +111,7 @@ export default function KS1QuizShell({
           }}>✨</div>
           <div className="min-w-0">
             <div className="truncate" style={{ fontSize: 12, fontWeight: 900, color: GOLD, ...N }}>Celestial Nursery</div>
-            <div style={{ fontSize: 9, color: `${GOLD}35`, fontWeight: 700, ...N }}>
+            <div style={{ fontSize: 10, color: `${GOLD}90`, fontWeight: 700, ...N }}>
               Mission {questionIndex + 1} of {totalQuestions}
             </div>
           </div>
@@ -150,11 +150,12 @@ export default function KS1QuizShell({
             <span style={{ fontSize: 11, fontWeight: 900, color: GOLD, ...N }}>⭐{xp}</span>
           </div>
           {timeLeft != null && (
-            <div className="hidden sm:block" style={{
+            <div style={{
               padding: "3px 7px", borderRadius: 8,
-              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+              background: timeLeft <= 10 ? "rgba(239,68,68,0.12)" : `${GOLD}08`,
+              border: `1px solid ${timeLeft <= 10 ? "rgba(239,68,68,0.25)" : `${GOLD}15`}`,
             }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", ...N }}>⏱{formatTime(timeLeft)}</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: timeLeft <= 10 ? "#f87171" : `${GOLD}cc`, ...N }}>⏱{formatTime(timeLeft)}</span>
             </div>
           )}
           <button onClick={onClose} style={{
@@ -170,7 +171,7 @@ export default function KS1QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Story Panel ────────────────────────────── */}
-        <div className="lg:w-[45%] overflow-y-auto p-3 sm:p-5 md:p-7 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
+        <div className="lg:w-[45%] overflow-y-auto p-3 sm:p-5 md:p-7 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
           style={{ borderRight: `1px solid ${GOLD}06` }}>
 
           {leftPanelContent ? (
@@ -271,11 +272,12 @@ export default function KS1QuizShell({
           style={{ background: "rgba(30,18,96,0.4)" }}>
 
           {/* Question badge */}
-          <div style={{ marginBottom: 6 }}>
+          <div style={{ marginBottom: 8 }}>
             <span style={{
               display: "inline-block", padding: "5px 14px", borderRadius: 10,
-              fontSize: 11, fontWeight: 900, ...N,
-              background: `${GOLD}08`, color: GOLD, border: `1px solid ${GOLD}15`,
+              fontSize: 12, fontWeight: 900, ...N,
+              background: `${GOLD}15`, color: GOLD, border: `1px solid ${GOLD}30`,
+              letterSpacing: 0.5,
             }}>
               Question {questionIndex + 1}
             </span>

@@ -25,24 +25,45 @@ import React, { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import AvatarRenderer from "@/components/game/AvatarRenderer";
-import LottieAvatar from "@/components/game/LottieAvatar";
 
-// ── Avatar Display — Lottie primary, SVG fallback ───────────────────────────
-function GreetingAvatar({ avatar, onClick, band, questsCompleted, streak = 0, mastery = 0 }) {
-  const sizeKey = band === "ks1" ? "lg" : band === "ks4" ? "md" : "lg";
+// ── Greeting Avatar — illustrated SVG from AvatarRenderer ───────────────────
+// Renders the ACTUAL character the scholar chose in the Avatar Shop.
+// Key prop forces full remount whenever any avatar field changes.
+function GreetingAvatar({ avatar, onClick, band }) {
+  const sizeKey = band === "ks4" ? "md" : "lg";
+
+  const avatarKey = avatar
+    ? [avatar.base, avatar.hat, avatar.pet, avatar.accessory,
+       avatar.background, avatar.skin, avatar.hair, avatar.expression]
+        .filter(Boolean).join("|")
+    : "default";
 
   return (
     <div
-      style={{ cursor: onClick ? "pointer" : "default", position: "relative", flexShrink: 0 }}
+      onClick={onClick}
+      style={{
+        position: "relative", flexShrink: 0,
+        cursor: onClick ? "pointer" : "default",
+      }}
       title={onClick ? "Customise avatar" : undefined}
     >
-      <LottieAvatar
-        avatar={avatar}
+      <AvatarRenderer
+        key={avatarKey}
+        avatar={avatar || { base: "astronaut" }}
         size={sizeKey}
-        streak={streak}
-        mastery={mastery}
-        onClick={onClick}
+        animated
       />
+      {/* Edit pencil badge */}
+      {onClick && (
+        <div style={{
+          position: "absolute", bottom: 2, right: 2,
+          width: 24, height: 24, borderRadius: "50%",
+          background: "#22d3ee", border: "2px solid white",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          zIndex: 6,
+        }}>✏️</div>
+      )}
     </div>
   );
 }
@@ -103,7 +124,7 @@ export default function AdaptiveGreeting({
       }}
     >
       {avatar && (
-        <GreetingAvatar avatar={avatar} onClick={onAvatarClick} band={band} questsCompleted={questsCompleted} streak={streak} mastery={xp > 0 ? Math.min(100, Math.round(xp / 50)) : 0} />
+        <GreetingAvatar avatar={avatar} onClick={onAvatarClick} band={band} />
       )}
       <div style={{ textAlign: band === "ks1" ? "center" : "left", flex: 1, minWidth: 0 }}>
         <div

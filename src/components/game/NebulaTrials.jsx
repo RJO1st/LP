@@ -21,11 +21,14 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   X, Zap, Star, Trophy, Target, Clock, ChevronRight,
   RefreshCw, Music, Swords, BookOpen, TrendingUp, Award,
   ArrowLeft, CheckCircle, XCircle, Flame,
 } from "lucide-react";
+
+const PhaserScene = dynamic(() => import("@/components/phaser/PhaserScene"), { ssr: false });
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const TABLES  = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -325,7 +328,7 @@ function TablePicker({ onPick, onBack, title = "Target Lock", subtitle = "Pick a
 }
 
 // ─── QUIZ SCREEN ─────────────────────────────────────────────────────────────
-function QuizScreen({ questions, mode, table, student, onDone, onBack }) {
+function QuizScreen({ questions, mode, table, student, onDone, onBack, phaserEvent }) {
   const [qIdx,      setQIdx]      = useState(0);
   const [input,     setInput]     = useState("");
   const [feedback,  setFeedback]  = useState(null); // null | "correct" | "wrong"
@@ -364,6 +367,18 @@ function QuizScreen({ questions, mode, table, student, onDone, onBack }) {
     if (isCorrect) setTimes(p => [...p, ms]);
     setResults(p => [...p, { q: q.text, answer: q.answer, given: parseInt(input, 10), isCorrect, ms, xp }]);
 
+    // ── Phaser visual events ──
+    if (phaserEvent) {
+      phaserEvent("combo", newCombo);
+      phaserEvent("progress", (qIdx + 1) / questions.length);
+      const avgMs = isCorrect
+        ? [...times, ms].reduce((a, b) => a + b, 0) / ([...times, ms].length)
+        : times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 9999;
+      phaserEvent("speedRank", getRank(avgMs));
+      // Trigger correct/wrong with a changing value so registry fires changedata
+      phaserEvent(isCorrect ? "triggerCorrect" : "triggerWrong", Date.now());
+    }
+
     setTimeout(() => {
       setFeedback(null);
       setInput("");
@@ -390,7 +405,7 @@ function QuizScreen({ questions, mode, table, student, onDone, onBack }) {
         });
       }
     }, 600);
-  }, [input, feedback, combo, q, qIdx, questions.length, times, results, totalXP, table, onDone]);
+  }, [input, feedback, combo, q, qIdx, questions.length, times, results, totalXP, table, onDone, phaserEvent]);
 
   // Keyboard support — placed after handleSubmit so the dep array can reference it directly.
   // Without a dep array this ran every render; with [handleSubmit] it re-attaches only when
@@ -907,12 +922,78 @@ function GridFillScreen({ table, onDone, onBack }) {
 }
 
 
+// ─── PHASER BACKGROUND ────────────────────────────────────────────────────────
+// Loads the NebulaTrialsScene and renders as a full-screen background canvas.
+// The gameRef lets parent components trigger visual events via registry.
+function PhaserBackground({ gameRef, totalQuestions = 20, width, height }) {
+  const [sceneClass, setSceneClass] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const PhaserModule = await import("phaser");
+        const Phaser = PhaserModule.default || PhaserModule;
+        const { createNebulaTrialsScene } = await import("@/components/phaser/NebulaTrialsScene");
+        const SceneClass = createNebulaTrialsScene(Phaser);
+        if (!cancelled && SceneClass) setSceneClass(() => SceneClass);
+      } catch (err) {
+        console.warn("PhaserBackground: failed to load", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const reactData = useMemo(() => ({
+    totalQuestions,
+    combo: 0,
+    progress: 0,
+    speedRank: { label: "Cadet", color: "#64748b" },
+  }), [totalQuestions]);
+
+  if (!sceneClass) return null;
+
+  return (
+    <PhaserScene
+      sceneClass={sceneClass}
+      reactData={reactData}
+      width={width}
+      height={height}
+      gameRef={gameRef}
+      className="nebula-trials-bg"
+    />
+  );
+}
+
 export default function NebulaTrials({ student, onClose, onXPEarned }) {
   const [screen,    setScreen]    = useState("menu");   // menu | table_pick | grid_pick | quiz | grid | results
   const [mode,      setMode]      = useState(null);     // launch | drill | grid | warp
   const [table,     setTable]     = useState(null);     // 2–12
   const [questions, setQuestions] = useState([]);
   const [doneData,  setDoneData]  = useState(null);
+
+  // Phaser background
+  const gameRef = useRef(null);
+  const containerRef = useRef(null);
+  const [containerSize, setContainerSize] = useState({ w: 400, h: 760 });
+
+  // Measure the main container so the Phaser canvas fills it exactly
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) setContainerSize({ w: Math.round(r.width), h: Math.round(r.height) });
+    });
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  // Helper: push event to Phaser registry
+  const phaserEvent = useCallback((key, value) => {
+    try {
+      gameRef.current?.registry?.set(key, value);
+    } catch {}
+  }, []);
 
   const startMode = useCallback((selectedMode) => {
     setMode(selectedMode);
@@ -965,56 +1046,61 @@ export default function NebulaTrials({ student, onClose, onXPEarned }) {
         isolation: "isolate",
       }}
     >
-      {STARS_BG.map((s, i) => (
-        <div key={i} className="absolute rounded-full bg-white pointer-events-none opacity-50"
-          style={{ left: s.x, top: s.y, width: s.size, height: s.size }} />
-      ))}
-
       <div
+        ref={containerRef}
         className="relative w-full h-full sm:max-w-sm sm:max-h-[760px] sm:rounded-3xl overflow-hidden flex flex-col"
-        style={{ backgroundColor: "#0f0e1a", background: "#0f0e1a", border: "1.5px solid rgba(99,102,241,0.3)" }}
+        style={{ backgroundColor: "#0f0e1a", border: "1.5px solid rgba(99,102,241,0.3)" }}
       >
-        {screen === "menu" && (
-          <ModeSelect student={student} onSelect={startMode} onClose={onClose} />
-        )}
-        {screen === "table_pick" && (
-          <TablePicker onPick={startDrill} onBack={() => setScreen("menu")} />
-        )}
-        {screen === "grid_pick" && (
-          <TablePicker
-            onPick={startGrid}
-            onBack={() => setScreen("menu")}
-            title="Grid Fill"
-            subtitle="Pick a table — then fill the blanks"
+        {/* Phaser animated background — renders behind all UI */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <PhaserBackground
+            gameRef={gameRef}
+            totalQuestions={questions.length || 20}
+            width={containerSize.w}
+            height={containerSize.h}
           />
-        )}
-        {screen === "quiz" && (
-          <QuizScreen
-            questions={questions} mode={mode} table={table} student={student}
-            onDone={handleDone} onBack={() => setScreen("menu")}
-          />
-        )}
-        {screen === "grid" && (
-          <GridFillScreen
-            table={table}
-            onDone={handleGridDone}
-            onBack={() => setScreen("grid_pick")}
-          />
-        )}
-        {screen === "results" && doneData && (
-          <ResultsScreen
-            data={doneData} mode={mode} table={table} student={student}
-            onReplay={handleReplay} onMenu={() => setScreen("menu")} onClose={onClose}
-          />
-        )}
+        </div>
+
+        {/* All UI content sits above the Phaser canvas */}
+        <div className="relative z-10 flex flex-col flex-1 min-h-0">
+          {screen === "menu" && (
+            <ModeSelect student={student} onSelect={startMode} onClose={onClose} />
+          )}
+          {screen === "table_pick" && (
+            <TablePicker onPick={startDrill} onBack={() => setScreen("menu")} />
+          )}
+          {screen === "grid_pick" && (
+            <TablePicker
+              onPick={startGrid}
+              onBack={() => setScreen("menu")}
+              title="Grid Fill"
+              subtitle="Pick a table — then fill the blanks"
+            />
+          )}
+          {screen === "quiz" && (
+            <QuizScreen
+              questions={questions} mode={mode} table={table} student={student}
+              onDone={handleDone} onBack={() => setScreen("menu")}
+              phaserEvent={phaserEvent}
+            />
+          )}
+          {screen === "grid" && (
+            <GridFillScreen
+              table={table}
+              onDone={handleGridDone}
+              onBack={() => setScreen("grid_pick")}
+            />
+          )}
+          {screen === "results" && doneData && (
+            <ResultsScreen
+              data={doneData} mode={mode} table={table} student={student}
+              onReplay={handleReplay} onMenu={() => setScreen("menu")} onClose={onClose}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── STAR BG DATA ─────────────────────────────────────────────────────────────
-const STARS_BG = Array.from({ length: 40 }, (_, i) => ({
-  x:    `${(i * 19.3) % 100}%`,
-  y:    `${(i * 27.1) % 100}%`,
-  size: 1 + (i % 2),
-}));
+// STARS_BG removed — replaced by Phaser animated background

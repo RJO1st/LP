@@ -162,7 +162,7 @@ export default function LandingPage() {
             </button>
           </div>
           <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-500 animate-fade-in-up animation-delay-600">
-            {[["✓","100,000+ questions"],["🛡️","14-day free trial"],["⚡","Cancel anytime"],["🔒","GDPR compliant"]].map(([icon,text],i) => (
+            {[["✓","100,000+ questions"],["🛡️","30-day free trial"],["⚡","Cancel anytime"],["🔒","GDPR compliant"]].map(([icon,text],i) => (
               <span key={i} className="flex items-center gap-1.5"><span className="text-green-500">{icon}</span>{text}</span>
             ))}
           </div>
@@ -385,7 +385,7 @@ export default function LandingPage() {
               <ul className="space-y-2.5 text-sm text-slate-700 mb-7 flex-1">
                 {["Up to 3 scholars","Unlimited questions","Tara AI tutor (age-adaptive)","Full guardian dashboard","Weekly missions & reports","Digital pets & leaderboards","Revision planner (KS3/KS4)","Certificates & achievements"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-500 mt-0.5">✓</span>{f}</li>)}
               </ul>
-              <Link href="/signup" className="block text-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20">Start 14-Day Free Trial</Link>
+              <Link href="/signup" className="block text-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20">Start 30-Day Free Trial</Link>
             </div>
 
             {/* Exam Mode */}

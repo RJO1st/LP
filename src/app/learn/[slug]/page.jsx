@@ -355,7 +355,7 @@ export default async function LearnPage({ params }) {
         <section className="mb-16">
           <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-3xl p-8 text-center">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Ready to start {subjectLabel || "learning"}?</h2>
-            <p className="text-sm text-slate-600 mb-6">14-day Pro trial. No card needed. Up to 3 scholars.</p>
+            <p className="text-sm text-slate-600 mb-6">30-day Pro trial. No card needed. Up to 3 scholars.</p>
             <Link href="/signup" className="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black px-8 py-3.5 rounded-xl shadow-lg text-sm">Create Free Account →</Link>
             <p className="text-xs text-slate-400 mt-3">After your trial, keep free access — 10 questions a day, forever.</p>
           </div>

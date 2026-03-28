@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { applyReferralCode } from "../../lib/referralSystem";
+import { passwordError } from "../../lib/passwordValidation";
 
 const REGIONS = [
   { code: "uk", flag: "🇬🇧", label: "United Kingdom" },
@@ -65,7 +66,8 @@ function SignupForm() {
 
     if (!formData.fullName.trim()) { setError("Please enter your full name"); return; }
     if (!formData.email.trim()) { setError("Please enter your email"); return; }
-    if (formData.password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    const pwErr = passwordError(formData.password);
+    if (pwErr) { setError(pwErr); return; }
     if (formData.password !== formData.confirmPassword) { setError("Passwords do not match"); return; }
 
     setLoading(true);
@@ -81,9 +83,9 @@ function SignupForm() {
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("Failed to create user account");
 
-      // 2. Create parent record — 14-day Pro trial
+      // 2. Create parent record — 30-day Pro trial
       const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 14);
+      trialEnd.setDate(trialEnd.getDate() + 30);
 
       const { error: parentError } = await supabase
         .from("parents")
@@ -162,7 +164,7 @@ function SignupForm() {
         </div>
 
         <h1 className="text-3xl font-black mb-2 text-center">Create Your Account</h1>
-        <p className="text-slate-400 mb-6 text-sm text-center">14-day Pro trial · No payment required</p>
+        <p className="text-slate-400 mb-6 text-sm text-center">30-day Pro trial · No payment required</p>
 
         {error && (
           <div className="mb-4 p-3 bg-rose-500/20 border-2 border-rose-500 rounded-xl text-rose-200 text-sm font-bold">
@@ -236,13 +238,13 @@ function SignupForm() {
 
           <button type="submit" disabled={loading}
             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-            {loading ? "Creating Account..." : "Start 14-Day Pro Trial →"}
+            {loading ? "Creating Account..." : "Start 30-Day Pro Trial →"}
           </button>
         </form>
 
         {/* What you get */}
         <div className="mt-6 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-          <p className="font-bold text-indigo-300 text-sm mb-2">Your 14-day Pro trial includes:</p>
+          <p className="font-bold text-indigo-300 text-sm mb-2">Your 30-day Pro trial includes:</p>
           <ul className="text-xs text-indigo-200 space-y-1">
             <li>✓ Unlimited questions across all subjects</li>
             <li>✓ Tara AI tutor — personalised feedback</li>

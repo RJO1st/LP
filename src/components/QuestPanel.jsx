@@ -20,7 +20,7 @@ const ClockIcon = ({ size = 16 }) => (
   </svg>
 );
 
-export default function QuestPanel({ scholarId }) {
+export default function QuestPanel({ scholarId, onBossBattle }) {
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -100,6 +100,8 @@ export default function QuestPanel({ scholarId }) {
 
   const dailyQuests = quests.filter(q => q.quest_type === 'daily');
   const weeklyQuests = quests.filter(q => q.quest_type === 'weekly');
+  const personalisedQuests = quests.filter(q => q.quest_type === 'personalised');
+  const bossQuests = quests.filter(q => q.quest_type === 'boss_battle');
 
   return (
     <div className="bg-white rounded-3xl p-6 border-2 border-slate-100">
@@ -251,6 +253,135 @@ export default function QuestPanel({ scholarId }) {
                         {quest.badge_reward && (
                           <span className="text-purple-600">+Badge</span>
                         )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Boss Battles */}
+      {bossQuests.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+            Boss Battle
+          </h4>
+          <div className="space-y-2">
+            {bossQuests.map(quest => {
+              const metadata = typeof quest.metadata === 'string'
+                ? (() => { try { return JSON.parse(quest.metadata); } catch { return {}; } })()
+                : (quest.metadata || {});
+              const isComplete = quest.current_progress >= quest.target_value;
+
+              return (
+                <div
+                  key={quest.id}
+                  onClick={() => !isComplete && onBossBattle?.(quest)}
+                  className={`p-3 rounded-2xl border-2 transition-all ${
+                    isComplete
+                      ? 'bg-emerald-50 border-emerald-300'
+                      : 'bg-red-50 border-red-200 hover:border-red-400 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{metadata.icon || '👹'}</span>
+                    <div className="flex-1">
+                      <h5 className="font-black text-sm text-slate-900">
+                        {quest.quest_name}
+                      </h5>
+                      <p className="text-xs text-slate-600 leading-snug">
+                        {quest.quest_description}
+                      </p>
+                    </div>
+                    {!isComplete && (
+                      <span className="bg-red-600 text-white text-xs font-black px-3 py-1.5 rounded-xl whitespace-nowrap">
+                        Fight!
+                      </span>
+                    )}
+                    {isComplete && (
+                      <span className="text-emerald-600 text-xs font-black">Defeated!</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-black mt-2">
+                    <span className="text-emerald-600">+{quest.xp_reward} XP</span>
+                    <span className="text-yellow-600">+{quest.coin_reward} coins</span>
+                    <span className="text-slate-400 ml-auto flex items-center gap-1">
+                      <ClockIcon size={12} /> {getTimeRemaining(quest.expires_at)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Personalised Quests */}
+      {personalisedQuests.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+            Your Quests
+          </h4>
+          <div className="space-y-2">
+            {personalisedQuests.map(quest => {
+              const metadata = typeof quest.metadata === 'string'
+                ? (() => { try { return JSON.parse(quest.metadata); } catch { return {}; } })()
+                : (quest.metadata || {});
+              const progress = Math.min(100, (quest.current_progress / quest.target_value) * 100);
+              const isComplete = quest.current_progress >= quest.target_value;
+
+              return (
+                <div
+                  key={quest.id}
+                  className={`p-3 rounded-2xl border-2 transition-all ${
+                    isComplete
+                      ? 'bg-emerald-50 border-emerald-300'
+                      : 'bg-amber-50 border-amber-200 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="text-lg">{metadata.icon || '🎯'}</span>
+                    <div className="flex-1">
+                      <h5 className="font-black text-sm text-slate-900 mb-0.5">
+                        {quest.quest_name}
+                      </h5>
+                      <p className="text-xs text-slate-600 leading-snug">
+                        {quest.quest_description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                      <ClockIcon size={12} />
+                      {getTimeRemaining(quest.expires_at)}
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-slate-600">
+                        {quest.current_progress} / {quest.target_value}
+                      </span>
+                      <span className={isComplete ? 'text-emerald-600' : 'text-amber-600'}>
+                        {Math.round(progress)}%
+                      </span>
+                    </div>
+                    <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          isComplete ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-black">
+                    {isComplete ? (
+                      <span className="text-emerald-600">✓ Completed!</span>
+                    ) : (
+                      <>
+                        <span className="text-emerald-600">+{quest.xp_reward} XP</span>
+                        <span className="text-yellow-600">+{quest.coin_reward} coins</span>
                       </>
                     )}
                   </div>

@@ -119,7 +119,7 @@ export default function KS3QuizShell({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ─── LEFT: Scenario Brief ───────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[28vh] sm:max-h-[35vh] lg:max-h-none"
+        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
           style={{ borderRight: "1px solid rgba(16,185,129,0.06)" }}>
 
           {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
@@ -234,13 +234,13 @@ export default function KS3QuizShell({
 
               return (
                 <button key={i} onClick={() => !showResult && onSelect?.(i)}
-                  className="ks3-option w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2 sm:gap-3"
+                  className="ks3-option w-full text-left px-3 py-2.5 sm:px-3 sm:py-2.5 md:px-4 md:py-3 rounded-lg border transition-all flex items-center gap-2.5 sm:gap-3"
                   style={{
                     background: correct ? "rgba(34,197,94,0.1)" : wrong ? "rgba(239,68,68,0.1)" : selected ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.02)",
                     borderColor: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#10b981" : "rgba(255,255,255,0.06)",
                     transform: selected ? "scale(1.01)" : "scale(1)",
                   }}>
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0"
+                  <div className="w-7 h-7 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-xs font-bold shrink-0"
                     style={{
                       background: correct ? "#22c55e" : wrong ? "#ef4444" : selected ? "#10b981" : "rgba(255,255,255,0.05)",
                       color: selected || correct || wrong ? "#fff" : "rgba(255,255,255,0.35)",

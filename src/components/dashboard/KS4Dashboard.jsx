@@ -24,9 +24,10 @@ function Label({ children }) {
   return <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{children}</span>;
 }
 
-export default function KS4Dashboard({ scholar, predictedGrade = "8.4", examCountdown = "14d", masteryPercent = 84,
+export default function KS4Dashboard({ scholar, predictedGrade = "—", examCountdown = "—", masteryPercent = 0,
   subjects = [], skillProficiency = {}, currentTopic = "Wave-Particle Duality", currentSubject = "Physics", currentUnit = "Quantum Mechanics / Unit 4.2",
-  onStartQuest, onSignOut, taraMessage, taraCriteria = [], onTaraSend }) {
+  onStartQuest, onSignOut, taraMessage, taraCriteria = [], onTaraSend,
+  mockTests = [], revisionSessions = [], leaderboard = [], recentQuizzes = [] }) {
 
   const [activeTab, setActiveTab] = useState("exams");
   const [examMode, setExamMode] = useState(true);
@@ -139,13 +140,6 @@ export default function KS4Dashboard({ scholar, predictedGrade = "8.4", examCoun
     </div>
   );
 })}
-            <div key={item.t} className="p-3 rounded-lg text-center cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => onStartQuest?.("physics")}
-              style={{ background: `rgba(167,139,250,${0.05 + item.s * 0.3})`, border: "1px solid rgba(167,139,250,0.1)" }}>
-              <p className="text-[10px] font-bold text-white">{item.t}</p>
-              <p className="text-[9px] text-white/40 mt-0.5">{Math.round(item.s * 100)}%</p>
-            </div>
-          ))
         </div>
       </GlassCard>
 
@@ -153,11 +147,11 @@ export default function KS4Dashboard({ scholar, predictedGrade = "8.4", examCoun
       <GlassCard id="section-mocks" className="p-5">
         <Label>Mock Tests</Label>
         <div className="mt-3 space-y-2">
-          {[
+          {(mockTests.length > 0 ? mockTests : [
             { title: "Physics Paper 1", status: "Predicted: 9 / A*", action: "Retake", subject: "physics" },
             { title: "Advanced Maths Tier 2", status: "Available now — Predicted: 8 / A", action: "Start", subject: "mathematics" },
             { title: "Chemistry Paper 1", status: "Due in 5 days", action: "Prepare", subject: "chemistry" },
-          ].map((m, i) => (
+          ]).map((m, i) => (
             <div key={i} className="flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-colors"
               onClick={() => onStartQuest?.(m.subject)}
               style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -255,10 +249,10 @@ export default function KS4Dashboard({ scholar, predictedGrade = "8.4", examCoun
       <GlassCard className="p-4">
         <Label>Today's Revision</Label>
         <div className="mt-3 space-y-2">
-          {[
+          {(revisionSessions.length > 0 ? revisionSessions : [
             { time: "16:00", topic: "Quantum Physics", priority: "high" },
             { time: "17:30", topic: "Organic Chemistry", priority: "medium" },
-          ].map((r, i) => (
+          ]).map((r, i) => (
             <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
               <span className="text-[10px] font-bold text-violet-400 w-10">{r.time}</span>
               <span className="text-xs text-white/60 flex-1">{r.topic}</span>

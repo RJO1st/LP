@@ -145,9 +145,14 @@ export function PercentageBarVis({ value = 50 }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 0c. PROBABILITY VISUALISER — spinner/dice/coin with chance display
 // ═══════════════════════════════════════════════════════════════════════════════
-export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" }) {
+export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner", hideAnswer = false }) {
   const pct = Math.round((favourable / total) * 100);
   const fraction = `${favourable}/${total}`;
+
+  // When hideAnswer is true, show the setup (items/dice/spinner) but suppress
+  // the calculated probability fraction and percentage — the scholar must work it out
+  const chipLabel = hideAnswer ? `${total} total` : `P = ${fraction}`;
+  const chanceLabel = hideAnswer ? `Find P(?)` : `${pct}% chance`;
 
   if (context === "dice") {
     const dotPos = {
@@ -157,8 +162,8 @@ export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" 
     };
     return (
       <Panel accent={T.indigo} bg={T.indigoBg} bd="#c7d2fe"
-        ariaLabel={`Dice probability: ${fraction}`}>
-        <Chip color={T.indigo} bg="white">P = {fraction}</Chip>
+        ariaLabel={hideAnswer ? `Dice with ${total} faces` : `Dice probability: ${fraction}`}>
+        <Chip color={T.indigo} bg="white">{chipLabel}</Chip>
         <svg width={80} height={80} viewBox="0 0 100 100">
           <rect className="vis-segment" x={5} y={5} width={90} height={90} rx={14}
             fill="white" stroke={T.indigo} strokeWidth={3} />
@@ -169,7 +174,7 @@ export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" 
               stroke={i < favourable ? T.indigo : "#cbd5e1"} strokeWidth={1} />
           ))}
         </svg>
-        <span style={{ fontSize: 11, fontWeight: 800, color: T.indigo }}>{pct}% chance</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: T.indigo }}>{chanceLabel}</span>
       </Panel>
     );
   }
@@ -177,8 +182,8 @@ export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" 
   if (context === "coin") {
     return (
       <Panel accent={T.amber} bg={T.amberBg} bd="#fde68a"
-        ariaLabel={`Coin probability: ${fraction}`}>
-        <Chip color={T.amber} bg="white">P = {fraction}</Chip>
+        ariaLabel={hideAnswer ? `Coin flip` : `Coin probability: ${fraction}`}>
+        <Chip color={T.amber} bg="white">{chipLabel}</Chip>
         <svg width={80} height={80} viewBox="0 0 100 100">
           <circle className="vis-mark" cx={50} cy={50} r={42}
             fill={T.amberBg} stroke={T.amber} strokeWidth={3} />
@@ -188,19 +193,19 @@ export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" 
           <text x={50} y={62} textAnchor="middle"
             fontSize={8} fontWeight="700" fill={T.textMid}>HEADS</text>
         </svg>
-        <span style={{ fontSize: 11, fontWeight: 800, color: T.amber }}>{pct}% chance</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: T.amber }}>{chanceLabel}</span>
       </Panel>
     );
   }
 
-  // Default: spinner
-  const segments = Math.min(total, 8);
-  const COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#7c3aed", "#06b6d4", "#ec4899", "#84cc16"];
+  // Default: spinner — shows coloured segments representing total items
+  const segments = Math.min(total, 12);
+  const COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#7c3aed", "#06b6d4", "#ec4899", "#84cc16", "#14b8a6", "#e11d48", "#8b5cf6", "#0ea5e9"];
   const R = 50, CX = 60, CY = 55;
   return (
     <Panel accent={T.nebula} bg={T.nebulaBg} bd="#ddd6fe"
-      ariaLabel={`Spinner probability: ${fraction}`}>
-      <Chip color={T.nebula} bg="white">P = {fraction}</Chip>
+      ariaLabel={hideAnswer ? `Spinner with ${total} sections` : `Spinner probability: ${fraction}`}>
+      <Chip color={T.nebula} bg="white">{chipLabel}</Chip>
       <svg width={120} height={110} viewBox="0 0 120 110">
         {Array.from({ length: segments }, (_, i) => {
           const a1 = (i / segments) * 360 - 90;
@@ -220,10 +225,12 @@ export function ProbabilityVis({ total = 6, favourable = 1, context = "spinner" 
         <polygon className="vis-ray" points={`${CX},${CY - R - 6} ${CX - 5},${CY - R + 2} ${CX + 5},${CY - R + 2}`}
           fill={T.text} />
         <circle cx={CX} cy={CY} r={6} fill="white" stroke={T.text} strokeWidth={2} />
-        <text className="vis-label" x={CX} y={CY + 3} textAnchor="middle"
-          fontSize={6} fontWeight="800" fill={T.text}>{favourable}</text>
+        {!hideAnswer && (
+          <text className="vis-label" x={CX} y={CY + 3} textAnchor="middle"
+            fontSize={6} fontWeight="800" fill={T.text}>{favourable}</text>
+        )}
       </svg>
-      <span style={{ fontSize: 11, fontWeight: 800, color: T.nebula }}>{pct}% chance</span>
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.nebula }}>{chanceLabel}</span>
     </Panel>
   );
 }
