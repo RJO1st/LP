@@ -11,6 +11,7 @@ import GraduationModal from "@/components/GraduationModal";
 import { ensureReferralCode, getReferralStats } from "@/lib/referralSystem";
 import ReadinessScore from "@/components/ReadinessScore";
 import DashboardTour, { TourHelpButton, useTourReset } from "@/components/DashboardTour";
+import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -338,10 +339,10 @@ const CANADIAN_PROVINCES = [
 
 // Band colors for scholar cards
 const BAND_COLORS = {
-  ks1: { border: "border-amber-300", bg: "bg-amber-50", badge: "bg-amber-100 text-amber-700" },
-  ks2: { border: "border-indigo-300", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-700" },
-  ks3: { border: "border-sky-300", bg: "bg-sky-50", badge: "bg-sky-100 text-sky-700" },
-  ks4: { border: "border-cyan-300", bg: "bg-cyan-50", badge: "bg-cyan-100 text-cyan-700" },
+  ks1: { border: "border-amber-300 dark:border-amber-500/40", bg: "bg-amber-50 dark:bg-amber-500/10", badge: "bg-amber-100 text-amber-700 dark:text-amber-300" },
+  ks2: { border: "border-indigo-300 dark:border-indigo-500/40", bg: "bg-indigo-50 dark:bg-indigo-500/10", badge: "bg-indigo-100 text-indigo-700 dark:text-indigo-300" },
+  ks3: { border: "border-sky-300 dark:border-sky-500/40", bg: "bg-sky-50 dark:bg-sky-500/10", badge: "bg-sky-100 text-sky-700 dark:text-sky-300" },
+  ks4: { border: "border-cyan-300 dark:border-cyan-500/40", bg: "bg-cyan-50 dark:bg-cyan-500/10", badge: "bg-cyan-100 text-cyan-700 dark:text-cyan-300" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -461,7 +462,7 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
   }, [scholarId]);
 
   if (loading) return (
-    <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-center">
+    <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 dark:border-white/10 p-4 text-center">
       <div className="w-6 h-6 border-2 border-amber-400/40 border-t-amber-500 rounded-full animate-spin mx-auto" />
     </div>
   );
@@ -489,7 +490,7 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
   // No activity this week
   if (totalQ === 0 && subjectsWithTopics.length === 0) {
     return (
-      <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-center text-sm text-slate-400 font-semibold">
+      <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 dark:border-white/10 p-4 text-center text-sm text-slate-400 dark:text-slate-500 font-semibold">
         No sessions recorded yet this week.
       </div>
     );
@@ -501,21 +502,21 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
       {/* ── Week-at-a-glance stat strip ────────────────────────── */}
       <div className="grid grid-cols-3 gap-2">
         {/* Time */}
-        <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-200 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">This week</p>
-          <p className="text-xl font-black text-indigo-700">{timeStr}</p>
-          <p className="text-[10px] text-indigo-400 font-semibold mt-0.5">study time</p>
+        <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-xl p-3 border border-indigo-200 dark:border-indigo-500/30 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 dark:text-indigo-300 mb-1">This week</p>
+          <p className="text-xl font-black text-indigo-700 dark:text-indigo-300">{timeStr}</p>
+          <p className="text-[10px] text-indigo-400 dark:text-indigo-300 font-semibold mt-0.5">study time</p>
         </div>
         {/* Accuracy */}
-        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Accuracy</p>
-          <p className="text-xl font-black text-emerald-700">{accuracy !== null ? `${accuracy}%` : "—"}</p>
-          <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">{totalQ} questions</p>
+        <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 border border-emerald-200 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 dark:text-emerald-300 mb-1">Accuracy</p>
+          <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{accuracy !== null ? `${accuracy}%` : "—"}</p>
+          <p className="text-[10px] text-emerald-400 dark:text-emerald-300 font-semibold mt-0.5">{totalQ} questions</p>
         </div>
         {/* Streak */}
-        <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 text-center">
+        <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 border border-amber-200 dark:border-amber-500/30 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">Streak</p>
-          <p className="text-xl font-black text-amber-700">{streak} 🔥</p>
+          <p className="text-xl font-black text-amber-700 dark:text-amber-300">{streak} 🔥</p>
           <p className="text-[10px] text-amber-400 font-semibold mt-0.5">day{streak !== 1 ? "s" : ""}</p>
         </div>
       </div>
@@ -524,11 +525,11 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
       {weekChange !== null && (
         <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${
           weekChange >= 0
-            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-            : "bg-rose-50 text-rose-600 border-rose-200"
+            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+            : "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-500/30"
         }`}>
           {weekChange >= 0 ? "↑" : "↓"} {Math.abs(weekChange)}% vs last week
-          <span className="font-normal text-slate-400">· {totalQ} questions done</span>
+          <span className="font-normal text-slate-400 dark:text-slate-500">· {totalQ} questions done</span>
         </div>
       )}
 
@@ -546,14 +547,14 @@ function ScholarInsightPanel({ scholarId, scholarName, supabase }) {
             return (
               <div key={subject} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                     {subjectEmoji(subject)} {subjectLabel(subject)}
                   </span>
-                  <span className="font-bold text-slate-500">{masteredTopics}/{totalTopics}</span>
+                  <span className="font-bold text-slate-500 dark:text-slate-500">{masteredTopics}/{totalTopics}</span>
                 </div>
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-orange-400"
+                    className="h-full bg-gradient-to-r from-amber-400 dark:from-amber-500 to-orange-400 dark:to-orange-500"
                     style={{ width: `${totalTopics > 0 ? (masteredTopics / totalTopics) * 100 : 0}%` }}
                   />
                 </div>
@@ -575,12 +576,12 @@ const CurriculumCard = ({ currKey, curr, selected, onSelect }) => (
     onClick={() => onSelect(currKey)}
     className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all cursor-pointer
       ${selected
-        ? "border-amber-400 bg-amber-50 text-amber-900 shadow-md scale-105"
-        : "border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50"
+        ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300 shadow-md scale-105"
+        : "border-slate-200 dark:border-white/10 bg-white text-slate-600 dark:text-slate-400 hover:border-amber-300 dark:border-amber-500/40 hover:bg-amber-50 dark:bg-amber-500/10"
       }`}
   >
     <span className="text-3xl">{curr.country}</span>
-    <span className={`text-[11px] font-black leading-tight ${selected ? "text-amber-700" : "text-slate-500"}`}>
+    <span className={`text-[11px] font-black leading-tight ${selected ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-500"}`}>
       {curr.name}
     </span>
   </button>
@@ -621,14 +622,14 @@ function ReferralCard({ parentId, parentName, supabase, fullWidth }) {
   const handleEmail = () => window.open(`mailto:?subject=${encodeURIComponent("Try LaunchPard for your children")}&body=${encodeURIComponent(shareText)}`, "_blank");
 
   return (
-    <div className={`bg-purple-50 rounded-xl p-4 border border-purple-200 ${fullWidth ? "md:col-span-2" : ""}`}>
+    <div className={`bg-purple-50 dark:bg-purple-500/10 rounded-xl p-4 border border-purple-200 dark:border-purple-500/30 ${fullWidth ? "md:col-span-2" : ""}`}>
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center text-sm">🎁</div>
+        <div className="w-8 h-8 rounded-lg bg-purple-100 border border-purple-200 dark:border-purple-500/30 flex items-center justify-center text-sm">🎁</div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-black text-purple-900">Refer a Friend, Get 1 Free Month</p>
+          <p className="text-xs font-black text-purple-900 dark:text-purple-300">Refer a Friend, Get 1 Free Month</p>
           <p className="text-[10px] text-purple-500 font-bold tracking-wide">
             {stats.code}
-            {stats.referralCount > 0 && <span className="ml-1.5 text-emerald-600">· {stats.credits} earned</span>}
+            {stats.referralCount > 0 && <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 dark:text-emerald-300">· {stats.credits} earned</span>}
           </p>
         </div>
       </div>
@@ -644,8 +645,8 @@ function ReferralCard({ parentId, parentName, supabase, fullWidth }) {
         <button onClick={handleCopy}
           className={`flex-1 flex items-center justify-center gap-1 font-bold py-2 rounded-lg text-[10px] sm:text-[11px] transition-all border ${
             copied
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-              : "bg-white hover:bg-purple-50 text-purple-700 border-purple-200"
+              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+              : "bg-white hover:bg-purple-50 dark:hover:bg-purple-500/10 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/30"
           }`}>
           {copied ? "✓ Copied" : "🔗 Copy"}
         </button>
@@ -1059,10 +1060,10 @@ export default function ParentDashboard() {
   // ═══════════════════════════════════════════════════════════════
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-amber-400/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-bold">Loading dashboard...</p>
+          <p className="text-slate-600 dark:text-slate-400 font-bold">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -1072,7 +1073,7 @@ export default function ParentDashboard() {
   // RENDER — BRIGHT & AIRY DESIGN
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] text-slate-900 dark:text-white font-sans flex flex-col lg:flex-row">
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -1080,43 +1081,43 @@ export default function ParentDashboard() {
       )}
 
       {/* SIDEBAR — Fixed on mobile, static on desktop */}
-      <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-40 transform transition-transform lg:transform-none ${
+      <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/10 z-40 transform transition-transform lg:transform-none ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } flex flex-col`}>
 
         {/* Logo area */}
-        <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-6 py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img src="/logo.svg" alt="LaunchPard" width={32} height={32} style={{ objectFit: "contain" }} />
-            <span className="font-black text-lg text-slate-900">LaunchPard</span>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-600">
+            <span className="font-black text-lg text-slate-900 dark:text-white">LaunchPard</span>
+          </Link>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300">
             <Icon size={20} d="M18 6l-12 12M6 6l12 12" />
           </button>
         </div>
 
         {/* Navigation menu */}
         <nav className="flex-1 px-4 py-6 space-y-1">
-          <Link href="/dashboard/parent" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-50 text-amber-900 font-bold text-sm transition-colors">
+          <Link href="/dashboard/parent" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300 font-bold text-sm transition-colors">
             <DashIcon size={20} />
             Mission Control
           </Link>
           <button
             onClick={() => { const el = document.getElementById("scholars-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors text-left"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 font-bold text-sm transition-colors text-left"
           >
             <StudentsIcon size={20} />
             Scholars
           </button>
-          <Link href="/dashboard/parent/analytics" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+          <Link href="/dashboard/parent/analytics" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 font-bold text-sm transition-colors">
             <MilestoneIcon size={20} />
             Milestones
           </Link>
-          <Link href="/dashboard/parent/billing" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+          <Link href="/dashboard/parent/billing" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 font-bold text-sm transition-colors">
             <CreditCardIcon size={20} />
             Subscriptions
           </Link>
-          <Link href="/dashboard/parent/account" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors">
+          <Link href="/dashboard/parent/account" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 font-bold text-sm transition-colors">
             <SettingsIcon size={20} />
             Settings
           </Link>
@@ -1130,19 +1131,20 @@ export default function ParentDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* Top bar - Mobile hamburger + right-aligned controls */}
-        <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-2 sm:py-3 flex items-center sticky top-0 z-30">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-600 hover:text-slate-900 mr-3">
+        <header className="bg-white dark:bg-slate-800/60 border-b border-slate-200 dark:border-white/10 px-3 sm:px-6 py-2 sm:py-3 flex items-center sticky top-0 z-30">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white mr-3">
             <Icon size={24} d={["M5 12h14","M5 6h14","M5 18h14"]} />
           </button>
-          <h2 className="text-sm font-black text-slate-900 hidden lg:block">Mission Control</h2>
+          <h2 className="text-sm font-black text-slate-900 dark:text-white hidden lg:block">Mission Control</h2>
           <div className="flex items-center gap-3 ml-auto">
-            <Link href="/dashboard/parent/analytics" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Analytics</Link>
-            <Link href="/dashboard/parent/billing" className="text-slate-500 hover:text-amber-600 font-bold text-sm transition-colors hidden sm:block">Billing</Link>
+            <Link href="/dashboard/parent/analytics" className="text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 font-bold text-sm transition-colors hidden sm:block">Analytics</Link>
+            <Link href="/dashboard/parent/billing" className="text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 font-bold text-sm transition-colors hidden sm:block">Billing</Link>
             <button onClick={resetTour} title="Dashboard tour"
-              className="w-8 h-8 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-sm flex items-center justify-center transition-colors border border-indigo-200">
+              className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center justify-center transition-colors border border-indigo-200 dark:border-indigo-500/30">
               ?
             </button>
-            <button onClick={() => setShowLogoutConfirm(true)} className="flex items-center gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
+            <DarkModeToggle />
+            <button onClick={() => setShowLogoutConfirm(true)} className="flex items-center gap-2 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 font-bold text-sm px-2.5 py-1.5 rounded-lg transition-colors">
               <LogOutIcon size={18} /> <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
@@ -1153,27 +1155,27 @@ export default function ParentDashboard() {
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24">
 
             {/* Welcome banner — warm gradient */}
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl border border-amber-200 p-4 sm:p-8 mb-4 sm:mb-8">
-              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 sm:mb-2">
+            <div className="bg-gradient-to-r from-amber-50 dark:from-amber-500/5 to-orange-50 dark:to-orange-500/5 rounded-xl sm:rounded-2xl border border-amber-200 dark:border-amber-500/30 p-4 sm:p-8 mb-4 sm:mb-8">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-1 sm:mb-2">
                 Welcome back, {parent?.full_name?.split(' ')[0] || 'Flight Guardian'}! 👋
               </h1>
-              <p className="text-xs sm:text-base text-slate-600 font-bold mb-3 sm:mb-4">
+              <p className="text-xs sm:text-base text-slate-600 dark:text-slate-400 font-bold mb-3 sm:mb-4">
                 You have {scholars.length} scholar{scholars.length !== 1 ? 's' : ''} {scholars.length === 1 ? 'studying' : 'studying together'} on LaunchPard
               </p>
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="bg-white rounded-lg p-2 sm:p-3 border border-amber-100">
-                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 mb-0.5 sm:mb-1">Scholars</p>
-                  <p className="text-lg sm:text-2xl font-black text-slate-900">{scholars.length}</p>
+                <div className="bg-white dark:bg-slate-800/60 rounded-lg p-2 sm:p-3 border border-amber-100 dark:border-amber-500/30">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5 sm:mb-1">Scholars</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white">{scholars.length}</p>
                 </div>
-                <div className="bg-white rounded-lg p-2 sm:p-3 border border-orange-100">
-                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-orange-600 mb-0.5 sm:mb-1">Active</p>
-                  <p className="text-lg sm:text-2xl font-black text-slate-900">—</p>
+                <div className="bg-white dark:bg-slate-800/60 rounded-lg p-2 sm:p-3 border border-orange-100 dark:border-orange-500/30">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 mb-0.5 sm:mb-1">Active</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white">—</p>
                 </div>
-                <div className="bg-white rounded-lg p-2 sm:p-3 border border-amber-100">
-                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 mb-0.5 sm:mb-1">Quizzes</p>
-                  <p className="text-lg sm:text-2xl font-black text-slate-900">{scholars.reduce((a, s) => a + (s.quizzes_this_week || s.weekly_quizzes || 0), 0)}</p>
+                <div className="bg-white dark:bg-slate-800/60 rounded-lg p-2 sm:p-3 border border-amber-100 dark:border-amber-500/30">
+                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5 sm:mb-1">Quizzes</p>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white">{scholars.reduce((a, s) => a + (s.quizzes_this_week || s.weekly_quizzes || 0), 0)}</p>
                 </div>
               </div>
 
@@ -1181,12 +1183,12 @@ export default function ParentDashboard() {
               <div className="mt-3 sm:mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
                 {/* Pro Trial card */}
                 {parent?.subscription_status === "trial" && parent?.trial_end && (
-                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <div className="bg-blue-50 dark:bg-blue-500/10 rounded-xl p-4 border border-blue-200 dark:border-blue-500/30">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-sm">🎉</div>
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-sm">🎉</div>
                       <div>
-                        <p className="text-xs font-black text-blue-900">Pro Trial Active</p>
-                        <p className="text-[10px] text-blue-500 font-semibold">
+                        <p className="text-xs font-black text-blue-900 dark:text-blue-300">Pro Trial Active</p>
+                        <p className="text-[10px] text-blue-500 dark:text-blue-400 font-semibold">
                           {(() => {
                             const daysLeft = Math.max(0, Math.ceil((new Date(parent.trial_end) - new Date()) / 864e5));
                             return daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining` : "Trial ended";
@@ -1200,7 +1202,7 @@ export default function ParentDashboard() {
                         Upgrade Now
                       </Link>
                       <Link href="/dashboard/parent/billing"
-                        className="flex-1 text-center bg-white hover:bg-blue-50 text-blue-700 font-bold py-2 rounded-lg text-xs transition-colors border border-blue-200">
+                        className="flex-1 text-center bg-white hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold py-2 rounded-lg text-xs transition-colors border border-blue-200 dark:border-blue-500/30">
                         View Plan
                       </Link>
                     </div>
@@ -1214,7 +1216,7 @@ export default function ParentDashboard() {
             </div>
 
             {error && (
-              <div className="mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700 font-bold text-sm">{error}</div>
+              <div className="mb-6 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl p-4 text-rose-700 dark:text-rose-300 font-bold text-sm">{error}</div>
             )}
 
             {/* ── Flash Update + Growth Metrics + Parent Action Tip ─── */}
@@ -1222,23 +1224,23 @@ export default function ParentDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-8">
 
                 {/* Flash Update */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-sm">⚡</div>
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-sm">⚡</div>
                     <div>
-                      <p className="text-xs font-black text-slate-900">Flash Update</p>
-                      <p className="text-[10px] text-slate-400 font-semibold">latest activity</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Flash Update</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">latest activity</p>
                     </div>
                   </div>
                   <div className="space-y-2">
                     {scholars.slice(0, 3).map(s => (
                       <div key={s.id} className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-[10px] font-bold shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">
                           {s.name?.[0]?.toUpperCase() || "?"}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-slate-700 truncate">{s.name}</p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">{s.name}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">
                             {(s.streak || 0) > 0 ? `🔥 ${s.streak}d streak` : "No activity yet"}
                             {s.total_xp ? ` · ${s.total_xp} XP` : ""}
                           </p>
@@ -1249,57 +1251,57 @@ export default function ParentDashboard() {
                 </div>
 
                 {/* Growth Metrics */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-sm">📈</div>
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 flex items-center justify-center text-sm">📈</div>
                     <div>
-                      <p className="text-xs font-black text-slate-900">Growth Metrics</p>
-                      <p className="text-[10px] text-slate-400 font-semibold">family overview</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Growth Metrics</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">family overview</p>
                     </div>
                   </div>
                   <div className="space-y-3">
                     {/* Total XP across scholars */}
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Family XP</span>
-                        <span className="text-xs font-black text-emerald-600">{scholars.reduce((a, s) => a + (s.total_xp || 0), 0).toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider">Total Family XP</span>
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 dark:text-emerald-300">{scholars.reduce((a, s) => a + (s.total_xp || 0), 0).toLocaleString()}</span>
                       </div>
                       <div className="w-full h-2 bg-emerald-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
+                        <div className="h-full bg-gradient-to-r from-emerald-400 dark:from-emerald-500 to-emerald-500 dark:to-emerald-600 rounded-full"
                           style={{ width: `${Math.min(100, (scholars.reduce((a, s) => a + (s.total_xp || 0), 0) / 5000) * 100)}%` }} />
                       </div>
                     </div>
                     {/* Average streak */}
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Streak</span>
-                        <span className="text-xs font-black text-amber-600">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider">Avg Streak</span>
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400">
                           {scholars.length > 0 ? Math.round(scholars.reduce((a, s) => a + (s.streak || 0), 0) / scholars.length) : 0} days
                         </span>
                       </div>
                       <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
+                        <div className="h-full bg-gradient-to-r from-amber-400 dark:from-amber-500 to-orange-400 dark:to-orange-500 rounded-full"
                           style={{ width: `${Math.min(100, (scholars.reduce((a, s) => a + (s.streak || 0), 0) / scholars.length / 30) * 100)}%` }} />
                       </div>
                     </div>
                     {/* Active scholars */}
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Active Scholars</span>
-                      <span className="text-xs font-black text-blue-600">{scholars.filter(s => (s.streak || 0) > 0).length}/{scholars.length}</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider">Active Scholars</span>
+                      <span className="text-xs font-black text-blue-600 dark:text-blue-400">{scholars.filter(s => (s.streak || 0) > 0).length}/{scholars.length}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Parent Action Tip */}
-                <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-200 p-4 shadow-sm">
+                <div className="bg-gradient-to-br from-violet-50 dark:from-violet-500/5 to-indigo-50 dark:to-indigo-500/5 rounded-xl border border-violet-200 dark:border-violet-500/30 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center text-sm">💡</div>
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 dark:border-violet-500/30 flex items-center justify-center text-sm">💡</div>
                     <div>
-                      <p className="text-xs font-black text-violet-900">Guardian Action Tip</p>
-                      <p className="text-[10px] text-violet-400 font-semibold">this week's focus</p>
+                      <p className="text-xs font-black text-violet-900 dark:text-violet-300">Guardian Action Tip</p>
+                      <p className="text-[10px] text-violet-400 dark:text-violet-300 font-semibold">this week's focus</p>
                     </div>
                   </div>
-                  <p className="text-sm text-violet-800 font-semibold leading-relaxed mb-3">
+                  <p className="text-sm text-violet-800 dark:text-violet-200 font-semibold leading-relaxed mb-3">
                     {(() => {
                       const lowStreakScholars = scholars.filter(s => (s.streak || 0) < 3);
                       if (lowStreakScholars.length > 0) return `Encourage ${lowStreakScholars[0].name} to build a study streak — even 10 minutes daily makes a big difference.`;
@@ -1319,24 +1321,24 @@ export default function ParentDashboard() {
             {/* ── How-To Guide: collapsible getting-started card ── */}
             {scholars.length <= 2 && (
               <details className="mb-4 sm:mb-6 group">
-                <summary className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-3 sm:p-4 cursor-pointer list-none flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                <summary className="bg-gradient-to-r from-indigo-50 dark:from-indigo-500/5 to-purple-50 dark:to-purple-500/5 rounded-xl border border-indigo-200 dark:border-indigo-500/30 p-3 sm:p-4 cursor-pointer list-none flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-base sm:text-lg">📘</div>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-indigo-100 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-base sm:text-lg">📘</div>
                     <div>
-                      <p className="text-xs sm:text-sm font-black text-indigo-900">Getting Started Guide</p>
-                      <p className="text-[10px] sm:text-[11px] text-indigo-400 font-semibold hidden sm:block">How to add a scholar, sign them in, and start their first quest</p>
+                      <p className="text-xs sm:text-sm font-black text-indigo-900 dark:text-indigo-300">Getting Started Guide</p>
+                      <p className="text-[10px] sm:text-[11px] text-indigo-400 dark:text-indigo-300 font-semibold hidden sm:block">How to add a scholar, sign them in, and start their first quest</p>
                     </div>
                   </div>
                   <ChevronDown size={18} />
                 </summary>
-                <div className="mt-2 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+                <div className="mt-2 bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-white/10 p-5 shadow-sm space-y-5">
                   {/* Step 1 */}
                   <div className="flex items-start gap-3">
                     <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
                     <div>
-                      <p className="text-sm font-black text-slate-800">Add a scholar</p>
-                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                        Click the <span className="font-bold text-indigo-600">&quot;+ Add Scholar&quot;</span> card below. Fill in their name, choose their curriculum, year level, and subjects. A unique <span className="font-bold">codename</span> and <span className="font-bold">PIN</span> will be created automatically.
+                      <p className="text-sm font-black text-slate-800 dark:text-slate-200">Add a scholar</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-0.5 leading-relaxed">
+                        Click the <span className="font-bold text-indigo-600 dark:text-indigo-400 dark:text-indigo-300">&quot;+ Add Scholar&quot;</span> card below. Fill in their name, choose their curriculum, year level, and subjects. A unique <span className="font-bold">codename</span> and <span className="font-bold">PIN</span> will be created automatically.
                       </p>
                     </div>
                   </div>
@@ -1344,9 +1346,9 @@ export default function ParentDashboard() {
                   <div className="flex items-start gap-3">
                     <span className="w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
                     <div>
-                      <p className="text-sm font-black text-slate-800">Get them signed in</p>
-                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                        Go to <span className="font-bold text-indigo-600">launchpard.com</span> on their device. On the login page, tap <span className="font-bold">&quot;Scholar&quot;</span>, then enter their codename and PIN. No email required — it&apos;s that simple.
+                      <p className="text-sm font-black text-slate-800 dark:text-slate-200">Get them signed in</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-0.5 leading-relaxed">
+                        Go to <span className="font-bold text-indigo-600 dark:text-indigo-400 dark:text-indigo-300">launchpard.com</span> on their device. On the login page, tap <span className="font-bold">&quot;Scholar&quot;</span>, then enter their codename and PIN. No email required — it&apos;s that simple.
                       </p>
                     </div>
                   </div>
@@ -1354,16 +1356,16 @@ export default function ParentDashboard() {
                   <div className="flex items-start gap-3">
                     <span className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">3</span>
                     <div>
-                      <p className="text-sm font-black text-slate-800">Start their first quest</p>
-                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      <p className="text-sm font-black text-slate-800 dark:text-slate-200">Start their first quest</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-0.5 leading-relaxed">
                         They&apos;ll see a personalised dashboard based on their age. Tap <span className="font-bold">&quot;Start Adventure&quot;</span> (or &quot;Start Mission&quot; for older kids) to begin their first AI-powered lesson. Tara the tutor will guide them through each question.
                       </p>
                     </div>
                   </div>
                   {/* Tips */}
-                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                    <p className="text-xs font-black text-amber-800 mb-1.5">Tips for guardians</p>
-                    <div className="text-xs text-amber-700 space-y-1">
+                  <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/30 rounded-xl p-3">
+                    <p className="text-xs font-black text-amber-800 dark:text-amber-200 mb-1.5">Tips for guardians</p>
+                    <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
                       <p className="flex items-start gap-1.5"><span className="shrink-0">📱</span><span>Works on phone, tablet, or laptop — no app download needed</span></p>
                       <p className="flex items-start gap-1.5"><span className="shrink-0">⏰</span><span>10-15 minutes daily is enough — consistency beats long sessions</span></p>
                       <p className="flex items-start gap-1.5"><span className="shrink-0">📊</span><span>Check this dashboard for progress reports and weekly summaries</span></p>
@@ -1376,11 +1378,11 @@ export default function ParentDashboard() {
 
             {/* School missing banner */}
             {scholarsMissingSchool.length > 0 && (
-              <div className="mb-4 bg-amber-50 border-2 border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <div className="mb-4 bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-200 dark:border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                 <span className="text-2xl shrink-0">🏫</span>
                 <div className="flex-1">
-                  <p className="font-black text-sm text-amber-900">School info needed</p>
-                  <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                  <p className="font-black text-sm text-amber-900 dark:text-amber-300">School info needed</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed">
                     {scholarsMissingSchool.length === 1
                       ? `${scholarsMissingSchool[0].name} doesn\u2019t have a school assigned yet.`
                       : `${scholarsMissingSchool.length} scholars don\u2019t have schools assigned yet.`}
@@ -1395,10 +1397,10 @@ export default function ParentDashboard() {
 
               {/* Scholar cards */}
               {scholars.length === 0 ? (
-                <div className="sm:col-span-2 lg:col-span-3 bg-white rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 p-6 sm:p-12 text-center">
+                <div className="sm:col-span-2 lg:col-span-3 bg-white dark:bg-slate-800/60 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/15 p-6 sm:p-12 text-center">
                   <p className="text-4xl sm:text-5xl mb-3 sm:mb-4">🚀</p>
-                  <p className="font-black text-lg sm:text-2xl text-slate-700 mb-1 sm:mb-2">No scholars yet</p>
-                  <p className="text-sm sm:text-base text-slate-400 font-bold">Add your first scholar to get started</p>
+                  <p className="font-black text-lg sm:text-2xl text-slate-700 dark:text-slate-300 mb-1 sm:mb-2">No scholars yet</p>
+                  <p className="text-sm sm:text-base text-slate-400 dark:text-slate-500 font-bold">Add your first scholar to get started</p>
                 </div>
               ) : (
                 scholars.map(scholar => {
@@ -1416,15 +1418,15 @@ export default function ParentDashboard() {
                       key={scholar.id}
                       className={`rounded-xl p-3 sm:p-4 shadow-sm border-2 transition-all ${
                         isArchived
-                          ? "bg-slate-50 border-slate-200 opacity-60"
+                          ? "bg-slate-50 border-slate-200 dark:border-white/10 opacity-60"
                           : `bg-white hover:shadow-md ${bandColor.border}`
                       }`}
                     >
                       {/* Archived banner */}
                       {isArchived && (
-                        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-slate-100 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-slate-100 rounded-lg border border-slate-200 dark:border-white/10">
                           <Icon size={12} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Archived — auto-deletes in 6 months</span>
+                          <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-wider">Archived — auto-deletes in 6 months</span>
                         </div>
                       )}
                       {/* Clickable header → scholar insights */}
@@ -1437,7 +1439,7 @@ export default function ParentDashboard() {
                           <span className="text-lg">{scholar.name?.[0]?.toUpperCase() || '?'}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-sm text-slate-900 group-hover:text-amber-700 transition-colors truncate">{scholar.name}</h3>
+                          <h3 className="font-black text-sm text-slate-900 dark:text-white group-hover:text-amber-700 dark:text-amber-300 transition-colors truncate">{scholar.name}</h3>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${bandColor.badge}`}>
                             {curr.country} {curr.gradeLabel} {yearLevel}
                           </span>
@@ -1447,30 +1449,30 @@ export default function ParentDashboard() {
 
                       {/* Compact stats row */}
                       <div className="grid grid-cols-3 gap-1.5 mb-3">
-                        <div className="bg-amber-50 rounded-lg p-2 border border-amber-100 text-center">
+                        <div className="bg-amber-50 dark:bg-amber-500/10 rounded-lg p-2 border border-amber-100 dark:border-amber-500/30 text-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Streak</p>
-                          <p className="text-sm font-black text-amber-700">{scholar.streak || 0}d</p>
+                          <p className="text-sm font-black text-amber-700 dark:text-amber-300">{scholar.streak || 0}d</p>
                         </div>
-                        <div className="bg-indigo-50 rounded-lg p-2 border border-indigo-100 text-center">
+                        <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-lg p-2 border border-indigo-100 dark:border-indigo-500/30 text-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Level</p>
-                          <p className="text-sm font-black text-indigo-700">{getLevelInfo(scholar.total_xp || 0).current.level}</p>
-                          <p className="text-[8px] font-bold text-indigo-400 truncate">{getLevelInfo(scholar.total_xp || 0).current.title}</p>
+                          <p className="text-sm font-black text-indigo-700 dark:text-indigo-300">{getLevelInfo(scholar.total_xp || 0).current.level}</p>
+                          <p className="text-[8px] font-bold text-indigo-400 dark:text-indigo-300 truncate">{getLevelInfo(scholar.total_xp || 0).current.title}</p>
                         </div>
-                        <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100 text-center">
+                        <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-2 border border-emerald-100 dark:border-emerald-500/30 text-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Subjects</p>
-                          <p className="text-sm font-black text-emerald-700">{subjects.length}</p>
+                          <p className="text-sm font-black text-emerald-700 dark:text-emerald-300">{subjects.length}</p>
                         </div>
                       </div>
 
                       {/* Subject pills */}
                       <div className="flex flex-wrap gap-1 mb-3">
                         {subjects.slice(0, 4).map(s => (
-                          <span key={s} className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          <span key={s} className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
                             {subjectEmoji(s)} {subjectLabel(s).slice(0, 12)}
                           </span>
                         ))}
                         {subjects.length > 4 && (
-                          <span className="inline-flex items-center bg-slate-50 text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center bg-slate-50 text-slate-400 dark:text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded">
                             +{subjects.length - 4}
                           </span>
                         )}
@@ -1479,8 +1481,8 @@ export default function ParentDashboard() {
                       {/* School missing — inline edit */}
                       {!scholar.school_id && !isArchived && (
                         editingSchoolFor === scholar.id ? (
-                          <div className="mb-3 bg-amber-50 rounded-lg p-3 border-2 border-amber-200">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">Assign School</p>
+                          <div className="mb-3 bg-amber-50 dark:bg-amber-500/10 rounded-lg p-3 border-2 border-amber-200 dark:border-amber-500/30">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 mb-2">Assign School</p>
                             {!editCreatingSchool ? (
                               <>
                                 <div className="relative">
@@ -1491,25 +1493,25 @@ export default function ParentDashboard() {
                                     onChange={e => { setEditSchoolSearch(e.target.value); if (editSchoolId) setEditSchoolId(null); }}
                                     onFocus={() => editSchoolResults.length > 0 && setEditSchoolDropOpen(true)}
                                     onBlur={() => setTimeout(() => setEditSchoolDropOpen(false), 200)}
-                                    className={`w-full px-3 py-2 bg-white border rounded-lg font-bold text-xs outline-none placeholder:text-slate-400 transition-colors pr-8 ${
-                                      editSchoolId ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200 focus:border-amber-400"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg font-bold text-xs outline-none placeholder:text-slate-400 dark:text-slate-500 transition-colors pr-8 ${
+                                      editSchoolId ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-500/10/30" : "border-slate-200 dark:border-white/10 focus:border-amber-400"
                                     }`}
                                   />
                                   {editSchoolId && (
                                     <button type="button" onClick={() => { setEditSchoolId(null); setEditSchoolSearch(""); }}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs font-black">
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-red-400 text-xs font-black">
                                       ✕
                                     </button>
                                   )}
                                 </div>
                                 {editSchoolDropOpen && editSchoolResults.length > 0 && (
-                                  <div className="mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-36 overflow-y-auto z-10 relative">
+                                  <div className="mt-1 bg-white border border-slate-200 dark:border-white/10 rounded-lg shadow-lg max-h-36 overflow-y-auto z-10 relative">
                                     {editSchoolResults.map(s => (
                                       <button key={s.id} type="button"
                                         onMouseDown={() => selectEditSchool(s)}
-                                        className="w-full text-left px-3 py-1.5 hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0">
-                                        <p className="text-xs font-bold text-slate-800">{s.name}</p>
-                                        <p className="text-[10px] text-slate-400">
+                                        className="w-full text-left px-3 py-1.5 hover:bg-amber-50 dark:bg-amber-500/10 transition-colors border-b border-slate-50 last:border-0">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{s.name}</p>
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
                                           {s.region ? `${s.region}, ` : ""}{s.country} · {s.school_type || "school"}
                                         </p>
                                       </button>
@@ -1517,18 +1519,18 @@ export default function ParentDashboard() {
                                   </div>
                                 )}
                                 {editSchoolDropOpen && editSchoolSearch.length >= 2 && editSchoolResults.length === 0 && !editSchoolId && (
-                                  <div className="mt-1 bg-white border border-slate-200 rounded-lg p-2">
-                                    <p className="text-[10px] text-slate-500 font-semibold mb-1">No schools found</p>
+                                  <div className="mt-1 bg-white border border-slate-200 dark:border-white/10 rounded-lg p-2">
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-500 font-semibold mb-1">No schools found</p>
                                     <button type="button"
                                       onMouseDown={() => { setEditCreatingSchool(true); setEditNewSchoolName(editSchoolSearch); setEditSchoolDropOpen(false); }}
-                                      className="text-[10px] font-bold text-amber-700 hover:text-amber-900">
+                                      className="text-[10px] font-bold text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:text-amber-300">
                                       + Add &quot;{editSchoolSearch}&quot; as new school
                                     </button>
                                   </div>
                                 )}
                                 {!editSchoolId && !editSchoolDropOpen && editSchoolSearch.length < 2 && (
                                   <button type="button" onClick={() => setEditCreatingSchool(true)}
-                                    className="mt-1 text-[10px] font-bold text-amber-600 hover:text-amber-800">
+                                    className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:text-amber-200">
                                     Can&apos;t find the school? Add it manually
                                   </button>
                                 )}
@@ -1536,16 +1538,16 @@ export default function ParentDashboard() {
                             ) : (
                               /* Create new school inline */
                               <div className="space-y-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Add new school</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Add new school</p>
                                 <input placeholder="School name" value={editNewSchoolName}
                                   onChange={e => setEditNewSchoolName(e.target.value)}
-                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400" />
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400 dark:text-slate-500" />
                                 <input placeholder="Region / City (optional)" value={editNewSchoolRegion}
                                   onChange={e => setEditNewSchoolRegion(e.target.value)}
-                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400" />
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-xs outline-none focus:border-amber-400 placeholder:text-slate-400 dark:text-slate-500" />
                                 <div className="flex gap-2">
                                   <select value={editNewSchoolType} onChange={e => setEditNewSchoolType(e.target.value)}
-                                    className="flex-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-amber-400">
+                                    className="flex-1 px-2 py-1.5 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-xs outline-none focus:border-amber-400">
                                     <option value="primary">Primary</option>
                                     <option value="secondary">Secondary</option>
                                     <option value="all_through">All-through</option>
@@ -1554,27 +1556,27 @@ export default function ParentDashboard() {
                                   </select>
                                   <button type="button" onClick={() => handleEditCreateSchool(scholar.curriculum)}
                                     disabled={!editNewSchoolName.trim()}
-                                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg transition-colors">
+                                    className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg transition-colors">
                                     Add
                                   </button>
                                   <button type="button" onClick={() => { setEditCreatingSchool(false); setEditNewSchoolName(""); setEditNewSchoolRegion(""); }}
-                                    className="px-2 py-1.5 text-slate-400 hover:text-slate-600 font-bold text-xs">
+                                    className="px-2 py-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400 font-bold text-xs">
                                     Back
                                   </button>
                                 </div>
                               </div>
                             )}
                             {editSchoolId && (
-                              <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ School selected</p>
+                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 dark:text-emerald-300 font-semibold mt-1">✓ School selected</p>
                             )}
                             <div className="flex gap-2 mt-2">
                               <button type="button" onClick={() => handleSaveSchoolEdit(scholar.id)}
                                 disabled={!editSchoolId || savingSchool}
-                                className="flex-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-black text-xs rounded-lg transition-colors">
+                                className="flex-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/100 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-black text-xs rounded-lg transition-colors">
                                 {savingSchool ? "Saving..." : "Save School"}
                               </button>
                               <button type="button" onClick={cancelEditSchool}
-                                className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-700 font-bold text-xs rounded-lg transition-colors">
+                                className="px-3 py-1.5 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 font-bold text-xs rounded-lg transition-colors">
                                 Cancel
                               </button>
                             </div>
@@ -1582,12 +1584,12 @@ export default function ParentDashboard() {
                         ) : (
                           <button
                             onClick={() => { cancelEditSchool(); setEditingSchoolFor(scholar.id); }}
-                            className="w-full mb-3 flex items-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-300 rounded-lg transition-colors text-left"
+                            className="w-full mb-3 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 border-2 border-dashed border-amber-300 dark:border-amber-500/40 rounded-lg transition-colors text-left"
                           >
                             <span className="text-base">🏫</span>
                             <div className="flex-1">
-                              <p className="text-[10px] font-black text-amber-800">Add School</p>
-                              <p className="text-[9px] text-amber-600 font-semibold">Assign a school to {scholar.name}</p>
+                              <p className="text-[10px] font-black text-amber-800 dark:text-amber-200">Add School</p>
+                              <p className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">Assign a school to {scholar.name}</p>
                             </div>
                             <span className="text-amber-400 text-xs font-black">+</span>
                           </button>
@@ -1595,17 +1597,17 @@ export default function ParentDashboard() {
                       )}
 
                       {/* Access code — compact */}
-                      <div className="mb-3 bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 flex justify-between items-center">
+                      <div className="mb-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg px-3 py-2 border border-indigo-100 dark:border-indigo-500/30 flex justify-between items-center">
                         <div>
                           <p className="text-[8px] font-black uppercase tracking-widest text-indigo-500">Code</p>
-                          <p className="text-xs font-black text-indigo-700 tracking-wide">{scholar.access_code}</p>
+                          <p className="text-xs font-black text-indigo-700 dark:text-indigo-300 tracking-wide">{scholar.access_code}</p>
                         </div>
                         <button
                           onClick={(e) => { e.preventDefault(); copyCode(scholar); }}
                           className={`p-1.5 rounded border transition-all ${
                             isCopied
-                              ? "bg-emerald-50 border-emerald-300 text-emerald-600"
-                              : "bg-white border-indigo-200 text-indigo-500 hover:text-indigo-700"
+                              ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 text-emerald-600 dark:text-emerald-400 dark:text-emerald-300"
+                              : "bg-white border-indigo-200 dark:border-indigo-500/30 text-indigo-500 hover:text-indigo-700 dark:text-indigo-300"
                           }`}
                           title={isCopied ? "Copied!" : "Copy code"}
                         >
@@ -1614,12 +1616,12 @@ export default function ParentDashboard() {
                       </div>
 
                       {/* Expandable insights — compact */}
-                      <div className="mb-3 border border-slate-200 rounded-lg overflow-hidden">
+                      <div className="mb-3 border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
                         <button
                           onClick={() => toggleInsights(scholar.id)}
-                          className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors"
                         >
-                          <span className="text-xs font-bold text-slate-600">Quick Progress</span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Quick Progress</span>
                           {isInsightsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         </button>
                         {isInsightsOpen && (
@@ -1644,7 +1646,7 @@ export default function ParentDashboard() {
                         {isArchived ? (
                           <button
                             onClick={() => handleRestoreScholar(scholar.id)}
-                            className="flex-1 block text-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-emerald-200 hover:border-emerald-300"
+                            className="flex-1 block text-center bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-emerald-200 hover:border-emerald-300"
                           >
                             Restore Scholar
                           </button>
@@ -1652,7 +1654,7 @@ export default function ParentDashboard() {
                           <>
                             <Link
                               href={`/dashboard/parent/scholar/${scholar.id}`}
-                              className="flex-1 block text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 hover:border-amber-300"
+                              className="flex-1 block text-center bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 text-amber-700 dark:text-amber-300 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-amber-200 dark:border-amber-500/30 hover:border-amber-300 dark:border-amber-500/40"
                             >
                               Insights
                             </Link>
@@ -1661,7 +1663,7 @@ export default function ParentDashboard() {
                                 localStorage.setItem("active_scholar", JSON.stringify(scholar));
                                 router.push("/dashboard/student");
                               }}
-                              className="flex-1 block text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-indigo-200 hover:border-indigo-300"
+                              className="flex-1 block text-center bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-300 dark:border-indigo-500/40"
                             >
                               Scholar Dashboard
                             </button>
@@ -1670,7 +1672,7 @@ export default function ParentDashboard() {
                         {!isArchived && (
                           <button
                             onClick={() => setDeletingScholar({ id: scholar.id, name: scholar.name })}
-                            className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            className="p-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 hover:bg-slate-100 dark:hover:bg-slate-700/40 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400 transition-colors"
                             title="Archive scholar"
                           >
                             <Icon size={14} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
@@ -1684,32 +1686,32 @@ export default function ParentDashboard() {
 
               {/* Add Scholar Card */}
               {scholars.length < MAX_SCHOLARS && (
-                <div className="bg-white rounded-2xl border-2 border-dashed border-amber-300 p-6 flex flex-col justify-center items-center text-center">
-                  <div className="bg-amber-50 w-16 h-16 rounded-full flex items-center justify-center mb-4 border-2 border-amber-200">
-                    <PlusIcon size={28} className="text-amber-600" />
+                <div className="bg-white dark:bg-slate-800/60 rounded-2xl border-2 border-dashed border-amber-300 dark:border-amber-500/40 p-6 flex flex-col justify-center items-center text-center">
+                  <div className="bg-amber-50 dark:bg-amber-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4 border-2 border-amber-200 dark:border-amber-500/30">
+                    <PlusIcon size={28} className="text-amber-600 dark:text-amber-400" />
                   </div>
-                  <h3 className="font-black text-lg text-slate-900 mb-1">Add Scholar</h3>
-                  <p className="text-sm text-slate-500 font-semibold mb-6">Create a new profile and access code</p>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1">Add Scholar</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-500 font-semibold mb-6">Create a new profile and access code</p>
 
                   {/* Scholar creation form */}
                   <form onSubmit={handleAddScholar} className="w-full space-y-3">
                     <input
                       type="text" required placeholder="Scholar's name" value={newName}
                       onChange={e => setNewName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400 transition-colors"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400 dark:text-slate-500 transition-colors"
                     />
                     <select value={newCurriculum} onChange={e => handleCurriculumChange(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                       {Object.entries(CURRICULA).map(([key, c]) => <option key={key} value={key}>{c.country} {c.name}</option>)}
                     </select>
                     <select value={newGrade} onChange={e => handleGradeChange(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                       {currDef.grades.map(g => <option key={g} value={g}>{currDef.gradeLabel} {g}</option>)}
                     </select>
 
                     {/* School (required — search or create) */}
                     <div className="relative">
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500 mb-1">
                         School <span className="text-red-400">*</span>
                       </label>
 
@@ -1723,13 +1725,13 @@ export default function ParentDashboard() {
                               onChange={e => { setSchoolSearch(e.target.value); if (newSchoolId) setNewSchoolId(null); }}
                               onFocus={() => schoolResults.length > 0 && setSchoolDropOpen(true)}
                               onBlur={() => setTimeout(() => setSchoolDropOpen(false), 200)}
-                              className={`w-full px-3 py-2 bg-slate-50 border rounded-lg font-bold text-sm outline-none placeholder:text-slate-400 transition-colors pr-8 ${
-                                newSchoolId ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200 focus:border-amber-400"
+                              className={`w-full px-3 py-2 bg-slate-50 border rounded-lg font-bold text-sm outline-none placeholder:text-slate-400 dark:text-slate-500 transition-colors pr-8 ${
+                                newSchoolId ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-500/10/30" : "border-slate-200 dark:border-white/10 focus:border-amber-400"
                               }`}
                             />
                             {newSchoolId && (
                               <button type="button" onClick={clearSchool}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs font-black">
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-red-400 text-xs font-black">
                                 ✕
                               </button>
                             )}
@@ -1737,13 +1739,13 @@ export default function ParentDashboard() {
 
                           {/* Dropdown results */}
                           {schoolDropOpen && schoolResults.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 dark:border-white/10 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                               {schoolResults.map(s => (
                                 <button key={s.id} type="button"
                                   onMouseDown={() => selectSchool(s)}
-                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b border-slate-50 last:border-0 transition-colors">
-                                  <span className="text-sm font-bold text-slate-800">{s.name}</span>
-                                  <span className="block text-[10px] text-slate-400 font-semibold">
+                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:bg-amber-500/10 border-b border-slate-50 last:border-0 transition-colors">
+                                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{s.name}</span>
+                                  <span className="block text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
                                     {s.region ? `${s.region}, ` : ""}{s.country} · {s.school_type || "school"}
                                   </span>
                                 </button>
@@ -1753,65 +1755,65 @@ export default function ParentDashboard() {
 
                           {/* No results + create prompt */}
                           {schoolDropOpen && schoolSearch.length >= 2 && schoolResults.length === 0 && !newSchoolId && (
-                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-center">
-                              <p className="text-xs text-slate-500 font-semibold mb-2">No schools found for &quot;{schoolSearch}&quot;</p>
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 dark:border-white/10 rounded-lg shadow-lg p-3 text-center">
+                              <p className="text-xs text-slate-500 dark:text-slate-500 font-semibold mb-2">No schools found for &quot;{schoolSearch}&quot;</p>
                               <button type="button"
                                 onMouseDown={() => { setCreatingSchool(true); setNewSchoolName(schoolSearch); setSchoolDropOpen(false); }}
-                                className="px-3 py-1.5 bg-amber-100 text-amber-800 font-black text-xs rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors">
+                                className="px-3 py-1.5 bg-amber-100 text-amber-800 dark:text-amber-200 font-black text-xs rounded-lg border border-amber-200 dark:border-amber-500/30 hover:bg-amber-200 transition-colors">
                                 + Add &quot;{schoolSearch}&quot; as new school
                               </button>
                             </div>
                           )}
 
                           {newSchoolId && (
-                            <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ School selected</p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 dark:text-emerald-300 font-semibold mt-1">✓ School selected</p>
                           )}
 
                           {/* Subtle "can't find?" link */}
                           {!newSchoolId && !schoolDropOpen && (
                             <button type="button" onClick={() => setCreatingSchool(true)}
-                              className="text-[10px] text-amber-600 font-bold mt-1 hover:underline">
+                              className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-1 hover:underline">
                               Can&apos;t find the school? Add it manually
                             </button>
                           )}
                         </>
                       ) : (
                         /* ── Create new school inline form ── */
-                        <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-3 space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Add new school</p>
+                        <div className="bg-amber-50 dark:bg-amber-500/10/50 border border-amber-200 dark:border-amber-500/30 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Add new school</p>
                           <input
                             type="text"
                             placeholder="School name"
                             value={newSchoolName}
                             onChange={e => setNewSchoolName(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400 dark:text-slate-500"
                           />
                           <input
                             type="text"
                             placeholder="City / Region (e.g. Lagos, London, Toronto)"
                             value={newSchoolRegion}
                             onChange={e => setNewSchoolRegion(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 placeholder:text-slate-400 dark:text-slate-500"
                           />
                           <div className="flex gap-2">
                             <select value={newSchoolType} onChange={e => setNewSchoolType(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer">
+                              className="flex-1 px-3 py-2 bg-white border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer">
                               <option value="primary">Primary</option>
                               <option value="secondary">Secondary</option>
                               <option value="mixed">Mixed / All-through</option>
                             </select>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-semibold">
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
                             Country auto-detected from curriculum: <strong>{curriculumCountry(newCurriculum)}</strong>
                           </p>
                           <div className="flex gap-2">
                             <button type="button" onClick={handleCreateSchool}
                               disabled={!newSchoolName.trim()}
-                              className="flex-1 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-lg border-b-2 border-amber-700 disabled:opacity-50 transition-all">
+                              className="flex-1 px-3 py-2 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 text-white font-black text-xs rounded-lg border-b-2 border-amber-700 disabled:opacity-50 transition-all">
                               Add School
                             </button>
                             <button type="button" onClick={() => { setCreatingSchool(false); setNewSchoolName(""); setNewSchoolRegion(""); }}
-                              className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors">
+                              className="px-3 py-2 bg-slate-100 text-slate-600 dark:text-slate-400 font-black text-xs rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-200 transition-colors">
                               Cancel
                             </button>
                           </div>
@@ -1823,12 +1825,12 @@ export default function ParentDashboard() {
                     {isCanadian && (
                       <>
                         <select value={newProvince} onChange={e => setNewProvince(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                           <option value="">Select province</option>
                           {CANADIAN_PROVINCES.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
                         </select>
                         {newProvince && CA_PROVINCE_EXTRAS[newProvince] && (
-                          <p className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 rounded-md px-2 py-1 border border-indigo-100">
+                          <p className="text-[10px] text-indigo-600 dark:text-indigo-400 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-500/10 rounded-md px-2 py-1 border border-indigo-100 dark:border-indigo-500/30">
                             ℹ️ {CA_PROVINCE_EXTRAS[newProvince].note}
                           </p>
                         )}
@@ -1838,14 +1840,14 @@ export default function ParentDashboard() {
                     {/* NG_SSS stream selector */}
                     {isNgSss && (
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Stream</label>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500">Stream</label>
                         <div className="grid grid-cols-3 gap-1.5">
                           {Object.entries(NG_SSS_STREAMS).map(([key, s]) => (
                             <button key={key} type="button" onClick={() => setNewStream(key)}
                               className={`p-2 rounded-lg border-2 text-center transition-all ${
                                 newStream === key
-                                  ? "border-amber-400 bg-amber-50 text-amber-900 shadow-sm"
-                                  : "border-slate-200 bg-white text-slate-500 hover:border-amber-300"
+                                  ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300 shadow-sm"
+                                  : "border-slate-200 dark:border-white/10 bg-white text-slate-500 dark:text-slate-500 hover:border-amber-300 dark:border-amber-500/40"
                               }`}>
                               <span className="text-lg block">{s.emoji}</span>
                               <span className="text-[10px] font-black">{s.label}</span>
@@ -1854,7 +1856,7 @@ export default function ParentDashboard() {
                         </div>
                         {newStream && (
                           <select value={newTrade} onChange={e => setNewTrade(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
                             <option value="">Trade subject (optional)</option>
                             {NG_SSS_TRADES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                           </select>
@@ -1865,17 +1867,17 @@ export default function ParentDashboard() {
                     {/* UK KS4 GCSE option subjects */}
                     {isUkKs4 && (
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">GCSE Options</label>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500">GCSE Options</label>
                         {UK_KS4_OPTIONS.map(group => (
                           <div key={group.group}>
-                            <p className="text-[10px] font-bold text-slate-400 mb-1">{group.emoji} {group.group}</p>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1">{group.emoji} {group.group}</p>
                             <div className="flex flex-wrap gap-1">
                               {group.subjects.map(s => (
                                 <button key={s.value} type="button" onClick={() => toggleSubject(s.value)}
                                   className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all ${
                                     selectedSubjects.includes(s.value)
-                                      ? "bg-indigo-100 border-indigo-300 text-indigo-700"
-                                      : "bg-white border-slate-200 text-slate-500 hover:border-indigo-200"
+                                      ? "bg-indigo-100 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300"
+                                      : "bg-white border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-500 hover:border-indigo-200 dark:border-indigo-500/30"
                                   }`}>
                                   {s.label}
                                 </button>
@@ -1894,16 +1896,16 @@ export default function ParentDashboard() {
                       if (eligibleExams.length === 0) return null;
                       return (
                         <div className="space-y-1.5">
-                          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Exam Prep Mode</label>
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500">Exam Prep Mode</label>
                           {eligibleExams.map(([key, def]) => (
                             <button key={key} type="button" onClick={() => setNewExamMode(newExamMode === key ? null : key)}
                               className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
                                 newExamMode === key
-                                  ? "border-amber-400 bg-amber-50"
-                                  : "border-slate-200 bg-white hover:border-amber-300"
+                                  ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10"
+                                  : "border-slate-200 dark:border-white/10 bg-white hover:border-amber-300 dark:border-amber-500/40"
                               }`}>
-                              <p className="text-xs font-black text-slate-800">{def.emoji} {def.label}</p>
-                              <p className="text-[10px] text-slate-500 font-semibold">{def.shortDesc}</p>
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-200">{def.emoji} {def.label}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-500 font-semibold">{def.shortDesc}</p>
                             </button>
                           ))}
                         </div>
@@ -1915,11 +1917,11 @@ export default function ParentDashboard() {
                       const previewSubjects = getScholarSubjects(newCurriculum, newStream, newTrade, selectedSubjects, newGrade, newExamMode, newProvince);
                       if (previewSubjects.length === 0) return null;
                       return (
-                        <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Subjects ({previewSubjects.length})</p>
+                        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2.5 border border-slate-200 dark:border-white/10">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">Subjects ({previewSubjects.length})</p>
                           <div className="flex flex-wrap gap-1">
                             {previewSubjects.map(s => (
-                              <span key={s} className="inline-flex items-center gap-0.5 bg-white text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-100">
+                              <span key={s} className="inline-flex items-center gap-0.5 bg-white text-slate-600 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-100 dark:border-white/5">
                                 {subjectEmoji(s)} {subjectLabel(s)}
                               </span>
                             ))}
@@ -1929,7 +1931,7 @@ export default function ParentDashboard() {
                     })()}
 
                     <button type="submit" disabled={isAdding || !newName.trim() || !newSchoolId || (isNgSss && !newStream)}
-                      className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
+                      className="w-full px-4 py-2.5 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
                       {isAdding ? "Creating…" : "Create Scholar"}
                     </button>
                   </form>
@@ -1938,10 +1940,10 @@ export default function ParentDashboard() {
 
               {/* Max scholars reached — contact card */}
               {scholars.length >= MAX_SCHOLARS && (
-                <div className="bg-indigo-50 rounded-2xl border-2 border-indigo-200 p-6 flex flex-col justify-center items-center text-center">
+                <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 p-6 flex flex-col justify-center items-center text-center">
                   <div className="text-4xl mb-3">🚀</div>
-                  <h3 className="font-black text-lg text-indigo-900 mb-1">Full crew aboard!</h3>
-                  <p className="text-sm text-indigo-700/70 font-semibold mb-4 leading-relaxed">
+                  <h3 className="font-black text-lg text-indigo-900 dark:text-indigo-300 mb-1">Full crew aboard!</h3>
+                  <p className="text-sm text-indigo-700 dark:text-indigo-300/70 font-semibold mb-4 leading-relaxed">
                     You've added {MAX_SCHOLARS} scholars — the maximum on your current plan. Need more? Let us know!
                   </p>
                   <button
@@ -1962,18 +1964,18 @@ export default function ParentDashboard() {
       {/* Contact Form Popup — scholar limit */}
       {showContactForm && (
         <div className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100">
-              <h2 className="font-black text-lg text-slate-900">Request More Scholars</h2>
-              <p className="text-sm text-slate-500 font-semibold mt-1">
+          <div className="bg-white dark:bg-slate-800/60 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-white/5">
+              <h2 className="font-black text-lg text-slate-900 dark:text-white">Request More Scholars</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-500 font-semibold mt-1">
                 Tell us how many scholars you need and we'll get back to you within 24 hours.
               </p>
             </div>
             {contactSent ? (
               <div className="px-6 py-8 text-center">
                 <div className="text-4xl mb-3">✅</div>
-                <p className="font-black text-slate-900 text-lg mb-2">Request sent!</p>
-                <p className="text-sm text-slate-500 font-semibold mb-4">We'll email you at {user?.email} within 24 hours.</p>
+                <p className="font-black text-slate-900 dark:text-white text-lg mb-2">Request sent!</p>
+                <p className="text-sm text-slate-500 dark:text-slate-500 font-semibold mb-4">We'll email you at {user?.email} within 24 hours.</p>
                 <button onClick={() => { setShowContactForm(false); setContactSent(false); setContactMessage(""); }}
                   className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-colors">
                   Done
@@ -1982,24 +1984,24 @@ export default function ParentDashboard() {
             ) : (
               <div className="px-6 py-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Your email</label>
-                  <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-500 mb-1">Your email</label>
+                  <div className="px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400">
                     {user?.email || "—"}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">How many additional scholars do you need?</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-500 mb-1">How many additional scholars do you need?</label>
                   <textarea
                     value={contactMessage}
                     onChange={e => setContactMessage(e.target.value)}
                     placeholder="e.g. I need 2 more scholars for my children..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-400 transition-colors resize-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold outline-none focus:border-indigo-400 transition-colors resize-none"
                     rows={3}
                   />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => { setShowContactForm(false); setContactMessage(""); }}
-                    className="flex-1 px-4 py-2.5 text-slate-600 border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                    className="flex-1 px-4 py-2.5 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     Cancel
                   </button>
                   <button
@@ -2041,22 +2043,22 @@ export default function ParentDashboard() {
       {/* Archive Scholar Confirmation Modal */}
       {deletingScholar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+          <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="text-center mb-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-3">
                 <Icon size={28} d={["M21 8V21H3V8","M1 3h22v5H1z","M10 12h4"]} />
               </div>
-              <h3 className="text-lg font-black text-slate-900">Archive Scholar?</h3>
-              <p className="text-sm text-slate-500 mt-1">
-                <span className="font-bold text-slate-700">{deletingScholar.name}</span> will be archived and greyed out. Their data is kept for 6 months, during which you can restore them. After 6 months, all data is permanently deleted.
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">Archive Scholar?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">
+                <span className="font-bold text-slate-700 dark:text-slate-300">{deletingScholar.name}</span> will be archived and greyed out. Their data is kept for 6 months, during which you can restore them. After 6 months, all data is permanently deleted.
               </p>
-              <p className="text-xs text-amber-600 font-bold mt-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-bold mt-2">
                 Note: Archived scholars still count toward your scholar limit.
               </p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeletingScholar(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                 Cancel
               </button>
               <button onClick={handleArchiveScholar}
@@ -2081,15 +2083,15 @@ export default function ParentDashboard() {
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowLogoutConfirm(false); }}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+          <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
             <div className="text-4xl mb-3">👋</div>
-            <h3 className="text-lg font-black text-slate-900 mb-2">Sign out?</h3>
-            <p className="text-sm text-slate-500 mb-6">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Sign out?</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-500 mb-6">
               You'll need to log back in to view your scholars' progress and manage your account.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                 Stay
               </button>
               <button onClick={() => { setShowLogoutConfirm(false); handleSignOut(); }}

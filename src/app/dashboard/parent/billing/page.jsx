@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -24,10 +25,10 @@ const XIcon = ({ size = 16 }) => <Icon size={size} d="M18 6 6 18M6 6l12 12" />;
 // ═══════════════════════════════════════════════════════════════════
 const StatusBadge = ({ status }) => {
   const styles = {
-    trial: "bg-blue-100 text-blue-700 border-blue-200",
-    active: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    canceled: "bg-slate-100 text-slate-600 border-slate-200",
-    expired: "bg-rose-100 text-rose-700 border-rose-200",
+    trial: "bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30",
+    active: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30",
+    canceled: "bg-slate-100 dark:bg-slate-700/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10",
+    expired: "bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30",
   };
 
   return (
@@ -139,10 +140,10 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-bold">Loading billing...</p>
+          <p className="text-slate-600 dark:text-slate-400 font-bold">Loading billing...</p>
         </div>
       </div>
     );
@@ -164,22 +165,27 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] pb-24">
+
       {/* ═══════════════════════════════════════════════════════ */}
       {/* NAVIGATION */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <nav className="bg-white border-b-4 border-slate-200 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-2 sm:gap-3 font-black text-lg sm:text-xl">
-          <img src="/logo.svg" alt="LaunchPard" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl" />
-          <span className="hidden sm:inline text-slate-900">Billing</span>
-        </div>
-        <Link
-          href="/dashboard/parent"
-          className="flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600 transition-colors px-4 py-2 rounded-xl hover:bg-slate-50"
-        >
-          <BackIcon /> <span className="hidden sm:inline">Back to Dashboard</span>
+      <nav className="bg-white dark:bg-slate-800/60 border-b-4 border-slate-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm dark:shadow-black/20">
+        <Link href="/">
+          <div className="flex items-center gap-2 sm:gap-3 font-black text-lg sm:text-xl">
+            <img src="/logo.svg" alt="LaunchPard" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl" />
+            <span className="hidden sm:inline text-slate-900 dark:text-white">Billing</span>
+          </div>
         </Link>
+        <div className="flex items-center gap-3">
+          <DarkModeToggle />
+          <Link
+            href="/dashboard/parent"
+            className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors px-4 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/40"
+          >
+            <BackIcon /> <span className="hidden sm:inline">Back to Dashboard</span>
+          </Link>
+        </div>
       </nav>
 
       <main className="max-w-4xl mx-auto px-3 sm:px-6 pt-6 sm:pt-12">
@@ -187,43 +193,43 @@ export default function BillingPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* CURRENT SUBSCRIPTION */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8 mb-4 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6">Current Subscription</h2>
-          
+        <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8 mb-4 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6 text-slate-900 dark:text-white">Current Subscription</h2>
+
           <div className="space-y-4">
             {/* Status */}
-            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100">
-              <span className="font-bold text-slate-600">Status</span>
+            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-600 dark:text-slate-300">Status</span>
               <StatusBadge status={parent?.subscription_status || 'trial'} />
             </div>
 
             {/* Plan */}
-            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100">
-              <span className="font-bold text-slate-600">Plan</span>
-              <span className="font-black text-slate-800">LaunchPard Pro</span>
+            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-600 dark:text-slate-300">Plan</span>
+              <span className="font-black text-slate-800 dark:text-white">LaunchPard Pro</span>
             </div>
 
             {/* Price */}
-            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100">
-              <span className="font-bold text-slate-600">Price</span>
-              <span className="font-black text-slate-800">
+            <div className="flex justify-between items-center py-3 border-b-2 border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-600 dark:text-slate-300">Price</span>
+              <span className="font-black text-slate-800 dark:text-white">
                 {parent?.billing_cycle === 'annual' ? '£120/year' : '£12.99/month'}
               </span>
             </div>
 
             {/* Trial End / Next Billing */}
             {parent?.subscription_status === 'trial' && trialDaysLeft !== null && (
-              <div className="flex justify-between items-center py-3 border-b-2 border-slate-100">
-                <span className="font-bold text-slate-600">Trial Ends</span>
+              <div className="flex justify-between items-center py-3 border-b-2 border-slate-100 dark:border-white/10">
+                <span className="font-bold text-slate-600 dark:text-slate-300">Trial Ends</span>
                 <div className="text-right">
-                  <span className="font-black text-slate-800">
+                  <span className="font-black text-slate-800 dark:text-white">
                     {new Date(parent.trial_end).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric'
                     })}
                   </span>
-                  <p className="text-xs text-slate-500 font-bold">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
                     {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} remaining
                   </p>
                 </div>
@@ -231,9 +237,9 @@ export default function BillingPage() {
             )}
 
             {parent?.subscription_status === 'active' && nextBillingDate && (
-              <div className="flex justify-between items-center py-3 border-b-2 border-slate-100">
-                <span className="font-bold text-slate-600">Next Billing Date</span>
-                <span className="font-black text-slate-800">
+              <div className="flex justify-between items-center py-3 border-b-2 border-slate-100 dark:border-white/10">
+                <span className="font-bold text-slate-600 dark:text-slate-300">Next Billing Date</span>
+                <span className="font-black text-slate-800 dark:text-white">
                   {nextBillingDate.toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',
@@ -245,8 +251,8 @@ export default function BillingPage() {
 
             {/* Children Included */}
             <div className="flex justify-between items-center py-3">
-              <span className="font-bold text-slate-600">Children Included</span>
-              <span className="font-black text-slate-800">Up to {parent?.max_children || 3}</span>
+              <span className="font-bold text-slate-600 dark:text-slate-300">Children Included</span>
+              <span className="font-black text-slate-800 dark:text-white">Up to {parent?.max_children || 3}</span>
             </div>
           </div>
 
@@ -254,7 +260,7 @@ export default function BillingPage() {
           {parent?.subscription_status === 'trial' && (
             <button
               onClick={handleSubscribe}
-              className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl border-b-4 border-indigo-800 transition-all active:translate-y-1 active:border-b-0"
+              className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-black py-4 rounded-2xl border-b-4 border-indigo-800 dark:border-indigo-900 transition-all active:translate-y-1 active:border-b-0"
             >
               Subscribe Now
             </button>
@@ -264,7 +270,7 @@ export default function BillingPage() {
             <div className="mt-6">
               <Link
                 href="/subscribe?upgrade=annual"
-                className="block w-full text-center bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-3 rounded-2xl border-2 border-amber-200 transition-colors"
+                className="block w-full text-center bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold py-3 rounded-2xl border-2 border-amber-200 dark:border-amber-500/30 transition-colors"
               >
                 💰 Upgrade to Annual (Save £36/year)
               </Link>
@@ -275,7 +281,7 @@ export default function BillingPage() {
             <button
               onClick={handleCancelSubscription}
               disabled={canceling}
-              className="mt-3 w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-2xl transition-colors disabled:opacity-50"
+              className="mt-3 w-full bg-slate-100 dark:bg-slate-700/40 hover:bg-slate-200 dark:hover:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-bold py-3 rounded-2xl transition-colors disabled:opacity-50"
             >
               {canceling ? 'Canceling...' : 'Cancel Subscription'}
             </button>
@@ -285,26 +291,26 @@ export default function BillingPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* BILLING HISTORY */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8">
-          <h2 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6">Billing History</h2>
-          
+        <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8">
+          <h2 className="text-2xl sm:text-3xl font-black mb-4 sm:mb-6 text-slate-900 dark:text-white">Billing History</h2>
+
           {billingHistory.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-slate-400 font-bold text-lg">No billing history yet</p>
-              <p className="text-slate-300 text-sm mt-2">Your payment history will appear here</p>
+              <p className="text-slate-400 dark:text-slate-500 font-bold text-lg">No billing history yet</p>
+              <p className="text-slate-300 dark:text-slate-600 text-sm mt-2">Your payment history will appear here</p>
             </div>
           ) : (
             <div className="space-y-3">
               {billingHistory.map((record) => (
                 <div
                   key={record.id}
-                  className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border-2 border-slate-100"
+                  className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-700/40 rounded-2xl border-2 border-slate-100 dark:border-white/10"
                 >
                   <div>
-                    <p className="font-black text-slate-800">
+                    <p className="font-black text-slate-800 dark:text-white">
                       {record.description || 'Subscription Payment'}
                     </p>
-                    <p className="text-sm text-slate-500 font-bold">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-bold">
                       {new Date(record.created_at).toLocaleDateString('en-GB', {
                         day: 'numeric',
                         month: 'short',
@@ -313,13 +319,13 @@ export default function BillingPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-lg text-slate-800">
+                    <p className="font-black text-lg text-slate-800 dark:text-white">
                       £{(record.amount / 100).toFixed(2)}
                     </p>
                     <p className={`text-xs font-bold ${
-                      record.status === 'paid' ? 'text-emerald-600' : 
-                      record.status === 'pending' ? 'text-amber-600' : 
-                      'text-rose-600'
+                      record.status === 'paid' ? 'text-emerald-600 dark:text-emerald-400' :
+                      record.status === 'pending' ? 'text-amber-600 dark:text-amber-400' :
+                      'text-rose-600 dark:text-rose-400'
                     }`}>
                       {record.status.toUpperCase()}
                     </p>
@@ -333,8 +339,8 @@ export default function BillingPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* TEST MODE NOTICE */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl">
-          <p className="text-sm text-yellow-800 font-bold text-center flex items-center justify-center gap-2">
+        <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-500/10 border-2 border-yellow-200 dark:border-yellow-500/30 rounded-2xl">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300 font-bold text-center flex items-center justify-center gap-2">
             <span>🧪</span>
             <span>Test Mode: Payment processing will be enabled soon</span>
           </p>

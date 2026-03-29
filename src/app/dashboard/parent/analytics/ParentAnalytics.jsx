@@ -81,16 +81,16 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
 
   if (!scholar) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] flex items-center justify-center p-4">
         <div className="text-center">
           <p className="text-5xl mb-4">📊</p>
-          <p className="text-xl font-bold text-slate-700 mb-4">
+          <p className="text-xl font-bold text-slate-700 dark:text-slate-300 mb-4">
             No scholars found
           </p>
-          <p className="text-slate-500 mb-6">Add a scholar from your dashboard to see their analytics.</p>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">Add a scholar from your dashboard to see their analytics.</p>
           <Link
             href="/dashboard/parent"
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition-colors"
           >
             <ArrowLeftIcon size={20} />
             Back to Dashboard
@@ -141,15 +141,15 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
   const yearLevel = scholar.year_level || scholar.year || 1;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] pb-24">
 
-      <nav className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 sticky top-0 z-50 shadow-sm">
+      <nav className="bg-white dark:bg-slate-800/60 border-b border-slate-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 sticky top-0 z-50 shadow-sm dark:shadow-black/20">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <img src="/logo.svg" alt="LaunchPard" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl" />
             <div>
-              <h1 className="font-black text-lg text-slate-900">Analytics</h1>
-              <p className="text-xs text-slate-500">{scholar.name}&apos;s Progress</p>
+              <h1 className="font-black text-lg text-slate-900 dark:text-white">Analytics</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{scholar.name}&apos;s Progress</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -160,7 +160,7 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
                 onChange={(e) => {
                   window.location.href = `/dashboard/parent/analytics?scholar=${e.target.value}`;
                 }}
-                className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-slate-100 dark:bg-slate-700/40 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                 aria-label="Select scholar"
               >
                 {scholars.map((s) => (
@@ -170,7 +170,7 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
             )}
             <Link
               href="/dashboard/parent"
-              className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 font-bold transition-colors"
+              className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold transition-colors"
             >
               <ArrowLeftIcon size={18} />
               <span className="hidden sm:inline">Back</span>
@@ -181,39 +181,39 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
 
       <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-6 sm:pt-8 space-y-4 sm:space-y-6">
 
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white">
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 dark:from-indigo-700 dark:to-violet-800 rounded-2xl p-6 text-white">
           <h2 className="text-2xl font-black mb-2">{scholar.name}</h2>
           <div className="flex flex-wrap gap-2">
-            <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
+            <span className="bg-white/20 dark:bg-white/10 px-3 py-1 rounded-full text-sm font-bold">
               {currInfo.country} {currInfo.name}
             </span>
-            <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
+            <span className="bg-white/20 dark:bg-white/10 px-3 py-1 rounded-full text-sm font-bold">
               {formatGradeLabel(yearLevel, scholar.curriculum)}
             </span>
-            <span className="bg-amber-400 text-amber-900 px-3 py-1 rounded-full text-sm font-black">
+            <span className="bg-amber-400 dark:bg-amber-500 text-amber-900 dark:text-amber-950 px-3 py-1 rounded-full text-sm font-black">
               ⭐ {scholar.total_xp || 0} XP
             </span>
           </div>
         </div>
 
         {results.length === 0 && (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+          <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-12 text-center border border-slate-200 dark:border-white/10">
             <p className="text-5xl mb-4">📊</p>
-            <p className="text-xl font-black text-slate-700 mb-2">No Quiz Data Yet</p>
-            <p className="text-slate-500">{scholar.name} hasn&apos;t completed any quizzes yet.</p>
+            <p className="text-xl font-black text-slate-700 dark:text-white mb-2">No Quiz Data Yet</p>
+            <p className="text-slate-500 dark:text-slate-400">{scholar.name} hasn&apos;t completed any quizzes yet.</p>
           </div>
         )}
 
         {results.length > 0 && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-wider mb-2">Total Quizzes</p>
-                <p className="text-4xl font-black text-indigo-600">{results.length}</p>
+              <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+                <p className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Total Quizzes</p>
+                <p className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{results.length}</p>
               </div>
-              <div className="bg-white rounded-2xl p-6 border border-slate-200">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-wider mb-2">Average Score</p>
-                <p className="text-4xl font-black text-emerald-600">
+              <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+                <p className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Average Score</p>
+                <p className="text-4xl font-black text-emerald-600 dark:text-emerald-400">
                   {Math.round(
                     results.reduce(
                       (sum, r) => sum + (r.total_questions > 0 ? (r.score / r.total_questions) * 100 : 0),
@@ -222,14 +222,14 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
                   )}%
                 </p>
               </div>
-              <div className="bg-white rounded-2xl p-6 border border-slate-200">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-wider mb-2">Subjects</p>
-                <p className="text-4xl font-black text-violet-600">{subjectStats.length}</p>
+              <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+                <p className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Subjects</p>
+                <p className="text-4xl font-black text-violet-600 dark:text-violet-400">{subjectStats.length}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
-              <h3 className="text-lg font-black text-slate-700 mb-4">Accuracy Over Time</h3>
+            <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+              <h3 className="text-lg font-black text-slate-700 dark:text-white mb-4">Accuracy Over Time</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -239,8 +239,8 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
                         <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/>
-                    <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false}/>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-white/10"/>
+                    <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
                     <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false}/>
                     <Tooltip />
                     <Area type="monotone" dataKey="accuracy" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorAccuracy)"/>
@@ -250,8 +250,8 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
             </div>
 
             {/* Subject breakdown */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
-              <h3 className="text-lg font-black text-slate-700 mb-4">By Subject</h3>
+            <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-slate-200 dark:border-white/10">
+              <h3 className="text-lg font-black text-slate-700 dark:text-white mb-4">By Subject</h3>
               <div className="space-y-3">
                 {subjectStats
                   .sort((a, b) => b.avgAccuracy - a.avgAccuracy)
@@ -260,14 +260,14 @@ export default function ParentAnalytics({ scholar, scholars = [], results }) {
                       <span className="text-xl w-8 text-center">{icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-bold text-slate-700 capitalize">
+                          <span className="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize">
                             {subject.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                           </span>
-                          <span className="text-sm font-black text-slate-500 ml-2">
+                          <span className="text-sm font-black text-slate-500 dark:text-slate-400 ml-2">
                             {avgAccuracy}% · {quizzesTaken} quiz{quizzesTaken !== 1 ? "zes" : ""}
                           </span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-slate-100 dark:bg-slate-700/40 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-700"
                             style={{

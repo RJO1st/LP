@@ -1,6 +1,7 @@
 
 import './globals.css'
 import Script from 'next/script';
+import DarkModeProvider from '@/components/theme/DarkModeProvider';
 
 
 
@@ -10,14 +11,20 @@ export const metadata = {
   icons: {
     icon: '/favicon.svg',
     apple: '/logo192.png',
-    
+
   },
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Prevent flash of wrong theme — runs before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var d=localStorage.getItem('lp-dark-mode');if(d==='true'||(d===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
+          }}
+        />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&family=DM+Sans:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
@@ -35,7 +42,9 @@ export default function RootLayout({ children }) {
           gtag('config', 'G-ZFZN7XZ36Y');
         `}
       </Script>
-      <body>{children}</body>
+      <body>
+        <DarkModeProvider>{children}</DarkModeProvider>
+      </body>
     </html>
   )
 }

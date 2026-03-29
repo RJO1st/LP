@@ -26,6 +26,15 @@ body {
   /* Font is handled by layout.jsx */
   background-color: var(--starlight);
   color: var(--slate-900);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Dark mode overrides for LaunchPard brand variables */
+.dark {
+  --starlight: #0f172a;
+  --slate-900: #f1f5f9;
+  --slate-200: #334155;
+  --slate-100: #1e293b;
 }
 
 /* Dashboard pages: let band-specific backgrounds take precedence.

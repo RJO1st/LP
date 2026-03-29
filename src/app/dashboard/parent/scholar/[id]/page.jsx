@@ -85,12 +85,12 @@ const TIME_PERIODS = [{ label: "Week", value: "week" }, { label: "Month", value:
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ icon, label, value, sub }) => (
-  <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
-    <div className="p-2 sm:p-2.5 rounded-xl bg-slate-100 text-slate-600 shrink-0">{icon}</div>
+  <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
+    <div className="p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/40 text-slate-600 dark:text-slate-400 shrink-0">{icon}</div>
     <div className="min-w-0">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 truncate">{label}</p>
-      <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{value}</p>
-      {sub && <p className="text-[11px] font-bold text-slate-400 mt-1">{sub}</p>}
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 truncate">{label}</p>
+      <p className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white leading-none">{value}</p>
+      {sub && <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400 mt-1">{sub}</p>}
     </div>
   </div>
 );
@@ -171,23 +171,23 @@ export default function ScholarInsights({ params }) {
   const needsWorkCount= skills.filter(s => s.score < 50 && (s.attempts || 0) > 0).length;
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] flex items-center justify-center">
       <div className="w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] font-sans pb-24">
 
       {/* NAV */}
-      <nav className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 sticky top-0 z-50 shadow-sm">
-        <Link href="/dashboard/parent" className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-bold transition-colors">
+      <nav className="bg-white dark:bg-slate-800/60 border-b border-slate-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 sticky top-0 z-50 shadow-sm dark:shadow-black/20">
+        <Link href="/dashboard/parent" className="flex items-center gap-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold transition-colors">
           <ArrowLeftIcon /> <span className="hidden sm:inline">Mission Control</span>
         </Link>
-        <div className="w-px h-5 bg-slate-200" />
-        <span className="font-black text-slate-800 text-lg truncate">{scholar?.name}</span>
+        <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
+        <span className="font-black text-slate-800 dark:text-white text-lg truncate">{scholar?.name}</span>
         {currInfo && (
-          <span className="ml-auto hidden sm:flex items-center gap-1.5 bg-slate-100 text-slate-600 font-bold px-3 py-1.5 rounded-xl text-xs">
+          <span className="ml-auto hidden sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300 font-bold px-3 py-1.5 rounded-xl text-xs">
             {currInfo.country} {currInfo.name} · {currInfo.gradeLabel} {scholar?.year}
           </span>
         )}
@@ -196,21 +196,21 @@ export default function ScholarInsights({ params }) {
       <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-6 sm:pt-10">
 
         {/* SCHOLAR HERO */}
-        <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[40px] p-4 sm:p-8 mb-4 sm:mb-8">
+        <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[40px] p-4 sm:p-8 mb-4 sm:mb-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 mb-2 sm:mb-3">{scholar?.name}</h1>
+              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">{scholar?.name}</h1>
               <div className="flex flex-wrap items-center gap-2">
                 {currInfo && <>
-                  <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-sm">
+                  <span className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/40 text-slate-700 dark:text-slate-300 font-bold px-3 py-1.5 rounded-xl text-sm">
                     {currInfo.country} {currInfo.name}
                   </span>
-                  <span className="bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-sm">
+                  <span className="bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-xl text-sm">
                     {currInfo.gradeLabel} {scholar?.year}
                   </span>
                 </>}
                 {levelInfo && (
-                  <span className="bg-amber-100 text-amber-700 font-bold px-3 py-1.5 rounded-xl text-sm">
+                  <span className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold px-3 py-1.5 rounded-xl text-sm">
                     ⚡ Lv.{levelInfo.current.level} {levelInfo.current.title}
                   </span>
                 )}
@@ -220,17 +220,17 @@ export default function ScholarInsights({ params }) {
             {/* XP + Level bar */}
             <div className="text-right shrink-0">
               <div className="flex items-baseline gap-1.5 justify-end mb-2">
-                <span className="text-xl sm:text-3xl font-black text-amber-600">{(scholar?.total_xp || 0).toLocaleString()}</span>
-                <span className="text-sm font-bold text-slate-400">XP</span>
+                <span className="text-xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">{(scholar?.total_xp || 0).toLocaleString()}</span>
+                <span className="text-sm font-bold text-slate-400 dark:text-slate-500">XP</span>
               </div>
               {levelInfo?.next && (
                 <div className="w-32 sm:w-44">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1">
                     <span>Lv.{levelInfo.current.level}</span>
                     <span>{levelInfo.progressPct}% → Lv.{levelInfo.next.level}</span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400 rounded-full transition-all duration-700" style={{ width: `${levelInfo.progressPct}%` }} />
+                  <div className="h-2 bg-slate-100 dark:bg-slate-700/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-400 dark:bg-amber-500 rounded-full transition-all duration-700" style={{ width: `${levelInfo.progressPct}%` }} />
                   </div>
                 </div>
               )}
@@ -238,7 +238,7 @@ export default function ScholarInsights({ params }) {
           </div>
 
           {/* Subject averages */}
-          <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100">
+          <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100 dark:border-white/10">
             {subjects.map(s => {
               const m   = SUBJECT_META[s] || { emoji: "📚", label: titleCase(s), color: "bg-slate-100 text-slate-700" };
               const arr = skills.filter(sk => sk.subject === s);
@@ -266,7 +266,7 @@ export default function ScholarInsights({ params }) {
           {TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap transition-all
-                ${activeTab === tab ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-white text-slate-500 border-2 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"}`}
+                ${activeTab === tab ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-black/20" : "bg-white dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-2 border-slate-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:text-indigo-600 dark:hover:text-indigo-400"}`}
             >
               {tab}
             </button>
@@ -278,31 +278,31 @@ export default function ScholarInsights({ params }) {
           <div className="space-y-6">
 
             {/* Exam Readiness (visible for all scholars) */}
-            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-              <h3 className="font-black text-lg text-slate-800 mb-4">🎯 Exam Readiness</h3>
+            <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+              <h3 className="font-black text-lg text-slate-800 dark:text-white mb-4">🎯 Exam Readiness</h3>
               <ReadinessScore scholarId={id} supabase={supabase} />
             </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Subject bars */}
-            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-              <h3 className="font-black text-lg text-slate-800 mb-4">Subject Breakdown</h3>
-              {subjects.length === 0 ? <p className="text-slate-400 text-sm font-bold">No data yet.</p> : (
+            <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+              <h3 className="font-black text-lg text-slate-800 dark:text-white mb-4">Subject Breakdown</h3>
+              {subjects.length === 0 ? <p className="text-slate-400 dark:text-slate-500 text-sm font-bold">No data yet.</p> : (
                 <div className="space-y-4">
                   {subjects.map(s => {
                     const m   = SUBJECT_META[s] || { emoji: "📚", label: titleCase(s) };
                     const arr = skills.filter(sk => sk.subject === s);
                     const avg = arr.length > 0 ? Math.round(arr.reduce((sum, sk) => sum + sk.score, 0) / arr.length) : 0;
-                    const bar = avg >= 80 ? "bg-emerald-400" : avg >= 60 ? "bg-lime-400" : avg >= 40 ? "bg-amber-400" : "bg-red-400";
-                    const txt = avg >= 80 ? "text-emerald-600" : avg >= 60 ? "text-lime-600" : avg >= 40 ? "text-amber-600" : "text-red-500";
+                    const bar = avg >= 80 ? "bg-emerald-400 dark:bg-emerald-500" : avg >= 60 ? "bg-lime-400 dark:bg-lime-500" : avg >= 40 ? "bg-amber-400 dark:bg-amber-500" : "bg-red-400 dark:bg-red-500";
+                    const txt = avg >= 80 ? "text-emerald-600 dark:text-emerald-400" : avg >= 60 ? "text-lime-600 dark:text-lime-400" : avg >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400";
                     return (
                       <div key={s}>
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className="font-bold text-sm text-slate-700">{m.emoji} {m.label}</span>
+                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{m.emoji} {m.label}</span>
                           <span className={`text-sm font-black ${txt}`}>{avg > 0 ? `${avg}%` : "—"}</span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-slate-100 dark:bg-slate-700/40 rounded-full overflow-hidden">
                           <div className={`h-full ${bar} rounded-full transition-all duration-700`} style={{ width: `${avg}%` }} />
                         </div>
                       </div>
@@ -313,16 +313,16 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Strongest topics */}
-            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-              <h3 className="font-black text-lg text-slate-800 mb-4">🌟 Strongest Topics</h3>
-              {skills.length === 0 ? <p className="text-slate-400 text-sm font-bold">Complete some quests first.</p> : (
+            <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+              <h3 className="font-black text-lg text-slate-800 dark:text-white mb-4">🌟 Strongest Topics</h3>
+              {skills.length === 0 ? <p className="text-slate-400 dark:text-slate-500 text-sm font-bold">Complete some quests first.</p> : (
                 <div className="space-y-1">
                   {[...skills].sort((a, b) => b.score - a.score).slice(0, 6).map((sk, i) => {
                     const m = SUBJECT_META[sk.subject] || { emoji: "📚" };
                     return (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                        <span className="font-bold text-sm text-slate-700">{m.emoji} {titleCase(sk.topic)}</span>
-                        <span className="font-black text-emerald-600 text-sm bg-emerald-50 px-2.5 py-0.5 rounded-lg">{sk.score}%</span>
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-white/5 last:border-0">
+                        <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{m.emoji} {titleCase(sk.topic)}</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">{sk.score}%</span>
                       </div>
                     );
                   })}
@@ -331,18 +331,18 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Needs work */}
-            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-              <h3 className="font-black text-lg text-slate-800 mb-4">🎯 Areas to Improve</h3>
+            <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+              <h3 className="font-black text-lg text-slate-800 dark:text-white mb-4">🎯 Areas to Improve</h3>
               {skills.filter(s => s.score < 60 && (s.attempts || 0) > 0).length === 0 ? (
-                <p className="text-slate-400 text-sm font-bold">{skills.length === 0 ? "No data yet." : "Everything's looking great! 🎉"}</p>
+                <p className="text-slate-400 dark:text-slate-500 text-sm font-bold">{skills.length === 0 ? "No data yet." : "Everything's looking great! 🎉"}</p>
               ) : (
                 <div className="space-y-1">
                   {[...skills].filter(s => s.score < 60 && (s.attempts || 0) > 0).sort((a, b) => a.score - b.score).slice(0, 6).map((sk, i) => {
                     const m   = SUBJECT_META[sk.subject] || { emoji: "📚" };
-                    const cls = sk.score < 40 ? "text-red-600 bg-red-50" : "text-amber-600 bg-amber-50";
+                    const cls = sk.score < 40 ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10" : "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10";
                     return (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                        <span className="font-bold text-sm text-slate-700">{m.emoji} {titleCase(sk.topic)}</span>
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-white/5 last:border-0">
+                        <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{m.emoji} {titleCase(sk.topic)}</span>
                         <span className={`font-black text-sm px-2.5 py-0.5 rounded-lg ${cls}`}>{sk.score}%</span>
                       </div>
                     );
@@ -352,18 +352,18 @@ export default function ScholarInsights({ params }) {
             </div>
 
             {/* Week snapshot */}
-            <div className="bg-white border-2 sm:border-4 border-slate-100 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-              <h3 className="font-black text-lg text-slate-800 mb-4">📅 This Week</h3>
+            <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+              <h3 className="font-black text-lg text-slate-800 dark:text-white mb-4">📅 This Week</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-indigo-50 rounded-2xl p-4 text-center">
-                  <p className="text-3xl font-black text-indigo-600">{weeklyMinutes}</p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mt-1">Minutes studied</p>
+                <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{weeklyMinutes}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 dark:text-indigo-500 mt-1">Minutes studied</p>
                 </div>
-                <div className="bg-amber-50 rounded-2xl p-4 text-center">
-                  <p className="text-3xl font-black text-amber-600">
+                <div className="bg-amber-50 dark:bg-amber-500/10 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-black text-amber-600 dark:text-amber-400">
                     {timeData.filter(d => (d.minutes || 0) > 0).length}
                   </p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mt-1">Active days</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 dark:text-amber-500 mt-1">Active days</p>
                 </div>
               </div>
             </div>
@@ -381,7 +381,7 @@ export default function ScholarInsights({ params }) {
               {TIME_PERIODS.map(tp => (
                 <button key={tp.value} onClick={() => setPeriod(tp.value)}
                   className={`px-4 py-2 rounded-xl font-bold text-sm transition-all
-                    ${period === tp.value ? "bg-indigo-600 text-white" : "bg-white border-2 border-slate-200 text-slate-500 hover:border-indigo-300"}`}
+                    ${period === tp.value ? "bg-indigo-600 text-white" : "bg-white dark:bg-slate-800/60 border-2 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500/30"}`}
                 >
                   {tp.label}
                 </button>

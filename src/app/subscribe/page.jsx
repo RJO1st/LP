@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ─── LOGO (uses correct brand SVG) ──────────────────────────────────────────
 const LogoIcon = ({ className = "w-8 h-8" }) => (
@@ -10,7 +11,7 @@ const LogoIcon = ({ className = "w-8 h-8" }) => (
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LAUNCHPARD SUBSCRIBE PAGE - SPACE EXPLORATION THEME
+// LAUNCHPARD SUBSCRIBE PAGE - UNIFIED DARK SPACE THEME
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function SubscribePage() {
@@ -42,25 +43,30 @@ export default function SubscribePage() {
   }, [router, supabase]);
 
   const handleCheckout = async () => {
-  setLoading(true);
-  // Simulate a successful activation
-  setTimeout(() => {
-    window.location.href = "/dashboard/parent?success=true";
-  }, 1000);
-};
+    setLoading(true);
+    // Simulate a successful activation
+    setTimeout(() => {
+      window.location.href = "/dashboard/parent?success=true";
+    }, 1000);
+  };
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#0a0e27] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0e27] text-white font-sans overflow-hidden relative">
-      {/* Stars background */}
-      <div className="fixed inset-0 z-0">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] text-slate-900 dark:text-white font-sans overflow-hidden relative">
+      {/* Dark Mode Toggle */}
+      <div className="fixed top-6 right-6 z-50">
+        <DarkModeToggle />
+      </div>
+
+      {/* Stars background — only visible in dark mode */}
+      <div className="fixed inset-0 z-0 hidden dark:block">
         {[...Array(100)].map((_, i) => {
           const left = (pseudoRandom(i, 1) * 100).toFixed(3);
           const top = (pseudoRandom(i, 2) * 100).toFixed(3);
@@ -81,9 +87,9 @@ export default function SubscribePage() {
         })}
       </div>
 
-      {/* Gradient orbs */}
-      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-3xl animate-float" />
-      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-float-delayed" />
+      {/* Gradient orbs — only visible in dark mode */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/15 rounded-full blur-3xl animate-float hidden dark:block" />
+      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-3xl animate-float-delayed hidden dark:block" />
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16">
@@ -91,34 +97,34 @@ export default function SubscribePage() {
         <div className="text-center mb-8 sm:mb-16 animate-fade-in-up">
           <div className="inline-block mb-4 sm:mb-6">
             <div className="relative">
-              <div className="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-6xl lg:text-7xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-shimmer">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-6xl lg:text-7xl font-black bg-gradient-to-r from-indigo-600 dark:from-indigo-400 to-indigo-700 dark:to-indigo-500 bg-clip-text text-transparent animate-shimmer">
                 <LogoIcon className="w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20 flex-shrink-0" />
                 LaunchPard
               </div>
-              <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-30 blur-2xl -z-10" />
+              <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-indigo-600 opacity-20 blur-2xl -z-10" />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black mb-4 sm:mb-6 leading-tight">
-            Mission: Transform Your
+          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black mb-4 sm:mb-6 leading-tight text-slate-900 dark:text-white">
+            See the Difference
             <br />
-            <span className="text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
-              Child's Learning
+            <span className="text-transparent bg-gradient-to-r from-indigo-600 dark:from-indigo-400 to-indigo-700 dark:to-indigo-500 bg-clip-text">
+              in a Week
             </span>
           </h1>
-          <p className="text-base sm:text-xl lg:text-2xl text-slate-300 max-w-3xl mx-auto font-medium mb-6 sm:mb-8 px-2">
-            AI-powered education across 6 global curricula. One platform, unlimited potential.
+          <p className="text-base sm:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto font-medium mb-6 sm:mb-8 px-2">
+            AI that adapts to your child's age, curriculum, and level.
           </p>
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-slate-400">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-slate-700 dark:text-slate-400">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-yellow-400">⭐⭐⭐⭐⭐</span>
               <span>4.9/5 rating</span>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-green-400">✓</span>
-              <span>3,000+ families</span>
+              <span className="text-green-500 dark:text-green-400">✓</span>
+              <span>Thousands of families</span>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-blue-400">🚀</span>
+              <span className="text-blue-500 dark:text-blue-400">🚀</span>
               <span>15,000+ questions</span>
             </div>
           </div>
@@ -126,13 +132,13 @@ export default function SubscribePage() {
 
         {/* Billing Toggle */}
         <div className="flex justify-center mb-8 sm:mb-12 animate-fade-in-up animation-delay-200">
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-full p-1 sm:p-1.5 border border-slate-700">
+          <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-full p-1 sm:p-1.5 border border-slate-200 dark:border-white/10">
             <button
               onClick={() => setBillingCycle("monthly")}
               className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-sm font-bold transition-all ${
                 billingCycle === "monthly"
-                  ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/50"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/50"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/10"
               }`}
             >
               Monthly
@@ -141,8 +147,8 @@ export default function SubscribePage() {
               onClick={() => setBillingCycle("annual")}
               className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-sm font-bold transition-all relative ${
                 billingCycle === "annual"
-                  ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/50"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/50"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/10"
               }`}
             >
               Annual
@@ -156,41 +162,41 @@ export default function SubscribePage() {
         {/* Pricing Card */}
         <div className="max-w-2xl mx-auto mb-10 sm:mb-16 animate-fade-in-up animation-delay-400">
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700 overflow-hidden">
-              <div className="absolute top-0 right-0 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black px-6 py-2 rounded-bl-2xl">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-indigo-600 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
+            <div className="relative bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-[20px] border border-slate-200 dark:border-white/10 shadow-lg dark:shadow-none overflow-hidden">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-black px-6 py-2 rounded-bl-2xl">
                 🔥 MOST POPULAR
               </div>
               <div className="p-5 sm:p-8 md:p-12">
                 <div className="flex items-center gap-3 mb-4 sm:mb-6">
                   <LogoIcon className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
                   <div>
-                    <h3 className="text-xl sm:text-3xl font-black text-white">LaunchPard Pro</h3>
-                    <p className="text-slate-400 text-sm">Everything included</p>
+                    <h3 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">LaunchPard Pro</h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">Everything included</p>
                   </div>
                 </div>
                 <div className="mb-6 sm:mb-8">
                   {billingCycle === "monthly" ? (
                     <>
                       <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl sm:text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
+                        <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
                           £12.99
                         </span>
-                        <span className="text-lg sm:text-2xl text-slate-400 font-medium">/month</span>
+                        <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/month</span>
                       </div>
-                      <p className="text-slate-400">Billed monthly • Cancel anytime</p>
+                      <p className="text-slate-600 dark:text-slate-400">Billed monthly • Cancel anytime</p>
                     </>
                   ) : (
                     <>
                       <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl sm:text-6xl font-black text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
+                        <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
                           £120
                         </span>
-                        <span className="text-lg sm:text-2xl text-slate-400 font-medium">/year</span>
+                        <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/year</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400">£10/month</span>
-                        <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
+                        <span className="text-slate-600 dark:text-slate-400">£10/month</span>
+                        <span className="bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full">
                           Save £35.88
                         </span>
                       </div>
@@ -200,45 +206,45 @@ export default function SubscribePage() {
                 <button
                   onClick={handleCheckout}
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-black text-lg py-5 rounded-2xl shadow-2xl shadow-purple-500/50 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group mb-4"
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg py-5 rounded-2xl shadow-2xl shadow-indigo-500/40 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group mb-4"
                 >
                   <span className="relative z-10">
-                    {loading ? "Processing..." : "🚀 Start 30-Day Free Trial"}
+                    {loading ? "Processing..." : "🚀 Start 30-Day Pro Trial"}
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
                 </button>
-                 <p className="text-center text-xs text-slate-400 mb-4">
+                <p className="text-center text-xs text-slate-600 dark:text-slate-400 mb-4">
                   No credit card required • Cancel anytime
                 </p>
                 <div className="flex justify-center gap-4 mb-8">
                   <button
                     onClick={() => router.push("/dashboard/parent")}
-                    className="text-sm text-slate-400 hover:text-white font-semibold transition-colors underline"
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition-colors underline"
                   >
                     ← Back to dashboard
                   </button>
-                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400 dark:text-slate-600">|</span>
                   <button
                     onClick={() => router.push("/")}
-                    className="text-sm text-slate-400 hover:text-white font-semibold transition-colors underline"
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition-colors underline"
                   >
                     Homepage
                   </button>
                 </div>
                 <div className="space-y-4">
                   {[
-                    { icon: "✨", text: "Unlimited questions & mock tests", color: "from-yellow-400 to-orange-500" },
-                    { icon: "🌍", text: "All 6 curricula (UK, US, AU, IB, WAEC, NG)", color: "from-blue-400 to-cyan-500" },
-                    { icon: "🤖", text: "AI-powered adaptive learning", color: "from-purple-400 to-pink-500" },
-                    { icon: "👨‍👩‍👧", text: "Up to 3 children included", color: "from-green-400 to-emerald-500" },
-                    { icon: "🎮", text: "Full gamification (badges, streaks, quests)", color: "from-indigo-400 to-purple-500" },
-                    { icon: "📊", text: "Advanced guardian dashboard & reports", color: "from-cyan-400 to-blue-500" },
+                    { icon: "✨", text: "Unlimited questions & mock tests" },
+                    { icon: "🌍", text: "All 6 curricula (UK, US, AU, IB, WAEC, NG)" },
+                    { icon: "🤖", text: "AI tutor that adapts to each child's level" },
+                    { icon: "👨‍👩‍👧", text: "Up to 3 children included" },
+                    { icon: "🎮", text: "Full gamification (badges, streaks, quests)" },
+                    { icon: "📊", text: "Advanced guardian dashboard & reports" },
                   ].map((feature, i) => (
                     <div key={i} className="flex items-center gap-3 group/item">
-                      <div className={`text-2xl bg-gradient-to-r ${feature.color} bg-clip-text text-transparent`}>
+                      <div className="text-2xl bg-slate-200/10 dark:bg-white/5 rounded-xl p-2 flex items-center justify-center w-8 h-8">
                         {feature.icon}
                       </div>
-                      <span className="text-slate-200 group-hover/item:text-white transition-colors">
+                      <span className="text-slate-700 dark:text-slate-200 group-hover/item:text-slate-900 dark:group-hover/item:text-white transition-colors">
                         {feature.text}
                       </span>
                     </div>
@@ -251,38 +257,38 @@ export default function SubscribePage() {
 
         {/* Comparison Section */}
         <div className="max-w-5xl mx-auto mb-10 sm:mb-16 animate-fade-in-up animation-delay-600">
-          <h2 className="text-2xl sm:text-3xl font-black text-center mb-6 sm:mb-8">Why LaunchPard?</h2>
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-700 overflow-hidden">
+          <h2 className="text-2xl sm:text-3xl font-black text-center mb-6 sm:mb-8 text-slate-900 dark:text-white">Why LaunchPard?</h2>
+          <div className="bg-white dark:bg-slate-800/30 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-white/10 overflow-hidden">
             <div className="overflow-x-auto -mx-px">
               <table className="w-full min-w-[540px]">
                 <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left p-3 sm:p-6 text-slate-400 font-medium text-xs sm:text-sm">Feature</th>
+                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/30">
+                    <th className="text-left p-3 sm:p-6 text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Feature</th>
                     <th className="p-3 sm:p-6 text-center">
-                      <div className="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-black text-xs sm:text-sm">
+                      <div className="inline-block bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-black text-xs sm:text-sm">
                         LaunchPard
                       </div>
                     </th>
-                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Atom</th>
-                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Prodigy</th>
-                    <th className="p-3 sm:p-6 text-center text-slate-400 font-medium text-xs sm:text-sm">Tutor</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Atom</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Prodigy</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Tutor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
                     ["Price", "£12.99/mo", "£29.99/mo", "$14.95/mo", "£60/hr"],
                     ["Multi-curriculum", "✅ 6 curricula", "❌ UK only", "❌ US only", "✓ Varies"],
-                    ["AI-powered", "✅", "✅", "Partial", "❌"],
+                    ["AI tutor", "✅", "✅", "Partial", "❌"],
                     ["Unlimited tests", "✅", "✅ (Plus)", "❌", "❌"],
                     ["Multiple children", "✅ Up to 3", "❌", "❌", "❌"],
                     ["Gamification", "✅ Full", "❌", "✅", "❌"],
                   ].map((row, i) => (
-                    <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
-                      <td className="p-3 sm:p-6 font-medium text-slate-200 text-xs sm:text-sm">{row[0]}</td>
-                      <td className="p-3 sm:p-6 text-center font-bold text-green-400 text-xs sm:text-sm">{row[1]}</td>
-                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[2]}</td>
-                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[3]}</td>
-                      <td className="p-3 sm:p-6 text-center text-slate-400 text-xs sm:text-sm">{row[4]}</td>
+                    <tr key={i} className="border-b border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
+                      <td className="p-3 sm:p-6 font-medium text-slate-700 dark:text-slate-200 text-xs sm:text-sm">{row[0]}</td>
+                      <td className="p-3 sm:p-6 text-center font-bold text-green-600 dark:text-green-400 text-xs sm:text-sm">{row[1]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 text-xs sm:text-sm">{row[2]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 text-xs sm:text-sm">{row[3]}</td>
+                      <td className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 text-xs sm:text-sm">{row[4]}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -293,7 +299,7 @@ export default function SubscribePage() {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto animate-fade-in-up animation-delay-800">
-          <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 sm:mb-12">Frequently Asked Questions</h2>
+          <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 sm:mb-12 text-slate-900 dark:text-white">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {[
               {
@@ -302,7 +308,7 @@ export default function SubscribePage() {
               },
               {
                 q: "Can I use it for multiple children?",
-                a: "Yes! LaunchPard Pro includes up to 3 children at no extra cost. Perfect for families with multiple learners."
+                a: "Yes. LaunchPard Pro includes up to 3 children at no extra cost. Each child gets their own profile, curriculum, and progress tracking."
               },
               {
                 q: "How does the 30-day free trial work?",
@@ -310,19 +316,19 @@ export default function SubscribePage() {
               },
               {
                 q: "Can I cancel anytime?",
-                a: "Absolutely! Cancel anytime from your account settings. No questions asked, no cancellation fees."
+                a: "Yes. Cancel anytime from your account settings. No questions asked, no cancellation fees."
               },
               {
                 q: "How is this different from a tutor?",
-                a: "Private tutors cost £60+/hour for 1-2 sessions per week. LaunchPard gives unlimited practice, instant feedback, and adaptive learning for £12.99/month. It's like having a tutor available 24/7."
+                a: "Private tutors cost £60+/hour for 1-2 sessions per week. LaunchPard gives unlimited practice, instant feedback, and adaptive difficulty for £12.99/month. Your child can practise at 10pm on a Sunday if they want to."
               }
             ].map((faq, i) => (
-              <details key={i} className="group bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700 overflow-hidden">
-                <summary className="p-4 sm:p-6 cursor-pointer list-none font-bold text-sm sm:text-lg hover:text-cyan-400 transition-colors flex justify-between items-center gap-2">
+              <details key={i} className="group bg-white dark:bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-none overflow-hidden">
+                <summary className="p-4 sm:p-6 cursor-pointer list-none font-bold text-sm sm:text-lg text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex justify-between items-center gap-2">
                   {faq.q}
-                  <span className="text-slate-400 group-open:rotate-180 transition-transform shrink-0">▼</span>
+                  <span className="text-slate-600 dark:text-slate-400 group-open:rotate-180 transition-transform shrink-0">▼</span>
                 </summary>
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6 text-slate-300 leading-relaxed text-sm sm:text-base">
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 text-slate-700 dark:text-slate-300 leading-relaxed text-sm sm:text-base">
                   {faq.a}
                 </div>
               </details>
@@ -335,11 +341,11 @@ export default function SubscribePage() {
           <button
             onClick={handleCheckout}
             disabled={loading}
-            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-base sm:text-xl px-8 sm:px-12 py-4 sm:py-6 rounded-2xl shadow-2xl shadow-cyan-500/50 transform hover:scale-105 transition-all disabled:opacity-50"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-black text-base sm:text-xl px-8 sm:px-12 py-4 sm:py-6 rounded-2xl shadow-2xl shadow-indigo-500/40 transform hover:scale-105 transition-all disabled:opacity-50"
           >
-            🚀 Launch Your Learning Journey
+            🚀 Start Your Child's Pro Trial
           </button>
-          <p className="mt-4 text-slate-400">Join 3,000+ families already on their mission</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">30-day trial. No card needed. Cancel anytime.</p>
         </div>
       </div>
 

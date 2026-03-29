@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SampleQuiz from "../SampleQuiz";
+import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ─── SUBJECT DISPLAY NAMES ────────────────────────────────────────────────────
 const SD = {
@@ -264,40 +265,43 @@ export default async function LearnPage({ params }) {
   const guide = page.subject ? getGuide(page.curriculum, page.subject, page.year) : null;
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] font-sans">
-      <nav className="bg-white/90 backdrop-blur-xl border-b border-slate-200/80 shadow-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c15] font-sans">
+      <nav className="bg-white dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img src="/logo.svg" alt="LaunchPard" width={30} height={30} style={{ objectFit: "contain" }} />
-            <span className="text-lg font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">LaunchPard</span>
+            <span className="text-lg font-black bg-gradient-to-r from-indigo-600 dark:from-indigo-400 to-purple-600 dark:to-purple-400 bg-clip-text text-transparent">LaunchPard</span>
           </Link>
-          <Link href="/signup" className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-sm px-5 py-2 rounded-full shadow-md">Start Free →</Link>
+          <div className="flex items-center gap-4">
+            <DarkModeToggle />
+            <Link href="/signup" className="bg-indigo-500 text-white font-bold text-sm px-5 py-2 rounded-full shadow-md hover:bg-indigo-600">Start Free →</Link>
+          </div>
         </div>
       </nav>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-2 text-sm text-slate-400 mt-8 mb-6 flex-wrap">
-          <Link href="/" className="hover:text-indigo-600">Home</Link><span>›</span>
-          <span className="text-slate-600 font-bold">{page.h1}</span>
+        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500 mt-8 mb-6 flex-wrap">
+          <Link href="/" className="text-slate-600 dark:hover:text-indigo-400 hover:text-indigo-600">Home</Link><span className="text-slate-400 dark:text-slate-500">›</span>
+          <span className="text-slate-900 dark:text-white font-bold">{page.h1}</span>
         </div>
 
         {/* Hero */}
         <section className="mb-12">
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-4 leading-tight">{page.h1}</h1>
-          <p className="text-lg text-slate-600 leading-relaxed mb-6">{page.subtitle}</p>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-4 leading-tight">{page.h1}</h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-6">{page.subtitle}</p>
           <div className="flex flex-wrap items-center gap-2.5 text-sm">
-            <span className="bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-full border border-indigo-100">50,000+ questions</span>
-            <span className="bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-full border border-emerald-100">AI-adaptive</span>
-            <span className="bg-purple-50 text-purple-700 font-bold px-3 py-1.5 rounded-full border border-purple-100">Curriculum aligned</span>
-            <span className="bg-amber-50 text-amber-700 font-bold px-3 py-1.5 rounded-full border border-amber-100">Free to start</span>
+            <span className="bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold px-3 py-1.5 rounded-full border border-indigo-300 dark:border-indigo-500/20">50,000+ questions</span>
+            <span className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-3 py-1.5 rounded-full border border-emerald-300 dark:border-emerald-500/20">AI-adaptive</span>
+            <span className="bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-full border border-purple-300 dark:border-purple-500/20">Curriculum aligned</span>
+            <span className="bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold px-3 py-1.5 rounded-full border border-indigo-300 dark:border-indigo-500/20">Free to start</span>
           </div>
         </section>
 
         {/* Interactive sample questions */}
         {sampleQs && (
           <section className="mb-14">
-            <h2 className="text-xl font-black text-slate-900 mb-2">Try {subjectLabel} — no signup needed</h2>
-            <p className="text-sm text-slate-500 mb-5">3 sample questions. Your child gets this — but adaptive, personalised, and with Tara AI feedback.</p>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">Try {subjectLabel} — no signup needed</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">3 sample questions. Your child gets this — but adaptive, personalised, and with Tara AI feedback.</p>
             <SampleQuiz questions={sampleQs} subject={subjectLabel} />
           </section>
         )}
@@ -305,15 +309,15 @@ export default async function LearnPage({ params }) {
         {/* Curriculum guide */}
         {guide && (
           <section className="mb-14">
-            <h2 className="text-xl font-black text-slate-900 mb-4">What your child learns</h2>
-            <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-4">What your child learns</h2>
+            <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-[20px] border border-slate-200 dark:border-white/10 divide-y divide-slate-200 dark:divide-white/5 overflow-hidden">
               <div className="p-5">
-                <h3 className="font-bold text-slate-700 text-sm mb-2">Topics covered</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{guide.topics}</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Topics covered</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{guide.topics}</p>
               </div>
               <div className="p-5">
-                <h3 className="font-bold text-slate-700 text-sm mb-2">Key skills</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{guide.skills}</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Key skills</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{guide.skills}</p>
               </div>
             </div>
           </section>
@@ -321,18 +325,18 @@ export default async function LearnPage({ params }) {
 
         {/* How LaunchPard helps */}
         <section className="mb-14">
-          <h2 className="text-xl font-black text-slate-900 mb-4">How LaunchPard helps</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-4">How LaunchPard helps</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               ["🧠","Adaptive AI","Every question adjusts to your child's level. Too easy? We move up. Struggling? We scaffold."],
-              ["🤖","Tara AI Tutor","Got it wrong? Tara asks your child to explain why — building real understanding, not just memorisation."],
+              ["🤖","Tara AI Tutor","Got it wrong? Tara asks your child to explain why. That's how the concept sticks, not just the answer."],
               ["📊","Guardian Dashboard","See exactly which topics are strong and which need work. Weekly reports delivered."],
               ["🚀","Space Missions","Your child isn't doing homework — they're completing missions, earning Stardust, and climbing leaderboards."],
             ].map(([icon,title,desc],i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5">
+              <div key={i} className="bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-[20px] border border-slate-200 dark:border-white/10 p-5">
                 <span className="text-2xl mb-3 block">{icon}</span>
-                <h3 className="font-bold text-slate-900 text-sm mb-1.5">{title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1.5">{title}</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -340,24 +344,24 @@ export default async function LearnPage({ params }) {
 
         {/* Social proof */}
         <section className="mb-14">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 sm:p-8 text-white">
-            <p className="text-lg font-bold italic leading-relaxed mb-4">
+          <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-[20px] border border-slate-200 dark:border-white/10 p-6 sm:p-8">
+            <p className="text-lg font-bold italic leading-relaxed mb-4 text-slate-900 dark:text-white">
               &ldquo;My daughter went from dreading maths homework to asking for more missions. The 11+ results speak for themselves.&rdquo;
             </p>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">SK</div>
-              <div><p className="font-bold text-sm">Sarah K.</p><p className="text-slate-400 text-xs">Parent, Year 5 scholar, London</p></div>
+              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm text-white">SK</div>
+              <div><p className="font-bold text-sm text-slate-900 dark:text-white">Sarah K.</p><p className="text-slate-500 dark:text-slate-500 text-xs">Parent, Year 5 scholar, London</p></div>
             </div>
           </div>
         </section>
 
         {/* CTA */}
         <section className="mb-16">
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-3xl p-8 text-center">
-            <h2 className="text-2xl font-black text-slate-900 mb-2">Ready to start {subjectLabel || "learning"}?</h2>
-            <p className="text-sm text-slate-600 mb-6">30-day Pro trial. No card needed. Up to 3 scholars.</p>
-            <Link href="/signup" className="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black px-8 py-3.5 rounded-xl shadow-lg text-sm">Create Free Account →</Link>
-            <p className="text-xs text-slate-400 mt-3">After your trial, keep free access — 10 questions a day, forever.</p>
+          <div className="bg-gradient-to-br from-indigo-100 dark:from-indigo-500/10 to-purple-100 dark:to-purple-500/10 border border-indigo-300 dark:border-indigo-500/20 rounded-[20px] p-8 text-center">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Ready to start {subjectLabel || "learning"}?</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">30-day Pro trial. No card needed. Up to 3 scholars.</p>
+            <Link href="/signup" className="inline-block bg-indigo-500 text-white font-black px-8 py-3.5 rounded-xl shadow-lg text-sm hover:bg-indigo-600">Start Your Child's Free Path →</Link>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-3">After your trial, keep free access — 10 questions a day.</p>
           </div>
         </section>
       </main>
@@ -368,8 +372,8 @@ export default async function LearnPage({ params }) {
         provider:{"@type":"EducationalOrganization",name:"LaunchPard",url:"https://launchpard.com"},
       })}} />
 
-      <footer className="border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} LaunchPard Technologies · <Link href="/terms" className="hover:text-indigo-600">Terms</Link> · <Link href="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
+      <footer className="border-t border-slate-200 dark:border-white/10 py-6 px-4 text-center text-xs text-slate-600 dark:text-slate-400">
+        © {new Date().getFullYear()} LaunchPard Technologies · <Link href="/terms" className="text-slate-600 dark:hover:text-indigo-400 hover:text-indigo-600">Terms</Link> · <Link href="/privacy-policy" className="text-slate-600 dark:hover:text-indigo-400 hover:text-indigo-600">Privacy</Link>
       </footer>
     </div>
   );
