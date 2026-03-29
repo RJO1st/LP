@@ -1418,8 +1418,8 @@ export default function ParentDashboard() {
                       key={scholar.id}
                       className={`rounded-xl p-3 sm:p-4 shadow-sm border-2 transition-all ${
                         isArchived
-                          ? "bg-slate-50 border-slate-200 dark:border-white/10 opacity-60"
-                          : `bg-white hover:shadow-md ${bandColor.border}`
+                          ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/10 opacity-60"
+                          : `bg-white dark:bg-slate-800/60 hover:shadow-md ${bandColor.border}`
                       }`}
                     >
                       {/* Archived banner */}
@@ -1467,12 +1467,12 @@ export default function ParentDashboard() {
                       {/* Subject pills */}
                       <div className="flex flex-wrap gap-1 mb-3">
                         {subjects.slice(0, 4).map(s => (
-                          <span key={s} className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          <span key={s} className="inline-flex items-center gap-0.5 bg-slate-50 dark:bg-slate-700/40 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
                             {subjectEmoji(s)} {subjectLabel(s).slice(0, 12)}
                           </span>
                         ))}
                         {subjects.length > 4 && (
-                          <span className="inline-flex items-center bg-slate-50 text-slate-400 dark:text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center bg-slate-50 dark:bg-slate-700/40 text-slate-400 dark:text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded">
                             +{subjects.length - 4}
                           </span>
                         )}
@@ -1493,7 +1493,7 @@ export default function ParentDashboard() {
                                     onChange={e => { setEditSchoolSearch(e.target.value); if (editSchoolId) setEditSchoolId(null); }}
                                     onFocus={() => editSchoolResults.length > 0 && setEditSchoolDropOpen(true)}
                                     onBlur={() => setTimeout(() => setEditSchoolDropOpen(false), 200)}
-                                    className={`w-full px-3 py-2 bg-white border rounded-lg font-bold text-xs outline-none placeholder:text-slate-400 dark:text-slate-500 transition-colors pr-8 ${
+                                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800/60 border rounded-lg font-bold text-xs outline-none placeholder:text-slate-400 dark:text-slate-500 transition-colors pr-8 ${
                                       editSchoolId ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-500/10/30" : "border-slate-200 dark:border-white/10 focus:border-amber-400"
                                     }`}
                                   />
@@ -1607,7 +1607,7 @@ export default function ParentDashboard() {
                           className={`p-1.5 rounded border transition-all ${
                             isCopied
                               ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 text-emerald-600 dark:text-emerald-400 dark:text-emerald-300"
-                              : "bg-white border-indigo-200 dark:border-indigo-500/30 text-indigo-500 hover:text-indigo-700 dark:text-indigo-300"
+                              : "bg-white dark:bg-slate-800/60 border-indigo-200 dark:border-indigo-500/30 text-indigo-500 hover:text-indigo-700 dark:text-indigo-300"
                           }`}
                           title={isCopied ? "Copied!" : "Copy code"}
                         >
@@ -1619,13 +1619,13 @@ export default function ParentDashboard() {
                       <div className="mb-3 border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
                         <button
                           onClick={() => toggleInsights(scholar.id)}
-                          className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors"
+                          className="w-full flex items-center justify-between px-3 py-1.5 bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
                         >
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Quick Progress</span>
                           {isInsightsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         </button>
                         {isInsightsOpen && (
-                          <div className="px-3 pt-2 pb-3 bg-white">
+                          <div className="px-3 pt-2 pb-3 bg-white dark:bg-slate-800/60">
                             {(scholar.exam_mode === 'eleven_plus' ||
                               (scholar.curriculum === 'uk_national' &&
                               Number(scholar.year_level || scholar.year || 0) >= 3 &&
