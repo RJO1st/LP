@@ -280,6 +280,56 @@ export default function AccountPage() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════ */}
+        {/* NOTIFICATION PREFERENCES */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-slate-100 dark:border-white/10 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8 mb-4 sm:mb-8">
+          <h2 className="text-2xl font-black mb-2 text-slate-900 dark:text-white">Notifications</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mb-6">
+            Control which emails you receive from LaunchPard.
+          </p>
+
+          <div className="space-y-4">
+            {/* Nudge Reminders Toggle */}
+            <div className="flex items-start justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-2xl border-2 border-slate-100 dark:border-white/10">
+              <div className="flex-1">
+                <h3 className="font-black text-slate-900 dark:text-white mb-1">Practice Reminders</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                  Get a nudge when your child hasn't practised in a while — at 3 days, 1 week, 2 weeks, and 1 month. Includes conversation starters to encourage them back.
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newVal = !(parent?.nudge_emails_enabled ?? true);
+                  const { error } = await supabase
+                    .from('parents')
+                    .update({ nudge_emails_enabled: newVal })
+                    .eq('id', user.id);
+                  if (!error) {
+                    setParent((prev) => ({ ...prev, nudge_emails_enabled: newVal }));
+                    setMessage({
+                      type: 'success',
+                      text: newVal ? 'Practice reminders turned on.' : 'Practice reminders turned off.'
+                    });
+                  }
+                }}
+                className={`relative flex-shrink-0 w-14 h-8 rounded-full transition-colors duration-200 ${
+                  (parent?.nudge_emails_enabled ?? true)
+                    ? 'bg-indigo-600'
+                    : 'bg-slate-300 dark:bg-slate-600'
+                }`}
+                aria-label="Toggle practice reminders"
+              >
+                <span
+                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                    (parent?.nudge_emails_enabled ?? true) ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════ */}
         {/* DANGER ZONE */}
         {/* ═══════════════════════════════════════════════════════ */}
         <div className="bg-white dark:bg-slate-800/60 border-2 sm:border-4 border-rose-100 dark:border-rose-500/30 border-b-4 sm:border-b-8 rounded-2xl sm:rounded-[32px] p-4 sm:p-8">
