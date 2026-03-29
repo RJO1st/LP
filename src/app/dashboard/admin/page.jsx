@@ -2,9 +2,10 @@
 // ─── Admin Growth Dashboard ─────────────────────────────────────────────────
 // Comprehensive analytics dashboard for scaling LaunchPard.
 // Route: /dashboard/admin
+// Queries Supabase directly from the client (no API route dependency).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
@@ -45,14 +46,11 @@ const S = {
   }),
   content: { padding: "16px 20px", maxWidth: 1200, margin: "0 auto" },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  grid3: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 },
-  grid4: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 },
   card: {
     background: "rgba(255,255,255,0.025)", borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.06)", padding: "16px 18px",
     transition: "border-color 0.2s",
   },
-  cardHover: { borderColor: "rgba(255,255,255,0.12)" },
   label: { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)" },
   value: { fontSize: 26, fontWeight: 900, marginTop: 4, letterSpacing: "-0.02em" },
   sub: { fontSize: 11, marginTop: 4 },
@@ -99,7 +97,7 @@ function KPICard({ label, value, sub, color = "#fbbf24", trend, small }) {
           ...S.sub,
           color: isNeutral ? "rgba(255,255,255,0.3)" : isPositive ? "#34d399" : "#f87171",
         }}>
-          {!isNeutral && (isPositive ? "+" : "")}{trend != null ? `${trend}% WoW` : ""}{trend != null && sub ? " · " : ""}{sub}
+          {!isNeutral && (isPositive ? "+" : "")}{trend != null ? `${trend}% WoW` : ""}{trend != null && sub ? " \u00b7 " : ""}{sub}
         </div>
       )}
     </div>
@@ -107,7 +105,7 @@ function KPICard({ label, value, sub, color = "#fbbf24", trend, small }) {
 }
 
 // ── Mini bar chart (CSS) ────────────────────────────────────────────────────
-function BarChart({ data, label, color = "#fbbf24", height = 64 }) {
+function BarChart({ data = [], label, color = "#fbbf24", height = 64 }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div style={S.card}>
@@ -139,8 +137,7 @@ function FunnelChart({ steps }) {
         {steps.map((step, i) => {
           const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
           const convPct = i > 0 && steps[i - 1].value > 0
-            ? Math.round((step.value / steps[i - 1].value) * 100)
-            : 100;
+            ? Math.round((step.value / steps[i - 1].value) * 100) : 100;
           return (
             <div key={i} style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
@@ -165,7 +162,7 @@ function FunnelChart({ steps }) {
 }
 
 // ── Horizontal stat bar ─────────────────────────────────────────────────────
-function HorizontalBars({ data, label, color = "#60a5fa" }) {
+function HorizontalBars({ data = [], label, color = "#60a5fa" }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div style={S.card}>
@@ -192,7 +189,7 @@ function HorizontalBars({ data, label, color = "#60a5fa" }) {
 }
 
 // ── Donut chart (SVG) ───────────────────────────────────────────────────────
-function DonutChart({ data, label, size = 100 }) {
+function DonutChart({ data = [], label, size = 100 }) {
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   const colors = ["#fbbf24", "#60a5fa", "#34d399", "#f472b6", "#a78bfa", "#fb923c", "#22d3ee", "#e879f9"];
   let cum = 0;
@@ -235,6 +232,160 @@ function DonutChart({ data, label, size = 100 }) {
   );
 }
 
+// ── Data helpers ────────────────────────────────────────────────────────────
+const pctChange = (curr, prev) =>
+  prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+
+function buildWeeklyTrend(records, weeks) {
+  const now = new Date();
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(now - (i + 1) * 7 * 86400000);
+    const end = new Date(now - i * 7 * 86400000);
+    const count = records.filter(r => {
+      const d = new Date(r.created_at);
+      return d >= start && d < end;
+    }).length;
+    const label = start.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    buckets.push({ label, value: count });
+  }
+  return buckets;
+}
+
+function buildDist(arr, key) {
+  const dist = {};
+  arr.forEach(item => {
+    const v = item[key] || "unknown";
+    dist[v] = (dist[v] || 0) + 1;
+  });
+  return Object.entries(dist).map(([k, v]) => ({ label: k, value: v })).sort((a, b) => b.value - a.value);
+}
+
+/** Safe Supabase query — never throws */
+async function sq(promise) {
+  try {
+    const res = await promise;
+    if (res.error) console.warn("[admin]", res.error.message);
+    return { data: res.data ?? null, count: res.count ?? 0 };
+  } catch (e) {
+    console.warn("[admin] query threw:", e.message);
+    return { data: null, count: 0 };
+  }
+}
+
+// ── Fetch all analytics directly from Supabase client ───────────────────────
+async function fetchAnalytics(supabase) {
+  const now = new Date();
+  const d7 = new Date(now - 7 * 86400000).toISOString();
+  const d14 = new Date(now - 14 * 86400000).toISOString();
+
+  const [
+    parents, scholars, questionsAll, sessions, schools, subs, quizCount,
+    ns7, ps7, np7, pp7, q7, pq7,
+    allScholars, allQuizzes, topicMastery, questionsActive,
+  ] = await Promise.all([
+    sq(supabase.from("parents").select("*", { count: "exact", head: true })),
+    sq(supabase.from("scholars").select("*", { count: "exact", head: true }).is("archived_at", null)),
+    sq(supabase.from("question_bank").select("*", { count: "exact", head: true })),
+    sq(supabase.from("scholar_sessions").select("*", { count: "exact", head: true })),
+    sq(supabase.from("schools").select("*", { count: "exact", head: true })),
+    sq(supabase.from("subscriptions").select("*", { count: "exact", head: true })),
+    sq(supabase.from("quiz_results").select("*", { count: "exact", head: true })),
+    sq(supabase.from("scholars").select("*", { count: "exact", head: true }).gte("created_at", d7).is("archived_at", null)),
+    sq(supabase.from("scholars").select("*", { count: "exact", head: true }).gte("created_at", d14).lt("created_at", d7).is("archived_at", null)),
+    sq(supabase.from("parents").select("*", { count: "exact", head: true }).gte("created_at", d7)),
+    sq(supabase.from("parents").select("*", { count: "exact", head: true }).gte("created_at", d14).lt("created_at", d7)),
+    sq(supabase.from("quiz_results").select("*", { count: "exact", head: true }).gte("created_at", d7)),
+    sq(supabase.from("quiz_results").select("*", { count: "exact", head: true }).gte("created_at", d14).lt("created_at", d7)),
+    sq(supabase.from("scholars").select("id, name, age_band, curriculum, created_at, total_xp, country, parent_id").is("archived_at", null).order("created_at", { ascending: false }).limit(200)),
+    sq(supabase.from("quiz_results").select("id, scholar_id, subject, accuracy, time_spent_seconds, created_at").order("created_at", { ascending: false }).limit(200)),
+    sq(supabase.from("scholar_topic_mastery").select("scholar_id, subject, topic, current_tier").limit(500)),
+    sq(supabase.from("question_bank").select("*", { count: "exact", head: true }).eq("is_active", true)),
+  ]);
+
+  const scholarsData = allScholars.data || [];
+  const quizzesData = allQuizzes.data || [];
+  const masteryData = topicMastery.data || [];
+
+  // Activation
+  const scholarsWithQuiz = new Set(quizzesData.map(q => q.scholar_id));
+  const activatedScholars = scholarsData.filter(s => scholarsWithQuiz.has(s.id)).length;
+  const totalScholars = scholars.count;
+  const activationRate = totalScholars > 0 ? Math.round((activatedScholars / totalScholars) * 100) : 0;
+
+  // Avg accuracy
+  const withAcc = quizzesData.filter(q => q.accuracy != null);
+  const avgAccuracy = withAcc.length > 0 ? Math.round(withAcc.reduce((s, q) => s + q.accuracy, 0) / withAcc.length) : 0;
+
+  // Avg time
+  const withTime = quizzesData.filter(q => q.time_spent_seconds > 0);
+  const avgTimeMin = withTime.length > 0
+    ? (withTime.reduce((s, q) => s + q.time_spent_seconds, 0) / withTime.length / 60).toFixed(1) : "0";
+
+  const totalParents = parents.count;
+  const scholarPerParent = totalParents > 0 ? (totalScholars / totalParents).toFixed(1) : "0";
+
+  // Distributions
+  const currDist = buildDist(scholarsData, "curriculum").map(d => ({ ...d, label: formatCurriculum(d.label) }));
+  const ageDist = buildDist(scholarsData, "age_band").map(d => ({ ...d, label: d.label.toUpperCase() }));
+  const countryDist = buildDist(scholarsData, "country");
+  const subjectDist = buildDist(quizzesData, "subject").map(d => ({ ...d, label: d.label.replace(/_/g, " ") }));
+  const tierDist = buildDist(masteryData, "current_tier");
+
+  // Funnel
+  const multipleQuizzes = scholarsData.filter(s => quizzesData.filter(q => q.scholar_id === s.id).length >= 3).length;
+  const hasXP = scholarsData.filter(s => s.total_xp > 0).length;
+
+  // Recent scholars
+  const recentScholars = scholarsData.slice(0, 20).map(s => ({
+    ...s,
+    quiz_count: quizzesData.filter(q => q.scholar_id === s.id).length,
+    topics_mastered: masteryData.filter(m => m.scholar_id === s.id).length,
+  }));
+
+  // Top performers
+  const topPerformers = scholarsData
+    .map(s => {
+      const sQuizzes = quizzesData.filter(q => q.scholar_id === s.id);
+      const accArr = sQuizzes.filter(q => q.accuracy != null);
+      return {
+        name: s.name, age_band: s.age_band, total_xp: s.total_xp || 0,
+        quiz_count: sQuizzes.length,
+        avg_accuracy: accArr.length > 0 ? Math.round(accArr.reduce((a, q) => a + q.accuracy, 0) / accArr.length) : 0,
+      };
+    })
+    .filter(s => s.quiz_count > 0)
+    .sort((a, b) => b.total_xp - a.total_xp)
+    .slice(0, 10);
+
+  return {
+    kpis: {
+      totalParents, totalScholars,
+      totalQuestions: questionsAll.count,
+      activeQuestions: questionsActive.count,
+      totalSessions: sessions.count,
+      totalSchools: schools.count,
+      totalSubscriptions: subs.count,
+      totalQuizResults: quizCount.count,
+      totalTopicMastery: masteryData.length,
+    },
+    growth: {
+      newScholars7d: ns7.count, prevScholars7d: ps7.count, scholarsGrowthPct: pctChange(ns7.count, ps7.count),
+      newParents7d: np7.count, prevParents7d: pp7.count, parentsGrowthPct: pctChange(np7.count, pp7.count),
+      quizzes7d: q7.count, prevQuizzes7d: pq7.count, quizzesGrowthPct: pctChange(q7.count, pq7.count),
+    },
+    engagement: {
+      activationRate, activatedScholars, avgAccuracy,
+      avgTimeMin: parseFloat(avgTimeMin), scholarPerParent: parseFloat(scholarPerParent),
+    },
+    funnel: { totalSignups: totalScholars, firstQuizCompleted: activatedScholars, multipleQuizzes, hasXP },
+    distributions: { curriculum: currDist, ageBand: ageDist, country: countryDist, subject: subjectDist, masteryTier: tierDist },
+    trends: { signupWeekly: buildWeeklyTrend(scholarsData, 8) },
+    recentScholars,
+    topPerformers,
+  };
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const router = useRouter();
@@ -243,73 +394,53 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("growth");
   const [dataError, setDataError] = useState(null);
-  const loadingRef = React.useRef(false);
-
-  useEffect(() => {
-    const supabase = sb();
-    let redirectTimer = null;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (user && ADMIN_EMAILS.includes(user.email)) {
-        setAuthed(true);
-        loadData(supabase);
-      }
-    }).catch(() => {});
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        const user = session?.user;
-        if (user && ADMIN_EMAILS.includes(user.email)) {
-          setAuthed(true);
-          await loadData(supabase);
-          return;
-        }
-        if (event === "INITIAL_SESSION" && !session) {
-          redirectTimer = setTimeout(() => {
-            supabase.auth.getSession().then(({ data: { session: s2 } }) => {
-              if (!s2?.user || !ADMIN_EMAILS.includes(s2.user.email)) {
-                router.replace("/dashboard/parent");
-              }
-            });
-          }, 1500);
-        } else if (event === "SIGNED_OUT") {
-          router.replace("/login");
-        }
-      }
-    );
-    return () => {
-      subscription.unsubscribe();
-      if (redirectTimer) clearTimeout(redirectTimer);
-    };
-  }, []);
 
   const loadData = useCallback(async (supabase) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
     setLoading(true);
     setDataError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error("No session token");
-
-      const res = await fetch("/api/admin/stats", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "Unknown error");
-        throw new Error(`API ${res.status}: ${text}`);
-      }
-      setData(await res.json());
+      const result = await fetchAnalytics(supabase);
+      setData(result);
     } catch (err) {
       console.error("Admin data load error:", err);
       setDataError(err.message);
     } finally {
       setLoading(false);
-      loadingRef.current = false;
     }
   }, []);
+
+  useEffect(() => {
+    const supabase = sb();
+    let ignore = false;
+    let loaded = false;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (ignore) return;
+      const user = session?.user;
+      if (user && ADMIN_EMAILS.includes(user.email)) {
+        setAuthed(true);
+        if (!loaded) { loaded = true; loadData(supabase); }
+      } else {
+        setLoading(false);
+      }
+    }).catch(() => { if (!ignore) setLoading(false); });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (ignore) return;
+        const user = session?.user;
+        if (user && ADMIN_EMAILS.includes(user.email)) {
+          setAuthed(true);
+          if (!loaded) { loaded = true; loadData(supabase); }
+          return;
+        }
+        if (event === "SIGNED_OUT") {
+          router.replace("/login");
+        }
+      }
+    );
+    return () => { ignore = true; subscription.unsubscribe(); };
+  }, [loadData, router]);
 
   const handleLogout = async () => {
     await sb().auth.signOut();
@@ -339,11 +470,11 @@ export default function AdminDashboard() {
   const e = data?.engagement || {};
   const f = data?.funnel || {};
   const d_ = data?.distributions || {};
-  const t = data?.trends || {};
+  const tr = data?.trends || {};
 
   return (
     <div style={S.page}>
-      {/* ── Header ─────────────────────────────────────────────────── */}
+      {/* Header */}
       <div style={S.header}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: "#fbbf24", letterSpacing: "-0.02em" }}>
@@ -362,14 +493,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Nav ──────────────────────────────────────────────────── */}
+      {/* Nav */}
       <div style={S.nav}>
-        {TABS.map(t => (
-          <button key={t.id} style={S.navBtn(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>
+        {TABS.map(tb => (
+          <button key={tb.id} style={S.navBtn(tab === tb.id)} onClick={() => setTab(tb.id)}>{tb.label}</button>
         ))}
       </div>
 
-      {/* ── Error banner ─────────────────────────────────────────── */}
+      {/* Error banner */}
       {dataError && (
         <div style={{
           margin: "12px 20px", padding: "10px 14px", borderRadius: 10,
@@ -377,7 +508,7 @@ export default function AdminDashboard() {
           color: "#fca5a5", fontSize: 12, display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ fontWeight: 700, color: "#f87171" }}>Error:</span> {dataError}
-          <button onClick={() => { setDataError(null); loadData(sb()); }}
+          <button onClick={() => loadData(sb())}
             style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer" }}>
             Retry
           </button>
@@ -391,10 +522,9 @@ export default function AdminDashboard() {
         </div>
       ) : data ? (
         <div style={S.content}>
-          {/* ══════════════════ GROWTH TAB ══════════════════ */}
+          {/* ══════ GROWTH TAB ══════ */}
           {tab === "growth" && (
             <>
-              {/* Primary KPIs */}
               <RGrid cols={4}>
                 <KPICard label="Total Parents" value={k.totalParents} color="#60a5fa" trend={g.parentsGrowthPct} sub={`+${g.newParents7d} this week`} />
                 <KPICard label="Total Scholars" value={k.totalScholars} color="#34d399" trend={g.scholarsGrowthPct} sub={`+${g.newScholars7d} this week`} />
@@ -402,7 +532,6 @@ export default function AdminDashboard() {
                 <KPICard label="Activation Rate" value={`${e.activationRate}%`} color={e.activationRate >= 30 ? "#34d399" : "#fb923c"} sub={`${e.activatedScholars} of ${k.totalScholars} scholars`} />
               </RGrid>
 
-              {/* Secondary KPIs */}
               <RGrid cols={4} style={{ marginTop: 12 }}>
                 <KPICard label="Scholar / Parent" value={e.scholarPerParent} color="#a78bfa" sub="avg ratio" small />
                 <KPICard label="Avg Accuracy" value={`${e.avgAccuracy}%`} color={e.avgAccuracy >= 60 ? "#34d399" : "#fb923c"} sub="across all quizzes" small />
@@ -410,9 +539,8 @@ export default function AdminDashboard() {
                 <KPICard label="Topic Mastery" value={k.totalTopicMastery} color="#f472b6" sub="records tracked" small />
               </RGrid>
 
-              {/* Charts row */}
               <div style={{ ...S.grid2, marginTop: 16 }}>
-                <BarChart data={t.signupWeekly || []} label="Weekly Scholar Signups (8 weeks)" color="#34d399" height={80} />
+                <BarChart data={tr.signupWeekly || []} label="Weekly Scholar Signups (8 weeks)" color="#34d399" height={80} />
                 <FunnelChart steps={[
                   { label: "Signed Up", value: f.totalSignups, color: "#60a5fa" },
                   { label: "First Quiz", value: f.firstQuizCompleted, color: "#34d399" },
@@ -421,22 +549,20 @@ export default function AdminDashboard() {
                 ]} />
               </div>
 
-              {/* Distribution row */}
               <div style={{ ...S.grid2, marginTop: 16 }}>
                 <DonutChart data={d_.curriculum || []} label="Scholars by Curriculum" />
                 <DonutChart data={d_.ageBand || []} label="Scholars by Age Band" />
               </div>
 
-              {/* Country distribution */}
               {(d_.country || []).length > 0 && (
                 <div style={{ marginTop: 16 }}>
-                  <HorizontalBars data={d_.country || []} label="Scholars by Country" color="#22d3ee" />
+                  <HorizontalBars data={d_.country} label="Scholars by Country" color="#22d3ee" />
                 </div>
               )}
             </>
           )}
 
-          {/* ══════════════════ ENGAGEMENT TAB ══════════════════ */}
+          {/* ══════ ENGAGEMENT TAB ══════ */}
           {tab === "engagement" && (
             <>
               <RGrid cols={3}>
@@ -463,7 +589,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Top performers */}
               {(data.topPerformers || []).length > 0 && (
                 <div style={{ marginTop: 16 }}>
                   <div style={S.sectionTitle}>Top Performers</div>
@@ -502,7 +627,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* ══════════════════ CONTENT TAB ══════════════════ */}
+          {/* ══════ CONTENT TAB ══════ */}
           {tab === "content" && (
             <>
               <RGrid cols={3}>
@@ -510,18 +635,15 @@ export default function AdminDashboard() {
                 <KPICard label="Active Questions" value={formatNum(k.activeQuestions)} color="#34d399" sub="serving to scholars" />
                 <KPICard label="Inactive/Purged" value={formatNum((k.totalQuestions || 0) - (k.activeQuestions || 0))} color="#f87171" sub="flagged or deleted" />
               </RGrid>
-
               <div style={{ marginTop: 16 }}>
                 <div style={S.sectionTitle}>Content Health</div>
                 <div style={S.card}>
                   <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.7 }}>
-                    <strong style={{ color: "#a78bfa" }}>{formatNum(k.activeQuestions)}</strong> active questions across all curricula and key stages.
-                    Questions are generated via the AI pipeline and validated before entering the bank.
+                    <strong style={{ color: "#a78bfa" }}>{formatNum(k.activeQuestions)}</strong> active questions across all curricula.
                     Coverage spans <strong style={{ color: "#60a5fa" }}>UK National, 11+, Nigerian (Primary/JSS/SSS), Canadian, Australian, IB, and US Common Core</strong>.
                   </p>
                 </div>
               </div>
-
               {(d_.subject || []).length > 0 && (
                 <div style={{ marginTop: 16 }}>
                   <HorizontalBars data={d_.subject} label="Quiz Activity by Subject" color="#a78bfa" />
@@ -530,7 +652,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* ══════════════════ SCHOLARS TAB ══════════════════ */}
+          {/* ══════ SCHOLARS TAB ══════ */}
           {tab === "scholars" && (
             <>
               <RGrid cols={3}>
@@ -538,7 +660,6 @@ export default function AdminDashboard() {
                 <KPICard label="Total Parents" value={k.totalParents} color="#60a5fa" trend={g.parentsGrowthPct} sub={`+${g.newParents7d} this week`} />
                 <KPICard label="Activated" value={e.activatedScholars} color="#fbbf24" sub={`${e.activationRate}% rate`} />
               </RGrid>
-
               <div style={S.sectionTitle}>Recent Scholars</div>
               <div style={{ overflowX: "auto" }}>
                 <table style={S.table}>
@@ -556,8 +677,8 @@ export default function AdminDashboard() {
                   <tbody>
                     {(data.recentScholars || []).map(s => (
                       <tr key={s.id}>
-                        <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name || "—"}</td>
-                        <td style={S.td}><span style={S.badge(bandColor(s.age_band))}>{(s.age_band || "—").toUpperCase()}</span></td>
+                        <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name || "\u2014"}</td>
+                        <td style={S.td}><span style={S.badge(bandColor(s.age_band))}>{(s.age_band || "\u2014").toUpperCase()}</span></td>
                         <td style={S.td}>{formatCurriculum(s.curriculum)}</td>
                         <td style={{ ...S.td, color: "#fbbf24", fontWeight: 600 }}>{(s.total_xp || 0).toLocaleString()}</td>
                         <td style={S.td}>{s.quiz_count || 0}</td>
@@ -574,7 +695,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* ══════════════════ SCHOOLS TAB ══════════════════ */}
+          {/* ══════ SCHOOLS TAB ══════ */}
           {tab === "schools" && <SchoolsTab totalSchools={k.totalSchools} />}
         </div>
       ) : null}
@@ -596,7 +717,7 @@ export default function AdminDashboard() {
   );
 }
 
-// ── Schools Tab (separate data fetch) ───────────────────────────────────────
+// ── Schools Tab ─────────────────────────────────────────────────────────────
 function SchoolsTab({ totalSchools }) {
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -637,11 +758,11 @@ function SchoolsTab({ totalSchools }) {
               {schools.map(s => (
                 <tr key={s.id}>
                   <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name}</td>
-                  <td style={S.td}>{s.region || "—"}</td>
+                  <td style={S.td}>{s.region || "\u2014"}</td>
                   <td style={S.td}>{countryFlag(s.country)} {s.country}</td>
                   <td style={S.td}>{formatCurriculum(s.curriculum)}</td>
-                  <td style={S.td}><span style={S.badge(s.school_type === "primary" ? "#34d399" : "#60a5fa")}>{s.school_type || "—"}</span></td>
-                  <td style={S.td}>{s.verified ? "\u2713" : "—"}</td>
+                  <td style={S.td}><span style={S.badge(s.school_type === "primary" ? "#34d399" : "#60a5fa")}>{s.school_type || "\u2014"}</span></td>
+                  <td style={S.td}>{s.verified ? "\u2713" : "\u2014"}</td>
                 </tr>
               ))}
             </tbody>
@@ -660,10 +781,10 @@ function formatNum(n) {
 }
 
 function formatCurriculum(c) {
-  if (!c) return "—";
+  if (!c) return "\u2014";
   const map = {
     uk_national: "UK National", ng_primary: "NG Primary", ng_jss: "NG JSS", ng_sss: "NG SSS",
-    ca_primary: "CA Primary", ca_secondary: "CA Secondary", "11_plus": "11+",
+    ca_primary: "CA Primary", ca_secondary: "CA Secondary", "11_plus": "11+", unknown: "Unknown",
   };
   return map[c] || c.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 }
@@ -673,6 +794,6 @@ function bandColor(b) {
 }
 
 function fmtDate(d) {
-  if (!d) return "—";
+  if (!d) return "\u2014";
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
