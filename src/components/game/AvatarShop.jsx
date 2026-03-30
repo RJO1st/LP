@@ -15,7 +15,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { AVATAR_ITEMS, RARITY_COLORS } from "@/lib/gamificationEngine";
 import gsap from "gsap";
-import AvatarRenderer from "./AvatarRenderer";
+import AvatarRenderer from "./AvatarRendererCanvas";
 
 const CoinsIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

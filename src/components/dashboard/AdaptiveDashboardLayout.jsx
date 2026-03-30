@@ -207,48 +207,48 @@ function KS2Radar() {
 
 function KS3HudAmbient() {
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {/* Tech grid — tighter, more cockpit-like */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.03,
-        backgroundImage: "linear-gradient(rgba(91,106,191,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(91,106,191,0.3) 1px, transparent 1px)",
-        backgroundSize: "40px 40px" }} />
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden", background: "#0c0f1a" }}>
+      {/* Tech grid — tight 32px grid, subtle blue-slate */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.06,
+        backgroundImage: "linear-gradient(rgba(91,106,191,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(91,106,191,0.6) 1px, transparent 1px)",
+        backgroundSize: "32px 32px" }} />
       {/* Radar sweep — bottom-right quadrant */}
-      <div style={{ position: "absolute", width: 600, height: 600, bottom: "-15%", right: "-10%", opacity: 0.04 }}>
+      <div style={{ position: "absolute", width: 600, height: 600, bottom: "-15%", right: "-10%", opacity: 0.08 }}>
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%",
-          border: "1px solid rgba(91,106,191,0.3)" }} />
+          border: "1px solid rgba(91,106,191,0.25)" }} />
         <div style={{ position: "absolute", inset: "15%", borderRadius: "50%",
-          border: "1px solid rgba(91,106,191,0.2)" }} />
+          border: "1px solid rgba(91,106,191,0.18)" }} />
         <div style={{ position: "absolute", inset: "30%", borderRadius: "50%",
-          border: "1px solid rgba(91,106,191,0.15)" }} />
+          border: "1px solid rgba(91,106,191,0.12)" }} />
         {/* Sweep arm */}
         <div style={{ position: "absolute", top: "50%", left: "50%", width: "50%", height: 2,
-          background: "linear-gradient(90deg, rgba(91,106,191,0.4), transparent)",
+          background: "linear-gradient(90deg, rgba(91,106,191,0.5), transparent)",
           transformOrigin: "0 50%", animation: "ks3RadarSweep 8s linear infinite" }} />
       </div>
-      {/* Soft accent orb — top right */}
-      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "-8%", right: "-12%", opacity: 0.06,
-        background: "radial-gradient(circle, rgba(91,106,191,0.3) 0%, transparent 70%)" }} />
-      {/* Secondary orb — bottom left */}
-      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", bottom: "5%", left: "-8%", opacity: 0.04,
+      {/* Soft accent orb — top right, blue-slate */}
+      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", top: "-8%", right: "-12%", opacity: 0.08,
+        background: "radial-gradient(circle, rgba(91,106,191,0.25) 0%, transparent 70%)" }} />
+      {/* Secondary orb — bottom left, cyan */}
+      <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", bottom: "5%", left: "-8%", opacity: 0.06,
         background: "radial-gradient(circle, rgba(14,165,233,0.25) 0%, transparent 70%)" }} />
       {/* Horizontal scan line */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, opacity: 0.06,
-        background: "rgba(91,106,191,0.4)", animation: "ks3DataSweep 12s linear infinite" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, opacity: 0.08,
+        background: "rgba(91,106,191,0.5)", animation: "ks3ScanLine 12s linear infinite" }} />
       {/* Vertical scan line */}
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1, opacity: 0.04,
-        background: "rgba(91,106,191,0.3)", animation: "ks3VSweep 18s linear infinite" }} />
-      {/* HUD corner brackets — viewport corners */}
-      <svg width="60" height="60" style={{ position: "absolute", top: 12, left: 12, opacity: 0.06 }}>
-        <path d="M0 50 L0 4 Q0 0 4 0 L50 0" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1, opacity: 0.06,
+        background: "rgba(91,106,191,0.4)", animation: "ks3VSweep 18s linear infinite" }} />
+      {/* HUD corner brackets — viewport corners, brighter */}
+      <svg width="60" height="60" style={{ position: "absolute", top: 12, left: 12, opacity: 0.15 }}>
+        <path d="M0 50 L0 4 Q0 0 4 0 L50 0" fill="none" stroke="rgba(91,106,191,0.4)" strokeWidth="2" />
       </svg>
-      <svg width="60" height="60" style={{ position: "absolute", top: 12, right: 12, opacity: 0.06 }}>
-        <path d="M60 50 L60 4 Q60 0 56 0 L10 0" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      <svg width="60" height="60" style={{ position: "absolute", top: 12, right: 12, opacity: 0.15 }}>
+        <path d="M60 50 L60 4 Q60 0 56 0 L10 0" fill="none" stroke="rgba(91,106,191,0.4)" strokeWidth="2" />
       </svg>
-      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, left: 12, opacity: 0.06 }}>
-        <path d="M0 10 L0 56 Q0 60 4 60 L50 60" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, left: 12, opacity: 0.15 }}>
+        <path d="M0 10 L0 56 Q0 60 4 60 L50 60" fill="none" stroke="rgba(91,106,191,0.4)" strokeWidth="2" />
       </svg>
-      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, right: 12, opacity: 0.06 }}>
-        <path d="M60 10 L60 56 Q60 60 56 60 L10 60" fill="none" stroke="#5b6abf" strokeWidth="2" />
+      <svg width="60" height="60" style={{ position: "absolute", bottom: 12, right: 12, opacity: 0.15 }}>
+        <path d="M60 10 L60 56 Q60 60 56 60 L10 60" fill="none" stroke="rgba(91,106,191,0.4)" strokeWidth="2" />
       </svg>
     </div>
   );
@@ -257,19 +257,46 @@ function KS3HudAmbient() {
 function KS4AtelierAmbient() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {/* Vivid purple orb — top right */}
-      <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", top: "-12%", right: "-18%", opacity: 0.2,
-        background: "radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)" }} />
-      {/* Secondary violet orb — bottom left */}
-      <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", bottom: "0%", left: "-12%", opacity: 0.15,
-        background: "radial-gradient(circle, rgba(167,139,250,0.3) 0%, transparent 70%)" }} />
-      {/* Small accent orb — center left */}
-      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", top: "40%", left: "20%", opacity: 0.08,
-        background: "radial-gradient(circle, rgba(109,40,217,0.25) 0%, transparent 70%)" }} />
-      {/* Subtle grid pattern */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.02,
-        backgroundImage: "linear-gradient(rgba(124,58,237,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.2) 1px, transparent 1px)",
-        backgroundSize: "80px 80px" }} />
+      {/* Base — deep obsidian */}
+      <div style={{ position: "absolute", inset: 0, background: "#0a0a14" }} />
+
+      {/* Nebula washes — bold radial gradients that give real depth */}
+      <div style={{ position: "absolute", inset: 0,
+        background: [
+          "radial-gradient(ellipse 90% 70% at 15% 5%, rgba(139,92,246,0.22) 0%, transparent 60%)",
+          "radial-gradient(ellipse 70% 60% at 85% 75%, rgba(99,102,241,0.16) 0%, transparent 55%)",
+          "radial-gradient(ellipse 50% 50% at 50% 45%, rgba(109,40,217,0.10) 0%, transparent 50%)",
+          "radial-gradient(ellipse 60% 40% at 70% 20%, rgba(167,139,250,0.12) 0%, transparent 50%)",
+        ].join(", "),
+      }} />
+
+      {/* Star field — visible scattered dots */}
+      <div style={{ position: "absolute", inset: 0,
+        backgroundImage: [
+          "radial-gradient(2px 2px at 20% 15%, rgba(167,139,250,0.6) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 45% 35%, rgba(139,92,246,0.5) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 72% 22%, rgba(196,181,253,0.55) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 15% 65%, rgba(167,139,250,0.45) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 88% 55%, rgba(139,92,246,0.5) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 55% 78%, rgba(196,181,253,0.45) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 33% 92%, rgba(167,139,250,0.5) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 8% 42%, rgba(255,255,255,0.4) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 62% 8%, rgba(255,255,255,0.35) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 95% 90%, rgba(139,92,246,0.45) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 40% 5%, rgba(255,255,255,0.3) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 78% 48%, rgba(196,181,253,0.4) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 5% 88%, rgba(167,139,250,0.45) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 52% 60%, rgba(255,255,255,0.25) 0%, transparent 100%)",
+        ].join(", "),
+      }} />
+
+      {/* Grid overlay — masked to center with fade-out edges */}
+      <div style={{ position: "absolute", inset: 0,
+        backgroundImage: "linear-gradient(rgba(139,92,246,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.06) 1px, transparent 1px)",
+        backgroundSize: "60px 60px",
+        maskImage: "radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 70%)",
+        WebkitMaskImage: "radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 70%)",
+      }} />
     </div>
   );
 }
@@ -346,21 +373,21 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
     },
     ks3: {
-      background: "rgba(255,255,255,0.65)", borderRadius: 14,
-      border: glow ? "1px solid rgba(91,106,191,0.18)" : "1px solid rgba(91,106,191,0.08)",
+      background: "rgba(15,20,35,0.6)", borderRadius: 12,
+      border: glow ? "1px solid rgba(91,106,191,0.25)" : "1px solid rgba(91,106,191,0.12)",
       boxShadow: glow
-        ? "0 4px 24px rgba(91,106,191,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 0 0.5px rgba(91,106,191,0.06)"
-        : "0 1px 8px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)",
-      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
+        ? "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03), 0 0 20px rgba(91,106,191,0.08)"
+        : "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)",
+      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 20,
       position: "relative", overflow: "hidden",
     },
     ks4: {
-      background: "rgba(255,255,255,0.82)", borderRadius: 16,
-      border: `1px solid ${glow ? "rgba(124,58,237,0.2)" : "rgba(124,58,237,0.08)"}`,
+      background: "rgba(18,16,32,0.7)", borderRadius: 16,
+      border: `1px solid ${glow ? "rgba(139,92,246,0.25)" : "rgba(139,92,246,0.12)"}`,
       boxShadow: glow
-        ? "0 4px 24px rgba(124,58,237,0.08), inset 0 1px 0 rgba(255,255,255,0.9)"
-        : "0 2px 10px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)",
-      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", padding: 20,
+        ? "0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03), 0 0 40px rgba(139,92,246,0.06)"
+        : "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.02)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 20,
       position: "relative", overflow: "hidden",
     },
   };
@@ -383,8 +410,13 @@ function BandCard({ band, children, glow, accent, className = "", style = {}, id
     >
       {band === "ks4" && glow && (
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 16, overflow: "hidden" }}>
+          {/* Top edge highlight — thin violet gradient line */}
+          <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(167,139,250,0.3) 50%, transparent)",
+          }} />
+          {/* Subtle scan sweep */}
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "200%",
-            background: "linear-gradient(180deg, transparent, rgba(124,58,237,0.03), transparent)",
+            background: "linear-gradient(180deg, transparent, rgba(139,92,246,0.03), transparent)",
             animation: "ks4Scan 5s linear infinite" }} />
         </div>
       )}
@@ -517,10 +549,10 @@ function HudPanel({ designation, label, children, glow, span, dataSection, style
       data-section={dataSection}
       style={{
         position: "relative", borderRadius: 12, overflow: "hidden",
-        background: "rgba(255,255,255,0.6)",
-        border: glow ? "1px solid rgba(91,106,191,0.2)" : "1px solid rgba(91,106,191,0.1)",
-        boxShadow: glow ? "0 4px 20px rgba(91,106,191,0.06)" : "0 1px 8px rgba(0,0,0,0.02)",
-        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        background: "rgba(15,20,35,0.5)",
+        border: glow ? "1px solid rgba(91,106,191,0.25)" : "1px solid rgba(91,106,191,0.15)",
+        boxShadow: glow ? "0 4px 20px rgba(0,0,0,0.3), 0 0 20px rgba(91,106,191,0.08)" : "0 4px 20px rgba(0,0,0,0.3)",
+        backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
         animation: glow ? "ks3PanelGlow 6s ease-in-out infinite" : "none",
         gridColumn: span === 2 ? "1 / -1" : "auto",
         ...extraStyle,
@@ -529,28 +561,28 @@ function HudPanel({ designation, label, children, glow, span, dataSection, style
       {/* Top designation bar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "6px 14px", borderBottom: "1px solid rgba(91,106,191,0.08)",
-        background: "linear-gradient(135deg, rgba(91,106,191,0.06), rgba(91,106,191,0.02))",
+        padding: "6px 14px", borderBottom: "1px solid rgba(91,106,191,0.12)",
+        background: "rgba(91,106,191,0.08)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {designation && (
             <span style={{
               fontSize: 9, fontWeight: 900, fontFamily: "'DM Mono', 'JetBrains Mono', monospace",
-              color: "#5b6abf", letterSpacing: "0.15em", textTransform: "uppercase",
-              background: "rgba(91,106,191,0.08)", padding: "2px 8px", borderRadius: 4,
-              border: "1px solid rgba(91,106,191,0.12)",
+              color: "#fff", letterSpacing: "0.15em", textTransform: "uppercase",
+              background: "#5b6abf", padding: "2px 8px", borderRadius: 4,
+              border: "1px solid rgba(91,106,191,0.3)",
             }}>{designation}</span>
           )}
           {label && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(26,29,46,0.5)",
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(148,163,184,0.6)",
               letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
           )}
         </div>
         {/* Status dot */}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#10b981",
-            animation: "ks3GaugePulse 3s ease-in-out infinite" }} />
-          <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(16,185,129,0.6)",
+            boxShadow: "0 0 8px rgba(16,185,129,0.6)", animation: "ks3GaugePulse 3s ease-in-out infinite" }} />
+          <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(16,185,129,0.8)",
             textTransform: "uppercase", letterSpacing: "0.1em" }}>LIVE</span>
         </div>
       </div>
@@ -604,26 +636,26 @@ function SubjectRadar({ subjects, masteryData }) {
         {rings.map((r, ri) => {
           const pts = Array.from({ length: count }, (_, i) => getPoint(i, r * maxR));
           const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + " Z";
-          return <path key={ri} d={path} fill="none" stroke="rgba(91,106,191,0.12)"
+          return <path key={ri} d={path} fill="none" stroke="rgba(91,106,191,0.15)"
             strokeWidth={ri === rings.length - 1 ? 1.5 : 0.8} strokeDasharray={ri < rings.length - 1 ? "3 3" : "none"} />;
         })}
         {/* Axis lines */}
         {subjectList.map((_, i) => {
           const [ex, ey] = getPoint(i, maxR);
-          return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(91,106,191,0.1)" strokeWidth="0.8" />;
+          return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke="rgba(91,106,191,0.12)" strokeWidth="0.8" />;
         })}
         {/* Data polygon */}
-        <path d={dataPath} fill="rgba(91,106,191,0.12)" stroke="#5b6abf" strokeWidth="2" strokeLinejoin="round" />
+        <path d={dataPath} fill="rgba(91,106,191,0.15)" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round" />
         {/* Data points */}
         {dataPoints.map((p, i) => (
-          <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="#5b6abf" stroke="#fff" strokeWidth="1.5" />
+          <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="#818cf8" stroke="#0c0f1a" strokeWidth="1.5" />
         ))}
         {/* Labels */}
         {subjectList.map((subj, i) => {
           const [lx, ly] = getPoint(i, maxR + 16);
           return (
             <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-              fontSize="8" fontWeight="700" fill="rgba(26,29,46,0.5)"
+              fontSize="8" fontWeight="700" fill="rgba(148,163,184,0.7)"
               style={{ fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               {subj.slice(0, 6)}
             </text>
@@ -646,7 +678,7 @@ function HudGauge({ value = 0, max = 100, label, colour = "#5b6abf", size = 64 }
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* Background arc */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(91,106,191,0.08)" strokeWidth={4}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(91,106,191,0.12)" strokeWidth={4}
           strokeDasharray={`${arcLen} 999`}
           strokeLinecap="round"
           style={{ transform: "rotate(150deg)", transformOrigin: "50% 50%" }} />
@@ -662,7 +694,7 @@ function HudGauge({ value = 0, max = 100, label, colour = "#5b6abf", size = 64 }
           {typeof value === "number" ? Math.round(value) : value}
         </text>
       </svg>
-      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(26,29,46,0.4)",
+      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(148,163,184,0.5)",
         textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>{label}</span>
     </div>
   );
@@ -685,19 +717,22 @@ function BandKeyframes({ band }) {
       @keyframes ks2OrbitPulse { 0%,100%{opacity:0.08} 50%{opacity:0.15} }
     `,
     ks3: `
-      @keyframes ks3EdgePulse { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
+      @keyframes ks3ScanLine { 0%{transform:translateY(-100%)} 100%{transform:translateY(200%)} }
       @keyframes ks3DataSweep { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
       @keyframes ks3VSweep { 0%{transform:translateY(-100%)} 100%{transform:translateY(200%)} }
       @keyframes ks3RadarSweep { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
       @keyframes ks3GaugePulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
-      @keyframes ks3PanelGlow { 0%,100%{box-shadow:inset 0 0 12px rgba(91,106,191,0.03)} 50%{box-shadow:inset 0 0 20px rgba(91,106,191,0.06)} }
+      @keyframes ks3PanelGlow { 0%,100%{box-shadow:0 4px 20px rgba(0,0,0,0.3)} 50%{box-shadow:0 4px 20px rgba(0,0,0,0.3), 0 0 20px rgba(91,106,191,0.12)} }
+      @keyframes ks3GridPulse { 0%,100%{opacity:0.06} 50%{opacity:0.09} }
     `,
     ks4: `
       @keyframes ks4Scan { 0%{backgroundPosition:0 0} 100%{backgroundPosition:0 100%} }
-      @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.1)} 50%{box-shadow:0 0 30px rgba(124,58,237,0.18)} }
+      @keyframes ks4GlowPulse { 0%,100%{box-shadow:0 0 20px rgba(139,92,246,0.1)} 50%{box-shadow:0 0 32px rgba(139,92,246,0.18)} }
       @keyframes ks4Badge { 0%,100%{opacity:0.8;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
+      @keyframes ks4GridFade { 0%,100%{opacity:0.04} 50%{opacity:0.07} }
       @keyframes ks4NodePulse { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.15)} }
       @keyframes ks4DonutFill { from{stroke-dashoffset:251} to{stroke-dashoffset:var(--target)} }
+      @keyframes ks4StatusPulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
     `,
   };
   const shared3D = `
@@ -717,6 +752,8 @@ function BandKeyframes({ band }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
+  const { band } = useTheme();
+  const isDark = band === "ks3" || band === "ks4";
   const days = useMemo(() => {
     const today = new Date();
     const result = [];
@@ -742,12 +779,15 @@ function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
-        {days.map((day) => {
+        {days.map((day, index) => {
           const intensity = Math.min(day.questionsAnswered / 15, 1); // max out at 15 questions
           return (
-            <div key={day.date} style={{ flex: 1, textAlign: "center" }}>
+            <div key={`${day.date}-${index}`} style={{ flex: 1, textAlign: "center" }}>
               <div style={{
-                fontSize: 9, fontWeight: 700, color: day.isToday ? "#7c3aed" : "rgba(30,27,75,0.35)",
+                fontSize: 9, fontWeight: 700,
+                color: day.isToday
+                  ? (isDark ? "#a78bfa" : "#8b5cf6")
+                  : (isDark ? "rgba(148,163,184,0.4)" : "rgba(30,27,75,0.35)"),
                 marginBottom: 4, textTransform: "uppercase",
               }}>
                 {day.dayLabel}
@@ -756,17 +796,21 @@ function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
                 width: "100%", aspectRatio: "1", borderRadius: 8, minHeight: 28,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 background: day.hasActivity
-                  ? `rgba(124,58,237,${0.08 + intensity * 0.32})`
-                  : day.isToday ? "rgba(124,58,237,0.04)" : "rgba(30,27,75,0.02)",
+                  ? (isDark ? `rgba(139,92,246,${0.15 + intensity * 0.35})` : `rgba(139,92,246,${0.08 + intensity * 0.32})`)
+                  : day.isToday
+                    ? (isDark ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.04)")
+                    : (isDark ? "rgba(148,163,184,0.04)" : "rgba(30,27,75,0.02)"),
                 border: day.isToday
-                  ? "2px solid rgba(124,58,237,0.3)"
-                  : day.hasActivity ? "1px solid rgba(124,58,237,0.12)" : "1px solid rgba(30,27,75,0.04)",
+                  ? (isDark ? "2px solid rgba(167,139,250,0.35)" : "2px solid rgba(139,92,246,0.3)")
+                  : day.hasActivity
+                    ? (isDark ? "1px solid rgba(139,92,246,0.2)" : "1px solid rgba(139,92,246,0.12)")
+                    : (isDark ? "1px solid rgba(148,163,184,0.06)" : "1px solid rgba(30,27,75,0.04)"),
                 transition: "all 0.3s",
               }}>
                 {day.hasActivity ? (
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed" }}>{day.questionsAnswered}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: isDark ? "#c4b5fd" : "#8b5cf6" }}>{day.questionsAnswered}</span>
                 ) : day.isToday ? (
-                  <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(124,58,237,0.4)" }}>today</span>
+                  <span style={{ fontSize: 8, fontWeight: 600, color: isDark ? "rgba(167,139,250,0.5)" : "rgba(139,92,246,0.4)" }}>today</span>
                 ) : null}
               </div>
             </div>
@@ -774,10 +818,10 @@ function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
         })}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-        <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.3)" }}>
+        <span style={{ fontSize: 9, fontWeight: 600, color: isDark ? "rgba(148,163,184,0.4)" : "rgba(30,27,75,0.3)" }}>
           {days.filter((d) => d.hasActivity).length}/7 active days
         </span>
-        <span style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed" }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: isDark ? "#a78bfa" : "#8b5cf6" }}>
           {days.reduce((s, d) => s + d.questionsAnswered, 0)} total questions
         </span>
       </div>
@@ -790,6 +834,8 @@ function WeeklyActivityGrid({ activityCalendar = [], stats = {} }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, onTopicClick, subject }) {
+  const { band } = useTheme();
+  const isDark = band === "ks3" || band === "ks4";
   const dueNow = reviewSchedule.dueNow || [];
   const upcoming = reviewSchedule.upcoming || [];
   if (dueNow.length === 0 && upcoming.length === 0) return null;
@@ -800,7 +846,7 @@ function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, o
     <div>
       {dueNow.length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: isDark ? "#f87171" : "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
             Due Now ({dueNow.length})
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -811,12 +857,13 @@ function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, o
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "6px 10px", borderRadius: 8,
-                  background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
+                  background: isDark ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)",
+                  border: isDark ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(239,68,68,0.12)",
                   cursor: "pointer", transition: "all 0.2s",
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 600, color: "#1e1b4b" }}>{titleCase(item.topic)}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444" }}>Review</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? "#e2e8f0" : "#1e1b4b" }}>{titleCase(item.topic)}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: isDark ? "#f87171" : "#ef4444" }}>Review</span>
               </button>
             ))}
           </div>
@@ -824,7 +871,7 @@ function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, o
       )}
       {upcoming.length > 0 && (
         <div>
-          <div style={{ fontSize: 9, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: isDark ? "#60a5fa" : "#3b82f6", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
             Upcoming ({upcoming.length})
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -832,10 +879,11 @@ function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, o
               <div key={i} style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "5px 10px", borderRadius: 6,
-                background: "rgba(59,130,246,0.04)", border: "1px solid rgba(59,130,246,0.08)",
+                background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.04)",
+                border: isDark ? "1px solid rgba(59,130,246,0.15)" : "1px solid rgba(59,130,246,0.08)",
               }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(30,27,75,0.6)" }}>{titleCase(item.topic)}</span>
-                <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(59,130,246,0.6)" }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: isDark ? "rgba(226,232,240,0.6)" : "rgba(30,27,75,0.6)" }}>{titleCase(item.topic)}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: isDark ? "rgba(96,165,250,0.7)" : "rgba(59,130,246,0.6)" }}>
                   {item.next_review_at ? new Date(item.next_review_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
                 </span>
               </div>
@@ -905,7 +953,7 @@ function CoinShopBanner({ coins = 0, onOpenShop }) {
           ].map((m, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>{m.icon}</span>
-              <span style={{ fontWeight: 700, color: "#1e293b", flex: 1 }}>{m.text}</span>
+              <span style={{ fontWeight: 700, color: isDark ? "#e2e8f0" : "#1e293b", flex: 1 }}>{m.text}</span>
               <span style={{ fontWeight: 800, color: "#d97706", fontSize: 10 }}>{m.detail}</span>
             </div>
           ))}
@@ -931,7 +979,7 @@ export default function AdaptiveDashboardLayout({
   onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
   onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic,
 }) {
-  const { band, theme: t } = useTheme();
+  const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
   const [activeTab, setActiveTab] = useState(
     band === "ks1" ? "adventure" : band === "ks2" ? "mission" : band === "ks4" ? "exams" : "mission"
@@ -955,7 +1003,6 @@ export default function AdaptiveDashboardLayout({
   // Exam mode is only active when parent explicitly enrolled scholar in a valid exam mode (e.g. "eleven_plus")
   const hasActiveExamMode = scholar.exam_mode && scholar.exam_mode !== "none" && scholar.exam_mode !== "general";
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
-  const isDark = cfg.dark;
   const gradeLabel = formatGradeLabel?.(scholar.year_level, scholar.curriculum) || `Year ${scholar.year_level || "?"}`;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1108,7 +1155,7 @@ export default function AdaptiveDashboardLayout({
                   </div>
                   <div style={{ textAlign: "center", padding: "14px 6px", borderRadius: 14, background: "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(217,70,239,0.06))", border: "1px solid rgba(168,85,247,0.15)", overflow: "hidden" }}>
                     <div style={{ fontSize: 12, marginBottom: 4 }}>🚀</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: "#7c3aed", lineHeight: 1.1 }}>{stats.questsCompleted ?? 0}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#8b5cf6", lineHeight: 1.1 }}>{stats.questsCompleted ?? 0}</div>
                     <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Missions Completed</div>
                   </div>
                   <div style={{ textAlign: "center", padding: "14px 6px", borderRadius: 14, background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.06))", border: "1px solid rgba(245,158,11,0.15)", overflow: "hidden" }}>
@@ -1209,7 +1256,7 @@ export default function AdaptiveDashboardLayout({
                   <div style={{
                     height: "100%",
                     width: `${subjectMastery.pct}%`,
-                    background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
+                    background: "linear-gradient(90deg, #4f46e5, #8b5cf6)",
                     borderRadius: 4,
                     transition: "width 0.3s ease",
                   }} />
@@ -1217,7 +1264,7 @@ export default function AdaptiveDashboardLayout({
                 <div style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: "#7c3aed",
+                  color: "#8b5cf6",
                   marginTop: 8,
                   textTransform: "uppercase",
                 }}>
@@ -1262,9 +1309,9 @@ export default function AdaptiveDashboardLayout({
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>🎯 Accuracy</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: "#4f46e5" }}>{stats.bestAccuracy ?? stats.accuracy ?? 0}%</div>
                 </div>
-                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(124,58,237,0.1), rgba(168,85,247,0.04))", border: "1px solid rgba(124,58,237,0.18)" }}>
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(139,92,246,0.1), rgba(168,85,247,0.04))", border: "1px solid rgba(139,92,246,0.18)" }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>⭐ Mastery</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: "#7c3aed" }}>{subjectMastery.pct}%</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#8b5cf6" }}>{subjectMastery.pct}%</div>
                 </div>
                 <div style={{ padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg, rgba(37,99,235,0.1), rgba(59,130,246,0.04))", border: "1px solid rgba(37,99,235,0.18)" }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>🪐 Topics</div>
@@ -1354,17 +1401,17 @@ export default function AdaptiveDashboardLayout({
             )}
 
             {/* ── 2-COLUMN INSTRUMENT PANEL: Radar + Skill Map ───────────────── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.8fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.8fr", gap: 12 }}>
               {/* Subject Radar Display */}
               <HudPanel designation="RDR" label="Subject Scan" dataSection="stats">
                 <SubjectRadar subjects={subjects} masteryData={masteryData} />
                 <div style={{ textAlign: "center", marginTop: 4 }}>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: "#5b6abf", fontFamily: "'DM Sans', sans-serif" }}>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: "#818cf8", fontFamily: "'DM Sans', sans-serif" }}>
                     {subjectMastery.pct}%
                   </span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(26,29,46,0.3)", marginLeft: 4 }}>OVERALL</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(148,163,184,0.4)", marginLeft: 4 }}>OVERALL</span>
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(26,29,46,0.4)", textAlign: "center", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "rgba(148,163,184,0.4)", textAlign: "center", marginTop: 2 }}>
                   {subjectMastery.count} topics tracked
                 </div>
               </HudPanel>
@@ -1417,7 +1464,7 @@ export default function AdaptiveDashboardLayout({
                   <>
                     <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(91,106,191,0.15) 20%, rgba(91,106,191,0.15) 80%, transparent)", margin: "8px 0 12px" }} />
                     <div style={{ marginBottom: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#5b6abf", textTransform: "uppercase", letterSpacing: "0.12em" }}>Thermal Scan</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.12em" }}>Thermal Scan</span>
                     </div>
                     <TopicHeatmap
                       masteryData={masteryData}
@@ -1491,16 +1538,16 @@ export default function AdaptiveDashboardLayout({
               {(() => {
                 const isExamMode = hasActiveExamMode;
                 return (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
-                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(124,58,237,0.04)" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 9, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(139,92,246,0.1)" }}>
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(139,92,246,0.06)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 9, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
                         {isExamMode ? "Predicted Grade" : "Total XP"}
                         {isExamMode && <SectionTip tip="Your predicted grade is calculated from topic mastery (60%), coverage across the syllabus (25%), and retention strength (15%). It updates after every practice session." style={{ marginLeft: 2 }} />}
                       </div>
-                      <div style={{ fontSize: 26, fontWeight: 900, color: "#7c3aed", fontFamily: "'DM Sans', sans-serif" }}>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: "#ede9fe", fontFamily: "'DM Sans', sans-serif" }}>
                         {isExamMode ? (examData?.predictedGrade || "—") : (stats.xp ?? 0).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.35)", marginTop: 1 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(167,139,250,0.4)", marginTop: 1 }}>
                         {isExamMode
                           ? (examData?.readiness?.nextGrade
                               ? `${examData.readiness.pointsToNext}pts to ${examData.readiness.nextGrade}`
@@ -1508,21 +1555,21 @@ export default function AdaptiveDashboardLayout({
                           : "Experience points"}
                       </div>
                     </div>
-                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(124,58,237,0.04)" }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>{getSubjectLabel(activeSubject, band)} Mastery</div>
-                      <div style={{ fontSize: 26, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>{subjectMastery.pct}<span style={{ fontSize: 12, color: "rgba(30,27,75,0.3)" }}>%</span></div>
-                      <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.1)", marginTop: 6, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 2, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)", transition: "width 0.8s ease" }} />
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: "rgba(139,92,246,0.06)" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>{getSubjectLabel(activeSubject, band)} Mastery</div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: "#ede9fe", fontFamily: "'DM Sans', sans-serif", fontVariantNumeric: "tabular-nums" }}>{subjectMastery.pct}<span style={{ fontSize: 12, color: "rgba(167,139,250,0.4)" }}>%</span></div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(139,92,246,0.12)", marginTop: 6, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 2, width: `${subjectMastery.pct}%`, background: "linear-gradient(90deg, #8b5cf6, #a78bfa)", transition: "width 0.8s ease" }} />
                       </div>
                     </div>
-                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "rgba(239,68,68,0.04)" : "rgba(124,58,237,0.04)" }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+                    <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: 10, background: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "rgba(239,68,68,0.08)" : "rgba(139,92,246,0.06)" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#a78bfa", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
                         {isExamMode ? "Countdown" : "Streak"}
                       </div>
-                      <div style={{ fontSize: 26, fontWeight: 900, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#1e1b4b", fontFamily: "'DM Sans', sans-serif" }}>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: isExamMode && (examData?.daysUntilExam ?? 999) <= 30 ? "#ef4444" : "#ede9fe", fontFamily: "'DM Sans', sans-serif", fontVariantNumeric: "tabular-nums" }}>
                         {isExamMode ? (examData?.daysUntilExam ?? "—") : (stats.streak ?? 0)}
                       </div>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.35)", marginTop: 1 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(167,139,250,0.4)", marginTop: 1 }}>
                         {isExamMode ? "days to exam" : "day streak"}
                       </div>
                     </div>
@@ -1532,8 +1579,8 @@ export default function AdaptiveDashboardLayout({
 
               {/* ── Action buttons row ────── */}
               <div data-section="exams" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 12, gap: 8 }}>
-                <button onClick={() => generateReport({ scholar, stats, masteryData, subjects, activeSubject, band })} style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.15)", color: "#7c3aed", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
-                <button onClick={() => onStartMock?.({ category: "exam_prep", subject: activeSubject })} style={{ padding: "6px 12px", borderRadius: 8, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 10px rgba(124,58,237,0.3)" }}>Launch Deep Space</button>
+                <button onClick={() => generateReport({ scholar, stats, masteryData, subjects, activeSubject, band })} style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)", color: "#a78bfa", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Export Report</button>
+                <button onClick={() => onStartMock?.({ category: "exam_prep", subject: activeSubject })} style={{ padding: "6px 12px", borderRadius: 8, background: "linear-gradient(135deg, #8b5cf6, #6d28d9)", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 10px rgba(139,92,246,0.3)" }}>Launch Deep Space</button>
               </div>
             </BandCard>
 
@@ -1541,7 +1588,7 @@ export default function AdaptiveDashboardLayout({
             <BandCard band={band}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Performance Telemetry</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.12em" }}>Performance Telemetry</div>
                   <SectionTip tip="Questions answered, accuracy, focus time, and streak this week. The readiness gauge shows your overall exam preparedness based on mastery, coverage, and retention." />
                 </div>
               </div>
@@ -1552,14 +1599,14 @@ export default function AdaptiveDashboardLayout({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <BandCard band={band}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Weekly Activity</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.12em" }}>Weekly Activity</div>
                   <SectionTip tip="Your study activity over the past 7 days. Each cell shows questions answered that day." />
                 </div>
                 <WeeklyActivityGrid activityCalendar={activityCalendar} stats={stats} />
               </BandCard>
               <BandCard band={band}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em" }}>Spaced Review</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.12em" }}>Spaced Review</div>
                   <SectionTip tip="Topics due for review based on spaced repetition scheduling. Reviewing at the right time strengthens long-term memory." />
                 </div>
                 <ReviewScheduleWidget reviewSchedule={reviewSchedule} onTopicClick={onTopicClick} subject={activeSubject} />
@@ -1580,8 +1627,8 @@ export default function AdaptiveDashboardLayout({
             {/* ── Constellation Star Chart (Phaser-powered, full-width) ──── */}
             <div data-section="heatmap">
               <BandCard band={band} glow>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Star Chart</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>The Constellation</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Star Chart</div>
                 <PhaserConstellationMap
                   topics={topics} subjects={subjects} subject={activeSubject}
                   onTopicClick={onTopicClick} onSubjectChange={setActiveSubject}
@@ -1595,10 +1642,10 @@ export default function AdaptiveDashboardLayout({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Topic Mastery</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.15em" }}>Topic Mastery</div>
                     <SectionTip tip="Sub-topic proficiency breakdown + colour-coded heatmap. Green = strong (80%+), blue = good (60%+), amber = developing (40%+), red = needs work. Tap any topic to revise." />
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginTop: 2 }}>Proficiency & Thermal Scan</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: isDark ? "#ede9fe" : "#1e1b4b", marginTop: 2 }}>Proficiency & Thermal Scan</div>
                 </div>
                 {/* Subject tabs */}
                 <div style={{ display: "flex", gap: 6 }}>
@@ -1607,9 +1654,9 @@ export default function AdaptiveDashboardLayout({
                     return (
                       <button key={s} onClick={() => setActiveSubject(s)}
                         style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1px solid", transition: "all 0.2s",
-                          background: active ? "#7c3aed" : "rgba(124,58,237,0.04)",
-                          color: active ? "#fff" : "#7c3aed",
-                          borderColor: active ? "#7c3aed" : "rgba(124,58,237,0.12)",
+                          background: active ? "#8b5cf6" : "rgba(139,92,246,0.08)",
+                          color: active ? "#fff" : "#a78bfa",
+                          borderColor: active ? "#8b5cf6" : "rgba(139,92,246,0.15)",
                         }}>
                         {getSubjectLabel(s, band).split(" ")[0]}
                       </button>
@@ -1622,10 +1669,10 @@ export default function AdaptiveDashboardLayout({
               <TopicPerformanceBreakdown scholarId={scholarId} subject={activeSubject} supabase={supabase} />
 
               {/* Divider */}
-              <div style={{ borderTop: "1px solid rgba(124,58,237,0.08)", margin: "14px 0" }} />
+              <div style={{ borderTop: "1px solid rgba(139,92,246,0.08)", margin: "14px 0" }} />
 
               {/* Heatmap grid */}
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Thermal Scan</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Thermal Scan</div>
               <TopicHeatmap
                 masteryData={masteryData}
                 subject={activeSubject?.toLowerCase() || "mathematics"}
@@ -1638,10 +1685,10 @@ export default function AdaptiveDashboardLayout({
             {(band === "ks3" || band === "ks4") && (recentQuizzes.length > 0 || masteryData.length > 0) && (
               <BandCard band={band}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Progress Trajectory</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em" }}>Progress Trajectory</div>
                   <SectionTip tip="Mastery % over time per subject. Filter subjects using the pills. Zoom into date ranges with the brush selector (KS3/4)." />
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Mastery Over Time</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Mastery Over Time</div>
                 <MasteryProgressChart
                   masteryData={masteryData}
                   quizResults={recentQuizzes}
@@ -1654,14 +1701,14 @@ export default function AdaptiveDashboardLayout({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <BandCard band={band}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Memory Integrity</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em" }}>Memory Integrity</div>
                   <SectionTip tip="Multi-ring chart showing how well you're retaining topics. Inner ring = overall retention. Outer rings = top subjects. Topics are 'retained' when you've reviewed them 2+ times with mastery above 40%." />
                 </div>
                 <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} />
               </BandCard>
               <BandCard band={band}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Achievement Vault</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em" }}>Achievement Vault</div>
                   <SectionTip tip="Track certificate milestones per subject. Bronze (3 topics), Silver (5), Gold (8), Platinum (12), Diamond (18). Master topics to unlock the next level!" />
                 </div>
                 <CertificateProgress masteryData={masteryData} subjects={subjects} />
@@ -1672,27 +1719,27 @@ export default function AdaptiveDashboardLayout({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {/* Deep Space Threshold — donut */}
               <BandCard band={band}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Deep Space Threshold</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Deep Space Threshold</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 8 }}>
                   <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
                     <svg viewBox="0 0 90 90" style={{ width: 90, height: 90 }}>
-                      <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(124,58,237,0.08)" strokeWidth="8" />
-                      <circle cx="45" cy="45" r="38" fill="none" stroke="#7c3aed" strokeWidth="8" strokeLinecap="round"
+                      <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(139,92,246,0.12)" strokeWidth="8" />
+                      <circle cx="45" cy="45" r="38" fill="none" stroke="#8b5cf6" strokeWidth="8" strokeLinecap="round"
                         strokeDasharray="238.76" strokeDashoffset={238.76 * (1 - Math.min((stats.streak ?? 0) / 30, 1))}
                         transform="rotate(-90 45 45)" style={{ transition: "stroke-dashoffset 1s ease" }} />
                     </svg>
                     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: "#1e1b4b" }}>{stats.streak ?? 0}</span>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>days</span>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: "#ede9fe", fontVariantNumeric: "tabular-nums" }}>{stats.streak ?? 0}</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(167,139,250,0.4)", textTransform: "uppercase" }}>days</span>
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b4b" }}>Weekly Goal</div>
-                    <div style={{ fontSize: 11, color: "rgba(30,27,75,0.45)", marginTop: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#ede9fe" }}>Weekly Goal</div>
+                    <div style={{ fontSize: 11, color: "rgba(167,139,250,0.5)", marginTop: 2 }}>
                       {Math.round(Math.min((stats.streak ?? 0) / 7, 1) * 100)}% reached
                     </div>
-                    <div style={{ height: 4, borderRadius: 2, background: "rgba(124,58,237,0.08)", marginTop: 8, width: 120, overflow: "hidden" }}>
-                      <div style={{ height: "100%", borderRadius: 2, width: `${Math.min((stats.streak ?? 0) / 7, 1) * 100}%`, background: "linear-gradient(90deg, #7c3aed, #a78bfa)" }} />
+                    <div style={{ height: 4, borderRadius: 2, background: "rgba(139,92,246,0.12)", marginTop: 8, width: 120, overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: 2, width: `${Math.min((stats.streak ?? 0) / 7, 1) * 100}%`, background: "linear-gradient(90deg, #8b5cf6, #a78bfa)" }} />
                     </div>
                   </div>
                 </div>
@@ -1700,22 +1747,22 @@ export default function AdaptiveDashboardLayout({
 
               {/* Orbital Efficiency */}
               <BandCard band={band}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Efficiency</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Efficiency</div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
-                  <span style={{ fontSize: 36, fontWeight: 900, color: "#1e1b4b" }}>{((subjectMastery.pct / 10) || 0).toFixed(1)}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(30,27,75,0.3)" }}>/10</span>
+                  <span style={{ fontSize: 36, fontWeight: 900, color: "#ede9fe", fontVariantNumeric: "tabular-nums" }}>{((subjectMastery.pct / 10) || 0).toFixed(1)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(167,139,250,0.3)" }}>/10</span>
                 </div>
                 <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, marginTop: 4,
-                  background: subjectMastery.pct >= 80 ? "rgba(16,185,129,0.08)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)",
-                  color: subjectMastery.pct >= 80 ? "#059669" : subjectMastery.pct >= 50 ? "#d97706" : "#dc2626",
-                  border: `1px solid ${subjectMastery.pct >= 80 ? "rgba(16,185,129,0.15)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)"}`,
+                  background: subjectMastery.pct >= 80 ? "rgba(16,185,129,0.12)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.12)" : "rgba(239,68,68,0.12)",
+                  color: subjectMastery.pct >= 80 ? "#4ade80" : subjectMastery.pct >= 50 ? "#facc15" : "#f87171",
+                  border: `1px solid ${subjectMastery.pct >= 80 ? "rgba(16,185,129,0.25)" : subjectMastery.pct >= 50 ? "rgba(245,158,11,0.25)" : "rgba(239,68,68,0.25)"}`,
                 }}>
                   {subjectMastery.pct >= 80 ? "OPTIMAL FLOW" : subjectMastery.pct >= 50 ? "DEVELOPING" : "WARMING UP"}
                 </div>
                 {/* Mini bar chart */}
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 3, marginTop: 12, height: 32 }}>
                   {[65, 72, 58, 80, 91, 85, subjectMastery.pct].map((v, i) => (
-                    <div key={i} style={{ flex: 1, height: `${v * 0.32}px`, borderRadius: 3, background: i === 6 ? "#7c3aed" : "rgba(124,58,237,0.12)", transition: "height 0.5s ease" }} />
+                    <div key={i} style={{ flex: 1, height: `${v * 0.32}px`, borderRadius: 3, background: i === 6 ? "#8b5cf6" : "rgba(139,92,246,0.15)", transition: "height 0.5s ease" }} />
                   ))}
                 </div>
               </BandCard>
@@ -1726,10 +1773,10 @@ export default function AdaptiveDashboardLayout({
               <BandCard band={band} glow>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em" }}>Active Research Modules</div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginTop: 2 }}>Revision Planner</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em" }}>Active Research Modules</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginTop: 2 }}>Revision Planner</div>
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b5cf6", textTransform: "uppercase" }}>Targeting Grade Boundaries</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase" }}>Targeting Grade Boundaries</div>
                 </div>
                 <RevisionPlanner
                   masteryData={masteryData} examDate={examData?.examDate}
@@ -1741,8 +1788,8 @@ export default function AdaptiveDashboardLayout({
             {/* ── Exam Panel (only for scholars enrolled in exam mode e.g. 11+) ──────── */}
             {examData && hasActiveExamMode && (
               <BandCard band={band}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Grade Trajectory</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Exam Intelligence</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Grade Trajectory</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Exam Intelligence</div>
                 <ExamPanel
                   predictedGrade={examData.predictedGrade} previousGrade={examData.previousGrade}
                   examName={examData.examName} daysUntilExam={examData.daysUntilExam}
@@ -1755,7 +1802,7 @@ export default function AdaptiveDashboardLayout({
             {/* ── Simulation Bay (main content anchor for nav linking) ─── */}
             <div data-section="tutor">
               <BandCard band={band} glow>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
                 <MockTestLauncher
                   subject={activeSubject?.toLowerCase() || "mathematics"}
                   curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
@@ -1784,8 +1831,8 @@ export default function AdaptiveDashboardLayout({
             {/* ── Discovery Feed (mobile: Flashcards) ────────── */}
             <div className="xl:hidden">
               <BandCard band={band} glow>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Active Recall</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Flashcard Deck</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Active Recall</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Flashcard Deck</div>
                 <Flashcards scholarId={scholarId} subject={activeSubject}
                   curriculum={scholar.curriculum} supabase={supabase} yearLevel={scholar.year_level} />
               </BandCard>
@@ -1794,23 +1841,23 @@ export default function AdaptiveDashboardLayout({
             {/* ── Year Progression Chart (from KS3 data viz) ──── */}
             {masteryData.length > 0 && (
               <BandCard band={band}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Trajectory</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Year Progression</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Orbital Trajectory</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Year Progression</div>
                 <SubjectProgressChart masteryData={masteryData} subjects={subjects} />
               </BandCard>
             )}
 
             {/* ── Weekly Goals ──── */}
             <BandCard band={band}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Mission Objectives</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Weekly Goals</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Mission Objectives</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Weekly Goals</div>
               <GoalSetting scholarId={scholarId} stats={stats} />
             </BandCard>
 
             {/* ── Quest Journal ──── */}
             <BandCard band={band}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Flight Log</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b", marginBottom: 12 }}>Recent Activity</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Flight Log</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe", marginBottom: 12 }}>Recent Activity</div>
               <QuestJournal entries={journalEntries} />
             </BandCard>
 
@@ -1873,13 +1920,17 @@ export default function AdaptiveDashboardLayout({
       {/* KS4: Flashcards + Mock Test + Leaderboard */}
       {band === "ks4" && (
         <>
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Active Recall</div>
+          <div style={{ padding: "12px 14px", borderRadius: 12,
+            background: "rgba(12,8,20,0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(167,139,250,0.1)" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Active Recall</div>
             <Flashcards scholarId={scholarId} subject={activeSubject}
               curriculum={scholar.curriculum} supabase={supabase} yearLevel={scholar.year_level} />
           </div>
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
+          <div style={{ padding: "12px 14px", borderRadius: 12,
+            background: "rgba(12,8,20,0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(167,139,250,0.1)" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Simulation Bay</div>
             <MockTestLauncher
               subject={activeSubject?.toLowerCase() || "mathematics"}
               curriculum={scholar.curriculum} examMode={scholar.exam_mode || "general"}
@@ -1887,7 +1938,9 @@ export default function AdaptiveDashboardLayout({
             />
           </div>
           {/* Compact Retention Ring in sidebar */}
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.08)" }}>
+          <div style={{ padding: "12px 14px", borderRadius: 12,
+            background: "rgba(12,8,20,0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(167,139,250,0.1)" }}>
             <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} compact />
           </div>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
@@ -1966,9 +2019,9 @@ export default function AdaptiveDashboardLayout({
       {/* KS4: Status badges */}
       {band === "ks4" && subjectMastery.pct >= 80 && (
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 999,
-          background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.15)", animation: "ks4Badge 2s ease-in-out infinite" }}>
+          background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)", animation: "ks4Badge 2s ease-in-out infinite" }}>
           <span style={{ fontSize: 10 }}>✓</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em" }}>OPTIMAL</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.06em" }}>OPTIMAL</span>
         </div>
       )}
     </div>

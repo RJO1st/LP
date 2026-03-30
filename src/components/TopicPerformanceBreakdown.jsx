@@ -11,14 +11,35 @@
 //   daysBack    — number (default 30, how far back to look)
 
 import React, { useEffect, useState, useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
 
-// Mastery tier thresholds
-function getMasteryTier(pct) {
-  if (pct >= 85) return { label: "Mastered",    color: "#10b981", bg: "#ecfdf5", border: "#6ee7b7" };
-  if (pct >= 70) return { label: "Strong",      color: "#6366f1", bg: "#eef2ff", border: "#a5b4fc" };
-  if (pct >= 50) return { label: "Developing",  color: "#f59e0b", bg: "#fffbeb", border: "#fcd34d" };
-  return            { label: "Needs work",   color: "#ef4444", bg: "#fef2f2", border: "#fca5a5" };
+// Mastery tier thresholds — theme-aware backgrounds
+function getMasteryTier(pct, isDark) {
+  if (pct >= 85) return {
+    label: "Mastered",
+    color: "#10b981",
+    bg: isDark ? "rgba(16,185,129,0.12)" : "#ecfdf5",
+    border: isDark ? "rgba(16,185,129,0.3)" : "#6ee7b7"
+  };
+  if (pct >= 70) return {
+    label: "Strong",
+    color: "#6366f1",
+    bg: isDark ? "rgba(99,102,241,0.12)" : "#eef2ff",
+    border: isDark ? "rgba(99,102,241,0.3)" : "#a5b4fc"
+  };
+  if (pct >= 50) return {
+    label: "Developing",
+    color: "#f59e0b",
+    bg: isDark ? "rgba(245,158,11,0.12)" : "#fffbeb",
+    border: isDark ? "rgba(245,158,11,0.3)" : "#fcd34d"
+  };
+  return {
+    label: "Needs work",
+    color: "#ef4444",
+    bg: isDark ? "rgba(239,68,68,0.12)" : "#fef2f2",
+    border: isDark ? "rgba(239,68,68,0.3)" : "#fca5a5"
+  };
 }
 
 // ─── Supabase query helper ────────────────────────────────────────────────────
@@ -81,6 +102,7 @@ export default function TopicPerformanceBreakdown({
   daysBack = 30,
   maxTopics = 12,
 }) {
+  const { band, isDark } = useTheme();
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all | needs_work | mastered
@@ -110,15 +132,15 @@ export default function TopicPerformanceBreakdown({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
-        <div className="h-4 bg-slate-100 rounded w-48 mb-6" />
+      <div className={`rounded-2xl border p-6 animate-pulse ${isDark ? "bg-slate-800/50 border-slate-700" : "bg-white border-slate-200"}`}>
+        <div className={`h-4 rounded w-48 mb-6 ${isDark ? "bg-slate-700" : "bg-slate-100"}`} />
         {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="mb-4">
             <div className="flex justify-between mb-1.5">
-              <div className="h-3 bg-slate-100 rounded w-32" />
-              <div className="h-3 bg-slate-100 rounded w-8" />
+              <div className={`h-3 rounded w-32 ${isDark ? "bg-slate-700" : "bg-slate-100"}`} />
+              <div className={`h-3 rounded w-8 ${isDark ? "bg-slate-700" : "bg-slate-100"}`} />
             </div>
-            <div className="h-2.5 bg-slate-100 rounded-full" />
+            <div className={`h-2.5 rounded-full ${isDark ? "bg-slate-700" : "bg-slate-100"}`} />
           </div>
         ))}
       </div>
@@ -127,19 +149,19 @@ export default function TopicPerformanceBreakdown({
 
   if (topics.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+      <div className={`rounded-2xl border p-8 text-center ${isDark ? "bg-slate-800/50 border-slate-700" : "bg-white border-slate-200"}`}>
         <div className="text-3xl mb-2">📊</div>
-        <h4 className="font-bold text-slate-700 mb-1">{subjectLabel} performance</h4>
-        <p className="text-sm text-slate-400">Complete more {subjectLabel} missions to see your topic breakdown.</p>
+        <h4 className={`font-bold mb-1 ${isDark ? "text-slate-200" : "text-slate-700"}`}>{subjectLabel} performance</h4>
+        <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-400"}`}>Complete more {subjectLabel} missions to see your topic breakdown.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-slate-800/50 border-slate-700" : "bg-white border-slate-200"}`}>
       {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-100">
-        <h3 className="font-black text-slate-900 text-base mb-3">
+      <div className={`px-6 py-5 border-b ${isDark ? "border-slate-700" : "border-slate-100"}`}>
+        <h3 className={`font-black text-base mb-3 ${isDark ? "text-slate-100" : "text-slate-900"}`}>
           {subjectLabel} performance by topic
         </h3>
         {/* Filter tabs */}
@@ -155,6 +177,8 @@ export default function TopicPerformanceBreakdown({
               className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
                 filter === key
                   ? "bg-indigo-600 border-indigo-600 text-white"
+                  : isDark
+                  ? "bg-slate-700 border-slate-600 text-slate-300 hover:border-indigo-500"
                   : "bg-white border-slate-200 text-slate-500 hover:border-indigo-300"
               }`}
             >
@@ -170,11 +194,11 @@ export default function TopicPerformanceBreakdown({
           <p className="text-sm text-slate-400 text-center py-4">No topics match this filter.</p>
         ) : (
           displayed.map(({ topic, pct, correct, total }) => {
-            const tier = getMasteryTier(pct);
+            const tier = getMasteryTier(pct, isDark);
             return (
               <div key={topic}>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-semibold text-slate-700 capitalize">
+                  <span className={`text-sm font-semibold capitalize ${isDark ? "text-slate-200" : "text-slate-700"}`}>
                     {topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                   <div className="flex items-center gap-2 ml-2">
@@ -189,13 +213,13 @@ export default function TopicPerformanceBreakdown({
                     </span>
                   </div>
                 </div>
-                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-2.5 rounded-full overflow-hidden ${isDark ? "bg-slate-700" : "bg-slate-100"}`}>
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${pct}%`, background: tier.color }}
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-400"}`}>
                   {correct} of {total} correct
                 </p>
               </div>

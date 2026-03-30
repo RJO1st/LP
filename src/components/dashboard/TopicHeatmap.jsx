@@ -14,6 +14,7 @@
  */
 
 import React, { useMemo, useState } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 // ── Mastery colour scale ────────────────────────────────────────────────────
 function getMasteryColour(pct) {
@@ -21,7 +22,7 @@ function getMasteryColour(pct) {
   if (pct >= 60) return { bg: "rgba(59,130,246,0.2)", border: "rgba(59,130,246,0.35)", text: "#3b82f6", label: "On Track" };
   if (pct >= 40) return { bg: "rgba(245,158,11,0.2)", border: "rgba(245,158,11,0.35)", text: "#f59e0b", label: "Developing" };
   if (pct > 0)   return { bg: "rgba(239,68,68,0.15)", border: "rgba(239,68,68,0.3)", text: "#ef4444", label: "Needs Focus" };
-  return { bg: "rgba(124,58,237,0.04)", border: "rgba(124,58,237,0.1)", text: "#a78bfa", label: "Not Started" };
+  return { bg: "rgba(139,92,246,0.04)", border: "rgba(139,92,246,0.1)", text: "#a78bfa", label: "Not Started" };
 }
 
 function formatDate(iso) {
@@ -42,6 +43,7 @@ export default function TopicHeatmap({
   compact = false,
   band = "ks2",
 }) {
+  const { isDark } = useTheme();
   const [hoveredTopic, setHoveredTopic] = useState(null);
 
   // Filter mastery data for the active subject
@@ -67,7 +69,7 @@ export default function TopicHeatmap({
 
   if (topicData.length === 0) {
     return (
-      <div style={{ padding: 16, textAlign: "center", color: "rgba(30,27,75,0.35)", fontSize: 12, fontWeight: 600 }}>
+      <div style={{ padding: 16, textAlign: "center", color: isDark ? "rgba(167,139,250,0.35)" : "rgba(30,27,75,0.35)", fontSize: 12, fontWeight: 600 }}>
         No topic data yet — complete quizzes to build your heatmap.
       </div>
     );
@@ -114,7 +116,7 @@ export default function TopicHeatmap({
             <div style={{
               fontSize: compact ? 9 : 10,
               fontWeight: 700,
-              color: "#1e1b4b",
+              color: isDark ? "#e2e8f0" : "#1e1b4b",
               lineHeight: 1.2,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -131,7 +133,7 @@ export default function TopicHeatmap({
               width: "80%",
               height: 3,
               borderRadius: 2,
-              background: "rgba(30,27,75,0.06)",
+              background: isDark ? "rgba(167,139,250,0.08)" : "rgba(30,27,75,0.06)",
               marginTop: 2,
               overflow: "hidden",
             }}>
@@ -161,7 +163,7 @@ export default function TopicHeatmap({
                 bottom: "calc(100% + 8px)",
                 left: "50%",
                 transform: "translateX(-50%)",
-                background: "#1e1b4b",
+                background: isDark ? "#1a1625" : "#1e1b4b",
                 color: "#fff",
                 padding: "8px 12px",
                 borderRadius: 8,
@@ -188,7 +190,7 @@ export default function TopicHeatmap({
                   height: 0,
                   borderLeft: "6px solid transparent",
                   borderRight: "6px solid transparent",
-                  borderTop: "6px solid #1e1b4b",
+                  borderTop: `6px solid ${isDark ? "#1a1625" : "#1e1b4b"}`,
                 }} />
               </div>
             )}
@@ -205,7 +207,7 @@ export default function TopicHeatmap({
           marginTop: 12,
           fontSize: 9,
           fontWeight: 600,
-          color: "rgba(30,27,75,0.4)",
+          color: isDark ? "rgba(226,232,240,0.4)" : "rgba(30,27,75,0.4)",
         }}>
           {[
             { label: "Mastered", color: "#22c55e" },

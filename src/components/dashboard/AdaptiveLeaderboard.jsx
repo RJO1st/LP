@@ -15,7 +15,7 @@
 
 import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import AvatarRenderer from "@/components/game/AvatarRenderer";
+import AvatarRenderer from "@/components/game/AvatarRendererCanvas";
 
 export default function AdaptiveLeaderboard({ entries = [], currentScholarId, maxEntries = 5 }) {
   const { band, theme: t, isDark } = useTheme();
@@ -95,9 +95,13 @@ export default function AdaptiveLeaderboard({ entries = [], currentScholarId, ma
                 {rank}
               </span>
 
-              {/* Avatar — illustrated SVG character */}
-              <div style={{ width: band === "ks1" ? 36 : 32, height: band === "ks1" ? 36 : 32, flexShrink: 0 }}>
-                <AvatarRenderer avatar={entry.avatar || { base: "astronaut" }} size="sm" animated={false} />
+              {/* Avatar — Canvas component owns its own circular clip + bg */}
+              <div style={{
+                width: 48,
+                height: 48,
+                flexShrink: 0,
+              }}>
+                <AvatarRenderer avatar={entry.avatar || { base: "astronaut" }} size="sm" showGlow={false} animate={false} />
               </div>
 
               {/* Name */}

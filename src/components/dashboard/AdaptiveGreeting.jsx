@@ -24,7 +24,7 @@
 import React, { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import AvatarRenderer from "@/components/game/AvatarRenderer";
+import AvatarRenderer from "@/components/game/AvatarRendererCanvas";
 
 // ── Greeting Avatar — illustrated SVG from AvatarRenderer ───────────────────
 // Renders the ACTUAL character the scholar chose in the Avatar Shop.

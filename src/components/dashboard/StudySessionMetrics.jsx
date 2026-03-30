@@ -10,12 +10,14 @@
  */
 
 import React, { useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 export default function StudySessionMetrics({
   stats = {},
   examData,
   masteryData = [],
 }) {
+  const { isDark } = useTheme();
   const questsThisWeek = stats.questsCompleted ?? 0;
   const accuracy = stats.bestAccuracy ?? stats.accuracy ?? 0;
   const timeMinutes = stats.timeMinutes ?? 0;
@@ -24,7 +26,7 @@ export default function StudySessionMetrics({
   const readiness = examData?.readiness;
   const readinessScore = readiness?.score ?? 0;
   const readinessLabel = readiness?.label ?? "—";
-  const readinessColour = readiness?.colour ?? "#7c3aed";
+  const readinessColour = readiness?.colour ?? "#8b5cf6";
   const coverage = readiness?.coverage ?? 0;
   const retention = readiness?.retention ?? 0;
 
@@ -42,7 +44,7 @@ export default function StudySessionMetrics({
   const maxBar = Math.max(...activityBars, 1);
 
   const metrics = [
-    { label: "Questions", value: questsThisWeek, icon: "📝", colour: "#7c3aed" },
+    { label: "Questions", value: questsThisWeek, icon: "📝", colour: "#8b5cf6" },
     { label: "Accuracy", value: `${accuracy}%`, icon: "🎯", colour: "#3b82f6" },
     { label: "Focus", value: `${timeMinutes}m`, icon: "⏱️", colour: "#10b981" },
     { label: "Streak", value: streak, icon: "🔥", colour: "#f59e0b" },
@@ -58,7 +60,7 @@ export default function StudySessionMetrics({
             background: `${m.colour}06`, border: `1px solid ${m.colour}12`,
             textAlign: "center", minWidth: 0,
           }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "#1e1b4b", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2 }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: isDark ? "#ede9fe" : "#1e1b4b", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2 }}>
               {m.value}
             </div>
             <div style={{ fontSize: 8, fontWeight: 700, color: m.colour, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 1 }}>
@@ -74,7 +76,7 @@ export default function StudySessionMetrics({
           textAlign: "center", minWidth: 0,
         }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: readinessColour, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2 }}>
-            {readinessScore}<span style={{ fontSize: 9, fontWeight: 600, color: "rgba(30,27,75,0.25)" }}>/100</span>
+            {readinessScore}<span style={{ fontSize: 9, fontWeight: 600, color: isDark ? "rgba(167,139,250,0.3)" : "rgba(30,27,75,0.25)" }}>/100</span>
           </div>
           <div style={{ fontSize: 8, fontWeight: 700, color: readinessColour, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 1 }}>
             Readiness
@@ -87,24 +89,24 @@ export default function StudySessionMetrics({
         {/* Coverage & Retention */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.4)", width: 52, flexShrink: 0 }}>Coverage</span>
-            <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(124,58,237,0.08)", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 2, width: `${coverage}%`, background: "#7c3aed", transition: "width 0.8s ease" }} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.5)" : "rgba(30,27,75,0.4)", width: 52, flexShrink: 0 }}>Coverage</span>
+            <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(139,92,246,0.08)", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 2, width: `${coverage}%`, background: "#8b5cf6", transition: "width 0.8s ease" }} />
             </div>
-            <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", width: 24, textAlign: "right" }}>{coverage}%</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.4)" : "rgba(30,27,75,0.35)", width: 24, textAlign: "right" }}>{coverage}%</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.4)", width: 52, flexShrink: 0 }}>Retention</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.5)" : "rgba(30,27,75,0.4)", width: 52, flexShrink: 0 }}>Retention</span>
             <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(16,185,129,0.08)", overflow: "hidden" }}>
               <div style={{ height: "100%", borderRadius: 2, width: `${retention}%`, background: "#10b981", transition: "width 0.8s ease" }} />
             </div>
-            <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", width: 24, textAlign: "right" }}>{retention}%</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.4)" : "rgba(30,27,75,0.35)", width: 24, textAlign: "right" }}>{retention}%</span>
           </div>
         </div>
 
         {/* Activity sparkline */}
         <div style={{ width: 80, flexShrink: 0 }}>
-          <div style={{ fontSize: 7, fontWeight: 700, color: "rgba(30,27,75,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2, textAlign: "center" }}>This Week</div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.3)" : "rgba(30,27,75,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2, textAlign: "center" }}>This Week</div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 20 }}>
             {activityBars.map((v, i) => (
               <div key={i} style={{
@@ -112,8 +114,8 @@ export default function StudySessionMetrics({
                 height: `${Math.max(2, (v / maxBar) * 20)}px`,
                 borderRadius: 2,
                 background: i === activityBars.length - 1
-                  ? "linear-gradient(180deg, #7c3aed, #a78bfa)"
-                  : "rgba(124,58,237,0.15)",
+                  ? "linear-gradient(180deg, #8b5cf6, #a78bfa)"
+                  : "rgba(139,92,246,0.15)",
                 transition: "height 0.5s ease",
               }} />
             ))}

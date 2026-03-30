@@ -13,6 +13,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import {
   ResponsiveContainer,
   LineChart,
@@ -55,7 +56,7 @@ function formatSubjectLabel(subject) {
 }
 
 // ── Custom tooltip ───────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label, band }) {
+function ChartTooltip({ active, payload, label, band, isDark }) {
   if (!active || !payload?.length) return null;
 
   const isYoung = band === "ks1" || band === "ks2";
@@ -63,19 +64,19 @@ function ChartTooltip({ active, payload, label, band }) {
     <div
       className="rounded-lg shadow-lg border px-3 py-2 text-xs"
       style={{
-        background: "rgba(255,255,255,0.97)",
-        borderColor: "#e2e8f0",
+        background: isDark ? "rgba(30,30,50,0.97)" : "rgba(255,255,255,0.97)",
+        borderColor: isDark ? "rgba(71,84,103,0.5)" : "#e2e8f0",
         maxWidth: 220,
       }}
     >
-      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+      <p className={`font-semibold mb-1 ${isDark ? "text-slate-200" : "text-slate-700"}`}>{label}</p>
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2 py-0.5">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full"
             style={{ background: entry.color }}
           />
-          <span className="text-slate-600">{formatSubjectLabel(entry.dataKey)}:</span>
+          <span className={isDark ? "text-slate-400" : "text-slate-600"}>{formatSubjectLabel(entry.dataKey)}:</span>
           <span className="font-bold" style={{ color: entry.color }}>
             {isYoung ? `${entry.value}%` : `${entry.value}%`}
           </span>
@@ -95,6 +96,7 @@ export default function ProgressChart({
   band = "ks2",
   className = "",
 }) {
+  const { isDark } = useTheme();
   // ── Discover subjects from data ──────────────────────────────────
   const subjects = useMemo(() => {
     const set = new Set();
@@ -188,7 +190,11 @@ export default function ProgressChart({
   if (chartData.length === 0) {
     return (
       <div
-        className={`flex items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-sm text-slate-400 ${className}`}
+        className={`flex items-center justify-center rounded-xl border border-dashed p-8 text-sm ${className} ${
+          isDark
+            ? "border-slate-600 bg-slate-800/30 text-slate-500"
+            : "border-slate-300 bg-slate-50 text-slate-400"
+        }`}
         style={{ minHeight: chartHeight }}
       >
         {isYoung
@@ -214,6 +220,8 @@ export default function ProgressChart({
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
                   ${active
                     ? "text-white shadow-sm"
+                    : isDark
+                    ? "bg-slate-700 text-slate-400 border-slate-600 hover:border-slate-500"
                     : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
                   }
                 `}
@@ -234,28 +242,28 @@ export default function ProgressChart({
       {/* Chart */}
       <ResponsiveContainer width="100%" height={chartHeight}>
         <LineChart data={chartData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(148,163,184,0.1)" : "#f1f5f9"} />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            tick={{ fontSize: 11, fill: isDark ? "#94a3b8" : "#94a3b8" }}
             tickLine={false}
-            axisLine={{ stroke: "#e2e8f0" }}
+            axisLine={{ stroke: isDark ? "rgba(148,163,184,0.2)" : "#e2e8f0" }}
           />
           <YAxis
             domain={[0, 100]}
-            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            tick={{ fontSize: 11, fill: isDark ? "#94a3b8" : "#94a3b8" }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => `${v}%`}
           />
-          <Tooltip content={<ChartTooltip band={band} />} />
+          <Tooltip content={<ChartTooltip band={band} isDark={isDark} />} />
           {/* Brush for zoom (show for KS3/4 with enough data) */}
           {(band === "ks3" || band === "ks4") && chartData.length > 7 && (
             <Brush
               dataKey="date"
               height={24}
-              stroke="#cbd5e1"
-              fill="#f8fafc"
+              stroke={isDark ? "rgba(148,163,184,0.3)" : "#cbd5e1"}
+              fill={isDark ? "rgba(71,84,103,0.2)" : "#f8fafc"}
               tickFormatter={() => ""}
             />
           )}

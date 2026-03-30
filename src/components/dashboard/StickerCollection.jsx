@@ -222,6 +222,9 @@ export default function StickerCollection({
   const earnedCount = allBadges.filter((b) => b.earned).length;
   const milestoneEarned = bandMilestones.filter((m) => m.threshold(milestones)).length;
 
+  // Don't render empty container when nothing earned yet
+  if (earnedCount === 0 && milestoneEarned === 0) return null;
+
   const tabs = [
     { key: "milestones", label: band === "ks1" ? "Stickers" : band === "ks2" ? "Medals" : "Badges", count: milestoneEarned },
     { key: "badges", label: "Subject Badges", count: earnedCount },

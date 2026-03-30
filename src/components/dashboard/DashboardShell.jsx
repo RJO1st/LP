@@ -1,12 +1,12 @@
 "use client";
 /**
- * DashboardShell.jsx — v4 REVAMP
+ * DashboardShell.jsx — v5 PREMIUM BAND REDESIGN
  * Deploy to: src/components/dashboard/DashboardShell.jsx
  *
- * Three-panel responsive layout shell used by all 4 age band dashboards.
- * Space-themed with nebula backgrounds, cosmic particles, and dynamic KS theming.
+ * Premium band-specific redesign: each KS band feels like a COMPLETELY DIFFERENT product.
  * Desktop: SideNav (left 260px) + Main Canvas + Right Sidebar (300px)
  * Mobile: No side nav + Main stacked + Bottom tab bar
+ * Kept exact same API and exports for backward compatibility.
  */
 
 import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react";
@@ -25,6 +25,9 @@ const NAV_CONFIG = {
     textPrimary: "#3d2e0f",
     textMuted: "rgba(61,46,15,0.45)",
     font: "'Fredoka', 'Nunito', sans-serif",
+    dark: false,
+    navRadius: "28px",
+    navItemHeight: 48,
     items: [
       { icon: "auto_stories", emoji: "🌟", label: "My Adventures", key: "adventure" },
       { icon: "map", emoji: "🗺️", label: "Star Map", key: "galaxy" },
@@ -45,6 +48,8 @@ const NAV_CONFIG = {
     textMuted: "#7c6fdb",
     dark: false,
     font: "'Nunito', sans-serif",
+    navRadius: "20px",
+    navItemHeight: 44,
     items: [
       { icon: "rocket_launch", emoji: "🚀", label: "Missions", key: "mission" },
       { icon: "public", emoji: "🪐", label: "Galaxy Map", key: "galaxy" },
@@ -55,17 +60,20 @@ const NAV_CONFIG = {
     cta: { icon: "rocket_launch", label: "Launch Mission" },
   },
   ks3: {
-    label: "LaunchPard",
+    label: "Career Simulator",
     sublabel: "Career Simulator",
     accent: "#5b6abf",
     accentGlow: "rgba(91,106,191,0.1)",
     accentBg: "rgba(91,106,191,0.06)",
-    navBg: "rgba(248,250,255,0.97)",
-    bodyBg: "#f5f7fc",
-    cardBg: "rgba(255,255,255,0.95)",
-    textPrimary: "#1a1d2e",
-    textMuted: "rgba(26,29,46,0.4)",
-    font: "'DM Sans', 'Inter', sans-serif",
+    navBg: "rgba(12,15,26,0.95)",
+    bodyBg: "#0c0f1a",
+    cardBg: "rgba(255,255,255,0.04)",
+    textPrimary: "#e2e8f0",
+    textMuted: "rgba(148,163,184,0.5)",
+    font: "'DM Sans', 'JetBrains Mono', 'Inter', sans-serif",
+    dark: true,
+    navRadius: "12px",
+    navItemHeight: 40,
     items: [
       { icon: "assignment", emoji: "📋", label: "Challenges", key: "mission" },
       { icon: "explore", emoji: "🧭", label: "Explore", key: "galaxy" },
@@ -77,16 +85,18 @@ const NAV_CONFIG = {
   ks4: {
     label: "Zenith Station",
     sublabel: "Peak Operations",
-    accent: "#7c3aed",
-    accentGlow: "rgba(124,58,237,0.10)",
-    accentBg: "rgba(124,58,237,0.06)",
-    navBg: "rgba(255,255,255,0.97)",
-    bodyBg: "linear-gradient(165deg, #f8f7ff 0%, #f3f0ff 30%, #ede9fe 60%, #f5f3ff 100%)",
-    cardBg: "rgba(255,255,255,0.85)",
-    textPrimary: "#1e1b4b",
-    textMuted: "rgba(30,27,75,0.38)",
-    dark: false,
-    font: "'DM Sans', 'Inter', sans-serif",
+    accent: "#8b5cf6",
+    accentGlow: "rgba(139,92,246,0.10)",
+    accentBg: "rgba(139,92,246,0.06)",
+    navBg: "rgba(10,10,20,0.95)",
+    bodyBg: "#0a0a14",
+    cardBg: "rgba(18,16,32,0.7)",
+    textPrimary: "#eee8ff",
+    textMuted: "rgba(196,181,253,0.65)",
+    dark: true,
+    font: "'DM Sans', 'IBM Plex Mono', 'Inter', sans-serif",
+    navRadius: "10px",
+    navItemHeight: 36,
     items: [
       { icon: "school", emoji: "🎓", label: "Exam Mastery", key: "exams" },
       { icon: "insights", emoji: "📈", label: "Telemetry", key: "stats" },
@@ -128,24 +138,55 @@ function scrollToSection(key) {
   if (main) main.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// ── Cosmic particle field (subtle ambient effect) ───────────────────────────
-function CosmicParticles({ band }) {
+// ── Tech grid background (KS3/KS4) ──────────────────────────────────────────
+function TechGridBg({ band }) {
   const cfg = NAV_CONFIG[band];
   if (!cfg?.dark) return null;
+
+  const gridColor = band === "ks3" ? "rgba(91,106,191,0.03)" : "rgba(139,92,246,0.02)";
+
+  return (
+    <div
+      className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      aria-hidden="true"
+      style={{
+        background: `repeating-linear-gradient(
+          0deg,
+          ${gridColor} 0px,
+          ${gridColor} 1px,
+          transparent 1px,
+          transparent 40px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          ${gridColor} 0px,
+          ${gridColor} 1px,
+          transparent 1px,
+          transparent 40px
+        )`,
+      }}
+    />
+  );
+}
+
+// ── Cosmic particle field (KS1/KS2) ──────────────────────────────────────────
+function CosmicParticles({ band }) {
+  const cfg = NAV_CONFIG[band];
+  if (cfg?.dark) return null;
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-      {Array.from({ length: 40 }).map((_, i) => (
+      {Array.from({ length: 30 }).map((_, i) => (
         <div key={i} style={{
           position: "absolute",
-          width: Math.random() * 2 + 1,
-          height: Math.random() * 2 + 1,
+          width: Math.random() * 2 + 0.5,
+          height: Math.random() * 2 + 0.5,
           background: cfg.accent,
           borderRadius: "50%",
-          opacity: Math.random() * 0.3 + 0.05,
+          opacity: Math.random() * 0.2 + 0.03,
           left: `${Math.random() * 100}%`,
           top: `${Math.random() * 100}%`,
-          animation: `cosmic-drift ${12 + Math.random() * 20}s linear infinite`,
-          animationDelay: `${Math.random() * -20}s`,
+          animation: `cosmic-drift ${15 + Math.random() * 25}s linear infinite`,
+          animationDelay: `${Math.random() * -25}s`,
         }} />
       ))}
     </div>
@@ -158,59 +199,139 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
   const isDark = cfg.dark;
   const items = navItems || cfg.items;
 
+  // KS3/KS4 specific styles
+  const isKS3 = band === "ks3";
+  const isKS4 = band === "ks4";
+  const isKS1 = band === "ks1";
+
   return (
     <aside
       className="hidden lg:flex flex-col h-screen w-[260px] fixed left-0 top-0 z-50 py-6 px-4"
       style={{
         background: cfg.navBg,
         borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}`,
-        backdropFilter: "blur(20px)",
+        backdropFilter: isDark ? "blur(30px)" : "blur(20px)",
         fontFamily: cfg.font,
+        ...(isDark && { boxShadow: `inset -1px 0 0 ${isDark ? "rgba(255,255,255,0.02)" : "none"}` }),
       }}
     >
       {/* Brand */}
       <div className="mb-10 px-3">
         <div className="flex items-center gap-3 mb-1">
-          {band === "ks1" && <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="auto_awesome" filled size={18} style={{ color: cfg.accent }} /></div>}
-          {band === "ks2" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(124,131,245,0.15)" }}><MIcon name="rocket_launch" filled size={16} style={{ color: cfg.accent }} /></div>}
-          {band === "ks3" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="terminal" size={16} style={{ color: cfg.accent }} /></div>}
-          {band === "ks4" && <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: cfg.accentBg }}><MIcon name="diamond" filled size={16} style={{ color: cfg.accent }} /></div>}
-          <h1 className="text-base font-bold tracking-tight" style={{ color: isDark ? "#fff" : cfg.textPrimary }}>
+          {isKS1 && (
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: cfg.accentBg }}
+            >
+              <MIcon name="auto_awesome" filled size={20} style={{ color: cfg.accent }} />
+            </div>
+          )}
+          {band === "ks2" && (
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(99,102,241,0.15)" }}
+            >
+              <MIcon name="rocket_launch" filled size={16} style={{ color: cfg.accent }} />
+            </div>
+          )}
+          {isKS3 && (
+            <div
+              className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
+              style={{
+                background: cfg.accentBg,
+                border: `1px solid ${cfg.accent}40`,
+              }}
+            >
+              <MIcon name="terminal" size={16} style={{ color: cfg.accent }} />
+            </div>
+          )}
+          {isKS4 && (
+            <div
+              className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
+              style={{
+                background: cfg.accentBg,
+                border: `1px solid ${cfg.accent}30`,
+              }}
+            >
+              <MIcon name="diamond" filled size={14} style={{ color: cfg.accent }} />
+            </div>
+          )}
+          <h1
+            className={`font-bold tracking-tight ${isKS1 ? "text-base" : isKS4 ? "text-sm" : "text-base"}`}
+            style={{ color: isDark ? "#fff" : cfg.textPrimary }}
+          >
             {cfg.label}
           </h1>
         </div>
-        <p className="text-[9px] uppercase tracking-[0.2em] font-bold ml-11"
-          style={{ color: cfg.textMuted }}>{cfg.sublabel}</p>
+        <p
+          className={`uppercase tracking-[0.2em] font-bold ml-${isKS1 ? "13" : "11"}`}
+          style={{
+            color: cfg.textMuted,
+            fontSize: isKS1 ? "8px" : "9px",
+          }}
+        >
+          {cfg.sublabel}
+        </p>
       </div>
 
       {/* Nav items */}
       <nav className="flex-1 space-y-1 px-1" aria-label="Dashboard navigation">
         {items.map((item) => {
           const active = activeTab === item.key;
+
           return (
             <button
               key={item.key}
               onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+              className="flex items-center gap-3 w-full text-left rounded transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
               style={{
                 "--tw-ring-color": cfg.accent,
-                background: active ? cfg.accentBg : "transparent",
+                padding: `${isKS1 ? 12 : 8}px 16px`,
+                minHeight: `${cfg.navItemHeight}px`,
+                borderRadius: cfg.navRadius,
+                background: active
+                  ? isDark
+                    ? `rgba(${band === "ks3" ? "91,106,191" : "124,58,237"},0.15)`
+                    : cfg.accentBg
+                  : "transparent",
                 color: active ? (isDark ? "#fff" : cfg.accent) : cfg.textMuted,
-                borderLeft: active ? `3px solid ${cfg.accent}` : "3px solid transparent",
-                letterSpacing: band === "ks4" ? "0.03em" : "0",
+                borderLeft: !isDark ? `3px solid ${active ? cfg.accent : "transparent"}` : "none",
+                fontSize: isKS1 ? "14px" : isKS4 ? "12px" : "13px",
+                fontWeight: isKS1 || band === "ks2" ? 600 : isKS4 ? 500 : 500,
+                letterSpacing: isKS4 ? "0.02em" : "0",
+                ...(isKS3 && active && {
+                  borderLeft: `2px solid ${cfg.accent}`,
+                  paddingLeft: "14px",
+                  boxShadow: `inset 0 0 0 1px ${cfg.accent}40`,
+                }),
+                ...(isKS4 && active && {
+                  borderLeft: `2px solid ${cfg.accent}`,
+                  paddingLeft: "14px",
+                  boxShadow: `inset 0 0 0 1px ${cfg.accent}20`,
+                }),
               }}
             >
-              {item.emoji ? (
-                <span className="text-base w-5 text-center shrink-0">{item.emoji}</span>
+              {item.emoji && !isKS4 ? (
+                <span className={`w-5 text-center shrink-0 ${isKS1 ? "text-lg" : "text-base"}`}>{item.emoji}</span>
               ) : (
-                <MIcon name={item.icon} filled={active} size={20} />
+                <MIcon
+                  name={item.icon}
+                  filled={active}
+                  size={isKS1 ? 22 : isKS4 ? 16 : 20}
+                  style={{ color: active ? cfg.accent : cfg.textMuted }}
+                />
               )}
-              <div className="flex flex-col items-start">
-                <span>{item.label}</span>
+              <div className="flex flex-col items-start min-w-0">
+                <span className="truncate">{item.label}</span>
                 {item.desc && (
-                  <span className="text-[10px] font-medium opacity-60 -mt-0.5">{item.desc}</span>
+                  <span
+                    className="text-[10px] font-medium opacity-60 -mt-0.5 truncate"
+                    style={{ fontSize: isKS1 ? "10px" : "9px" }}
+                  >
+                    {item.desc}
+                  </span>
                 )}
               </div>
             </button>
@@ -220,14 +341,28 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
 
       {/* Scholar identity */}
       <div className="mt-auto px-1">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-          style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black"
-            style={{ background: `${cfg.accent}18`, color: cfg.accent }}>
+        <div
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-${isKS1 ? "xl" : isKS4 ? "lg" : "lg"}`}
+          style={{
+            background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+            borderRadius: isKS1 ? "16px" : isKS4 ? "10px" : "12px",
+          }}
+        >
+          <div
+            className="rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+            style={{
+              width: isKS1 ? 36 : 32,
+              height: isKS1 ? 36 : 32,
+              background: `${cfg.accent}18`,
+              color: cfg.accent,
+            }}
+          >
             {(scholarName || "S")[0].toUpperCase()}
           </div>
-          <p className="text-xs font-bold truncate flex-1"
-            style={{ color: isDark ? "rgba(255,255,255,0.7)" : cfg.textPrimary }}>
+          <p
+            className="text-xs font-bold truncate flex-1"
+            style={{ color: isDark ? "rgba(255,255,255,0.7)" : cfg.textPrimary }}
+          >
             {scholarName || "Scholar"}
           </p>
         </div>
@@ -241,14 +376,17 @@ function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
   const cfg = NAV_CONFIG[band] || NAV_CONFIG.ks2;
   const isDark = cfg.dark;
   const items = navItems || cfg.items;
+  const isKS1 = band === "ks1";
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-2 pb-6 pt-3 z-50"
+      className="lg:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-2 z-50"
       role="tablist"
       aria-label="Dashboard sections"
       style={{
-        background: isDark ? "rgba(10,14,28,0.95)" : "rgba(255,255,255,0.95)",
+        paddingBottom: isKS1 ? "32px" : "24px",
+        paddingTop: isKS1 ? "16px" : "12px",
+        background: isDark ? "rgba(10,14,28,0.98)" : "rgba(255,255,255,0.98)",
         backdropFilter: "blur(20px)",
         borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}`,
       }}
@@ -262,22 +400,37 @@ function BottomTabs({ band, activeTab, onTabChange, onAction, navItems }) {
             aria-selected={active}
             aria-label={item.label}
             onClick={() => { if (item.action && onAction) { onAction(item.action); } else { onTabChange(item.key); scrollToSection(item.key); } }}
-            className="flex flex-col items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2"
+            className="flex flex-col items-center justify-center rounded transition-all focus-visible:outline-none focus-visible:ring-2"
             style={{
               color: active ? cfg.accent : cfg.textMuted,
-              background: active ? cfg.accentBg : "transparent",
-              padding: "6px 12px",
-              minWidth: 64,
+              background: active
+                ? isDark
+                  ? `rgba(${band === "ks3" ? "91,106,191" : band === "ks4" ? "124,58,237" : "0,0,0"},0.15)`
+                  : cfg.accentBg
+                : "transparent",
+              padding: isKS1 ? "12px 16px" : "8px 12px",
+              minWidth: isKS1 ? 72 : 64,
+              borderRadius: isKS1 ? "16px" : "8px",
+              fontSize: isKS1 ? "11px" : "9px",
             }}
           >
-            <div style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {item.emoji ? (
-                <span style={{ fontSize: 18, lineHeight: 1 }}>{item.emoji}</span>
+            <div style={{ width: isKS1 ? 28 : 24, height: isKS1 ? 28 : 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {item.emoji && !band === "ks4" ? (
+                <span style={{ fontSize: isKS1 ? 20 : 18, lineHeight: 1 }}>{item.emoji}</span>
               ) : (
-                <MIcon name={item.icon} filled={active} size={22} />
+                <MIcon name={item.icon} filled={active} size={isKS1 ? 24 : 22} />
               )}
             </div>
-            <span className="text-[9px] font-bold uppercase tracking-[0.06em] mt-1" style={{ lineHeight: 1 }}>{item.label}</span>
+            <span
+              className="font-bold uppercase tracking-[0.06em] mt-1"
+              style={{
+                lineHeight: 1,
+                fontSize: isKS1 ? "10px" : "9px",
+                fontWeight: isKS1 ? 700 : 600,
+              }}
+            >
+              {item.label}
+            </span>
             {item.desc && <span className="text-[7px] font-semibold opacity-50 mt-0.5" style={{ lineHeight: 1 }}>{item.desc}</span>}
           </button>
         );
@@ -308,10 +461,14 @@ export default function DashboardShell({
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  // ── Imperatively override html/body backgrounds to prevent white bleed ──
-  // This is far more reliable than CSS :has() selectors which have browser quirks
+  // ── Imperatively override html/body backgrounds to prevent white/dark bleed ──
+  // For dark bands (ks3/ks4), we set transparent so the ambient component (position:fixed)
+  // handles the base colour — no solid paint to cover the nebula/star effects.
   useEffect(() => {
-    const baseBg = cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc");
+    const baseBg = isDark
+      ? "transparent"
+      : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc");
+
     const html = document.documentElement;
     const body = document.body;
     // Save originals
@@ -323,7 +480,7 @@ export default function DashboardShell({
     html.style.margin = "0";
     html.style.padding = "0";
     html.style.minHeight = "100vh";
-    body.style.background = typeof cfg.bodyBg === "string" && cfg.bodyBg.includes("gradient") ? cfg.bodyBg : baseBg;
+    body.style.background = isDark ? "transparent" : (typeof cfg.bodyBg === "string" && cfg.bodyBg.includes("gradient") ? cfg.bodyBg : baseBg);
     body.style.backgroundColor = baseBg;
     body.style.margin = "0";
     body.style.padding = "0";
@@ -348,10 +505,10 @@ export default function DashboardShell({
       if (nextEl) nextEl.style.background = origNextBg || "";
       cleared.forEach(({ el: e, bg, bgc }) => { e.style.background = bg; e.style.backgroundColor = bgc; });
     };
-  }, [band, cfg]);
+  }, [band, cfg, isDark]);
 
   return (
-    <div className="dashboard-shell min-h-screen relative" style={{ background: cfg.bodyBg, fontFamily: cfg.font }}>
+    <div className="dashboard-shell min-h-screen relative" style={{ background: isDark ? "transparent" : cfg.bodyBg, fontFamily: cfg.font }}>
       {/* Skip to content link — keyboard accessibility */}
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-bold"
         style={{ background: cfg.accent, color: "#fff" }}>
@@ -363,6 +520,7 @@ export default function DashboardShell({
       <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       <CosmicParticles band={band} />
+      <TechGridBg band={band} />
 
       <SideNav band={band} activeTab={activeTab} onTabChange={onTabChange}
         scholarName={scholarName} onStartQuest={onStartQuest} onAction={onAction} navItems={navItems} />
@@ -372,39 +530,53 @@ export default function DashboardShell({
         className="fixed top-0 right-0 z-40 flex justify-between items-center px-4 lg:px-8 h-14"
         style={{
           left: "0",
-          paddingLeft: undefined, /* handled by responsive classes */
-          background: isDark ? "rgba(10,14,28,0.85)" : "rgba(255,255,255,0.85)",
-          backdropFilter: "blur(16px)",
+          background: isDark
+            ? (band === "ks3" ? "rgba(12,15,26,0.90)" : "rgba(10,10,20,0.90)")
+            : "rgba(255,255,255,0.90)",
+          backdropFilter: "blur(20px)",
           borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)"}`,
           fontFamily: cfg.font,
         }}
       >
         <div className="lg:hidden flex items-center gap-2">
-          <span className="text-base font-bold tracking-tight" style={{ color: cfg.accent }}>{cfg.label}</span>
+          <span className="text-sm font-bold tracking-tight" style={{ color: cfg.accent }}>{cfg.label}</span>
         </div>
         <div className="hidden lg:flex items-center" style={{ marginLeft: "260px" }}>{topBarLeft}</div>
         <div className="flex items-center gap-1 lg:gap-2">
           {topBarRight}
           <button
             style={{
-              padding: "4px 10px", borderRadius: 8,
-              background: "transparent", border: "none",
-              cursor: "pointer", color: cfg.textMuted,
-              display: "flex", alignItems: "center", gap: 4,
+              padding: "4px 10px",
+              borderRadius: 8,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: cfg.textMuted,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
             }}
             title="Notifications"
+            aria-label="Notifications"
           >
             <MIcon name="notifications" size={18} />
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Alerts</span>
           </button>
-          <button onClick={() => setShowLogoutConfirm(true)}
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
             style={{
-              padding: "4px 10px", borderRadius: 8,
-              background: "transparent", border: "none",
-              cursor: "pointer", color: "#ef4444",
-              display: "flex", alignItems: "center", gap: 4,
+              padding: "4px 10px",
+              borderRadius: 8,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#ef4444",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
             }}
             title="Sign out"
+            aria-label="Sign out"
           >
             <MIcon name="logout" size={18} />
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Sign Out</span>
@@ -479,13 +651,13 @@ export default function DashboardShell({
       <style>{`
         @keyframes cosmic-drift {
           0% { transform: translateY(0) translateX(0); opacity: 0.1; }
-          50% { opacity: 0.3; }
+          50% { opacity: 0.2; }
           100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
         }
-        /* Prevent white bleed at bottom/edges of dashboards */
+        /* Prevent white/dark bleed at bottom/edges of dashboards */
         html, body, #__next { min-height: 100vh; margin: 0 !important; padding: 0 !important; }
-        html { background: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
-        body { background: ${cfg.bodyBg} !important; min-height: 100vh !important; background-attachment: fixed !important; background-color: ${cfg.dark ? "#0a0e1c" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
+        html { background: ${isDark ? "transparent" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
+        body { background: ${isDark ? "transparent" : cfg.bodyBg} !important; min-height: 100vh !important; background-attachment: fixed !important; background-color: ${isDark ? "transparent" : (band === "ks1" ? "#fef9e7" : band === "ks4" ? "#f8f7ff" : "#f5f7fc")} !important; }
         #__next, #__next > div, #__next > div > div, #__next > main, main { background: transparent !important; background-color: transparent !important; }
         /* Kill any stray white backgrounds from layout wrappers */
         body > div, body > div > div, body > div > div > div { background-color: transparent !important; }

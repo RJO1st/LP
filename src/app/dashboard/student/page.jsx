@@ -465,7 +465,7 @@ function Leaderboard({ entries, currentScholarId }) {
 // ─── HERO AVATAR ──────────────────────────────────────────────────
 // Large illustrated character for hero card — all accessories layered
 const AvatarRendererLazy = dynamic(
-  () => import("../../../components/game/AvatarRenderer"),
+  () => import("../../../components/game/AvatarRendererCanvas"),
   { ssr: false, loading: () => <div className="w-[100px] h-[100px] rounded-full bg-indigo-800 animate-pulse" /> }
 );
 
@@ -1300,7 +1300,7 @@ const UK_NATIONAL_SUBJECTS = {
 
   // ── Dashboard ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24">
+    <div className="min-h-screen font-sans" style={{ background: "transparent" }}>
 
       {/* Toasts */}
       {newBadges.length > 0 && (

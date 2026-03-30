@@ -21,7 +21,7 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import { AVATAR_ITEMS, RARITY_COLORS } from "@/lib/gamificationEngine";
-import AvatarRenderer from "./AvatarRenderer";
+import AvatarRenderer from "./AvatarRendererCanvas";
 
 // ─── CATEGORY CONFIG ─────────────────────────────────────────────────────────
 

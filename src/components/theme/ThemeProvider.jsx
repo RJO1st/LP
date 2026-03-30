@@ -28,7 +28,8 @@ export function ThemeProvider({ yearLevel, curriculum, children }) {
   const value = useMemo(() => {
     const band = getAgeBand(yearLevel, curriculum);
     const theme = getBandConfig(band);
-    const isDark = false; // All bands now use light themes
+    // KS3 and KS4 use dark themes
+    const isDark = band === "ks3" || band === "ks4";
     return { band, theme, isDark, yearLevel: parseInt(yearLevel, 10) || 4 };
   }, [yearLevel, curriculum]);
   return (
@@ -43,7 +44,7 @@ export function useTheme() {
   if (!ctx) {
     // Fallback for components rendered outside ThemeProvider
     const band = "ks2";
-    return { band, theme: getBandConfig(band), isDark: false, yearLevel: 4 };
+    return { band, theme: getBandConfig(band), isDark: band === "ks3" || band === "ks4", yearLevel: 4 };
   }
   return ctx;
 }

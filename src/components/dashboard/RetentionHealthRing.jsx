@@ -13,9 +13,10 @@
  */
 
 import React, { useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 const SUBJECT_COLOURS = {
-  mathematics: "#7c3aed",
+  mathematics: "#8b5cf6",
   english: "#a855f7",
   physics: "#06b6d4",
   chemistry: "#14b8a6",
@@ -41,7 +42,7 @@ function ArcRing({ cx, cy, radius, strokeWidth, percent, colour, delay = 0 }) {
       <circle
         cx={cx} cy={cy} r={radius}
         fill="none"
-        stroke="rgba(124,58,237,0.06)"
+        stroke="rgba(139,92,246,0.06)"
         strokeWidth={strokeWidth}
       />
       {/* Fill */}
@@ -68,6 +69,7 @@ export default function RetentionHealthRing({
   subjects = [],
   compact = false,
 }) {
+  const { isDark } = useTheme();
   // Compute per-subject retention from masteryData
   const subjectRetention = useMemo(() => {
     const groups = {};
@@ -118,7 +120,7 @@ export default function RetentionHealthRing({
             radius={innerRadius}
             strokeWidth={strokeWidth + 2}
             percent={overallRetention}
-            colour="#7c3aed"
+            colour="#8b5cf6"
             delay={0}
           />
           {/* Subject rings */}
@@ -139,10 +141,10 @@ export default function RetentionHealthRing({
           position: "absolute", inset: 0,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ fontSize: compact ? 16 : 22, fontWeight: 900, color: "#1e1b4b" }}>
+          <span style={{ fontSize: compact ? 16 : 22, fontWeight: 900, color: isDark ? "#ede9fe" : "#1e1b4b" }}>
             {overallRetention}
           </span>
-          <span style={{ fontSize: compact ? 7 : 8, fontWeight: 700, color: "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>
+          <span style={{ fontSize: compact ? 7 : 8, fontWeight: 700, color: isDark ? "rgba(167,139,250,0.35)" : "rgba(30,27,75,0.35)", textTransform: "uppercase" }}>
             %
           </span>
         </div>
@@ -150,21 +152,21 @@ export default function RetentionHealthRing({
 
       {/* Legend */}
       <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 6 }}>
-        <div style={{ fontSize: compact ? 10 : 11, fontWeight: 700, color: "#1e1b4b", marginBottom: 2 }}>
+        <div style={{ fontSize: compact ? 10 : 11, fontWeight: 700, color: isDark ? "#ede9fe" : "#1e1b4b", marginBottom: 2 }}>
           Retention Health
         </div>
         {/* Overall */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c3aed" }} />
-          <span style={{ fontSize: compact ? 9 : 10, color: "rgba(30,27,75,0.5)", fontWeight: 600 }}>
-            Overall: <span style={{ color: "#7c3aed", fontWeight: 700 }}>{overallRetention}%</span>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#8b5cf6" }} />
+          <span style={{ fontSize: compact ? 9 : 10, color: isDark ? "rgba(167,139,250,0.5)" : "rgba(30,27,75,0.5)", fontWeight: 600 }}>
+            Overall: <span style={{ color: "#8b5cf6", fontWeight: 700 }}>{overallRetention}%</span>
           </span>
         </div>
         {/* Per subject */}
         {rings.map(r => (
           <div key={r.subject} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: r.colour }} />
-            <span style={{ fontSize: compact ? 9 : 10, color: "rgba(30,27,75,0.5)", fontWeight: 600 }}>
+            <span style={{ fontSize: compact ? 9 : 10, color: isDark ? "rgba(167,139,250,0.5)" : "rgba(30,27,75,0.5)", fontWeight: 600 }}>
               {r.displayName.split(" ")[0]}: <span style={{ color: r.colour, fontWeight: 700 }}>{r.retention}%</span>
             </span>
           </div>
