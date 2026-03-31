@@ -21,6 +21,7 @@ import { FlowchartVis, BinaryVis, BooleanLogicVis, NetworkDiagramVis, CodeBlockV
 import { CONCEPT_VISUALS } from "./KS12ScienceVisuals";
 import { CivicEducationVis, GovernmentVis, ReligiousStudiesVis, DesignTechVis, AgricultureVis, EconomicsVis, TopicCardVis } from "./HumanitiesVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
+// Quiz3DVisual — shelved (3D inline visuals disabled)
 import InteractiveGraph from "./InteractiveGraph";
 import JSXGraphBoard, { createLinearGraphProps, createQuadraticGraphProps, createTrigGraphProps, createGeometryProps, createSliderExplorerProps } from "./JSXGraphBoard";
 import DataTable from "./DataTable";
@@ -2922,6 +2923,7 @@ export function resolveVisual(question, subject, yearLevel) {
     isAgriculture || isCulturalArts || isFurtherMaths;
   if (!isKnown) return null;
 
+
   let enrichedSubject = subject || "";
   if (subj === "science" || subj.includes("science")) {
     const q2 = (question.q || question.question_text || "").toLowerCase();
@@ -3227,6 +3229,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return `Magnet diagram: ${visual.scenario}`;
       case "photosynthesis":      return `Photosynthesis diagram`;
       case "respiration":         return `${visual.respType} respiration diagram`;
+      // scene_3d shelved
       case "basic_concept":        return visual.label || "Science concept";
       case "pie_chart":           return `Pie chart with ${visual.slices?.length || 0} slices`;
       case "pictogram":           return `Pictogram with ${visual.items?.length || 0} items`;
@@ -3324,6 +3327,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "trade_flow":      return <TradeFlowVis        {...visual} />;
       case "org_structure":   return <OrgStructureVis     {...visual} />;
       case "marketing_mix":   return <MarketingMixVis     {...visual} />;
+
       // ── Humanities & vocational visuals ──────────────────────────────
       case "civic_education":    return <CivicEducationVis   {...visual} />;
       case "government":         return <GovernmentVis       {...visual} />;

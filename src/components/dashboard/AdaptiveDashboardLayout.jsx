@@ -82,6 +82,8 @@ import StudySessionMetrics from "./StudySessionMetrics";
 import CertificateProgress from "./CertificateProgress";
 import MockTestDebrief from "./MockTestDebrief";
 
+// 3D Simulation Cards — shelved
+
 // ── Export Report helper ─────────────────────────────────────────────────────
 function generateReport({ scholar, stats, masteryData, subjects, activeSubject, band }) {
   const titleCase = s => (s || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -260,42 +262,47 @@ function KS4AtelierAmbient() {
       {/* Base — deep obsidian */}
       <div style={{ position: "absolute", inset: 0, background: "#0a0a14" }} />
 
-      {/* Nebula washes — bold radial gradients that give real depth */}
+      {/* Nebula washes — dramatic, clearly visible glows */}
       <div style={{ position: "absolute", inset: 0,
         background: [
-          "radial-gradient(ellipse 90% 70% at 15% 5%, rgba(139,92,246,0.22) 0%, transparent 60%)",
-          "radial-gradient(ellipse 70% 60% at 85% 75%, rgba(99,102,241,0.16) 0%, transparent 55%)",
-          "radial-gradient(ellipse 50% 50% at 50% 45%, rgba(109,40,217,0.10) 0%, transparent 50%)",
-          "radial-gradient(ellipse 60% 40% at 70% 20%, rgba(167,139,250,0.12) 0%, transparent 50%)",
+          "radial-gradient(ellipse 100% 80% at 10% 0%, rgba(139,92,246,0.35) 0%, transparent 55%)",
+          "radial-gradient(ellipse 80% 70% at 90% 80%, rgba(99,102,241,0.25) 0%, transparent 50%)",
+          "radial-gradient(ellipse 60% 50% at 50% 40%, rgba(109,40,217,0.15) 0%, transparent 50%)",
+          "radial-gradient(ellipse 70% 50% at 75% 15%, rgba(167,139,250,0.20) 0%, transparent 50%)",
+          "radial-gradient(ellipse 50% 60% at 30% 70%, rgba(124,58,237,0.18) 0%, transparent 50%)",
         ].join(", "),
       }} />
 
-      {/* Star field — visible scattered dots */}
+      {/* Star field — clearly visible scattered dots */}
       <div style={{ position: "absolute", inset: 0,
         backgroundImage: [
-          "radial-gradient(2px 2px at 20% 15%, rgba(167,139,250,0.6) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 45% 35%, rgba(139,92,246,0.5) 0%, transparent 100%)",
-          "radial-gradient(2px 2px at 72% 22%, rgba(196,181,253,0.55) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 15% 65%, rgba(167,139,250,0.45) 0%, transparent 100%)",
-          "radial-gradient(2px 2px at 88% 55%, rgba(139,92,246,0.5) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 55% 78%, rgba(196,181,253,0.45) 0%, transparent 100%)",
-          "radial-gradient(2px 2px at 33% 92%, rgba(167,139,250,0.5) 0%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 8% 42%, rgba(255,255,255,0.4) 0%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 62% 8%, rgba(255,255,255,0.35) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 95% 90%, rgba(139,92,246,0.45) 0%, transparent 100%)",
-          "radial-gradient(2px 2px at 40% 5%, rgba(255,255,255,0.3) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 78% 48%, rgba(196,181,253,0.4) 0%, transparent 100%)",
-          "radial-gradient(2px 2px at 5% 88%, rgba(167,139,250,0.45) 0%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 52% 60%, rgba(255,255,255,0.25) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 20% 15%, rgba(167,139,250,0.85) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 45% 35%, rgba(139,92,246,0.7) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 72% 22%, rgba(196,181,253,0.8) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 15% 65%, rgba(167,139,250,0.65) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 88% 55%, rgba(139,92,246,0.7) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 55% 78%, rgba(196,181,253,0.65) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 33% 92%, rgba(167,139,250,0.7) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 8% 42%, rgba(255,255,255,0.6) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 62% 8%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 95% 90%, rgba(139,92,246,0.65) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 40% 5%, rgba(255,255,255,0.5) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 78% 48%, rgba(196,181,253,0.6) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 5% 88%, rgba(167,139,250,0.65) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 52% 60%, rgba(255,255,255,0.45) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 25% 42%, rgba(196,181,253,0.55) 0%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 68% 72%, rgba(167,139,250,0.6) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 82% 32%, rgba(255,255,255,0.4) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 12% 28%, rgba(139,92,246,0.55) 0%, transparent 100%)",
         ].join(", "),
       }} />
 
-      {/* Grid overlay — masked to center with fade-out edges */}
+      {/* Grid overlay — visible, masked to center with fade-out edges */}
       <div style={{ position: "absolute", inset: 0,
-        backgroundImage: "linear-gradient(rgba(139,92,246,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.06) 1px, transparent 1px)",
+        backgroundImage: "linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)",
         backgroundSize: "60px 60px",
-        maskImage: "radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 70%)",
-        WebkitMaskImage: "radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 70%)",
+        maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%)",
+        WebkitMaskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%)",
       }} />
     </div>
   );
@@ -1222,6 +1229,7 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
+
             {/* Mission Log (Quest Journal) */}
             <BandCard band={band}>
               <SectionHeader band={band} icon="📡" title="Mission Log" subtitle="comms history" />
@@ -1429,6 +1437,7 @@ export default function AdaptiveDashboardLayout({
             <HudPanel designation="TEL" label="Performance Telemetry">
               <StudySessionMetrics stats={stats} examData={examData} masteryData={masteryData} />
             </HudPanel>
+
 
             {/* ── 2-COLUMN: Retention + Certificates ─────────────────────────── */}
             {masteryData.length > 0 && (
@@ -1680,6 +1689,7 @@ export default function AdaptiveDashboardLayout({
                 compact
               />
             </BandCard>
+
 
             {/* ── Mastery Progress Chart (KS3/KS4 — Recharts line chart) ──── */}
             {(band === "ks3" || band === "ks4") && (recentQuizzes.length > 0 || masteryData.length > 0) && (

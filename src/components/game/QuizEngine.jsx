@@ -114,16 +114,42 @@ const getSmartQuestions = async (sbClient, scholarId, subject, curriculum, yearL
       return [];
     }
 
+    // Cross-curriculum supplement: if primary query is thin, pull from also_curricula
+    let allData = data ?? [];
+    if (allData.length < count * 2) {
+      try {
+        const existingIds = new Set(allData.map(r => r.id));
+        const allExclude = [...excludeIds, ...Array.from(existingIds)];
+        let crossQ = sbClient
+          .from("question_bank")
+          .select("id, question_text, options, correct_index, explanation, topic, subject, difficulty, difficulty_tier, question_type, hints, steps, answer, answer_aliases, question_data, image_url, year_level, curriculum")
+          .contains("also_curricula", [dbCurriculum])
+          .eq("subject", dbSubject)
+          .gte("year_level", yr - 1)
+          .lte("year_level", yr + 1)
+          .limit(Math.min(count * 2, 40));
+        if (allExclude.length > 0) {
+          const safe = allExclude.slice(-80);
+          crossQ = crossQ.not("id", "in", `(${safe.map(id => `"${id}"`).join(",")})`);
+        }
+        const { data: crossData } = await crossQ;
+        if (crossData?.length) {
+          allData = [...allData, ...crossData.filter(r => !existingIds.has(r.id))];
+          console.log(`[QuizEngine] ✨ Cross-curriculum boost: +${crossData.length} questions`);
+        }
+      } catch (_) { /* cross-curriculum is best-effort */ }
+    }
+
     // Filter out questions that reference visual content (charts/tables/diagrams) but have
     // no image_url AND no question_data — these are unanswerable without the missing visual
     const VISUAL_REF_RE = /\b(the chart|the graph|the table|the diagram|the bar chart|the pie chart|the line graph|the histogram|the scatter|the figure|according to the|from the table|from the chart|from the graph|the picture shows|the image shows|look at the|refer to the|based on the chart|based on the graph|based on the table|based on the diagram|shown in the|displayed in the)\b/i;
-    const filtered = data?.filter(row => {
+    const filtered = allData.filter(row => {
       if (!row.image_url && !row.question_data && VISUAL_REF_RE.test(row.question_text || '')) {
         return false; // skip unanswerable visual-reference question
       }
       return true;
     });
-    const skipped = (data?.length || 0) - (filtered?.length || 0);
+    const skipped = allData.length - filtered.length;
     if (skipped > 0) console.log(`[QuizEngine] Filtered out ${skipped} visual-reference questions with no image/data`);
 
     if (!filtered?.length) {

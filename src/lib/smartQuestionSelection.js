@@ -578,6 +578,13 @@ async function fetchPassageGroup(supabase, curriculum, subject, year, topic, exc
 /**
  * Fetch questions for a topic+tier in one query.
  * When topic or tier is null, the constraint is omitted (broader fetch).
+ *
+ * CROSS-CURRICULUM ENHANCEMENT:
+ * If the primary curriculum query returns fewer than `limit` rows, a second
+ * query fetches questions from OTHER curricula that have tagged this curriculum
+ * in their `also_curricula` array. This dramatically increases the available
+ * pool for curricula with sparse coverage (e.g. ca_primary, ng_primary)
+ * without duplicating questions in the database.
  */
 async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, excludeIds, limit, examTag = null) {
   const dbCurriculum = resolveDbCurriculum(curriculum, subject, year);
@@ -589,6 +596,7 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
   const yearLow  = dbYear <= 2 ? dbYear : Math.max(1, dbYear - 1);
   const yearHigh = dbYear <= 2 ? dbYear : dbYear + 1;
 
+  // ── Primary query: exact curriculum match ──────────────────────────────
   let q = supabase
     .from('question_bank')
     .select('*')
@@ -610,10 +618,49 @@ async function fetchQuestions(supabase, curriculum, subject, year, topic, tier, 
   const { data, error } = await q;
   if (error) console.warn('[fetchQuestions] error:', error.message, `| ${dbSubject}/${dbCurriculum}/Y${year}`);
 
+  let rows = data ?? [];
+
+  // ── Cross-curriculum supplement: questions tagged for this curriculum ──
+  // If primary query returned fewer than requested, pull from other curricula
+  // that have tagged dbCurriculum in their also_curricula array.
+  // This uses the PostgreSQL @> (contains) operator via PostgREST's .contains().
+  if (rows.length < limit) {
+    const primaryIds = new Set(rows.map(r => r.id));
+    const allExclude = [...excludeIds, ...Array.from(primaryIds)];
+
+    let crossQ = supabase
+      .from('question_bank')
+      .select('*')
+      .contains('also_curricula', [dbCurriculum])
+      .eq('subject', dbSubject)
+      .eq('is_active', true)
+      .gte('year_level', yearLow)
+      .lte('year_level', yearHigh)
+      .limit(limit - rows.length);
+
+    if (topic)   crossQ = crossQ.eq('topic', topic);
+    if (tier)    crossQ = crossQ.eq('difficulty_tier', tier);
+    if (examTag) crossQ = crossQ.eq('exam_tag', examTag);
+    if (allExclude.length > 0) {
+      const idList = allExclude.slice(-200).map(id => `"${id}"`).join(',');
+      crossQ = crossQ.not('id', 'in', `(${idList})`);
+    }
+
+    const { data: crossData, error: crossErr } = await crossQ;
+    if (crossErr) {
+      console.warn('[fetchQuestions] cross-curriculum error:', crossErr.message);
+    } else if (crossData?.length) {
+      console.log(
+        `[fetchQuestions] ✨ Cross-curriculum boost: +${crossData.length} questions ` +
+        `for ${dbCurriculum}/${dbSubject}/Y${dbYear} (from also_curricula)`
+      );
+      rows = [...rows, ...crossData];
+    }
+  }
+
   // Boost questions that have visuals — scholars learn better with images.
   // Sort: questions with image_url first, then those with question_data visual hints, then rest.
   // Within each tier, maintain random order so sessions feel fresh.
-  const rows = data ?? [];
   if (rows.length > 1) {
     rows.sort((a, b) => {
       const aHas = (a.image_url ? 2 : 0) + (a.needs_visual && a.visual_status === 'generated' ? 1 : 0);

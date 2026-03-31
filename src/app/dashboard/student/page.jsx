@@ -105,6 +105,7 @@ const NebulaTrials = dynamic(
   { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
 );
 
+
 // ─── ICONS ────────────────────────────────────────────────────────
 const Icon = ({ d, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -685,6 +686,8 @@ export default function StudentDashboard() {
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
   const [showAvatarCustomiser, setShowAvatarCustomiser] = useState(false);
   const [activeBossBattle, setActiveBossBattle] = useState(null); // boss quest data or null
+  // 3D sims shelved
+
   const [soundOn,          setSoundOn]          = useState(true);
   const [lbMode,           setLbMode]           = useState("year");
   const [trialInfo,        setTrialInfo]        = useState(null);
@@ -991,6 +994,8 @@ export default function StudentDashboard() {
     refreshTier1,                // ← Tier 1
   ]);
 
+  // 3D simulation launcher — shelved
+
   // ── After quiz completes ─────────────────────────────────────────
   const handleQuestComplete = useCallback(async (payload) => {
     // DO NOT call setActiveSubject(null) here — that unmounts QuestOrchestrator
@@ -1259,6 +1264,7 @@ const UK_NATIONAL_SUBJECTS = {
       />
     );
   }
+
 
   // ── Active boss battle ─────────────────────────────────────────────
   if (activeBossBattle) {

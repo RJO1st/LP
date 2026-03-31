@@ -30,7 +30,7 @@ const NAV_CONFIG = {
     navItemHeight: 48,
     items: [
       { icon: "auto_stories", emoji: "🌟", label: "My Adventures", key: "adventure" },
-      { icon: "map", emoji: "🗺️", label: "Star Map", key: "galaxy" },
+      { icon: "map", emoji: "🗺️", label: "Treasure Map", key: "galaxy" },
       { icon: "emoji_events", emoji: "🏆", label: "My Trophies", key: "trophies" },
     ],
     cta: { icon: "lock_open", label: "Open Treasure" },
@@ -53,9 +53,9 @@ const NAV_CONFIG = {
     items: [
       { icon: "rocket_launch", emoji: "🚀", label: "Missions", key: "mission" },
       { icon: "public", emoji: "🪐", label: "Galaxy Map", key: "galaxy" },
-      { icon: "grid_view", emoji: "✖️", label: "Nebula Trials", desc: "Times Tables", key: "nebula", action: "nebula-trials", minYear: 3 },
+      { icon: "calculate", emoji: "✖️", label: "Nebula Trials", desc: "Times Table", key: "nebula-trials", action: "nebula-trials" },
+      { icon: "leaderboard", emoji: "📊", label: "Key Stats", key: "stats" },
       { icon: "military_tech", emoji: "🏅", label: "Medals", key: "trophies" },
-      { icon: "leaderboard", emoji: "📊", label: "Rankings", key: "stats" },
     ],
     cta: { icon: "rocket_launch", label: "Launch Mission" },
   },
@@ -76,8 +76,8 @@ const NAV_CONFIG = {
     navItemHeight: 40,
     items: [
       { icon: "assignment", emoji: "📋", label: "Challenges", key: "mission" },
-      { icon: "explore", emoji: "🧭", label: "Explore", key: "galaxy" },
-      { icon: "insights", emoji: "📈", label: "Progress", key: "stats" },
+      { icon: "insights", emoji: "📈", label: "Radar", key: "stats" },
+      { icon: "explore", emoji: "🧭", label: "Navigation", key: "galaxy" },
       { icon: "work", emoji: "💼", label: "Careers", key: "careers" },
     ],
     cta: { icon: "bolt", label: "Start Challenge" },
@@ -100,7 +100,7 @@ const NAV_CONFIG = {
     items: [
       { icon: "school", emoji: "🎓", label: "Exam Mastery", key: "exams" },
       { icon: "insights", emoji: "📈", label: "Telemetry", key: "stats" },
-      { icon: "psychology", emoji: "🧠", label: "Deep Space", key: "heatmap" },
+      { icon: "psychology", emoji: "🧠", label: "Star Chart", key: "heatmap" },
       { icon: "assignment", emoji: "📋", label: "Simulation Bay", key: "tutor" },
     ],
     cta: { icon: "play_arrow", label: "Launch Deep Space" },

@@ -678,3 +678,643 @@ export function getExamsForCurriculum(curriculum) {
   };
   return mapping[curriculum] || [];
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ASSESSMENT TARGETS — Granular "I can..." skill statements per year/strand
+// Based on UK National Curriculum Maths Assessment Targets (Twinkl reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const ASSESSMENT_TARGETS = {
+  mathematics: {
+    1: {
+      number_and_place_value: [
+        "I can count to and across 100, forwards and backwards, beginning from any given number",
+        "I can count to 100 in multiples of 5",
+        "I can read and write numbers from 1 to 20 in digits and words",
+        "I can count, read and write numbers to 100",
+        "I can count to 100 in multiples of 2",
+        "I can identify one more and one less of a given number",
+      ],
+      addition_and_subtraction: [
+        "I can read, write and interpret mathematical statements with +, - and = signs",
+        "I can add and subtract two-digit numbers to 20",
+        "I can solve one step problems that involve addition",
+        "I can represent and use number bonds to 20",
+        "I can show and use subtraction facts to 20",
+        "I can solve one-step problems involving subtraction",
+      ],
+      multiplication_and_division: [
+        "I can double single-digit numbers",
+        "I can complete simple number patterns",
+        "I can count in twos, fives and tens",
+        "I can solve one-step problems involving multiplication",
+        "I can show multiplication using arrays",
+        "I can solve one-step problems involving division",
+      ],
+      fractions: [
+        "I can recognise, find and name a half of a shape",
+        "I can recognise, find and name a quarter of an object",
+        "I can solve simple half and quarter problems",
+        "I can recognise, find and name a quarter of a shape",
+        "I can recognise, find and name a half of an object",
+        "I can recognise, find and name a quarter of a quantity",
+        "I can find, name and write fractions of a set of objects",
+      ],
+      measurement: [
+        "I can compare, describe and solve problems involving measures",
+        "I can measure and begin to record lengths and heights",
+        "I can measure and begin to record time (hours, minutes, seconds)",
+        "I can tell the time to the hour and half past the hour",
+        "I can recognise and know the value of different denominations of coins and notes",
+        "I can measure and begin to record capacity and volume",
+        "I can recognise and use language relating to dates, including days of the week, weeks, months and years",
+      ],
+      geometry: [
+        "I can use mathematical vocabulary to describe position, direction and movement",
+        "I can identify and describe the properties of 2D shapes",
+        "I can identify 2D shapes on the surface of 3D shapes",
+        "I can compare and sort common 2D and 3D shapes",
+        "I can identify lines of symmetry in 2D shapes",
+        "I can order and arrange combinations of objects in patterns",
+        "I can identify and describe the properties of 3D shapes",
+      ],
+    },
+    2: {
+      number_and_place_value: [
+        "I can use place value and number facts to solve problems",
+        "I can count forwards and backwards in twos, threes, fives and tens from any numbers",
+        "I can compare and order numbers 0 to 100",
+        "I can use the signs: < , > and =",
+        "I know the place value of each digit in a two-digit number",
+        "I can read and write numbers to at least 100 in words and numerals",
+        "I can identify, represent and estimate numbers",
+      ],
+      addition_and_subtraction: [
+        "I can recognise and use inverse relationships between addition and subtraction",
+        "I can apply mental strategies to problems",
+        "I can add and subtract two-digit numbers and ones and tens",
+        "I can add and subtract two-digit numbers and tens and twos, two-digit numbers",
+        "I can apply written strategies to problems",
+        "I can show that addition can be done in any order, subtraction can't",
+        "I can recall and use addition and subtraction facts to 20 and use numbers facts to 100",
+      ],
+      multiplication_and_division: [
+        "I can solve one step problems involving multiplication and division",
+        "I can recognise odd and even numbers",
+        "I can recognise and use inverse relationship between multiplication and division",
+        "I can show that multiplication of two numbers can be done in any order",
+        "I can calculate mathematical statements for division (within the multiplication tables)",
+        "I know that division of 1 number by another cannot be done in any order",
+        "I can calculate mathematical statements for multiplication (within the multiplication tables)",
+      ],
+      fractions: [
+        "I can solve simple problems involving fractions",
+        "I can recognise, find, name and write fractions of a length",
+        "I can recognise, find, name and write fractions of a quantity",
+        "I can write simple fractions and recognise equivalence",
+        "I can recognise, find, name and write fractions of a shape",
+        "I can count in fractions up to 10 starting from any number",
+        "I can find, name and write fractions of a set of objects",
+      ],
+      measurement: [
+        "I can tell and write the time to the nearest 5 minutes",
+        "I can use different equipment to measure lengths accurately",
+        "I can use symbols for pounds and pence",
+        "I can solve simple money problems in a practical context",
+        "I can compare and order length, mass, volume/capacity and record the results using >, < and =",
+        "I can compare and sequence intervals of time",
+        "I can read relevant scales to the nearest numbered unit",
+      ],
+      geometry: [
+        "I can use mathematical vocabulary to describe position, direction and movement",
+        "I can identify and describe the properties of 2D shapes",
+        "I can identify 2D shapes on the surface of 3D shapes",
+        "I can compare and sort common 2D and 3D shapes",
+        "I can identify lines of symmetry in 2D shapes",
+        "I can order and arrange combinations of objects in patterns",
+        "I can identify and describe the properties of 3D shapes",
+      ],
+      statistics: [
+        "I can ask and answer questions about totalling and comparing categorical data",
+        "I can interpret and construct simple pictograms",
+        "I can interpret and construct simple tables",
+        "I can ask and answer simple questions by sorting categories by quantity",
+        "I can interpret and construct simple tally charts",
+        "I can ask and answer questions about totalling",
+        "I can interpret and construct simple block diagrams",
+      ],
+    },
+    3: {
+      number_and_place_value: [
+        "I can count from 0 in multiples of 4, 8, 50 and 100; find 10 or 100 more or less than a given number",
+        "I can recognise the place value of each digit in a three-digit number (hundreds, tens, ones)",
+        "I can compare and order numbers up to 1000",
+        "I can identify, represent and estimate numbers using different representations",
+        "I can read and write numbers up to 1000 in numerals and in words",
+        "I can solve number problems and practical problems involving these ideas",
+      ],
+      addition_and_subtraction: [
+        "I can add and subtract numbers mentally, including a three-digit number and ones, and a three-digit number and tens",
+        "I can add and subtract numbers with up to three digits, using formal written methods of columnar addition and subtraction",
+        "I can estimate the answer to a calculation and use inverse operations to check answers",
+      ],
+      multiplication_and_division: [
+        "I can recall and use multiplication and division facts for the 3, 4 and 8 multiplication tables",
+        "I can write and calculate mathematical statements for multiplication and division using the multiplication tables that they know",
+        "I can solve problems, including missing number problems, involving multiplication and division",
+      ],
+      fractions: [
+        "I can count up and down in tenths; recognise that tenths arise from dividing an object into 10 equal parts",
+        "I can recognise, find and write fractions of a discrete set of objects: unit fractions and non-unit fractions with small denominators",
+        "I can recognise and use fractions as numbers: unit fractions and non-unit fractions with small denominators",
+        "I can recognise and show, using diagrams, equivalent fractions with small denominators",
+        "I can add and subtract fractions with the same denominator within one whole",
+        "I can compare and order unit fractions, and fractions with the same denominators",
+        "I can solve problems that involve all of the above",
+      ],
+      measurement: [
+        "I can measure, compare, add and subtract lengths (m/cm/mm), mass (kg/g), volume/capacity (l/ml)",
+        "I can measure the perimeter of simple 2D shapes",
+        "I can add and subtract amounts of money to give change, using both £ and p in practical contexts",
+        "I can tell and write the time from an analogue clock, including using Roman numerals from I to XII",
+        "I can estimate and read time with increasing accuracy to the nearest minute",
+        "I can know the number of seconds in a minute and the number of days in each month, year and leap year",
+        "I can compare durations of events",
+      ],
+      geometry: [
+        "I can draw 2D shapes and make 3D shapes using modelling materials",
+        "I can recognise angles as a property of shape or a description of a turn",
+        "I can identify right angles, recognise that two right angles make a half-turn, three make three quarters of a turn and four a complete turn",
+        "I can identify horizontal and vertical lines and pairs of perpendicular and parallel lines",
+      ],
+      statistics: [
+        "I can interpret and present data using bar charts, pictograms and tables",
+        "I can solve one-step and two-step questions using information presented in scaled bar charts and pictograms and tables",
+      ],
+    },
+    4: {
+      number_and_place_value: [
+        "I can read, write, order and compare numbers up to at least 1,000 and determine the value of each digit",
+        "I can round any number to the nearest 10, 100 or 1,000",
+        "I can count backwards through zero to include negative numbers",
+        "I can find 1,000 more or less than a given number",
+        "I can recognise the place value of each digit in a four-digit number",
+        "I can read Roman numerals to 100 and know that over time the numeral system changed",
+      ],
+      addition_and_subtraction: [
+        "I can add and subtract numbers with up to 4 digits using formal written methods of columnar addition and subtraction where appropriate",
+        "I can solve addition and subtraction two-step problems in contexts",
+        "I can estimate and use inverse operations to check answers to a calculation",
+      ],
+      multiplication_and_division: [
+        "I can use place value, known and derived facts to multiply and divide mentally, including multiplying by 0 and 1 and dividing by 1",
+        "I can recall multiplication and division facts for multiplication tables up to 12 × 12",
+        "I can multiply two-digit and three-digit numbers by a one-digit number using formal written layout",
+        "I can recognise and use factor pairs and commutativity in mental calculations",
+      ],
+      fractions: [
+        "I can recognise and show, using diagrams, families of common equivalent fractions",
+        "I can add and subtract fractions with the same denominator",
+        "I can recognise and write decimal equivalents of any number of tenths or hundredths",
+        "I can round decimals with one decimal place to the nearest whole number",
+        "I can solve problems involving increasingly harder fractions to calculate quantities",
+      ],
+      measurement: [
+        "I can convert between different units of measure (e.g. kilometre to metre; hour to minute)",
+        "I can find the area of rectilinear shapes by counting squares",
+        "I can estimate, compare and calculate different measures",
+        "I can read, write and convert time between analogue and digital 12- and 24-hour clocks",
+        "I can solve problems involving converting from hours to minutes; minutes to seconds; years to months; weeks to days",
+      ],
+      geometry: [
+        "I can compare and classify geometric shapes, including quadrilaterals and triangles, based on their properties and sizes",
+        "I can identify acute and obtuse angles and compare and order angles up to two right angles by size",
+        "I can identify lines of symmetry in 2D shapes presented in different orientations",
+        "I can describe positions on a 2D grid as coordinates in the first quadrant",
+        "I can describe movements between positions as translations of a given unit to the left/right and up/down",
+        "I can complete a simple symmetric figure with respect to a specific line of symmetry",
+      ],
+      statistics: [
+        "I can interpret and present discrete and continuous data using appropriate graphical methods",
+        "I can solve comparison, sum and difference problems using information presented in bar charts, pictograms, tables and other graphs",
+      ],
+    },
+    5: {
+      number_and_place_value: [
+        "I can read, write, order and compare numbers to at least 1,000,000 and determine the value of each digit",
+        "I can round any number up to 1,000,000 to the nearest 10, 100, 1,000, 10,000 and 100,000",
+        "I can interpret negative numbers in context, count forwards and backwards with positive and negative whole numbers including through zero",
+        "I can read Roman numerals to 1000 (M) and recognise years written in Roman numerals",
+      ],
+      addition_and_subtraction: [
+        "I can add and subtract whole numbers with more than 4 digits using formal written methods",
+        "I can add and subtract numbers mentally with increasingly large numbers",
+        "I can use rounding to check answers to calculations and determine levels of accuracy",
+        "I can solve addition and subtraction multi-step problems in contexts, deciding which operations to use and why",
+      ],
+      multiplication_and_division: [
+        "I can identify multiples and factors, including finding all factor pairs of a number and common factors of two numbers",
+        "I can multiply numbers up to 4 digits by a one or two-digit number using formal written methods",
+        "I can divide numbers up to 4 digits by a one-digit number using short division",
+        "I can multiply and divide by 10, 100 and 1000",
+        "I can recognise and use square numbers and cube numbers and the notation for squared and cubed",
+        "I can know and use the vocabulary of prime numbers, prime factors and composite numbers",
+        "I can solve problems involving multiplication and division, including using knowledge of factors and multiples, squares and cubes",
+      ],
+      fractions: [
+        "I can read and write decimal numbers as fractions",
+        "I can add and subtract fractions with the same denominator and denominators that are multiples of the same number",
+        "I can multiply proper fractions and mixed numbers by whole numbers",
+        "I can recognise mixed numbers and improper fractions and convert from one form to the other",
+        "I can compare and order fractions whose denominators are all multiples of the same number",
+        "I can recognise the per cent symbol (%) and relate to fractions and decimals",
+        "I can solve problems which require knowing percentage and decimal equivalents",
+      ],
+      measurement: [
+        "I can convert between different units of metric measure and know the approximate equivalences between metric and imperial units",
+        "I can estimate volume and capacity",
+        "I can use all four operations to solve problems involving measure using decimal notation",
+        "I can calculate the perimeter and area of rectangles",
+        "I can measure and calculate the perimeter of composite rectilinear shapes in cm and m",
+      ],
+      geometry: [
+        "I can identify 3D shapes, including cubes and other cuboids, from 2D representations",
+        "I can know angles are measured in degrees: estimate and compare acute, obtuse and reflex angles",
+        "I can draw given angles and measure them in degrees",
+        "I can identify angles at a point and one whole turn, angles at a point on a straight line and vertically opposite angles",
+        "I can use the properties of rectangles to deduce related facts and find missing lengths and angles",
+        "I can distinguish between regular and irregular polygons based on reasoning about equal sides and angles",
+      ],
+      statistics: [
+        "I can solve comparison, sum and difference problems using information presented in a line graph",
+        "I can complete, read and interpret information in tables, including timetables",
+      ],
+    },
+    6: {
+      number_and_place_value: [
+        "I can read, write, order and compare numbers up to 10,000,000 and determine the value of each digit",
+        "I can round any whole number to a required degree of accuracy",
+        "I can use negative numbers in context, and calculate intervals across zero",
+      ],
+      addition_subtraction_multiplication_division: [
+        "I can solve addition and subtraction multi-step problems in contexts",
+        "I can use my knowledge of the order of operations to carry out calculations involving the four operations",
+        "I can perform mental calculations",
+        "I can multiply multi-digit numbers up to 4 digits by a two-digit whole number",
+        "I can divide numbers up to 4 digits by a two-digit whole number using short division",
+        "I can divide numbers up to 4 digits by a two-digit whole number using long division",
+        "I can identify common factors, common multiples and prime numbers",
+        "I can use estimation to check answers to calculations and determine levels of accuracy",
+      ],
+      fractions: [
+        "I can multiply simple pairs of proper fractions, writing the answer in its simplest form",
+        "I can divide proper fractions by whole numbers",
+        "I can add and subtract fractions with different denominators and mixed numbers",
+        "I can use common factors to simplify fractions",
+        "I can use common multiples to express fractions in the same denomination",
+        "I can associate a fraction with division and calculate decimal fraction equivalents for a simple fraction",
+        "I can compare and order fractions",
+      ],
+      ratio_and_proportion: [
+        "I can solve problems involving the calculation of percentages and the use of percentages for comparison",
+        "I can solve problems involving unequal sharing and grouping using knowledge of fractions and multiples",
+        "I can solve problems involving the relative sizes of two quantities",
+        "I can solve problems involving similar shapes where the scale factor is known or can be found",
+      ],
+      algebra: [
+        "I can generate and describe linear number sequences",
+        "I can enumerate possibilities of combinations of two variables",
+        "I can express missing number problems algebraically",
+        "I can find pairs of numbers that satisfy an equation with two unknowns",
+        "I can use simple formulae",
+      ],
+      measurement: [
+        "I can recognise that shapes with the same areas can have different perimeters and vice versa",
+        "I can calculate the area of parallelograms and triangles",
+        "I can recognise when it is possible to use formulae for area and volume of shapes",
+        "I can calculate, estimate and compare volume of cubes and cuboids using standard units",
+        "I can use, read, write and convert between standard units",
+        "I can convert between miles and kilometres",
+        "I can solve problems involving the calculation and conversion of units of measure",
+      ],
+      geometry: [
+        "I can know that the diameter of a circle is twice the radius",
+        "I can recognise, describe and build simple 3D shapes, including making nets",
+        "I can illustrate and name parts of circles, including radius, diameter and circumference",
+        "I can draw 2D shapes using given dimensions and angles",
+        "I can compare and classify geometric shapes based on their properties and sizes",
+        "I can find unknown angles in any triangles, quadrilaterals and regular polygons",
+        "I can recognise angles where they meet at a point",
+      ],
+      statistics: [
+        "I can interpret and construct pie charts and use them to solve problems",
+        "I can interpret and construct line graphs and use them to solve problems",
+        "I can calculate and interpret the mean as an average",
+      ],
+    },
+  },
+  science: {
+    1: {
+      plants: [
+        "I can identify and name a variety of common wild and garden plants, including deciduous and evergreen trees",
+        "I can identify and describe the basic structure of a variety of common flowering plants, including trees",
+      ],
+      animals_including_humans: [
+        "I can identify and name a variety of common animals including fish, amphibians, reptiles, birds and mammals",
+        "I can identify and name a variety of common animals that are carnivores, herbivores and omnivores",
+        "I can describe and compare the structure of a variety of common animals (fish, amphibians, reptiles, birds and mammals including pets)",
+        "I can identify, name, draw and label the basic parts of the human body and say which part of the body is associated with each sense",
+      ],
+      everyday_materials: [
+        "I can distinguish between an object and the material from which it is made",
+        "I can identify and name a variety of everyday materials, including wood, plastic, glass, metal, water, and rock",
+        "I can describe the simple physical properties of a variety of everyday materials",
+        "I can compare and group together a variety of everyday materials on the basis of their simple physical properties",
+      ],
+      seasonal_changes: [
+        "I can observe changes across the 4 seasons",
+        "I can observe and describe weather associated with the seasons and how day length varies",
+      ],
+      working_scientifically: [
+        "I can ask simple questions and recognise that they can be answered in different ways",
+        "I can observe closely, using simple equipment",
+        "I can perform simple tests",
+        "I can identify and classify",
+        "I can use my observations and ideas to suggest answers to questions",
+        "I can gather and record data to help me answer questions",
+      ],
+    },
+    2: {
+      living_things_and_habitats: [
+        "I can explore and compare the differences between things that are living, dead, and things that have never been alive",
+        "I can identify that most living things live in habitats to which they are suited and describe how different habitats provide for the basic needs of different kinds of animals and plants, and how they depend on each other",
+        "I can identify and name a variety of plants and animals in their habitats, including microhabitats",
+        "I can describe how animals obtain their food from plants and other animals, using the idea of a simple food chain, and identify and name different sources of food",
+      ],
+      plants: [
+        "I can observe and describe how seeds and bulbs grow into mature plants",
+        "I can find out and describe how plants need water, light and a suitable temperature to grow and stay healthy",
+      ],
+      animals_including_humans: [
+        "I can notice that animals, including humans, have offspring which grow into adults",
+        "I can find out about and describe the basic needs of animals, including humans, for survival (water, food and air)",
+        "I can describe the importance for humans of exercise, eating the right amounts of different types of food, and hygiene",
+      ],
+      uses_of_everyday_materials: [
+        "I can identify and compare the suitability of a variety of everyday materials, including wood, metal, plastic, glass, brick, rock, paper and cardboard for particular uses",
+        "I can find out how the shapes of solid objects made from some materials can be changed by squashing, bending, twisting and stretching",
+      ],
+      working_scientifically: [
+        "I can ask simple questions and recognise that they can be answered in different ways",
+        "I can observe closely, using simple equipment",
+        "I can perform simple tests",
+        "I can identify and classify",
+        "I can use my observations and ideas to suggest answers to questions",
+        "I can report findings from investigations, including explaining by talking and writing about them, displaying or presenting results and conclusions",
+        "I can gather and record data to help me answer questions",
+      ],
+    },
+    3: {
+      plants: [
+        "I can identify and describe the functions of different parts of flowering plants",
+        "I can explore the needs of plants for life and growth and how they are different from plant to plant",
+        "I can investigate the way in which water is transported within plants",
+        "I can explore the part that flowers play in the life cycle of flowering plants, including pollination, seed formation and seed dispersal",
+      ],
+      animals_including_humans: [
+        "I can identify that animals, including humans, need the right types and amount of nutrition, and that they cannot make their own food; they get nutrition from what they eat",
+        "I can identify that humans and some other animals have skeletons and muscles for support, protection and movement",
+      ],
+      rocks: [
+        "I can compare and group together different kinds of rocks on the basis of their appearance and physical properties",
+        "I can describe how fossils are formed when things that have lived are trapped within rock",
+        "I can recognise that soils are made from rocks and organic matter",
+      ],
+      light: [
+        "I can recognise that I need light in order to see things and that dark is the absence of light",
+        "I can notice that light is reflected from surfaces",
+        "I can recognise that light from the sun can be dangerous and that there are ways to protect my eyes",
+        "I can recognise that shadows are formed when the light from a light source is blocked by a solid object",
+        "I can find patterns in the way that the size of shadows change",
+      ],
+      forces_and_magnets: [
+        "I can compare how things move on different surfaces",
+        "I can notice that some forces need contact between two objects, but magnetic forces can act at a distance",
+        "I can observe how magnets attract or repel each other and attract some materials and not others",
+        "I can compare and group together a variety of everyday materials on the basis of whether they are attracted to a magnet, and identify some magnetic materials",
+        "I can describe magnets as having two poles",
+        "I can predict whether two magnets will attract or repel each other, depending on which poles are facing",
+      ],
+      working_scientifically: [
+        "I can ask relevant questions and use different types of scientific enquiries to answer them",
+        "I can set up simple practical investigations, compare things and make fair tests",
+        "I can make organised and careful observations and take accurate measurements using the right units using a range of equipment, including thermometers and data loggers",
+        "I can gather, record, sort and present data in a variety of ways to help in answering questions",
+        "I can record findings using simple scientific language, drawings, labelled diagrams, keys, bar charts and tables",
+        "I can report findings from investigations, including explaining by talking and writing about them, displaying or presenting results and conclusions",
+        "I can use results to draw simple conclusions, make predictions, suggest improvements and ask more questions",
+        "I can identify differences, similarities or changes related to simple scientific ideas and processes",
+        "I can use clear scientific evidence to answer questions or to support my findings",
+      ],
+    },
+    4: {
+      animals_including_humans: [
+        "I can describe the simple functions of the basic parts of the digestive system in humans",
+        "I can identify the different types of teeth in humans and their simple functions",
+        "I can make and understand a variety of food chains, identifying producers, predators and prey",
+      ],
+      living_things_and_habitats: [
+        "I can recognise that living things can be grouped in a variety of ways",
+        "I can explore and use keys to help group, identify and name a variety of living things in my local area and wider environment",
+        "I can recognise that environments can change and that this can sometimes create dangers to living things",
+      ],
+      states_of_matter: [
+        "I can compare and group materials together, according to whether they are solids, liquids or gases",
+        "I can observe that some materials change state when they are heated or cooled, and measure or research the temperature at which this happens in degrees Celsius",
+      ],
+      sound: [
+        "I can identify how sounds are made, associating some of them with something vibrating",
+        "I can recognise that vibrations from sounds travel through a medium to the ear",
+        "I can find patterns between the pitch of a sound and features of the object that produced it",
+        "I can find patterns between the volume of a sound and the strength of the vibrations that produced it",
+        "I can recognise that sounds get fainter as the distance from the sound source increases",
+      ],
+      electricity: [
+        "I can identify common appliances that run on electricity",
+        "I can make a simple electrical circuit, identifying and naming its basic parts, including cells, wires, bulbs, switches and buzzers",
+        "I can identify whether or not a lamp will light in a simple circuit, based on whether or not the lamp is part of a complete loop with a battery",
+        "I can recognise that a switch opens and closes a circuit and link this with whether or not a lamp lights in a simple circuit",
+        "I can recognise some common conductors and insulators, and associate metals with being good conductors",
+      ],
+      working_scientifically: [
+        "I can ask relevant questions and use different types of scientific enquiries to answer them",
+        "I can set up simple practical investigations, compare things and make fair tests",
+        "I can make organised and careful observations and take accurate measurements using the right units using a range of equipment, including thermometers and data loggers",
+        "I can gather, record, sort and present data in a variety of ways to help in answering questions",
+        "I can record findings using simple scientific language, drawings, labelled diagrams, keys, bar charts and tables",
+        "I can report findings from investigations, including explaining by talking and writing about them, displaying or presenting results and conclusions",
+        "I can use results to draw simple conclusions, make predictions, suggest improvements and ask more questions",
+        "I can identify differences, similarities or changes related to simple scientific ideas and processes",
+        "I can use clear scientific evidence to answer questions or to support my findings",
+      ],
+    },
+    5: {
+      living_things_and_habitats: [
+        "I can describe the differences in the life cycles of a mammal, an amphibian, an insect and a bird",
+        "I can describe the life process of reproduction in some plants and animals",
+      ],
+      animals_including_humans: [
+        "I can describe the changes as humans develop to old age",
+      ],
+      properties_and_changes_of_materials: [
+        "I can compare and group together everyday materials on the basis of their properties, including their hardness, solubility, transparency, conductivity (electrical and thermal), and response to magnets",
+        "I can know that some materials will dissolve in liquid to form a solution, and describe how to recover a substance from a solution",
+        "I can use knowledge of solids, liquids and gases to decide how mixtures might be separated, including through filtering, sieving and evaporating",
+        "I can give reasons, based on evidence from comparative and fair tests, for the particular uses of everyday materials, including metals, wood and plastic",
+        "I can demonstrate that dissolving, mixing and changes of state are reversible changes",
+        "I can explain that some changes result in the formation of new materials, and that this kind of change is not usually reversible, including changes associated with burning and the action of acid on bicarbonate of soda",
+      ],
+      earth_and_space: [
+        "I can describe the movement of the Earth and other planets relative to the sun in the solar system",
+        "I can describe the movement of the moon relative to the Earth",
+        "I can describe the sun, Earth and Moon as approximately spherical bodies",
+        "I can use the idea of the Earth's rotation to explain the apparent movement of the sun across the sky and the occurrence of day and night and the apparent movement of the sun across the sky",
+      ],
+      forces: [
+        "I can explain that unsupported objects fall towards the Earth because of the force of gravity acting between the Earth and the falling object",
+        "I can identify the effects of air resistance, water resistance and friction that act between moving surfaces",
+        "I can recognise that some mechanisms, including levers, pulleys and gears, allow a smaller force to have a greater effect",
+      ],
+      working_scientifically: [
+        "I can plan different types of scientific enquiries to answer questions, including recognising and controlling variables where necessary",
+        "I can record data and results of increasing complexity using scientific diagrams and labels, classification keys, tables, scatter graphs, bar and line graphs",
+        "I can report and present findings from enquiries, including conclusions, causal relationships and explanations of and degree of trust in results, in and oral and written forms such as displays and other presentations",
+        "I can use test results to make predictions to set up further comparative and fair tests",
+        "I can identify scientific evidence that has been used to support or refute ideas or arguments",
+      ],
+    },
+    6: {
+      living_things_and_habitats: [
+        "I can describe how living things are classified into broad groups according to common observable characteristics and based on similarities and differences, including micro-organisms, plants and animals",
+        "I can give reasons for classifying plants and animals based on specific characteristics",
+      ],
+      animals_including_humans: [
+        "I can identify and name the main parts of the human circulatory system and describe the functions of the heart, blood vessels and blood",
+        "I can recognise the impact of diet, exercise, drugs and lifestyle on the way bodies function",
+        "I can describe the ways in which nutrients and water are transported within animals, including humans",
+      ],
+      evolution_and_inheritance: [
+        "I can recognise that living things have changed over time and that fossils provide information about living things that inhabited Earth millions of years ago",
+        "I can recognise that living things produce offspring of the same kind but normally offspring vary and are not identical to their parents",
+        "I can identify how animals and plants are adapted to suit their environment in different ways and that adaptation may lead to evolution",
+      ],
+      light: [
+        "I can explain that we see things because light travels from light sources to our eyes or from light sources to objects and then to our eyes",
+        "I can use the idea that light travels in straight lines to explain why shadows have the same shape as the objects that cast them",
+        "I can use the idea that light travels in straight lines to explain that objects are seen because they give out or reflect light into the eye",
+      ],
+      electricity: [
+        "I can link the brightness of a lamp or the volume of a buzzer with the number and voltage of cells used in the circuit",
+        "I can compare and give reasons for variations in how components function, including the brightness of bulbs, the loudness of buzzers and the on/off position of switches",
+        "I can use recognised symbols when drawing a simple circuit in diagram",
+      ],
+      working_scientifically: [
+        "I can plan different types of scientific enquiries to answer questions, including recognising and controlling variables where necessary",
+        "I can take measurements, using a range of scientific equipment, with increasing accuracy and precision, taking repeat readings when appropriate",
+        "I can record data and results of increasing complexity using scientific diagrams and labels, classification keys, tables, scatter graphs, bar and line graphs",
+        "I can use test results to make predictions to set up further comparative and fair tests",
+        "I can report and present findings from enquiries, including conclusions, how one thing has affected another and explanations of and how much I trust the results, in spoken and written forms, such as displays and other presentations",
+        "I can identify scientific evidence that has been used to support or refute ideas or arguments",
+      ],
+    },
+  },
+  english: {
+    1: {
+      transcription: [
+        "I can spell words containing each of the 40+ phonemes already taught",
+        "I can spell common exception words",
+        "I can spell the days of the week",
+        "I can name the letters of the alphabet using letter names to distinguish between alternative spellings of the same sound",
+        "I can add prefixes and suffixes using the spelling rule for adding -s or -es as the plural marker for nouns and the third person singular marker for verbs",
+        "I can add prefixes and suffixes using the prefix un-",
+      ],
+      handwriting: [
+        "I can form capital letters",
+        "I can form digits 0-9",
+        "I understand which letters belong to which handwriting families (i.e. letters that are formed in similar ways) and to practise these",
+      ],
+      composition: [
+        "I can write sentences by saying out loud what I am going to write about",
+        "I can write sentences by composing a sentence orally before writing it",
+        "I can write sentences in order to form short narratives",
+        "I can write sentences by re-reading what I have written to check that it makes sense",
+        "I can discuss what I have written with my teacher or other pupils",
+        "I can read aloud my writing clearly enough to be heard by my peers and my teacher",
+      ],
+      vocabulary_grammar_punctuation: [
+        "I can leave spaces between words",
+        "I can join words and join clauses using 'and'",
+        "I am beginning to punctuate sentences using a capital letter and a full stop, question mark or exclamation mark",
+        "I can use a capital letter for names of people, places, the days of the week, and the personal pronoun 'I'",
+        "I am learning the grammar for year 1 in English Appendix 2",
+        "I can use the grammatical terminology in English Appendix 2 in discussing my writing",
+      ],
+      spelling_and_word_work: [
+        "I can add prefixes and suffixes using -ing, -ed, -er and -est where no change is needed in the spelling of root words",
+        "I can apply simple spelling rules and guidance, as listed in English Appendix 1",
+        "I can write from memory simple sentences dictated by the teacher that include words using the GPCs and common exception words taught so far",
+      ],
+    },
+  },
+};
+
+/**
+ * Returns granular assessment targets for a curriculum + subject + year.
+ * Returns an object keyed by strand, each containing an array of "I can..." statements.
+ */
+export function getAssessmentTargets(curriculum, subject, year) {
+  // Map subject names to ASSESSMENT_TARGETS keys
+  let subjectKey = null;
+  if (subject.includes("math")) subjectKey = "mathematics";
+  else if (subject === "science" || subject === "basic_science") subjectKey = "science";
+  else if (subject === "english" || subject === "english_language") subjectKey = "english";
+
+  if (!subjectKey || !ASSESSMENT_TARGETS[subjectKey]) return null;
+
+  // Map non-UK curricula to equivalent UK year for shared targets
+  let mappedYear = year;
+  if (curriculum === "ng_primary") mappedYear = year;          // Primary 1-6 ≈ Year 1-6
+  if (curriculum === "ca_primary") mappedYear = year;           // Grade 1-6 ≈ Year 1-6
+  if (curriculum === "uk_11plus") mappedYear = year;            // Years 3-6
+
+  return ASSESSMENT_TARGETS[subjectKey][mappedYear] || null;
+}
+
+/**
+ * Cross-curriculum topic equivalence: returns topics from another curriculum
+ * that are conceptually equivalent, so questions can be reused/adapted.
+ */
+export const CROSS_CURRICULUM_MATHS = {
+  // UK Year 1-6 maps to Nigerian Primary 1-6 and Canadian Primary 1-6
+  // (core arithmetic, fractions, geometry, measurement are near-identical)
+  shared_primary: ["uk_national", "ng_primary", "ca_primary"],
+  // UK Year 7-9 (KS3) maps to Nigerian JSS 1-3 and Canadian Secondary 7-9
+  shared_lower_secondary: ["uk_national", "ng_jss", "ca_secondary"],
+  // UK Year 10-11 (KS4) maps to Nigerian SSS 1-3
+  shared_upper_secondary: ["uk_national", "ng_sss"],
+};
+
+/**
+ * Returns curricula that share equivalent maths content for a given year band.
+ * Useful for identifying questions that can be tagged for multiple curricula.
+ */
+export function getEquivalentCurricula(curriculum, year) {
+  if (curriculum === "uk_national" || curriculum === "ng_primary" || curriculum === "ca_primary") {
+    if (year <= 6) return CROSS_CURRICULUM_MATHS.shared_primary;
+  }
+  if (curriculum === "uk_national" && year >= 7 && year <= 9) return CROSS_CURRICULUM_MATHS.shared_lower_secondary;
+  if (curriculum === "ng_jss") return CROSS_CURRICULUM_MATHS.shared_lower_secondary;
+  if (curriculum === "uk_national" && year >= 10) return CROSS_CURRICULUM_MATHS.shared_upper_secondary;
+  if (curriculum === "ng_sss") return CROSS_CURRICULUM_MATHS.shared_upper_secondary;
+  return [curriculum];
+}

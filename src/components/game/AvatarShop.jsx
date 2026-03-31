@@ -70,14 +70,14 @@ const EARN_METHODS = [
 const CATEGORIES = [
   { key: 'all',        icon: '🎨', label: 'All' },
   { key: 'base',       icon: '🚀', label: 'Suit' },
-  { key: 'skin',       icon: '🎨', label: 'Skin' },
-  { key: 'hair',       icon: '💇', label: 'Hair' },
-  { key: 'expression', icon: '😊', label: 'Face' },
   { key: 'hat',        icon: '🎩', label: 'Hats' },
   { key: 'accessory',  icon: '✨', label: 'Gear' },
   { key: 'pet',        icon: '🐾', label: 'Pets' },
   { key: 'background', icon: '🌌', label: 'Scene' },
 ];
+
+// Categories to exclude from "All" view (hidden under space suit)
+const HIDDEN_CATEGORIES = new Set(['skin', 'hair', 'expression']);
 
 // Categories that support "None" (unequip)
 const UNEQUIPPABLE = new Set(['hat', 'pet', 'accessory', 'background']);
@@ -304,9 +304,13 @@ export default function AvatarShop({ scholarId, onAvatarChange }) {
     setTimeout(() => setSuccessMsg(null), 2000);
   };
 
-  const filteredItems = Object.entries(AVATAR_ITEMS).filter(([id, item]) =>
-    selectedCategory === 'all' || item.category === selectedCategory
-  );
+  const filteredItems = Object.entries(AVATAR_ITEMS).filter(([id, item]) => {
+    if (selectedCategory === 'all') {
+      // In "All" view, exclude items in hidden categories (skin, hair, expression)
+      return !HIDDEN_CATEGORIES.has(item.category);
+    }
+    return item.category === selectedCategory;
+  });
 
   // Build a preview avatar for a specific item (for mini preview thumbnails)
   const previewFor = (itemId) => {

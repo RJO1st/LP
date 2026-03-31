@@ -330,6 +330,7 @@ export const generateSession = async ({
     try {
       if (supabaseClient) {
         const fetchLimit = Math.max(n * 4, 40);
+        // Primary query: exact curriculum match
         const { data, error } = await supabaseClient
           .from('question_bank')
           .select('id, question_text, options, correct_index, explanation, passage, topic, year_level')
@@ -340,8 +341,30 @@ export const generateSession = async ({
           .order('last_used', { ascending: true, nullsFirst: true })
           .limit(fetchLimit);
 
-        if (!error && data?.length > 0) {
-          const candidates = shuffle(data.filter(row => !usedIds.has(row.id))).slice(0, n);
+        let allRows = [];
+        if (!error && data?.length > 0) allRows = data;
+
+        // Cross-curriculum supplement: if primary is thin, pull from also_curricula
+        if (allRows.length < fetchLimit) {
+          try {
+            const { data: crossRows } = await supabaseClient
+              .from('question_bank')
+              .select('id, question_text, options, correct_index, explanation, passage, topic, year_level')
+              .contains('also_curricula', [curriculum])
+              .eq('subject', s)
+              .eq('year_level', year)
+              .eq('is_active', true)
+              .order('last_used', { ascending: true, nullsFirst: true })
+              .limit(fetchLimit - allRows.length);
+            if (crossRows?.length) {
+              const existingIds = new Set(allRows.map(r => r.id));
+              allRows = [...allRows, ...crossRows.filter(r => !existingIds.has(r.id))];
+            }
+          } catch (_) { /* cross-curriculum is best-effort */ }
+        }
+
+        if (allRows.length > 0) {
+          const candidates = shuffle(allRows.filter(row => !usedIds.has(row.id))).slice(0, n);
           for (const row of candidates) {
             subjectQuestions.push(rowToQuestion(row, s));
             usedIds.add(row.id);
