@@ -234,14 +234,17 @@ Subject: ${subject}.
 Topic: ${topic}.
 Question: "${question?.q || 'unknown'}"
 Options: ${(question?.opts || []).map((o, i) => `${i + 1}. ${o}`).join(', ')}
-Correct answer: "${correctAnswer}"
+Stored correct answer: "${correctAnswer}"
 Student chose: "${scholarAnswer || 'unknown'}"${scholarAnswer && scholarAnswer !== correctAnswer ? ' (INCORRECT)' : ''}
 Student's reasoning: "${text}"
 
 ${ageGuidance}
 
+ANSWER VERIFICATION — CRITICAL: Before giving any explanation, independently verify whether "${correctAnswer}" is factually correct for the question above using your own subject knowledge. Do NOT blindly trust the stored answer — question databases sometimes contain errors. If you are confident a different option is the true correct answer, state that clearly at the start of your response (e.g. "Actually, I need to correct something — the right answer here is [X], not [Y], because...") and explain from there. Only proceed with the normal explanation flow if you are confident "${correctAnswer}" is genuinely correct.
+
 INSTRUCTIONS:
-- Acknowledge what the student chose — explain briefly why it might have seemed right, then guide them to "${correctAnswer}"
+- Acknowledge what the student chose — explain briefly why it might have seemed right, then guide them to the correct answer
+- If you corrected the stored answer above, frame your explanation around the true correct answer, not the stored one
 - Be specific to THIS question about ${topic}
 - For number bonds: use "parts" and "whole" language
 - For counting/addition: use concrete objects
@@ -274,7 +277,7 @@ INSTRUCTIONS:
           { role: "system", content: systemPrompt },
           { role: "user", content: mode === "followup"
             ? `My follow-up question: "${text}"`
-            : `Here is my explanation of why "${correctAnswer}" is the correct answer:\n\n"${text}"`
+            : `Here is my explanation of my answer choice:\n\n"${text}"`
           },
         ],
         max_tokens: band === "ks4" ? 300 : tara.maxWords ? Math.min(tara.maxWords * 2, 200) : 150,

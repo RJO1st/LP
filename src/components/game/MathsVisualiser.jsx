@@ -1231,7 +1231,7 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   const nums = ((questionStr || "").match(RX_NUM) || []).map(Number);
 
   // ── NVR ──────────────────────────────────────────────────────────────────
-  if (subj.includes("verbal") && subj.includes("non") || t.includes("nvr") || t.includes("non_verbal")) {
+  if ((subj.includes("verbal") && subj.includes("non")) || subj === "nvr" || t.includes("nvr") || t.includes("non_verbal")) {
 
     // ── Geometry/property questions (single shape) ─────────────────────────
     // "How many sides does a triangle have?" / "What shape has 6 sides?" etc.
