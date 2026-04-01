@@ -272,6 +272,61 @@ export const EMAIL_TEMPLATES = {
     };
   },
 
+  // ── Inactivity nudge (sent when scholar hasn't practised recently) ─────────
+  inactivityNudge(parentName, scholars) {
+    // scholars: [{ name, daysSince, lastSubject, streak, accessCode }]
+    const scholarBlocks = (scholars ?? []).map(s => {
+      const dayLabel = s.daysSince === 1 ? '1 day' : `${s.daysSince} days`;
+      const streakMsg = s.streak > 0
+        ? `<span style="color:#f59e0b;font-weight:800;">${s.streak}-day streak at risk!</span>`
+        : '';
+      return `
+        <div style="background:#fff7ed;border-radius:14px;padding:16px;margin-bottom:12px;border:2px solid #fed7aa;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-weight:800;font-size:16px;color:#1e293b;">🧑‍🚀 ${s.name}</span>
+            <span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;">
+              ${dayLabel} since last quest
+            </span>
+          </div>
+          ${s.lastSubject ? `<p style="font-size:13px;color:#64748b;margin:0 0 6px;">Last practised: <strong>${s.lastSubject}</strong></p>` : ''}
+          ${streakMsg ? `<p style="font-size:13px;margin:0 0 6px;">${streakMsg}</p>` : ''}
+          ${s.accessCode ? `
+            <div style="background:#f8fafc;border-radius:10px;padding:10px;text-align:center;margin-top:8px;">
+              <span style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Quest Code</span>
+              <div style="font-size:20px;font-weight:900;color:#4f46e5;letter-spacing:3px;margin-top:2px;">${s.accessCode}</div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    const names = (scholars ?? []).map(s => s.name);
+    const nameStr = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+
+    const body = `
+      <p>Hi ${parentName ?? 'there'},</p>
+      <p>We noticed <strong>${nameStr}</strong> ${names.length > 1 ? "haven't" : "hasn't"} completed any quests recently.</p>
+      <p>It's midterm break — the perfect time for a quick practice session! Just <strong>10-15 minutes a day</strong> keeps skills sharp and builds lasting confidence.</p>
+
+      ${scholarBlocks}
+
+      <div class="tip">
+        <p>💡 <strong>Did you know?</strong> Scholars who practise during school breaks return 23% more confident and retain more of what they learned last term.</p>
+      </div>
+
+      <a href="${BASE_URL}/login" class="cta">Launch a Quick Quest →</a>
+
+      <p style="font-size:13px;color:#64748b;margin-top:20px;">
+        Even one session makes a difference. Why not set a fun challenge — 3 quests this week earns a coin bonus!
+      </p>
+      <p style="font-size:12px;color:#94a3b8;">You're receiving this because ${names.length > 1 ? 'your scholars are' : `${names[0]} is`} registered on LaunchPard. <a href="${BASE_URL}/dashboard/parent" style="color:#6366f1;">Manage preferences</a></p>
+    `;
+    return {
+      subject: `🔔 ${nameStr} ${names.length > 1 ? "haven't" : "hasn't"} practised recently — midterm is the perfect time!`,
+      htmlContent: shell('Time for a Quick Quest!', 'Keep the momentum going over break', body),
+    };
+  },
+
   // ── Password reset (if using custom auth flow) ─────────────────────────────
   passwordReset(parentName, resetUrl) {
     const body = `
