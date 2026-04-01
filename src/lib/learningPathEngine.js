@@ -55,6 +55,8 @@
  *   computeExamReadinessIndex() — enhanced: uses exam board boundaries + topic weightings
  *   predictGrade()              — maps readiness score → grade string (GCSE 9-1, WAEC A1-F9, etc.)
  *   fetchExamBoardData()        — loads board config from Supabase (with circuit breaker)
+ *   fetchStandardsForPath()     — loads curriculum standards for a scholar's path
+ *   generateCurriculumAwarePath() — async orchestrator: DB sequences + standards + gap priority
  *   aggregateClassMastery()    — teacher dashboard: class-level topic mastery
  *   getStrugglingStudents()    — teacher dashboard: students below threshold
  *   getGroupRecommendations()  — teacher dashboard: suggested next focus areas
@@ -502,6 +504,358 @@ function _buildPathItem(topic, subject, curriculum, yearLevel, currentScore, ban
     tier:               masteryToTier(currentScore),
     status:             currentScore >= 0.80 ? 'mastered' : currentScore > 0 ? 'in_progress' : 'not_started',
   };
+}
+
+// ─── CURRICULUM-AWARE PATH GENERATION ────────────────────────────────────────
+
+/**
+ * Fetch curriculum standards relevant to a scholar's learning path.
+ *
+ * Returns an object with:
+ *   - standards: array of { code, statement, strand_name, year_level }
+ *   - coverageGaps: { critical: [...], high: [...] } — standards with few/no questions
+ *   - standardsByTopic: Map<topic_slug, standard[]> — standards mapped to topics
+ *
+ * @param {string} curriculum   - e.g. 'uk_national'
+ * @param {string} subject      - e.g. 'mathematics'
+ * @param {number} yearLevel    - e.g. 7
+ * @param {object} supabase     - Supabase client
+ * @returns {object|null}
+ */
+export async function fetchStandardsForPath(curriculum, subject, yearLevel, supabase) {
+  if (!supabase || !curriculum || !subject) return null;
+
+  try {
+    // Fetch standards for this curriculum + subject + year (and ±1 year for context)
+    const yearMin = Math.max(1, yearLevel - 1);
+    const yearMax = yearLevel + 1;
+
+    const { data: standards, error } = await supabase
+      .from('curriculum_standards')
+      .select(`
+        standard_code,
+        statement,
+        year_level,
+        bloom_level,
+        difficulty_band,
+        strand:strand_id ( strand_name, strand_code )
+      `)
+      .eq('curriculum_id', curriculum)
+      .eq('subject', subject)
+      .gte('year_level', yearMin)
+      .lte('year_level', yearMax)
+      .order('year_level', { ascending: true });
+
+    if (error || !standards?.length) return null;
+
+    // Fetch coverage stats to identify gaps
+    const { data: coverage } = await supabase
+      .from('curriculum_coverage_stats')
+      .select('standard_code, question_count')
+      .eq('curriculum_id', curriculum)
+      .eq('subject', subject);
+
+    const coverageMap = {};
+    for (const c of coverage ?? []) coverageMap[c.standard_code] = c.question_count ?? 0;
+
+    // Categorise gaps
+    const critical = []; // 0 questions
+    const high = [];     // < 5 questions
+
+    for (const s of standards) {
+      const qCount = coverageMap[s.standard_code] ?? 0;
+      const entry = {
+        code: s.standard_code,
+        statement: s.statement,
+        strand: s.strand?.strand_name ?? null,
+        strand_code: s.strand?.strand_code ?? null,
+        year_level: s.year_level,
+        bloom_level: s.bloom_level,
+        questions: qCount,
+      };
+      if (qCount === 0) critical.push(entry);
+      else if (qCount < 5) high.push(entry);
+    }
+
+    // Map standards to topic slugs using keyword matching
+    const standardsByTopic = _mapStandardsToTopics(standards);
+
+    return {
+      standards: standards.map(s => ({
+        code: s.standard_code,
+        statement: s.statement,
+        strand_name: s.strand?.strand_name ?? null,
+        strand_code: s.strand?.strand_code ?? null,
+        year_level: s.year_level,
+        bloom_level: s.bloom_level,
+        difficulty_band: s.difficulty_band,
+      })),
+      coverageGaps: { critical, high },
+      standardsByTopic,
+      totalStandards: standards.length,
+      coveredStandards: standards.length - critical.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Map curriculum standards to topic slugs using keyword matching.
+ * This bridges the gap between fine-grained standards and coarse topic_slugs.
+ */
+function _mapStandardsToTopics(standards) {
+  const TOPIC_KEYWORDS = {
+    // Mathematics
+    place_value: ['place value', 'numeral', 'count', 'number system'],
+    number_bonds: ['number bond', 'pairs', 'complement'],
+    addition: ['add', 'sum', 'plus', 'addition'],
+    subtraction: ['subtract', 'minus', 'difference', 'subtraction'],
+    multiplication: ['multipl', 'times', 'product', 'times table'],
+    division: ['divid', 'quotient', 'division', 'remainder'],
+    fractions: ['fraction', 'numerator', 'denominator', 'half', 'quarter', 'third'],
+    decimals: ['decimal', 'tenth', 'hundredth'],
+    percentages: ['percent', '%'],
+    ratio_and_proportion: ['ratio', 'proportion', 'scale'],
+    algebra_basics: ['algebra', 'variable', 'expression', 'simplif'],
+    linear_equations: ['linear equation', 'solve.*equation', 'simultaneous.*linear'],
+    area_and_perimeter: ['area', 'perimeter', 'surface area'],
+    angles_and_shapes: ['angle', 'triangle', 'polygon', 'shape', 'quadrilateral', 'parallel'],
+    data_handling: ['data', 'chart', 'graph', 'tally', 'pictograph', 'bar chart', 'pie chart', 'histogram'],
+    probability: ['probability', 'chance', 'likely', 'certain', 'impossible', 'event'],
+    pythagoras_theorem: ['pythagoras', 'hypotenuse'],
+    trigonometry: ['trigonometr', 'sine', 'cosine', 'tangent', 'sin', 'cos', 'tan', 'soh.*cah'],
+    quadratic_equations: ['quadratic', 'factoris', 'completing the square'],
+    simultaneous_equations: ['simultaneous', 'two variables'],
+    circle_theorems: ['circle theorem', 'tangent.*circle', 'cyclic', 'arc', 'sector', 'circumference'],
+    vectors: ['vector', 'magnitude', 'direction', 'scalar product'],
+    statistics: ['standard deviation', 'cumulative frequency', 'quartile', 'interquartile'],
+    calculus: ['differenti', 'integrat', 'gradient.*curve', 'rate of change', 'area under'],
+    // English
+    phonics: ['phonics', 'phonic', 'letter sound', 'decode'],
+    spelling: ['spell', 'spelling'],
+    grammar: ['grammar', 'tense', 'noun', 'verb', 'adjective', 'adverb', 'concord', 'clause'],
+    punctuation: ['punctuat', 'comma', 'full stop', 'apostrophe', 'semicolon'],
+    vocabulary: ['vocabular', 'word meaning', 'synonym', 'antonym'],
+    sentence_structure: ['sentence', 'clause', 'phrase', 'complex sentence'],
+    comprehension: ['comprehension', 'passage', 'summary', 'inference', 'cloze'],
+    creative_writing: ['creative writing', 'narrative', 'descriptive', 'story writing'],
+    essay_writing: ['essay', 'argumentative', 'expository', 'persuasive writing'],
+    literary_devices: ['literary device', 'metaphor', 'simile', 'alliteration', 'personification'],
+    poetry_analysis: ['poetry', 'poem', 'verse', 'stanza', 'rhyme'],
+    // Science
+    living_organisms: ['living', 'organism', 'classify', 'classification'],
+    plants_and_animals: ['plant', 'animal', 'habitat', 'life cycle'],
+    food_chains: ['food chain', 'food web', 'predator', 'prey', 'producer', 'consumer'],
+    materials: ['material', 'property', 'hard', 'soft', 'transparent'],
+    states_of_matter: ['states of matter', 'solid', 'liquid', 'gas', 'particle', 'melting', 'boiling'],
+    forces_basics: ['force', 'push', 'pull', 'friction', 'gravity', 'magnet'],
+    cells_and_tissues: ['cell', 'tissue', 'organelle', 'nucleus', 'membrane', 'mitosis'],
+    human_body: ['human body', 'organ', 'skeleton', 'digestion', 'circulation', 'respiration'],
+    electricity: ['electric', 'circuit', 'current', 'voltage', 'resistance', 'ohm'],
+    light_and_sound: ['light', 'shadow', 'reflect', 'refract', 'sound', 'vibrat', 'wave'],
+    chemical_reactions: ['chemical reaction', 'reactant', 'product', 'equation', 'exothermic', 'endothermic'],
+    earth_and_space: ['earth', 'space', 'planet', 'solar system', 'rock', 'weathering'],
+    genetics: ['genetic', 'gene', 'dna', 'heredit', 'inherit', 'allele', 'dominant', 'recessive'],
+    evolution: ['evolution', 'natural selection', 'adaptation', 'species', 'fossil'],
+    atomic_structure: ['atom', 'proton', 'neutron', 'electron', 'element', 'periodic table', 'isotope'],
+    ecology: ['ecology', 'ecosystem', 'biodiversity', 'conservation', 'population', 'sustainability'],
+    waves: ['wave', 'frequency', 'amplitude', 'wavelength', 'electromagnetic'],
+    forces_and_motion: ['motion', 'velocity', 'acceleration', 'momentum', 'newton'],
+    thermodynamics: ['thermodynamic', 'heat transfer', 'conduction', 'convection', 'radiation', 'entropy'],
+    // History
+    ancient_civilisations: ['ancient', 'civilisation', 'civilization', 'egypt', 'rome', 'greece', 'mesopotamia'],
+    empire_and_colonialism: ['empire', 'colonial', 'imperialism', 'slave trade', 'colonisation'],
+    world_war_1: ['world war 1', 'world war i', 'wwi', 'first world war', 'trench'],
+    world_war_2: ['world war 2', 'world war ii', 'wwii', 'second world war', 'holocaust'],
+    cold_war: ['cold war', 'soviet', 'berlin wall', 'cuban missile'],
+    civil_rights: ['civil rights', 'segregation', 'apartheid', 'equality', 'suffrage'],
+    // Geography
+    weather_and_climate: ['weather', 'climate', 'temperature', 'rainfall', 'season'],
+    physical_geography: ['physical geography', 'volcano', 'earthquake', 'tectonic', 'erosion', 'river', 'mountain'],
+    human_geography: ['human geography', 'settlement', 'migration', 'urban', 'rural'],
+    environmental_issues: ['environment', 'pollution', 'climate change', 'deforestation', 'renewable'],
+    globalisation: ['globali', 'trade', 'international', 'import', 'export'],
+    // Civic Education / Social Studies
+    citizenship: ['citizen', 'nationality', 'civic duty', 'belong'],
+    human_rights: ['human rights', 'fundamental rights', 'freedom', 'dignity', 'discrimination'],
+    democracy_and_governance: ['democracy', 'govern', 'constitution', 'parliament', 'legislature', 'executive'],
+    rule_of_law: ['rule of law', 'justice', 'court', 'legal', 'law enforcement'],
+    national_values: ['national value', 'integrity', 'patriotism', 'unity', 'national anthem'],
+    conflict_resolution: ['conflict', 'peace', 'mediation', 'reconciliation', 'dispute'],
+    electoral_process: ['election', 'vote', 'ballot', 'campaign', 'political party', 'candidate'],
+    community_development: ['community', 'development', 'social welfare', 'infrastructure'],
+    // Computing
+    programming_basics: ['program', 'coding', 'algorithm', 'debug', 'loop', 'variable', 'function'],
+    cybersecurity: ['cybersecurity', 'online safety', 'password', 'phishing', 'data protection'],
+  };
+
+  const result = new Map();
+
+  for (const std of standards) {
+    const text = (std.statement ?? '').toLowerCase();
+    for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+      const match = keywords.some(kw => {
+        if (kw.includes('.*')) return new RegExp(kw, 'i').test(text);
+        return text.includes(kw);
+      });
+      if (match) {
+        if (!result.has(topic)) result.set(topic, []);
+        result.get(topic).push({
+          code: std.standard_code,
+          statement: std.statement,
+          strand: std.strand?.strand_name ?? null,
+          year_level: std.year_level,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Generate a curriculum-aware personalised learning path.
+ *
+ * This is the top-level async function that:
+ *   1. Loads DB-driven topic sequences (via getTopicSequence)
+ *   2. Fetches curriculum standards for the scholar's year level
+ *   3. Generates the learning path with standard-based prioritisation
+ *   4. Annotates each path item with relevant curriculum standards
+ *   5. Saves to scholar_learning_path table
+ *
+ * @param {object} params
+ * @param {string} params.curriculum
+ * @param {string} params.subject
+ * @param {number} params.yearLevel
+ * @param {object} params.diagnosticScores  - { topic: score } from diagnostic
+ * @param {array}  params.masteryRecords    - from mastery_records table
+ * @param {object} params.supabase          - Supabase client
+ * @param {string} params.scholarId         - for saving the path
+ * @returns {object} { path: [...], curriculumInfo: {...}, saved: boolean }
+ */
+export async function generateCurriculumAwarePath({
+  curriculum, subject, yearLevel,
+  diagnosticScores = {}, masteryRecords = [],
+  supabase = null, scholarId = null,
+}) {
+  // 1. Load DB-driven topic sequence (falls back to code-side TOPIC_SEQUENCES)
+  const sequence = await getTopicSequence(subject, curriculum, supabase);
+
+  // 2. Fetch curriculum standards
+  const curriculumInfo = await fetchStandardsForPath(curriculum, subject, yearLevel, supabase);
+
+  // 3. Generate base learning path using existing logic
+  const basePath = generateLearningPath(
+    curriculum, subject, yearLevel,
+    diagnosticScores, masteryRecords, sequence,
+  );
+
+  // 4. Enrich with curriculum standards
+  const enrichedPath = _enrichPathWithStandards(basePath, curriculumInfo);
+
+  // 5. Re-prioritise based on coverage gaps
+  const prioritisedPath = _prioritiseByGaps(enrichedPath, curriculumInfo);
+
+  // 6. Save to DB if scholar ID provided
+  let saved = false;
+  if (supabase && scholarId && prioritisedPath.length > 0) {
+    try {
+      const pathRecord = {
+        scholar_id: scholarId,
+        curriculum,
+        subject,
+        topic_order: prioritisedPath,
+        current_topic: prioritisedPath[0]?.topic ?? null,
+        current_index: 0,
+        completion_pct: 0,
+        next_milestone: prioritisedPath[0]
+          ? `Start ${prioritisedPath[0].display_name}`
+          : 'All topics mastered!',
+        diagnostic_done: Object.keys(diagnosticScores).length > 0,
+        diagnostic_scores: diagnosticScores,
+        generated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('scholar_learning_path')
+        .upsert(pathRecord, { onConflict: 'scholar_id,curriculum,subject' });
+
+      saved = !error;
+    } catch {
+      // Non-fatal — path is still returned
+    }
+  }
+
+  return {
+    path: prioritisedPath,
+    curriculumInfo: curriculumInfo ? {
+      totalStandards: curriculumInfo.totalStandards,
+      coveredStandards: curriculumInfo.coveredStandards,
+      criticalGaps: curriculumInfo.coverageGaps?.critical?.length ?? 0,
+      highGaps: curriculumInfo.coverageGaps?.high?.length ?? 0,
+    } : null,
+    saved,
+  };
+}
+
+/**
+ * Annotate path items with curriculum standards they cover.
+ */
+function _enrichPathWithStandards(path, curriculumInfo) {
+  if (!curriculumInfo?.standardsByTopic) return path;
+
+  return path.map(item => {
+    const standards = curriculumInfo.standardsByTopic.get(item.topic) ?? [];
+    return {
+      ...item,
+      curriculum_standards: standards.map(s => ({
+        code: s.code,
+        statement: s.statement,
+        strand: s.strand,
+      })),
+      standards_count: standards.length,
+    };
+  });
+}
+
+/**
+ * Re-prioritise path items so topics covering gap standards come first
+ * within their mastery tier (struggling topics still come before developing).
+ */
+function _prioritiseByGaps(path, curriculumInfo) {
+  if (!curriculumInfo?.coverageGaps) return path;
+
+  const criticalCodes = new Set(
+    (curriculumInfo.coverageGaps.critical ?? []).map(g => g.code)
+  );
+  const highCodes = new Set(
+    (curriculumInfo.coverageGaps.high ?? []).map(g => g.code)
+  );
+
+  return path.map(item => {
+    // Calculate gap priority score: higher = more urgent gaps
+    const itemStandards = item.curriculum_standards ?? [];
+    let gapScore = 0;
+    for (const std of itemStandards) {
+      if (criticalCodes.has(std.code)) gapScore += 3;
+      else if (highCodes.has(std.code)) gapScore += 1;
+    }
+    return { ...item, _gap_priority: gapScore };
+  }).sort((a, b) => {
+    // Primary: mastery status (struggling before developing before mastered)
+    const statusOrder = { not_started: 0, in_progress: 1, mastered: 2 };
+    const statusDiff = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+    if (statusDiff !== 0) return statusDiff;
+
+    // Secondary: gap priority (higher gaps first)
+    if (b._gap_priority !== a._gap_priority) return b._gap_priority - a._gap_priority;
+
+    // Tertiary: strand order (foundation → intermediate → advanced)
+    const bandOrder = { foundation: 0, intermediate: 1, advanced: 2, enrichment: 3 };
+    return (bandOrder[a.difficulty_band] ?? 1) - (bandOrder[b.difficulty_band] ?? 1);
+  }).map(({ _gap_priority, ...item }) => item); // Strip internal field
 }
 
 // ─── ADVANCE PATH ─────────────────────────────────────────────────────────────

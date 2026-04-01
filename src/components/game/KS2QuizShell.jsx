@@ -91,6 +91,17 @@ export default function KS2QuizShell({
 
   const progress = totalQuestions > 0 ? ((questionIndex) / totalQuestions) * 100 : 0;
 
+  // Subject-aware icons for the placeholder panel
+  const subjLow = (subjectLabel || "").toLowerCase();
+  const subjectIcon = /histor/.test(subjLow) ? "📜" : /english|grammar|spell|read/.test(subjLow) ? "📖" :
+    /geograph|social/.test(subjLow) ? "🗺️" : /comput|ict|digital/.test(subjLow) ? "💻" :
+    /relig/.test(subjLow) ? "📿" : /civic|citizen|govern/.test(subjLow) ? "⚖️" :
+    /commerce|business|account|econ/.test(subjLow) ? "📊" : /art|music|creative/.test(subjLow) ? "🎨" :
+    /agric/.test(subjLow) ? "🌱" : "📡";
+  const subjectWaitLabel = /histor/.test(subjLow) ? "SCANNING ARCHIVES..." : /english/.test(subjLow) ? "DECODING TRANSMISSION..." :
+    /geograph/.test(subjLow) ? "MAPPING TERRAIN..." : /comput/.test(subjLow) ? "COMPILING DATA..." :
+    "AWAITING MISSION DATA...";
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4" style={{
       background: "rgba(2,6,18,0.97)", backdropFilter: "blur(16px)",
@@ -259,8 +270,8 @@ export default function KS2QuizShell({
                   marginTop: 20, padding: 32, textAlign: "center", borderRadius: 2,
                   border: `1px dashed ${CYAN}12`, background: `${CYAN}02`,
                 }}>
-                  <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}>📡</span>
-                  <p style={{ fontSize: 11, color: `${CYAN}30`, fontWeight: 700, ...NB }}>AWAITING MISSION DATA...</p>
+                  <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}>{subjectIcon}</span>
+                  <p style={{ fontSize: 11, color: `${CYAN}30`, fontWeight: 700, ...NB }}>{subjectWaitLabel}</p>
                 </div>
               )}
             </>

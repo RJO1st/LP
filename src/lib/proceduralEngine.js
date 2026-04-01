@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getStandardsForTopic } from './smartQuestionSelection';
 
 // ─── UTILITIES (declared first — used by every function below) ────────────────
 const shuffle = (array) => {
@@ -264,7 +265,36 @@ export async function generateSessionQuestions(scholar, subject, difficultyTier 
     }
 
     const filterYear = parseInt(scholar?.year_level || scholar?.year || 4, 10);
-    return filterByYearLevel(questions, filterYear).slice(0, count);
+    const result = filterByYearLevel(questions, filterYear).slice(0, count);
+
+    // ── Curriculum standard annotation (non-blocking) ──────────────────────
+    // Annotate DB-sourced questions with their curriculum standards for
+    // downstream consumers (Tara AI feedback, coverage tracking).
+    try {
+      const topicSet = [...new Set(result.map(q => q.topic).filter(Boolean))];
+      if (topicSet.length > 0 && supabase) {
+        const stdsByTopic = {};
+        await Promise.all(
+          topicSet.map(async (t) => {
+            const stds = await getStandardsForTopic(supabase, curriculum, subject, t, yearLevel);
+            if (stds.length) stdsByTopic[t] = stds;
+          })
+        );
+        for (const q of result) {
+          if (q.topic && stdsByTopic[q.topic]) {
+            q._curriculumStandards = stdsByTopic[q.topic].map(s => ({
+              code: s.standard_code,
+              statement: s.statement,
+              strand: s.strand_name,
+            }));
+          }
+        }
+      }
+    } catch (stdErr) {
+      console.warn('[proceduralEngine] curriculum annotation failed (non-fatal):', stdErr?.message);
+    }
+
+    return result;
   } catch (error) {
     console.error('Error generating session questions:', error);
     return [];

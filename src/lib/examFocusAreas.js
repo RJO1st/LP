@@ -1012,6 +1012,184 @@ export const ASSESSMENT_TARGETS = {
         "I can calculate and interpret the mean as an average",
       ],
     },
+    7: {
+      number_operations: [
+        "I can carry out operations with integers and decimals",
+        "I can multiply and divide by powers of 10",
+        "I can round numbers to decimal places and significant figures",
+        "I can perform calculations with fractions and mixed numbers",
+        "I can order, compare and estimate numbers",
+      ],
+      algebra_basics: [
+        "I can use symbols to represent unknown numbers",
+        "I can form and solve simple linear equations",
+        "I can understand and create sequences",
+        "I can substitute values into algebraic expressions",
+        "I can simplify algebraic expressions by collecting like terms",
+      ],
+      ratio_and_proportion_intro: [
+        "I can understand and use ratios",
+        "I can simplify ratios and scale quantities",
+        "I can solve problems involving direct proportion",
+        "I can use ratio in practical contexts",
+        "I can compare quantities using ratios and fractions",
+      ],
+      geometry_angles_and_shapes: [
+        "I can identify properties of 2D and 3D shapes",
+        "I can calculate angles in straight lines and around points",
+        "I can describe and name angles",
+        "I can identify parallel and perpendicular lines",
+        "I can draw and measure angles accurately",
+      ],
+      statistics_and_probability: [
+        "I can collect, organize and interpret data",
+        "I can construct and interpret pie charts and bar charts",
+        "I can understand probability as a measure of likelihood",
+        "I can calculate simple probabilities",
+        "I can use two-way tables",
+      ],
+    },
+    8: {
+      fractions_decimals_percentages: [
+        "I can convert between fractions, decimals and percentages",
+        "I can find fractions and percentages of quantities",
+        "I can calculate percentage change and reverse percentages",
+        "I can perform calculations with fractions",
+        "I can order fractions, decimals and percentages",
+      ],
+      equations_and_sequences: [
+        "I can solve linear equations with variables on one side",
+        "I can solve linear equations with variables on both sides",
+        "I can identify and continue number sequences",
+        "I can find the nth term of linear sequences",
+        "I can set up and solve equations from problem contexts",
+      ],
+      geometry_transformations: [
+        "I can describe translations, rotations and reflections",
+        "I can perform transformations of shapes",
+        "I can identify congruent shapes",
+        "I can introduce Pythagoras' theorem",
+        "I can calculate angles in triangles and parallel lines",
+      ],
+      statistics: [
+        "I can calculate and compare averages (mean, median, mode, range)",
+        "I can interpret frequency tables and histograms",
+        "I can construct and read scatter graphs",
+        "I can identify correlation between variables",
+        "I can represent data in appropriate formats",
+      ],
+      probability: [
+        "I can calculate probabilities of simple and compound events",
+        "I can use frequency trees and sample space diagrams",
+        "I can understand independent and dependent events",
+        "I can perform probability calculations",
+        "I can interpret probability in practical contexts",
+      ],
+    },
+    9: {
+      indices_and_standard_form: [
+        "I can understand and use laws of indices",
+        "I can write numbers in standard form",
+        "I can calculate with numbers in standard form",
+        "I can use indices and powers",
+        "I can perform calculations involving surds",
+      ],
+      graphs_and_functions: [
+        "I can plot and interpret graphs of linear equations",
+        "I can find gradients and y-intercepts",
+        "I can plot and interpret quadratic and cubic graphs",
+        "I can solve equations graphically",
+        "I can describe and draw graphs from equations",
+      ],
+      trigonometry_intro: [
+        "I can use trigonometric ratios in right triangles",
+        "I can calculate unknown sides and angles",
+        "I can apply trigonometry to problem solving",
+        "I can understand and use trigonometric functions",
+        "I can solve problems in 3D using trigonometry",
+      ],
+      probability: [
+        "I can use tree diagrams and two-way tables for probability",
+        "I can calculate conditional probabilities",
+        "I can understand independent and mutually exclusive events",
+        "I can solve complex probability problems",
+        "I can use probability in practical contexts",
+      ],
+      constructions_and_loci: [
+        "I can construct triangles and other shapes accurately",
+        "I can construct perpendicular and angle bisectors",
+        "I can construct the locus of points at given distances",
+        "I can combine constructions to solve problems",
+        "I can identify regions satisfying inequalities",
+      ],
+    },
+    10: {
+      number: [
+        "I can work with surds and rationalize denominators",
+        "I can calculate with upper and lower bounds",
+        "I can understand and use rounding and estimation",
+        "I can perform calculations with large and small numbers",
+        "I can calculate with percentages and growth",
+      ],
+      algebra: [
+        "I can solve quadratic equations by various methods",
+        "I can solve simultaneous linear and quadratic equations",
+        "I can solve linear and quadratic inequalities",
+        "I can solve equations by iteration",
+        "I can use algebraic manipulation and reasoning",
+      ],
+      ratio_and_proportion: [
+        "I can solve problems involving ratio and scale",
+        "I can solve problems involving direct and inverse proportion",
+        "I can work with compound measures",
+        "I can use proportion in algebraic contexts",
+        "I can apply ratio and proportion to real problems",
+      ],
+      geometry: [
+        "I can prove and apply circle theorems",
+        "I can calculate areas and perimeters of complex shapes",
+        "I can work with 3D shapes and volumes",
+        "I can use vectors in coordinate geometry",
+        "I can apply trigonometry in various contexts",
+      ],
+      statistics_and_probability: [
+        "I can construct and interpret histograms with unequal class widths",
+        "I can calculate cumulative frequency and construct curves",
+        "I can use statistical measures appropriately",
+        "I can perform calculations with probability",
+        "I can interpret statistical diagrams and data",
+      ],
+    },
+    11: {
+      number_and_algebra: [
+        "I can manipulate surds and use rational approximations",
+        "I can solve complex equations and inequalities",
+        "I can work with exponential and logarithmic functions",
+        "I can use calculus concepts for optimization",
+        "I can perform complex algebraic manipulation",
+      ],
+      geometry_and_trigonometry: [
+        "I can apply all circle theorems to solve problems",
+        "I can use trigonometric identities and solve equations",
+        "I can calculate with exact trigonometric values",
+        "I can apply trigonometry and vectors to 3D problems",
+        "I can solve complex geometric problems",
+      ],
+      statistics_and_probability: [
+        "I can analyze distributions and use statistical tests",
+        "I can calculate conditional probabilities and use Bayes' theorem",
+        "I can interpret probability distributions",
+        "I can perform hypothesis testing",
+        "I can apply statistics to real-world scenarios",
+      ],
+      calculus_and_functions: [
+        "I can differentiate and integrate polynomial functions",
+        "I can find maximum and minimum points",
+        "I can understand rates of change",
+        "I can apply calculus to optimization problems",
+        "I can work with exponential and logarithmic functions",
+      ],
+    },
   },
   science: {
     1: {
@@ -1227,6 +1405,268 @@ export const ASSESSMENT_TARGETS = {
         "I can identify scientific evidence that has been used to support or refute ideas or arguments",
       ],
     },
+    7: {
+      cells_and_organisation: [
+        "I can understand that living organisms are made of cells",
+        "I can describe the structure of plant and animal cells",
+        "I can explain the functions of cell components",
+        "I can understand how cells divide for growth and repair",
+        "I can describe tissues, organs and organ systems",
+      ],
+      particles_and_matter: [
+        "I can describe the states of matter and particle arrangement",
+        "I can explain physical and chemical changes",
+        "I can understand density and its calculation",
+        "I can describe the periodic table organization",
+        "I can understand chemical bonding basics",
+      ],
+      forces_and_motion: [
+        "I can describe forces and their effects",
+        "I can understand Newton's laws of motion",
+        "I can calculate speed, distance and time",
+        "I can understand pressure and its applications",
+        "I can describe forces in different contexts",
+      ],
+      energy: [
+        "I can understand different forms of energy",
+        "I can explain energy transfers and transformations",
+        "I can understand conservation of energy",
+        "I can describe renewable and non-renewable energy sources",
+        "I can understand power and energy calculations",
+      ],
+      waves_and_sound: [
+        "I can describe wave properties and behavior",
+        "I can understand sound production and transmission",
+        "I can explain reflection and refraction",
+        "I can describe the electromagnetic spectrum basics",
+        "I can understand frequency, wavelength and amplitude",
+      ],
+    },
+    8: {
+      organisms_and_health: [
+        "I can describe the nervous system and responses",
+        "I can understand hormone control and reproduction",
+        "I can explain how organisms maintain homeostasis",
+        "I can describe nutrient cycles and food webs",
+        "I can understand defense against pathogens",
+      ],
+      chemical_reactions: [
+        "I can write and balance chemical equations",
+        "I can describe combustion and oxidation reactions",
+        "I can understand exothermic and endothermic reactions",
+        "I can explain reaction rates and catalysts",
+        "I can describe decomposition and synthesis reactions",
+      ],
+      waves_and_light: [
+        "I can explain light refraction and dispersion",
+        "I can describe lens properties and image formation",
+        "I can understand the eye as an optical instrument",
+        "I can describe reflection laws and mirrors",
+        "I can understand electromagnetic waves and properties",
+      ],
+      electricity: [
+        "I can calculate resistance using Ohm's law",
+        "I can describe series and parallel circuits",
+        "I can understand circuit symbols and analysis",
+        "I can explain electrical safety and power",
+        "I can describe electromagnets and their applications",
+      ],
+      earth_and_atmosphere: [
+        "I can describe Earth's structure and layering",
+        "I can understand plate tectonics and continental drift",
+        "I can explain weathering, erosion and deposition",
+        "I can describe the rock cycle",
+        "I can understand atmosphere composition and weather",
+      ],
+    },
+    9: {
+      genetics_and_evolution: [
+        "I can describe chromosomes, DNA and genes",
+        "I can explain meiosis and sexual reproduction",
+        "I can understand Punnett squares and inheritance patterns",
+        "I can describe natural selection and evolution",
+        "I can understand adaptation and species formation",
+      ],
+      quantitative_chemistry: [
+        "I can calculate relative atomic and molecular mass",
+        "I can understand moles and Avogadro's constant",
+        "I can calculate percentage yield and atom economy",
+        "I can describe empirical and molecular formulae",
+        "I can perform stoichiometric calculations",
+      ],
+      motion_and_forces: [
+        "I can calculate velocity, acceleration and momentum",
+        "I can understand Newton's laws in detail",
+        "I can describe circular motion and satellites",
+        "I can understand work, energy and power in detail",
+        "I can perform force and motion calculations",
+      ],
+      electromagnetism: [
+        "I can describe magnetic fields and magnetic forces",
+        "I can understand electromagnetic induction",
+        "I can explain generators and transformers",
+        "I can describe motor effect and applications",
+        "I can understand magnetic field patterns and behavior",
+      ],
+      ecosystems: [
+        "I can describe photosynthesis and the light reactions",
+        "I can explain nutrient cycles in ecosystems",
+        "I can understand population dynamics and succession",
+        "I can describe human impact on ecosystems",
+        "I can understand conservation and sustainability",
+      ],
+    },
+    10: {
+      cell_biology: [
+        "I can describe the structure and function of organelles",
+        "I can explain diffusion, osmosis and active transport",
+        "I can describe cell division: mitosis and meiosis",
+        "I can understand stem cells and differentiation",
+        "I can explain the cell cycle and cancer",
+      ],
+      organisation: [
+        "I can describe tissues, organs and organ systems",
+        "I can explain the structure and function of digestive system",
+        "I can describe the circulatory system in detail",
+        "I can explain the respiratory system and gas exchange",
+        "I can understand organ coordination and regulation",
+      ],
+      infection_and_response: [
+        "I can describe pathogens and types of disease",
+        "I can explain immune responses and antibodies",
+        "I can describe vaccines and immunity",
+        "I can understand antibiotics and drug development",
+        "I can explain treatment of infection and disease",
+      ],
+      bioenergetics: [
+        "I can explain photosynthesis equations and factors",
+        "I can describe the light-dependent and light-independent reactions",
+        "I can explain respiration: aerobic and anaerobic",
+        "I can describe ATP production and energy transfer",
+        "I can perform photosynthesis and respiration calculations",
+      ],
+      atomic_structure: [
+        "I can describe atoms and subatomic particles",
+        "I can explain electronic configuration",
+        "I can describe isotopes and relative atomic mass",
+        "I can understand ionization energy and electron behavior",
+        "I can explain mass spectrometry and atomic structure determination",
+      ],
+      bonding_structure_and_properties: [
+        "I can explain ionic bonding and ionic compounds",
+        "I can describe covalent bonding and structures",
+        "I can understand metallic bonding and properties",
+        "I can explain intermolecular forces",
+        "I can describe structure-property relationships",
+      ],
+      quantitative_chemistry: [
+        "I can calculate relative formula mass",
+        "I can understand moles and molarity",
+        "I can perform equation balancing and calculations",
+        "I can calculate percentage composition",
+        "I can understand limiting reactants and yield",
+      ],
+      chemical_changes: [
+        "I can write and balance ionic equations",
+        "I can describe redox reactions and oxidation states",
+        "I can explain acid-base reactions and titrations",
+        "I can describe electrolysis and its applications",
+        "I can perform stoichiometric calculations",
+      ],
+      energy_changes: [
+        "I can describe exothermic and endothermic reactions",
+        "I can calculate enthalpy changes",
+        "I can understand bond energy calculations",
+        "I can explain factors affecting reaction energy",
+        "I can describe calorimetry and energy transfer",
+      ],
+      rate_and_equilibrium: [
+        "I can describe factors affecting reaction rates",
+        "I can understand collision theory",
+        "I can describe reversible reactions and equilibrium",
+        "I can explain Le Chatelier's principle",
+        "I can calculate rates of reaction",
+      ],
+      organic_chemistry: [
+        "I can describe alkanes and alkenes",
+        "I can explain addition reactions and polymerization",
+        "I can describe functional groups and isomerism",
+        "I can understand alcohols and carboxylic acids",
+        "I can explain combustion and oxidation of organic compounds",
+      ],
+      forces: [
+        "I can describe contact and non-contact forces",
+        "I can perform calculations with balanced forces",
+        "I can understand turning moments and equilibrium",
+        "I can describe pressure in solids, liquids and gases",
+        "I can explain hydraulic systems and pressure applications",
+      ],
+      waves: [
+        "I can describe transverse and longitudinal waves",
+        "I can calculate wave properties and speed",
+        "I can understand reflection, refraction and diffraction",
+        "I can describe interference and superposition",
+        "I can understand the Doppler effect",
+      ],
+      magnetism: [
+        "I can describe magnetic fields and forces",
+        "I can explain the motor effect and applications",
+        "I can describe electromagnetic induction",
+        "I can understand transformers and their operation",
+        "I can explain generators and dynamos",
+      ],
+      particle_model: [
+        "I can describe states of matter at particle level",
+        "I can explain density and pressure using particle theory",
+        "I can understand heat transfer mechanisms",
+        "I can describe kinetic theory of gases",
+        "I can perform calculations involving particle behavior",
+      ],
+      radioactivity: [
+        "I can describe alpha, beta and gamma radiation",
+        "I can explain radioactive decay and half-life",
+        "I can understand nuclear equations",
+        "I can describe practical uses of radiation",
+        "I can understand nuclear fission and fusion",
+      ],
+    },
+    11: {
+      homeostasis: [
+        "I can describe the nervous and endocrine systems",
+        "I can explain homeostatic control mechanisms",
+        "I can understand blood glucose regulation",
+        "I can describe osmoregulation and kidney function",
+        "I can explain feedback mechanisms and control",
+      ],
+      inheritance_variation_and_evolution: [
+        "I can explain DNA structure and replication",
+        "I can describe meiosis and sexual reproduction",
+        "I can understand inheritance patterns and Punnett squares",
+        "I can explain variation and adaptation",
+        "I can describe natural selection and evolution",
+      ],
+      ecology: [
+        "I can describe ecosystems and energy transfer",
+        "I can explain nutrient cycles and decomposition",
+        "I can understand population dynamics and succession",
+        "I can describe biodiversity and conservation",
+        "I can understand human impact on ecosystems",
+      ],
+      using_resources: [
+        "I can describe food production and agriculture",
+        "I can explain water and material cycles",
+        "I can understand renewable and non-renewable resources",
+        "I can describe recycling and waste management",
+        "I can understand sustainability and global challenges",
+      ],
+      space_physics: [
+        "I can describe the solar system and universe",
+        "I can explain gravitational effects and orbits",
+        "I can understand stellar evolution and life cycles",
+        "I can describe the Big Bang theory",
+        "I can understand expansion of universe and evidence",
+      ],
+    },
   },
   english: {
     1: {
@@ -1265,6 +1705,376 @@ export const ASSESSMENT_TARGETS = {
         "I can write from memory simple sentences dictated by the teacher that include words using the GPCs and common exception words taught so far",
       ],
     },
+    2: {
+      reading_comprehension: [
+        "I can listen to and read a wide range of fiction, poetry, plays, non-fiction and reference books",
+        "I can answer questions about what has been read",
+        "I can use strategies to understand new words",
+        "I can recognise some features of written texts",
+        "I can retell stories and recall key events",
+      ],
+      writing_composition: [
+        "I can compose sentences using words they have read and practised",
+        "I can write narrative sequences from my imagination",
+        "I can write non-narrative texts to describe experiences or present information",
+        "I can use simple time connectives to structure writing",
+        "I can segment spoken words into phonemes and represent as graphemes",
+      ],
+      vocabulary_grammar_punctuation: [
+        "I can apply spelling rules and guidance from English Appendix 1",
+        "I can use expanded noun phrases to describe and specify",
+        "I can use the standard form for verb 'to be'",
+        "I can use co-ordination (and, or, but) to join clauses",
+        "I can demarcate sentences with capital letters and full stops, question marks and exclamation marks",
+      ],
+      spelling: [
+        "I can segment words into phonemes and represent these by graphemes, spelling many correctly",
+        "I can spell some words with contracted forms",
+        "I can add suffixes -ment, -ness, -ful, -less, -ly where no change is needed in the root word",
+        "I can spell some common homophones",
+        "I can spell many words with the 'igh' sound and other phonetically regular patterns",
+      ],
+      handwriting: [
+        "I can form lower-case letters in the correct direction",
+        "I can form lower-case letters of the correct size relative to one another",
+        "I can join letters in most of my writing",
+        "I can form capital letters of the appropriate size",
+        "I can use spacing between words that reflects the size of the letters",
+      ],
+    },
+    3: {
+      reading_comprehension: [
+        "I can read with fluency, accuracy and understanding",
+        "I can answer questions about texts I have read",
+        "I can infer from the text what characters are like and what they think",
+        "I can identify the main ideas in texts",
+        "I can use comprehension strategies to understand new vocabulary",
+      ],
+      writing_composition: [
+        "I can write narratives about personal experiences and those of other people",
+        "I can write for different purposes including letters and non-fiction accounts",
+        "I can use time connectives to structure texts",
+        "I can use expanded noun phrases to describe settings and characters",
+        "I can plan writing by discussing ideas before writing",
+      ],
+      grammar_punctuation: [
+        "I can use the past and present tenses correctly and consistently",
+        "I can use progressive forms of the verb",
+        "I can use subordination and co-ordination to join clauses",
+        "I can use standard forms for verb inflections mostly correctly",
+        "I can use apostrophes for contracted forms and possession",
+      ],
+      spelling: [
+        "I can spell many words with contracted forms",
+        "I can add suffixes correctly: -ment, -ness, -ful, -less, -ly",
+        "I can spell words with double consonants",
+        "I can apply spelling rules for adding suffixes to words ending in -e and -y",
+        "I can segment words into phonemes and spell them correctly",
+      ],
+      handwriting: [
+        "I can write with consistent formation of letters",
+        "I can join letters in most of my writing",
+        "I can write with spacing between words",
+        "I can ensure that letter size is proportionate",
+        "I can form capital letters and lower-case letters of equal height",
+      ],
+    },
+    4: {
+      reading_comprehension: [
+        "I can read a wide range of texts fluently",
+        "I can identify main characters and events in narratives",
+        "I can make inferences from the text",
+        "I can ask questions about the text to improve my understanding",
+        "I can identify the features of different text types",
+      ],
+      writing_composition: [
+        "I can write narratives, recounts and descriptions for different purposes",
+        "I can use paragraphs to organize my writing",
+        "I can plan my writing and check it as I write",
+        "I can use a range of connectives and vocabulary",
+        "I can write for different audiences and purposes",
+      ],
+      grammar_punctuation: [
+        "I can use a range of sentence types and forms",
+        "I can use standard English forms for verb inflections",
+        "I can use co-ordination and subordination to join clauses",
+        "I can use a range of punctuation including apostrophes, commas, and full stops",
+        "I can use the correct tense consistently in my writing",
+      ],
+      spelling: [
+        "I can spell many words with irregular spellings",
+        "I can spell words with prefixes: un-, in-, im-, il-, ir-, dis-",
+        "I can spell words with suffixes: -tion, -sion, -ness, -ment, -ful, -less",
+        "I can spell words with double consonants and vowels",
+        "I can spell homophones and near-homophones",
+      ],
+      handwriting: [
+        "I can form letters with consistent size and spacing",
+        "I can join most of the letters in my writing",
+        "I can use capital letters appropriately",
+        "I can write with clear and legible handwriting",
+        "I can write at an appropriate speed for different contexts",
+      ],
+    },
+    5: {
+      reading_comprehension: [
+        "I can read and understand a wide range of literary and non-fiction texts",
+        "I can identify and summarize main ideas and supporting details",
+        "I can make inferences and predictions based on the text",
+        "I can identify the author's purpose and viewpoint",
+        "I can use comprehension skills to analyze character and plot development",
+      ],
+      writing_composition: [
+        "I can write for different purposes and audiences",
+        "I can plan, draft and edit my writing",
+        "I can use paragraphs to organize my ideas",
+        "I can use a range of sentence types to create effects",
+        "I can use appropriate vocabulary and tone for different contexts",
+      ],
+      grammar_punctuation: [
+        "I can use complex sentences with multiple clauses",
+        "I can use a wide range of punctuation correctly",
+        "I can use tense accurately and consistently",
+        "I can identify and correct common grammatical errors",
+        "I can use subject-specific vocabulary appropriately",
+      ],
+      spelling: [
+        "I can spell most words correctly including complex words",
+        "I can spell words with prefixes and suffixes",
+        "I can spell common homophones and near-homophones",
+        "I can spell words from the National Curriculum spelling list",
+        "I can apply spelling strategies to spell new and unfamiliar words",
+      ],
+      speaking_and_listening: [
+        "I can speak clearly and coherently",
+        "I can listen attentively and respond appropriately",
+        "I can contribute to group discussions and presentations",
+        "I can ask and answer questions to clarify understanding",
+        "I can adapt my speaking for different purposes and audiences",
+      ],
+    },
+    6: {
+      reading_comprehension: [
+        "I can read and understand a wide range of contemporary and classic literature",
+        "I can analyze how authors use language and structure for effect",
+        "I can identify themes and make connections between texts",
+        "I can evaluate the effectiveness of texts and justify my opinions",
+        "I can synthesize information from multiple sources",
+      ],
+      writing_composition: [
+        "I can write effectively for different genres and audiences",
+        "I can plan and draft writing with clear structure and development",
+        "I can use sophisticated vocabulary and sentence structures",
+        "I can revise and edit my writing for clarity and impact",
+        "I can use paragraphs effectively to organize extended writing",
+      ],
+      grammar_punctuation: [
+        "I can use a wide range of sentence types for effect",
+        "I can use complex punctuation accurately (semicolons, colons, dashes)",
+        "I can use tense accurately, including conditional forms",
+        "I can identify and correct grammatical errors",
+        "I can use subject-specific and academic vocabulary",
+      ],
+      spelling_vocabulary: [
+        "I can spell correctly including words from the Year 5/6 spelling list",
+        "I can use etymology to spell words with common affixes",
+        "I can spell homophones and near-homophones correctly",
+        "I can extend vocabulary through reading and writing",
+        "I can use a dictionary and thesaurus to check spelling and word choice",
+      ],
+      speaking_and_listening: [
+        "I can speak fluently and confidently in various contexts",
+        "I can listen actively and respond thoughtfully",
+        "I can participate effectively in group discussions and presentations",
+        "I can use appropriate register for different audiences",
+        "I can present information clearly and persuasively",
+      ],
+    },
+    7: {
+      reading_analysis: [
+        "I can read and understand a range of fiction and non-fiction texts",
+        "I can identify and analyze key ideas and themes",
+        "I can make inferences and understand implicit meanings",
+        "I can identify how writers use language and structure for effect",
+        "I can compare and contrast texts by different authors",
+      ],
+      writing_for_purpose_and_audience: [
+        "I can write for different purposes (narrative, descriptive, explanatory, persuasive)",
+        "I can adapt my writing for different audiences",
+        "I can use appropriate genre conventions and text structures",
+        "I can use paragraphs to organize my ideas clearly",
+        "I can plan and draft extended pieces of writing",
+      ],
+      grammar_vocabulary_in_context: [
+        "I can use a wide range of sentence types correctly",
+        "I can use the subjunctive form correctly",
+        "I can use complex punctuation (semicolons, colons, parentheses)",
+        "I can extend vocabulary through morphology (prefixes, suffixes, roots)",
+        "I can use technical and subject-specific vocabulary",
+      ],
+      literary_techniques: [
+        "I can identify and analyze the use of metaphor, simile, and personification",
+        "I can understand how dialogue and description develop character",
+        "I can identify narrative viewpoint and its effect",
+        "I can analyze the impact of word choice and imagery",
+        "I can understand how writers create mood and atmosphere",
+      ],
+      speaking_and_listening: [
+        "I can speak clearly with confidence and fluency",
+        "I can listen actively and respond thoughtfully to others",
+        "I can participate in discussions and debates",
+        "I can deliver presentations to an audience",
+        "I can adapt my language and register for different situations",
+      ],
+    },
+    8: {
+      reading_analysis: [
+        "I can read and analyze a wide range of texts from different periods",
+        "I can identify and discuss key ideas and character development",
+        "I can make sophisticated inferences from the text",
+        "I can analyze how writers use language and structure to achieve effects",
+        "I can evaluate texts critically and justify my interpretations",
+      ],
+      writing_for_purpose_and_audience: [
+        "I can write extended pieces for different purposes and audiences",
+        "I can use appropriate genre features and conventions",
+        "I can structure writing effectively using paragraphs and linking devices",
+        "I can use a range of techniques to engage the reader",
+        "I can revise and refine my writing for clarity and impact",
+      ],
+      grammar_vocabulary_in_context: [
+        "I can use complex sentence structures to convey precise meanings",
+        "I can use a wide range of punctuation accurately",
+        "I can extend vocabulary through understanding word origins and morphology",
+        "I can recognize and correct common grammatical errors",
+        "I can use formal and informal register appropriately",
+      ],
+      literary_techniques: [
+        "I can identify and analyze a range of literary devices and techniques",
+        "I can understand how character is developed through dialogue, action, and description",
+        "I can analyze the effect of narrative structure and viewpoint",
+        "I can identify and discuss themes and symbolism",
+        "I can understand how writers create specific effects for readers",
+      ],
+      speaking_and_listening: [
+        "I can speak fluently and persuasively in formal and informal contexts",
+        "I can listen actively and engage critically with others' viewpoints",
+        "I can contribute meaningfully to group discussions and debates",
+        "I can deliver well-structured presentations",
+        "I can adapt my communication for different purposes and audiences",
+      ],
+    },
+    9: {
+      reading_analysis: [
+        "I can read and interpret complex texts from various periods and cultures",
+        "I can analyze how writers use language, structure, and form to create meaning",
+        "I can make sophisticated inferences and discuss implicit ideas",
+        "I can identify and evaluate how context shapes interpretation",
+        "I can compare texts and substantiate interpretations with evidence",
+      ],
+      writing_for_purpose_and_audience: [
+        "I can write sustained pieces across different genres and purposes",
+        "I can use sophisticated structures and techniques to engage readers",
+        "I can develop ideas fully with appropriate evidence and examples",
+        "I can use appropriate formality and register throughout",
+        "I can revise and refine writing to enhance communication",
+      ],
+      grammar_vocabulary_in_context: [
+        "I can use advanced sentence structures to create specific effects",
+        "I can use a full range of punctuation accurately and purposefully",
+        "I can analyze and use sophisticated vocabulary choices",
+        "I can understand grammatical terminology and apply it",
+        "I can recognize and correct complex grammatical errors",
+      ],
+      literary_techniques_and_analysis: [
+        "I can identify and analyze the impact of linguistic and structural devices",
+        "I can understand how writers create tension, irony, and pathos",
+        "I can analyze the significance of setting, character, and plot",
+        "I can discuss how form and context influence meaning",
+        "I can evaluate the effectiveness of writers' techniques",
+      ],
+      speaking_and_listening: [
+        "I can express myself clearly and persuasively in varied contexts",
+        "I can listen critically and engage with complex ideas",
+        "I can participate in formal discussions and debates with confidence",
+        "I can deliver well-organized presentations on complex topics",
+        "I can adapt my communication to reach and influence audiences",
+      ],
+    },
+    10: {
+      reading_explorations: [
+        "I can read and analyze a wide range of literary and non-fiction texts",
+        "I can identify and explore key ideas and viewpoints in texts",
+        "I can analyze how writers use language and structure to create effects",
+        "I can make critical evaluations of texts with detailed evidence",
+        "I can compare texts and analyze similarities and differences in approaches",
+      ],
+      writing_composition_and_effect: [
+        "I can write persuasive and creative texts for specific audiences",
+        "I can use sophisticated vocabulary and varied sentence structures",
+        "I can develop ideas across extended pieces of writing",
+        "I can use language techniques to engage and influence readers",
+        "I can edit and refine writing for maximum impact and clarity",
+      ],
+      creative_reading_and_writing: [
+        "I can create original creative writing with a clear narrative arc",
+        "I can use literary devices effectively in my own writing",
+        "I can adapt genre conventions to create new meaning",
+        "I can use language imaginatively to create vivid effects",
+        "I can evaluate the effectiveness of my own writing",
+      ],
+      writers_viewpoints_and_perspectives: [
+        "I can analyze and evaluate authors' viewpoints in texts",
+        "I can understand how context shapes an author's message",
+        "I can compare different perspectives on the same theme",
+        "I can identify bias and evaluate evidence in persuasive texts",
+        "I can understand how writers target different audiences",
+      ],
+      shakespeare_and_poetry: [
+        "I can understand and analyze Shakespearean language and themes",
+        "I can identify and explain the effect of poetic devices",
+        "I can analyze how form and language create meaning in poetry",
+        "I can understand the historical and cultural context of texts",
+        "I can respond critically to Shakespeare and poetry",
+      ],
+    },
+    11: {
+      reading_exploration_and_analysis: [
+        "I can analyze texts critically and evaluate interpretations",
+        "I can understand writers' methods and the effects they create",
+        "I can explore how context influences interpretation",
+        "I can synthesize information from multiple texts",
+        "I can sustain independent analytical writing",
+      ],
+      writers_viewpoints_and_perspectives: [
+        "I can identify and analyze an author's viewpoint and purpose",
+        "I can understand how writers persuade and influence audiences",
+        "I can evaluate the reliability and bias in non-fiction texts",
+        "I can compare viewpoints across different texts",
+        "I can construct my own informed viewpoints with evidence",
+      ],
+      shakespeare_analysis: [
+        "I can understand and analyze Shakespeare's use of language",
+        "I can explore how Shakespeare develops themes and characters",
+        "I can understand the historical and theatrical context of plays",
+        "I can analyze the impact of structure and form",
+        "I can sustain critical interpretation of Shakespeare",
+      ],
+      poetry_and_literary_writing: [
+        "I can analyze how poets use language and form to create meaning",
+        "I can identify and evaluate the use of poetic devices",
+        "I can understand how poetry reflects cultural and historical contexts",
+        "I can compare and contrast poetry from different periods",
+        "I can respond creatively and critically to poetry",
+      ],
+      century_19th_novel_analysis: [
+        "I can understand and analyze 19th-century narrative fiction",
+        "I can analyze how 19th-century writers develop plot and character",
+        "I can understand Victorian and historical contexts",
+        "I can evaluate how form and narrative technique create effects",
+        "I can sustain critical interpretation of complex texts",
+      ],
+    },
   },
 };
 
@@ -1295,26 +2105,92 @@ export function getAssessmentTargets(curriculum, subject, year) {
  * that are conceptually equivalent, so questions can be reused/adapted.
  */
 export const CROSS_CURRICULUM_MATHS = {
-  // UK Year 1-6 maps to Nigerian Primary 1-6 and Canadian Primary 1-6
-  // (core arithmetic, fractions, geometry, measurement are near-identical)
-  shared_primary: ["uk_national", "ng_primary", "ca_primary"],
-  // UK Year 7-9 (KS3) maps to Nigerian JSS 1-3 and Canadian Secondary 7-9
-  shared_lower_secondary: ["uk_national", "ng_jss", "ca_secondary"],
-  // UK Year 10-11 (KS4) maps to Nigerian SSS 1-3
-  shared_upper_secondary: ["uk_national", "ng_sss"],
+  // Primary (Year 1-6 / Grade K-5 / Year 1-6 AU)
+  // Core arithmetic, fractions, geometry, measurement are near-identical across UK, Nigeria, Canada, US, Australia
+  shared_primary: ["uk_national", "ng_primary", "ca_primary", "us_common_core", "aus_acara"],
+  // Lower Secondary (Year 7-9 / Grade 6-8 / Year 7-9 AU)
+  // Algebra, geometry, statistics fundamentals align across curricula
+  shared_lower_secondary: ["uk_national", "ng_jss", "ca_secondary", "us_common_core", "aus_acara"],
+  // Upper Secondary (Year 10-11 / Grade 9-10 / Year 10-11 AU)
+  // Advanced algebra, trigonometry, calculus basics are universal topics
+  shared_upper_secondary: ["uk_national", "ng_sss", "us_common_core", "aus_acara"],
 };
 
 /**
- * Returns curricula that share equivalent maths content for a given year band.
- * Useful for identifying questions that can be tagged for multiple curricula.
+ * Cross-curriculum equivalence for Science topics (Year 1-6 / K-5 / Year 1-6 AU)
+ * Cells, forces, energy, states of matter, simple machines are universal
+ * Excludes culture/region-specific content (e.g., Australian native animals in science)
  */
-export function getEquivalentCurricula(curriculum, year) {
-  if (curriculum === "uk_national" || curriculum === "ng_primary" || curriculum === "ca_primary") {
-    if (year <= 6) return CROSS_CURRICULUM_MATHS.shared_primary;
+export const CROSS_CURRICULUM_SCIENCE_PRIMARY = {
+  shared_primary: ["uk_national", "ng_primary", "ca_primary", "us_common_core", "aus_acara"],
+};
+
+/**
+ * Cross-curriculum equivalence for Science (Year 7-9 / Grade 6-8 / Year 7-9 AU)
+ * Photosynthesis, cells, forces, waves, chemistry basics are universal
+ */
+export const CROSS_CURRICULUM_SCIENCE_SECONDARY = {
+  shared_lower_secondary: ["uk_national", "ng_jss", "ca_secondary", "us_common_core", "aus_acara"],
+};
+
+/**
+ * Cross-curriculum equivalence for Science (Year 10-11 / Grade 9-10 / Year 10-11 AU)
+ * Advanced biology, chemistry, physics topics
+ */
+export const CROSS_CURRICULUM_SCIENCE_UPPER = {
+  shared_upper_secondary: ["uk_national", "ng_sss", "us_common_core", "aus_acara"],
+};
+
+/**
+ * Cross-curriculum equivalence for English (grammar, comprehension, vocabulary)
+ * Excludes culture-specific literature (Shakespeare for UK, American authors for US, etc.)
+ * Includes: phonics, grammar, punctuation, vocabulary, comprehension strategies, literary devices
+ */
+export const CROSS_CURRICULUM_ENGLISH = {
+  // Year 1-6: Phonics, basic grammar, vocabulary, comprehension
+  shared_primary: ["uk_national", "ng_primary", "ca_primary", "us_common_core", "aus_acara"],
+  // Year 7-9: Grammar, punctuation, vocabulary, comprehension, literary analysis (no specific texts)
+  shared_lower_secondary: ["uk_national", "ng_jss", "ca_secondary", "us_common_core", "aus_acara"],
+  // Year 10-11: Advanced grammar, essay writing, analysis (no specific texts)
+  shared_upper_secondary: ["uk_national", "ng_sss", "us_common_core", "aus_acara"],
+};
+
+/**
+ * Returns curricula that share equivalent content for a given year band across all subjects.
+ * Useful for identifying questions that can be tagged for multiple curricula.
+ * Includes UK, Nigeria, Canada, US, and Australia.
+ */
+export function getEquivalentCurricula(curriculum, year, subject = "mathematics") {
+  // Normalize subject name
+  const subjectKey = subject?.toLowerCase().replace(/_/g, "").replace(" ", "");
+
+  // Determine year band
+  let yearBand = "primary";
+  if (year >= 7 && year <= 9) yearBand = "lower_secondary";
+  else if (year >= 10) yearBand = "upper_secondary";
+
+  // Maths: universal across all subjects
+  if (subjectKey?.includes("math") || subjectKey?.includes("maths")) {
+    if (yearBand === "primary") return CROSS_CURRICULUM_MATHS.shared_primary;
+    if (yearBand === "lower_secondary") return CROSS_CURRICULUM_MATHS.shared_lower_secondary;
+    if (yearBand === "upper_secondary") return CROSS_CURRICULUM_MATHS.shared_upper_secondary;
   }
-  if (curriculum === "uk_national" && year >= 7 && year <= 9) return CROSS_CURRICULUM_MATHS.shared_lower_secondary;
-  if (curriculum === "ng_jss") return CROSS_CURRICULUM_MATHS.shared_lower_secondary;
-  if (curriculum === "uk_national" && year >= 10) return CROSS_CURRICULUM_MATHS.shared_upper_secondary;
-  if (curriculum === "ng_sss") return CROSS_CURRICULUM_MATHS.shared_upper_secondary;
+
+  // Science: universal core topics (cells, forces, energy, etc.)
+  if (subjectKey?.includes("science") || subjectKey?.includes("basic_science") ||
+      subjectKey?.includes("physics") || subjectKey?.includes("chemistry") ||
+      subjectKey?.includes("biology")) {
+    if (yearBand === "primary") return CROSS_CURRICULUM_SCIENCE_PRIMARY.shared_primary;
+    if (yearBand === "lower_secondary") return CROSS_CURRICULUM_SCIENCE_SECONDARY.shared_lower_secondary;
+    if (yearBand === "upper_secondary") return CROSS_CURRICULUM_SCIENCE_UPPER.shared_upper_secondary;
+  }
+
+  // English: grammar, vocabulary, comprehension (not literature-specific texts)
+  if (subjectKey?.includes("english") && !subjectKey?.includes("literature")) {
+    if (yearBand === "primary") return CROSS_CURRICULUM_ENGLISH.shared_primary;
+    if (yearBand === "lower_secondary") return CROSS_CURRICULUM_ENGLISH.shared_lower_secondary;
+    if (yearBand === "upper_secondary") return CROSS_CURRICULUM_ENGLISH.shared_upper_secondary;
+  }
+
   return [curriculum];
 }

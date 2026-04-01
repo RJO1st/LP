@@ -1559,17 +1559,54 @@ export async function getSmartQuestions(
     const selectedIds = questRows.map(r => r.id).filter(Boolean);
     if (selectedIds.length > 0) addLocalSeen(selectedIds);
 
-    // ── 8. Annotate ───────────────────────────────────────────────────────
-    return questRows.map(r => ({
-      ...r,
-      _selectionReason: selectionReason,
-      _anchorTopic:     anchorTopic,
-      _anchorTier:      anchorTier,
-      _adjacentTopic:   adjacentTopic,
-      _questCoherence:  adjacentTopic
-        ? `${anchorTopic} (${anchorCount}q) + ${adjacentTopic} (${adjacentCount}q)`
-        : `${anchorTopic ?? 'any'} only`,
-    }));
+    // ── 8. Curriculum standards lookup (non-blocking) ─────────────────────
+    // Fetch curriculum standards for anchor + adjacent topics to annotate
+    // questions with their NC alignment. Uses in-memory cache so repeat
+    // calls within a session are instant.
+    let curriculumContext = null;
+    try {
+      curriculumContext = await getCurriculumContext(
+        supabase, curriculum, activeSubject,
+        anchorTopic, adjacentTopic, year
+      );
+    } catch (ccErr) {
+      console.warn('[getSmartQuestions] curriculum context lookup failed (non-fatal):', ccErr?.message);
+    }
+
+    // Build per-topic standard lookup for efficient annotation
+    const anchorStandards   = curriculumContext?.anchor || [];
+    const adjacentStandards = curriculumContext?.adjacent || [];
+
+    // ── 9. Annotate ───────────────────────────────────────────────────────
+    return questRows.map(r => {
+      // Match question to its topic's standards
+      const qTopic = r.topic || '';
+      const topicStandards = qTopic === anchorTopic
+        ? anchorStandards
+        : qTopic === adjacentTopic
+          ? adjacentStandards
+          : [];
+
+      return {
+        ...r,
+        _selectionReason:     selectionReason,
+        _anchorTopic:         anchorTopic,
+        _anchorTier:          anchorTier,
+        _adjacentTopic:       adjacentTopic,
+        _questCoherence:      adjacentTopic
+          ? `${anchorTopic} (${anchorCount}q) + ${adjacentTopic} (${adjacentCount}q)`
+          : `${anchorTopic ?? 'any'} only`,
+        _curriculumStandards: topicStandards.length > 0
+          ? topicStandards.map(s => ({
+              code: s.standard_code,
+              statement: s.statement,
+              bloom: s.bloom_level,
+              strand: s.strand_name,
+            }))
+          : null,
+        _curriculumSummary:   curriculumContext?.summary || null,
+      };
+    });
 
   } catch (err) {
     console.warn('[getSmartQuestions] Failed:', err?.message ?? err);
@@ -1578,3 +1615,235 @@ export async function getSmartQuestions(
 }
 // ── Additional exports for QuestOrchestrator's adaptive algorithm ────────────
 export { getTopicSequence, loadScholarContext, resolveAnchorTopic };
+
+// ─── CURRICULUM STANDARDS RAG ────────────────────────────────────────────────
+// Queries the curriculum_standards + topic_standard_mapping tables to retrieve
+// the official curriculum statements for a given topic/year/curriculum.
+// This powers:
+//   1. Question annotation — each quest carries its curriculum standards context
+//   2. Question generation — the generator prompt includes the exact NC statement
+//   3. Coverage gap analysis — identifies standards without enough questions
+//
+// IMPORTANT: Standards are stored under the RAW curriculum id (e.g. 'uk_national'),
+// NOT the resolved DB curriculum (e.g. 'uk_11plus'). Always use the original
+// curriculum parameter, not resolveDbCurriculum().
+
+const STANDARDS_CACHE_TTL = 300; // 5 minutes — standards change rarely
+const _standardsCache = new Map(); // in-memory LRU for same-session dedup
+
+/**
+ * Get curriculum standards for a specific topic at a given year level.
+ *
+ * @param {object} supabase       — Supabase client
+ * @param {string} curriculum     — raw curriculum id (e.g. 'uk_national', 'ng_jss')
+ * @param {string} subject        — subject key (e.g. 'mathematics', 'science')
+ * @param {string} topicSlug      — topic slug from learningPathEngine TOPIC_SEQUENCES
+ * @param {number} yearLevel      — scholar's year level (1-11)
+ * @returns {Promise<object[]>}   — array of { standard_code, statement, year_level, bloom_level, difficulty_band, strand_name, is_primary }
+ */
+export async function getStandardsForTopic(supabase, curriculum, subject, topicSlug, yearLevel) {
+  if (!topicSlug || !curriculum) return [];
+
+  const cacheKey = `std:${curriculum}:${subject}:${topicSlug}:${yearLevel}`;
+  const cached = _standardsCache.get(cacheKey);
+  if (cached && cached.ts > Date.now() - STANDARDS_CACHE_TTL * 1000) {
+    return cached.data;
+  }
+
+  try {
+    // Resolve subject to DB format for standards lookup
+    const dbSubject = resolveDbSubject(subject, curriculum);
+    const curId = curriculum.toLowerCase();
+    const yr = parseInt(yearLevel, 10) || 1;
+
+    // Query: topic_standard_mapping → curriculum_standards → curriculum_strands
+    // Returns standards that match this topic, prioritising exact year match
+    // but also including ±1 year (standards often span year boundaries)
+    const { data, error } = await supabase
+      .from('topic_standard_mapping')
+      .select(`
+        is_primary,
+        standard:curriculum_standards!inner (
+          standard_code,
+          statement,
+          year_level,
+          bloom_level,
+          difficulty_band,
+          is_statutory,
+          strand:curriculum_strands!inner (
+            strand_name,
+            strand_code
+          )
+        )
+      `)
+      .eq('curriculum_id', curId)
+      .eq('subject', dbSubject)
+      .eq('topic_slug', topicSlug);
+
+    if (error) {
+      console.warn('[getStandardsForTopic] error:', error.message);
+      return [];
+    }
+
+    if (!data?.length) return [];
+
+    // Flatten the nested response and filter to relevant year range
+    const standards = data
+      .map(row => ({
+        standard_code:   row.standard?.standard_code,
+        statement:       row.standard?.statement,
+        year_level:      row.standard?.year_level,
+        bloom_level:     row.standard?.bloom_level,
+        difficulty_band: row.standard?.difficulty_band,
+        is_statutory:    row.standard?.is_statutory,
+        strand_name:     row.standard?.strand?.strand_name,
+        strand_code:     row.standard?.strand?.strand_code,
+        is_primary:      row.is_primary,
+      }))
+      .filter(s => s.standard_code) // drop nulls
+      .filter(s => Math.abs(s.year_level - yr) <= 1) // ±1 year window
+      .sort((a, b) => {
+        // Exact year first, then primaries first, then by code
+        if (a.year_level === yr && b.year_level !== yr) return -1;
+        if (b.year_level === yr && a.year_level !== yr) return 1;
+        if (a.is_primary && !b.is_primary) return -1;
+        if (b.is_primary && !a.is_primary) return 1;
+        return (a.standard_code || '').localeCompare(b.standard_code || '');
+      });
+
+    // Cache the result
+    _standardsCache.set(cacheKey, { data: standards, ts: Date.now() });
+
+    // Evict old entries if cache grows too large
+    if (_standardsCache.size > 200) {
+      const oldest = [..._standardsCache.entries()]
+        .sort((a, b) => a[1].ts - b[1].ts)
+        .slice(0, 50);
+      oldest.forEach(([k]) => _standardsCache.delete(k));
+    }
+
+    return standards;
+  } catch (err) {
+    console.warn('[getStandardsForTopic] Failed:', err?.message);
+    return [];
+  }
+}
+
+/**
+ * Get full curriculum context for a quest — anchor topic standards + adjacent topic standards.
+ * Used by question annotation and the question generator prompt.
+ *
+ * @param {object} supabase
+ * @param {string} curriculum
+ * @param {string} subject
+ * @param {string} anchorTopic
+ * @param {string|null} adjacentTopic
+ * @param {number} yearLevel
+ * @returns {Promise<object>} — { anchor: standards[], adjacent: standards[], summary: string }
+ */
+export async function getCurriculumContext(supabase, curriculum, subject, anchorTopic, adjacentTopic, yearLevel) {
+  const [anchorStandards, adjacentStandards] = await Promise.all([
+    getStandardsForTopic(supabase, curriculum, subject, anchorTopic, yearLevel),
+    adjacentTopic
+      ? getStandardsForTopic(supabase, curriculum, subject, adjacentTopic, yearLevel)
+      : Promise.resolve([]),
+  ]);
+
+  // Build a human-readable summary for AI prompts
+  const formatStandards = (stds) =>
+    stds.map(s => `[${s.standard_code}] ${s.statement}`).join('\n');
+
+  const parts = [];
+  if (anchorStandards.length) {
+    parts.push(`Anchor topic "${anchorTopic}" (Year ${yearLevel}):\n${formatStandards(anchorStandards)}`);
+  }
+  if (adjacentStandards.length) {
+    parts.push(`Adjacent topic "${adjacentTopic}" (Year ${yearLevel}):\n${formatStandards(adjacentStandards)}`);
+  }
+
+  return {
+    anchor:   anchorStandards,
+    adjacent: adjacentStandards,
+    summary:  parts.join('\n\n') || null,
+  };
+}
+
+/**
+ * Get coverage statistics — how many questions exist per standard.
+ * Used by the coverage gap analysis to identify under-served standards.
+ *
+ * @param {object} supabase
+ * @param {string} curriculum      — raw curriculum id
+ * @param {string} subject
+ * @param {number|null} yearLevel  — filter to specific year, or null for all
+ * @returns {Promise<object[]>}    — array of { standard_code, statement, year_level, strand_name, question_count, topic_slugs }
+ */
+export async function getCoverageStats(supabase, curriculum, subject, yearLevel = null) {
+  try {
+    const dbSubject = resolveDbSubject(subject, curriculum);
+    const curId = curriculum.toLowerCase();
+
+    // Get all standards for this curriculum/subject
+    let stdQuery = supabase
+      .from('curriculum_standards')
+      .select(`
+        id,
+        standard_code,
+        statement,
+        year_level,
+        bloom_level,
+        strand:curriculum_strands!inner ( strand_name )
+      `)
+      .eq('curriculum_id', curId)
+      .eq('subject', dbSubject);
+
+    if (yearLevel) {
+      stdQuery = stdQuery.eq('year_level', parseInt(yearLevel, 10));
+    }
+
+    const { data: standards, error: stdErr } = await stdQuery;
+    if (stdErr || !standards?.length) {
+      console.warn('[getCoverageStats] standards query error:', stdErr?.message);
+      return [];
+    }
+
+    // Get topic mappings for these standards
+    const standardIds = standards.map(s => s.id);
+    const { data: mappings } = await supabase
+      .from('topic_standard_mapping')
+      .select('standard_id, topic_slug')
+      .in('standard_id', standardIds);
+
+    // Get question counts per standard from question_standard_mapping
+    const { data: qCounts } = await supabase
+      .from('question_standard_mapping')
+      .select('standard_id')
+      .in('standard_id', standardIds);
+
+    // Build lookup maps
+    const topicsByStd = new Map();
+    (mappings || []).forEach(m => {
+      if (!topicsByStd.has(m.standard_id)) topicsByStd.set(m.standard_id, []);
+      topicsByStd.get(m.standard_id).push(m.topic_slug);
+    });
+
+    const countByStd = new Map();
+    (qCounts || []).forEach(q => {
+      countByStd.set(q.standard_id, (countByStd.get(q.standard_id) || 0) + 1);
+    });
+
+    return standards.map(s => ({
+      standard_code:  s.standard_code,
+      statement:      s.statement,
+      year_level:     s.year_level,
+      bloom_level:    s.bloom_level,
+      strand_name:    s.strand?.strand_name,
+      question_count: countByStd.get(s.id) || 0,
+      topic_slugs:    topicsByStd.get(s.id) || [],
+    }))
+    .sort((a, b) => a.question_count - b.question_count); // gaps first
+  } catch (err) {
+    console.warn('[getCoverageStats] Failed:', err?.message);
+    return [];
+  }
+}

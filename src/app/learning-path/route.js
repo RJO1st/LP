@@ -13,6 +13,7 @@ import { createClient }      from "@supabase/supabase-js";
 import { NextResponse }       from "next/server";
 import {
   generateLearningPath,
+  generateCurriculumAwarePath,
   advanceLearningPath,
 } from "@/lib/learningPathEngine";
 
@@ -92,14 +93,17 @@ export async function POST(request) {
       .eq("curriculum", curriculum)
       .eq("subject", subject);
 
-    // Generate the personalised topic path
-    const topicOrder = generateLearningPath(
+    // Generate curriculum-aware personalised topic path
+    // This fetches DB-driven topic sequences + curriculum standards + gap priority
+    const { path: topicOrder, curriculumInfo } = await generateCurriculumAwarePath({
       curriculum,
       subject,
-      yearLevel ?? 6,
-      diagnosticResult?.topicScores ?? {},
-      masteryRows ?? []
-    );
+      yearLevel: yearLevel ?? 6,
+      diagnosticScores: diagnosticResult?.topicScores ?? {},
+      masteryRecords: masteryRows ?? [],
+      supabase,
+      scholarId,
+    });
 
     const currentTopic = topicOrder[0]?.topic ?? null;
 
@@ -120,7 +124,8 @@ export async function POST(request) {
       updated_at:       new Date().toISOString(),
     };
 
-    // Upsert the path
+    // Upsert the path (generateCurriculumAwarePath may have already saved,
+    // but this ensures diagnostic_scores are included)
     const { data: saved, error } = await supabase
       .from("scholar_learning_path")
       .upsert(pathRow, { onConflict: "scholar_id,curriculum,subject" })
@@ -168,7 +173,7 @@ export async function POST(request) {
       }
     }
 
-    return NextResponse.json({ path: saved, topicCount: topicOrder.length });
+    return NextResponse.json({ path: saved, topicCount: topicOrder.length, curriculumInfo });
 
   } catch (err) {
     console.error("/api/learning-path POST error:", err);

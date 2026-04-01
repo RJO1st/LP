@@ -37,11 +37,11 @@ const DRILL_Q = 15;  // questions per Studio session
 
 // Speed rank thresholds (avg ms per correct answer)
 const SPEED_RANKS = [
-  { label: "Legend",    emoji: "⭐", maxMs: 1500,  color: "#f59e0b", xpMult: 3.0 },
-  { label: "Admiral",   emoji: "🚀", maxMs: 2500,  color: "#6366f1", xpMult: 2.0 },
-  { label: "Commander", emoji: "🌟", maxMs: 4000,  color: "#0891b2", xpMult: 1.5 },
-  { label: "Navigator", emoji: "🧭", maxMs: 6000,  color: "#059669", xpMult: 1.2 },
-  { label: "Cadet",     emoji: "🛸", maxMs: Infinity, color: "#64748b", xpMult: 1.0 },
+  { label: "Legend",    emoji: "⭐", maxMs: 1500,  color: "#f59e0b", xpMult: 3.0, shipColor: "blue" },
+  { label: "Admiral",   emoji: "🚀", maxMs: 2500,  color: "#6366f1", xpMult: 2.0, shipColor: "blue" },
+  { label: "Commander", emoji: "🌟", maxMs: 4000,  color: "#0891b2", xpMult: 1.5, shipColor: "green" },
+  { label: "Navigator", emoji: "🧭", maxMs: 6000,  color: "#059669", xpMult: 1.2, shipColor: "green" },
+  { label: "Cadet",     emoji: "🛸", maxMs: Infinity, color: "#64748b", xpMult: 1.0, shipColor: "blue" },
 ];
 
 function getRank(avgMs) {
@@ -948,7 +948,7 @@ function PhaserBackground({ gameRef, totalQuestions = 20, width, height }) {
     totalQuestions,
     combo: 0,
     progress: 0,
-    speedRank: { label: "Cadet", color: "#64748b" },
+    speedRank: { label: "Cadet", color: "#64748b", shipColor: "blue" },
   }), [totalQuestions]);
 
   if (!sceneClass) return null;
@@ -994,6 +994,13 @@ export default function NebulaTrials({ student, onClose, onXPEarned }) {
       gameRef.current?.registry?.set(key, value);
     } catch {}
   }, []);
+
+  // Activate/deactivate Phaser game elements based on screen
+  // Only show ship + enemies + meteors during active quiz
+  useEffect(() => {
+    const isQuizActive = screen === "quiz";
+    phaserEvent("activateGame", isQuizActive);
+  }, [screen, phaserEvent]);
 
   const startMode = useCallback((selectedMode) => {
     setMode(selectedMode);
