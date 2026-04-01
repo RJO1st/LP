@@ -22,6 +22,7 @@ import { CONCEPT_VISUALS } from "./KS12ScienceVisuals";
 import { CivicEducationVis, GovernmentVis, ReligiousStudiesVis, DesignTechVis, AgricultureVis, EconomicsVis, TopicCardVis } from "./HumanitiesVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 // Quiz3DVisual — shelved (3D inline visuals disabled)
+import KenneyVisuals, { resolveKenneyVisual } from "./KenneyVisuals";
 import InteractiveGraph from "./InteractiveGraph";
 import JSXGraphBoard, { createLinearGraphProps, createQuadraticGraphProps, createTrigGraphProps, createGeometryProps, createSliderExplorerProps } from "./JSXGraphBoard";
 import DataTable from "./DataTable";
@@ -190,13 +191,218 @@ function BasicConceptVis({ concept, label, emoji, question }) {
         <ellipse cx="62" cy="14" rx="10" ry="6" fill="#22c55e" transform="rotate(20 62 14)" />
       </svg>
     ),
+  // ── History keyword visuals ───────────────────────────────────────────────
+    hist_building: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Ground */}
+        <rect x="0" y="95" width="130" height="15" fill="#78716c" opacity="0.3" rx="2" />
+        {/* Main building body */}
+        <rect x="25" y="40" width="80" height="55" fill="#a8a29e" stroke="#78716c" strokeWidth="1.5" rx="1" />
+        {/* Roof */}
+        <polygon points="20,40 65,10 110,40" fill="#92400e" stroke="#78716c" strokeWidth="1.5" />
+        {/* Door */}
+        <rect x="52" y="65" width="26" height="30" fill="#57534e" rx="13 13 0 0" />
+        <circle cx="73" cy="82" r="2" fill="#fbbf24" />
+        {/* Windows */}
+        <rect x="32" y="50" width="14" height="16" fill="#7dd3fc" stroke="#78716c" strokeWidth="1" rx="1" />
+        <line x1="39" y1="50" x2="39" y2="66" stroke="#78716c" strokeWidth="0.8" />
+        <line x1="32" y1="58" x2="46" y2="58" stroke="#78716c" strokeWidth="0.8" />
+        <rect x="84" y="50" width="14" height="16" fill="#7dd3fc" stroke="#78716c" strokeWidth="1" rx="1" />
+        <line x1="91" y1="50" x2="91" y2="66" stroke="#78716c" strokeWidth="0.8" />
+        <line x1="84" y1="58" x2="98" y2="58" stroke="#78716c" strokeWidth="0.8" />
+        {/* Chimney */}
+        <rect x="85" y="15" width="10" height="25" fill="#78716c" />
+        <rect x="83" y="12" width="14" height="5" fill="#78716c" rx="1" />
+      </svg>
+    ),
+    hist_battle: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Crossed swords */}
+        <line x1="25" y1="90" x2="95" y2="15" stroke="#a8a29e" strokeWidth="4" strokeLinecap="round" />
+        <line x1="35" y1="90" x2="105" y2="15" stroke="#78716c" strokeWidth="4" strokeLinecap="round" />
+        {/* Sword 1 handle + guard */}
+        <rect x="18" y="85" width="22" height="6" fill="#92400e" rx="2" />
+        <circle cx="29" cy="88" r="2" fill="#fbbf24" />
+        <line x1="22" y1="80" x2="36" y2="80" stroke="#78716c" strokeWidth="3" strokeLinecap="round" />
+        {/* Sword 2 handle + guard */}
+        <rect x="90" y="85" width="22" height="6" fill="#92400e" rx="2" />
+        <circle cx="101" cy="88" r="2" fill="#fbbf24" />
+        <line x1="94" y1="80" x2="108" y2="80" stroke="#78716c" strokeWidth="3" strokeLinecap="round" />
+        {/* Shield */}
+        <path d="M55,30 Q65,25 75,30 L75,60 Q65,75 55,60 Z" fill="#dc2626" stroke="#78716c" strokeWidth="1.5" />
+        <path d="M60,35 Q65,32 70,35 L70,55 Q65,65 60,55 Z" fill="#fbbf24" opacity="0.6" />
+        <circle cx="65" cy="47" r="5" fill="#fbbf24" stroke="#92400e" strokeWidth="1" />
+      </svg>
+    ),
+    hist_royalty: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Crown */}
+        <path d="M30,65 L30,35 L50,50 L65,20 L80,50 L100,35 L100,65 Z" fill="#fbbf24" stroke="#b45309" strokeWidth="1.5" />
+        <rect x="28" y="65" width="74" height="12" fill="#fbbf24" stroke="#b45309" strokeWidth="1.5" rx="2" />
+        {/* Jewels */}
+        <circle cx="65" cy="50" r="5" fill="#dc2626" stroke="#b91c1c" strokeWidth="1" />
+        <circle cx="45" cy="55" r="4" fill="#3b82f6" stroke="#1d4ed8" strokeWidth="1" />
+        <circle cx="85" cy="55" r="4" fill="#22c55e" stroke="#15803d" strokeWidth="1" />
+        {/* Crown points jewels */}
+        <circle cx="30" cy="35" r="3" fill="#fbbf24" stroke="#b45309" strokeWidth="1" />
+        <circle cx="65" cy="20" r="3" fill="#dc2626" stroke="#b91c1c" strokeWidth="1" />
+        <circle cx="100" cy="35" r="3" fill="#fbbf24" stroke="#b45309" strokeWidth="1" />
+        {/* Velvet base */}
+        <path d="M32,77 Q65,85 98,77" fill="#7c2d12" opacity="0.5" />
+        {/* Sparkles */}
+        <text x="18" y="30" fontSize="10" fill="#fbbf24" opacity="0.7">✦</text>
+        <text x="108" y="28" fontSize="8" fill="#fbbf24" opacity="0.5">✦</text>
+        <text x="60" y="95" fontSize="9" fill="#fbbf24" opacity="0.6">✦</text>
+      </svg>
+    ),
+    hist_transport: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Road */}
+        <rect x="0" y="88" width="130" height="22" fill="#78716c" opacity="0.25" rx="2" />
+        <line x1="10" y1="99" x2="30" y2="99" stroke="#fbbf24" strokeWidth="1.5" opacity="0.4" strokeDasharray="6 4" />
+        <line x1="50" y1="99" x2="70" y2="99" stroke="#fbbf24" strokeWidth="1.5" opacity="0.4" strokeDasharray="6 4" />
+        <line x1="90" y1="99" x2="110" y2="99" stroke="#fbbf24" strokeWidth="1.5" opacity="0.4" strokeDasharray="6 4" />
+        {/* Wagon/cart body */}
+        <rect x="12" y="58" width="45" height="28" fill="#92400e" stroke="#78716c" strokeWidth="1.5" rx="2" />
+        <rect x="15" y="62" width="12" height="10" fill="#7dd3fc" stroke="#78716c" strokeWidth="0.8" rx="1" />
+        {/* Wheels */}
+        <circle cx="22" cy="88" r="8" fill="none" stroke="#57534e" strokeWidth="2.5" />
+        <circle cx="22" cy="88" r="2" fill="#57534e" />
+        <circle cx="48" cy="88" r="8" fill="none" stroke="#57534e" strokeWidth="2.5" />
+        <circle cx="48" cy="88" r="2" fill="#57534e" />
+        {/* Spokes */}
+        <line x1="22" y1="80" x2="22" y2="96" stroke="#57534e" strokeWidth="1" />
+        <line x1="14" y1="88" x2="30" y2="88" stroke="#57534e" strokeWidth="1" />
+        <line x1="48" y1="80" x2="48" y2="96" stroke="#57534e" strokeWidth="1" />
+        <line x1="40" y1="88" x2="56" y2="88" stroke="#57534e" strokeWidth="1" />
+        {/* Steam/smoke puff — suggests engine */}
+        <circle cx="8" cy="50" r="5" fill="#a8a29e" opacity="0.3" />
+        <circle cx="15" cy="42" r="7" fill="#a8a29e" opacity="0.2" />
+        <circle cx="6" cy="38" r="4" fill="#a8a29e" opacity="0.15" />
+        {/* Compass rose — exploration */}
+        <circle cx="100" cy="40" r="18" fill="none" stroke="#d97706" strokeWidth="1.5" />
+        <line x1="100" y1="22" x2="100" y2="58" stroke="#d97706" strokeWidth="1" />
+        <line x1="82" y1="40" x2="118" y2="40" stroke="#d97706" strokeWidth="1" />
+        <polygon points="100,24 97,35 103,35" fill="#dc2626" />
+        <polygon points="100,56 97,45 103,45" fill="#a8a29e" />
+        <text x="98" y="21" fontSize="7" fill="#d97706" fontWeight="bold">N</text>
+      </svg>
+    ),
+    hist_invention: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Gear outer */}
+        <circle cx="65" cy="50" r="28" fill="none" stroke="#a8a29e" strokeWidth="5" />
+        {/* Gear teeth */}
+        {[0,45,90,135,180,225,270,315].map(a => (
+          <rect key={a} x="62" y="17" width="6" height="10" fill="#a8a29e" transform={`rotate(${a} 65 50)`} rx="1" />
+        ))}
+        {/* Inner circle */}
+        <circle cx="65" cy="50" r="14" fill="#78716c" opacity="0.3" />
+        <circle cx="65" cy="50" r="6" fill="#57534e" />
+        {/* Lightbulb accent */}
+        <circle cx="65" cy="48" r="8" fill="#fbbf24" opacity="0.15" />
+        <path d="M61,42 Q65,32 69,42" fill="none" stroke="#fbbf24" strokeWidth="1.5" opacity="0.6" />
+        {/* Sparks */}
+        <line x1="100" y1="25" x2="108" y2="18" stroke="#fbbf24" strokeWidth="1.5" opacity="0.5" />
+        <line x1="105" y1="35" x2="115" y2="33" stroke="#fbbf24" strokeWidth="1.5" opacity="0.4" />
+        <line x1="25" y1="30" x2="18" y2="22" stroke="#fbbf24" strokeWidth="1.5" opacity="0.4" />
+      </svg>
+    ),
+    hist_daily_life: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Pottery vase */}
+        <path d="M45,30 Q42,30 40,35 Q35,50 38,65 Q40,80 50,85 L80,85 Q90,80 92,65 Q95,50 90,35 Q88,30 85,30 Z" fill="#c2410c" stroke="#92400e" strokeWidth="1.5" />
+        {/* Vase neck */}
+        <rect x="50" y="22" width="30" height="10" fill="#c2410c" stroke="#92400e" strokeWidth="1.5" rx="2" />
+        <rect x="47" y="18" width="36" height="6" fill="#c2410c" stroke="#92400e" strokeWidth="1.5" rx="2" />
+        {/* Decorative bands */}
+        <path d="M40,45 Q65,42 90,45" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
+        <path d="M38,60 Q65,57 92,60" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
+        {/* Pattern */}
+        <path d="M50,50 L55,55 L60,50 L65,55 L70,50 L75,55 L80,50" fill="none" stroke="#fbbf24" strokeWidth="1" opacity="0.7" />
+        {/* Shadow */}
+        <ellipse cx="65" cy="90" rx="30" ry="4" fill="#78716c" opacity="0.2" />
+      </svg>
+    ),
+    hist_religion: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Candle */}
+        <rect x="55" y="40" width="20" height="50" fill="#fef3c7" stroke="#d97706" strokeWidth="1" rx="2" />
+        {/* Flame */}
+        <path d="M65,15 Q60,28 58,35 Q62,42 65,42 Q68,42 72,35 Q70,28 65,15" fill="#f59e0b" />
+        <path d="M65,22 Q63,30 62,35 Q64,39 65,39 Q66,39 68,35 Q67,30 65,22" fill="#fbbf24" />
+        {/* Glow */}
+        <circle cx="65" cy="30" r="12" fill="#fbbf24" opacity="0.1" />
+        <circle cx="65" cy="30" r="20" fill="#fbbf24" opacity="0.05" />
+        {/* Wick */}
+        <line x1="65" y1="38" x2="65" y2="42" stroke="#57534e" strokeWidth="1" />
+        {/* Base */}
+        <rect x="50" y="88" width="30" height="6" fill="#d97706" rx="2" />
+        <rect x="53" y="85" width="24" height="5" fill="#f59e0b" rx="1" />
+      </svg>
+    ),
+    hist_society: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Person 1 */}
+        <circle cx="40" cy="35" r="12" fill="#d4a574" stroke="#a8a29e" strokeWidth="1" />
+        <path d="M25,90 Q25,55 40,55 Q55,55 55,90" fill="#3b82f6" stroke="#2563eb" strokeWidth="1" />
+        {/* Person 2 */}
+        <circle cx="65" cy="30" r="12" fill="#8d6e4e" stroke="#a8a29e" strokeWidth="1" />
+        <path d="M50,90 Q50,50 65,50 Q80,50 80,90" fill="#dc2626" stroke="#b91c1c" strokeWidth="1" />
+        {/* Person 3 */}
+        <circle cx="90" cy="35" r="12" fill="#f5d5b8" stroke="#a8a29e" strokeWidth="1" />
+        <path d="M75,90 Q75,55 90,55 Q105,55 105,90" fill="#16a34a" stroke="#15803d" strokeWidth="1" />
+        {/* Connecting banner */}
+        <path d="M25,95 Q65,100 105,95" fill="none" stroke="#fbbf24" strokeWidth="2" />
+      </svg>
+    ),
+    hist_artefact: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Scroll */}
+        <rect x="30" y="25" width="70" height="60" fill="#fef3c7" stroke="#d97706" strokeWidth="1.5" rx="2" />
+        {/* Scroll rolls top & bottom */}
+        <ellipse cx="65" cy="23" rx="38" ry="5" fill="#f59e0b" stroke="#d97706" strokeWidth="1" />
+        <ellipse cx="65" cy="87" rx="38" ry="5" fill="#f59e0b" stroke="#d97706" strokeWidth="1" />
+        {/* Text lines */}
+        <line x1="40" y1="38" x2="90" y2="38" stroke="#92400e" strokeWidth="1.5" opacity="0.4" />
+        <line x1="40" y1="48" x2="85" y2="48" stroke="#92400e" strokeWidth="1.5" opacity="0.4" />
+        <line x1="40" y1="58" x2="88" y2="58" stroke="#92400e" strokeWidth="1.5" opacity="0.4" />
+        <line x1="40" y1="68" x2="75" y2="68" stroke="#92400e" strokeWidth="1.5" opacity="0.4" />
+        {/* Wax seal */}
+        <circle cx="82" cy="72" r="7" fill="#dc2626" stroke="#b91c1c" strokeWidth="1" />
+        <text x="79" y="75" fontSize="8" fill="#fef2f2" fontWeight="bold">✦</text>
+      </svg>
+    ),
+    hist_scroll: (
+      <svg width="130" height="110" viewBox="0 0 130 110">
+        {/* Open scroll */}
+        <path d="M20,20 Q15,55 20,90" fill="none" stroke="#d97706" strokeWidth="3" />
+        <path d="M110,20 Q115,55 110,90" fill="none" stroke="#d97706" strokeWidth="3" />
+        <rect x="22" y="20" width="86" height="70" fill="#fef3c7" stroke="#d97706" strokeWidth="1" />
+        {/* Text lines */}
+        <line x1="32" y1="35" x2="98" y2="35" stroke="#92400e" strokeWidth="1.5" opacity="0.35" />
+        <line x1="32" y1="45" x2="92" y2="45" stroke="#92400e" strokeWidth="1.5" opacity="0.35" />
+        <line x1="32" y1="55" x2="95" y2="55" stroke="#92400e" strokeWidth="1.5" opacity="0.35" />
+        <line x1="32" y1="65" x2="80" y2="65" stroke="#92400e" strokeWidth="1.5" opacity="0.35" />
+        <line x1="32" y1="75" x2="88" y2="75" stroke="#92400e" strokeWidth="1.5" opacity="0.35" />
+        {/* Quill pen */}
+        <path d="M105,95 Q100,80 90,70" fill="none" stroke="#57534e" strokeWidth="1.5" />
+        <path d="M105,95 Q108,90 112,92 Q108,96 105,95" fill="#57534e" />
+      </svg>
+    ),
   };
 
   const svg = CONCEPT_SVGS[concept] || null;
 
+  // Pick accent colour: amber for History concepts, emerald for Science
+  const isHistConcept = concept?.startsWith("hist_");
+  const accent = isHistConcept ? "#f59e0b" : T.emerald;
+  const bg = isHistConcept ? "rgba(245,158,11,0.06)" : T.emeraldBg;
+  const bd = isHistConcept ? "rgba(245,158,11,0.15)" : T.emeraldBd;
+
   return (
-    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd} ariaLabel={label}>
-      <span style={{ fontSize: 11, fontWeight: 800, color: T.emerald, textTransform: "uppercase", letterSpacing: 1 }}>
+    <Panel accent={accent} bg={bg} bd={bd} ariaLabel={label}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1 }}>
         {label}
       </span>
       {svg || (
@@ -2708,7 +2914,51 @@ function parseHistory(topicStr, questionStr, yearLevel) {
   if (/where.*happen|map|empire|invasion|location.*battle|route/i.test(questionStr)) {
     return { type: "map_region", region: "europe", highlighted: "" };
   }
- 
+
+  // ── KEYWORD-BASED CATCH-ALL — detect common History nouns for visual matching ──
+  const combo = (questionStr || "") + " " + (t || "");
+
+  // Buildings & architecture
+  if (/\bbuilding|church|cathedral|castle|palace|manor|monastery|abbey|fort|fortress|tower|house|cottage|hut|dwelling|temple|mosque|synagogue|chapel|barn|mill|windmill|lighthouse|bridge|wall|gate|arch|dome|column|pillar/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_building", label: "Historical Buildings", emoji: "🏰" };
+  }
+  // Battles, wars & conflict
+  if (/\bbattle|war\b|siege|invasion|conquer|defeat|victory|trench|blitz|bomb|armada|armistice|treaty|surrender|conflict|rebellion|revolt|uprising|civil war/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_battle", label: "Battles & Conflict", emoji: "⚔️" };
+  }
+  // Royalty, rulers & leadership
+  if (/\bking\b|queen\b|prince|princess|monarch|reign|throne|crown|coronation|dynasty|royal|emperor|empress|pharaoh|chief|sultan|tsar|ruler/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_royalty", label: "Rulers & Royalty", emoji: "👑" };
+  }
+  // Transport & exploration
+  if (/ships?\b|longship|boat\b|sail|voyage|explorer|expedition|discovery|navigation|caravel|galleon|steam.*train|railway|locomotive|coach|carriage|canal|horse.*cart|wagon|chariot|aircraft|aeroplane|airplane/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_transport", label: "Transport & Exploration", emoji: "⛵" };
+  }
+  // Inventions & technology
+  if (/\binvent|discovery|telegraph|telephone|printing press|steam engine|factory|industrial|revolution|machine|tool|weapon|gunpowder|compass|clock|wheel|plough|loom|spinning jenny|electricity/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_invention", label: "Inventions & Discovery", emoji: "⚙️" };
+  }
+  // Daily life, clothing, food
+  if (/\bcloth|costume|armour|armor|tunic|toga|fashion|dress|uniform|food|feast|banquet|diet|farming|harvest|crop|plough|market|trade|merchant|craft|pottery|weaving|cooking/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_daily_life", label: "Daily Life", emoji: "🏺" };
+  }
+  // Religion & beliefs
+  if (/\breligion|worship|god\b|gods\b|goddess|belief|ritual|ceremony|sacrifice|prayer|pilgrim|crusade|missionary|bible|quran|torah|monastery|monk|nun|priest|temple|shrine/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_religion", label: "Religion & Beliefs", emoji: "🕯️" };
+  }
+  // People & society
+  if (/\bslave|slavery|abolition|emancipation|suffrage|vote|rights|protest|reform|parliament|democracy|law\b|justice|punishment|crime|peasant|noble|lord|lady|knight|soldier|warrior|gladiator|citizen/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_society", label: "People & Society", emoji: "👥" };
+  }
+  // Artefacts & archaeology
+  if (/\bartefact|artifact|fossil|archaeolog|excavat|tomb|burial|treasure|relic|museum|pottery|coin|jewel|scroll|manuscript|inscription|carving|statue|monument|memorial/i.test(combo)) {
+    return { type: "basic_concept", concept: "hist_artefact", label: "Artefacts & Archaeology", emoji: "🏺" };
+  }
+  // Generic history fallback — if the topic/subject clearly says "history" but nothing else matched
+  if (/histor/i.test(t)) {
+    return { type: "basic_concept", concept: "hist_scroll", label: "History", emoji: "📜" };
+  }
+
   return null;
 }
 
@@ -2923,6 +3173,9 @@ export function resolveVisual(question, subject, yearLevel) {
     isAgriculture || isCulturalArts || isFurtherMaths;
   if (!isKnown) return null;
 
+  // ── Kenney sprite visuals (highest priority for matching questions) ──
+  const kenneyVis = resolveKenneyVisual(question, subject, yearLevel);
+  if (kenneyVis) return { type: "kenney_sprite", ...kenneyVis };
 
   let enrichedSubject = subject || "";
   if (subj === "science" || subj.includes("science")) {
@@ -2976,6 +3229,13 @@ export function resolveVisual(question, subject, yearLevel) {
   if (isAgriculture) return parseHumanities("agriculture", topicStr, qLower);
   if (isFurtherMaths) return null; // Uses main maths visuals via parseTier3/4
   if (isCulturalArts) return parseHumanities("cultural_arts", topicStr, qLower);
+
+  // ── Cross-subject keyword fallback — try History keyword detection for any subject ──
+  // Catches questions tagged under generic subjects that are actually about historical topics
+  if (!isHistory) {
+    const histFallback = parseHistory(topicStr, questionStr, year);
+    if (histFallback) return histFallback;
+  }
 
   // Pie chart
   if (subj.includes("math") && (topicStr.includes("pie_chart") || topicStr.includes("pie") || /pie chart|pie graph|sector|slice/i.test(qLower))) {
@@ -3230,6 +3490,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "photosynthesis":      return `Photosynthesis diagram`;
       case "respiration":         return `${visual.respType} respiration diagram`;
       // scene_3d shelved
+      case "kenney_sprite":      return visual.ariaLabel || "Sprite visual";
       case "basic_concept":        return visual.label || "Science concept";
       case "pie_chart":           return `Pie chart with ${visual.slices?.length || 0} slices`;
       case "pictogram":           return `Pictogram with ${visual.items?.length || 0} items`;
@@ -3352,6 +3613,7 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return <MagnetVis scenario={visual.scenario} />;
       case "photosynthesis":      return <PhotosynthesisVis highlighted={visual.highlighted} />;
       case "respiration":         return <RespirationVis respType={visual.respType} />;
+      case "kenney_sprite":        return <KenneyVisuals component={visual.component} {...visual} />;
       case "basic_concept":       return <BasicConceptVis concept={visual.concept} label={visual.label} emoji={visual.emoji} question={question} />;
       case "pie_chart":           return <PieChartVis slices={visual.slices} />;
       case "pictogram":           return <PictogramVis items={visual.items} keyValue={visual.keyValue} />;

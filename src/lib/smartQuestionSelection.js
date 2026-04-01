@@ -35,7 +35,7 @@ const VALID_EXAM_MODES = new Set(Object.keys(EXAM_MODES));
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { masteryToTier } from './masteryEngine';
+import { masteryToTier, computeStandardsBreadth } from './masteryEngine';
 import { getTopicSequence, getTopicList, getTopicStrand } from './learningPathEngine';
 
 // ─── COMBINED SCIENCE RESOLVER ───────────────────────────────────────────────
@@ -130,7 +130,7 @@ async function loadScholarContext(supabase, scholarId, curriculum, subject, cach
     fetches.push(
       supabase
         .from('scholar_topic_mastery')
-        .select('topic, subject, mastery_score, next_review_at, times_seen, updated_at')
+        .select('topic, subject, mastery_score, next_review_at, times_seen, updated_at, interval_days, spaced_review_count, unique_practice_days, covered_standard_codes')
         .eq('scholar_id', scholarId)
         .eq('curriculum', curriculum)
     );
@@ -167,7 +167,7 @@ async function loadScholarContext(supabase, scholarId, curriculum, subject, cach
 // Anti-repetition: tracks last 3 topics played (from masteryRows updated_at).
 // After 2 consecutive sessions on the same topic, forces rotation to next priority.
 // This prevents scholars from getting stuck on one topic endlessly.
-function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLevel = null) {
+function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLevel = null, topicStandardCounts = null) {
   const now = new Date();
   const subjectRows = masteryRows.filter(r => r.subject === subject);
 
@@ -208,13 +208,19 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLe
     return { topic: pick.topic, reason: 'spaced_repetition' };
   }
 
-  // ── Priority 2: Weakest topic (lowest mastery, at least 1 attempt)
+  // ── Priority 2: Weakest topic (lowest EFFECTIVE mastery, at least 1 attempt)
+  // Effective mastery = raw mastery × standards breadth multiplier.
+  // A topic where a scholar answered many questions but only on 2 out of 8
+  // curriculum standards will sort lower than its raw score implies, correctly
+  // surfacing it as needing more practice.
   const weakest = subjectRows
     .filter(r => (r.times_seen ?? 0) > 0 && (r.mastery_score ?? 0) < 0.7)
     .filter(r => r.topic !== repeatedTopic)  // anti-repeat
     .sort((a, b) => {
-      // Primary: lowest mastery first
-      const scoreDiff = (a.mastery_score ?? 0) - (b.mastery_score ?? 0);
+      // Primary: lowest EFFECTIVE mastery first (breadth-discounted)
+      const effA = computeEffectiveMastery(a, topicStandardCounts);
+      const effB = computeEffectiveMastery(b, topicStandardCounts);
+      const scoreDiff = effA - effB;
       if (Math.abs(scoreDiff) > 0.05) return scoreDiff;
       // Secondary: least recently practised (stalest first)
       const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -336,7 +342,16 @@ function getTierForTopic(masteryRows, subject, topic) {
   // No mastery data = new scholar/topic — skip tier filter entirely
   // so ALL difficulty levels are available (foundation through exceeding)
   if (!row) return null;
-  return masteryToTier(row.mastery_score ?? 0, row.interval_days ?? 0);
+  // Pass all 5 args so tier gates (timesSeen, spacedReviewCount, uniquePracticeDays)
+  // are correctly evaluated — previously only 2/5 args were passed, causing all
+  // scholars to be permanently stuck at 'developing' regardless of progress.
+  return masteryToTier(
+    row.mastery_score      ?? 0,
+    row.interval_days      ?? 0,
+    row.times_seen         ?? 0,
+    row.spaced_review_count ?? 0,
+    row.unique_practice_days ?? 1,
+  );
 }
 
 // ─── DB RESOLVERS ─────────────────────────────────────────────────────────────
@@ -472,6 +487,77 @@ function resolveDbSubject(subject, curriculum) {
   }
 
   return sub;
+}
+
+// ─── TOPIC STANDARDS COUNT LOADER ────────────────────────────────────────────
+/**
+ * Fetch how many curriculum standards exist per topic for a given curriculum/subject/year.
+ * Used to compute standards breadth — a multiplier that prevents false mastery when
+ * a scholar has only practised a narrow subset of the required standards for a topic.
+ *
+ * Queries topic_standard_mapping (topic_slug → standard_id) joined to curriculum_standards
+ * filtered by curriculum/subject/year ±1. Returns a Map<topic_slug, count>.
+ *
+ * Returns an empty Map on error — all topics treated as having no penalty.
+ *
+ * @param {object} supabase
+ * @param {string} curriculum - resolved DB curriculum (e.g. 'uk_national')
+ * @param {string} subject    - resolved DB subject (e.g. 'mathematics')
+ * @param {number} year
+ * @returns {Promise<Map<string, number>>} - topic_slug → standard count
+ */
+async function fetchTopicStandardCounts(supabase, curriculum, subject, year) {
+  try {
+    const yr       = parseInt(year, 10) || 1;
+    const yearLow  = Math.max(1, yr - 1);
+    const yearHigh = yr + 1;
+
+    // Join topic_standard_mapping → curriculum_standards for the year band
+    const { data, error } = await supabase
+      .from('topic_standard_mapping')
+      .select('topic_slug, curriculum_standards!inner(id, curriculum, subject, year_level)')
+      .eq('curriculum_standards.curriculum', curriculum)
+      .eq('curriculum_standards.subject', subject)
+      .gte('curriculum_standards.year_level', yearLow)
+      .lte('curriculum_standards.year_level', yearHigh);
+
+    if (error || !data?.length) return new Map();
+
+    // Aggregate: count distinct standards per topic_slug
+    const counts = new Map();
+    for (const row of data) {
+      const slug = row.topic_slug;
+      if (!slug) continue;
+      counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+    return counts;
+  } catch {
+    return new Map();  // never block question selection on this
+  }
+}
+
+/**
+ * Compute effective mastery for a topic, discounted by standards breadth.
+ * Used for Priority 2 sorting (weakest topic) so scholars with narrow
+ * standards coverage are correctly identified as needing more practice.
+ *
+ * @param {object}          row                 - scholar_topic_mastery row
+ * @param {Map<string,number>} topicStandardCounts - topic_slug → total standard count
+ * @returns {number}                            - effective mastery 0-1
+ */
+function computeEffectiveMastery(row, topicStandardCounts) {
+  const rawMastery = row.mastery_score ?? 0;
+  const topic = row.topic;
+  if (!topic || !topicStandardCounts?.size) return rawMastery;
+
+  const totalStandards  = topicStandardCounts.get(topic) ?? 0;
+  if (totalStandards === 0) return rawMastery;  // no standards mapped → no penalty
+
+  const coveredCodes    = Array.isArray(row.covered_standard_codes)
+    ? row.covered_standard_codes
+    : [];
+  const breadth = computeStandardsBreadth(coveredCodes.length, totalStandards);
+  return rawMastery * breadth;
 }
 
 // ─── PASSAGE GROUP FETCHER ────────────────────────────────────────────────────
@@ -1274,16 +1360,20 @@ export async function getSmartQuestions(
     const usesCurriculumAsFilter = resolvedCurriculum !== curriculum.toLowerCase();
     const examTag = (VALID_EXAM_MODES.has(examMode) && !usesCurriculumAsFilter) ? examMode : null;
 
-    const [sequence, { masteryRows, currentTopic }] = await Promise.all([
+    const [sequence, { masteryRows, currentTopic }, topicStandardCounts] = await Promise.all([
       getTopicSequence(activeSubject, curriculum, supabase),
       loadScholarContext(supabase, scholarId, curriculum, activeSubject, cache),
+      // Fetch topic→standards count map for breadth-aware mastery sorting.
+      // Uses resolved curriculum/subject to match the DB question records.
+      // Non-blocking: returns empty Map on error so selection is never degraded.
+      fetchTopicStandardCounts(supabase, resolvedCurriculum, resolveDbSubject(activeSubject, curriculum), year),
     ]);
 
     // ── 2. Resolve anchor and adjacent topics ─────────────────────────────
     // If focusedTopic is provided (from JourneyMap), use it directly — skip auto-resolution
     const { topic: anchorTopic, reason: selectionReason } = focusedTopic
       ? { topic: focusedTopic, reason: "journey_map_selected" }
-      : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence, year);
+      : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence, year, topicStandardCounts);
 
     if (!anchorTopic) {
       console.warn(

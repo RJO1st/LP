@@ -96,6 +96,11 @@ const COMPOSITE_WEIGHTS = {
   recency:     0.20,  // How recently reviewed — "is the knowledge fresh?"
 };
 
+// ─── STANDARDS BREADTH FLOOR ────────────────────────────────────────────────
+// Even with 0 covered standards, mastery is only discounted to this floor.
+// Prevents a scholar's score from crashing to near-zero for newly-added standards.
+const STANDARDS_BREADTH_FLOOR = 0.20;
+
 // ─── FORGETTING CURVE ───────────────────────────────────────────────────────
 // Exponential decay: retention = stabilityBase ^ daysOverdue
 // Higher stability (more spaced reviews passed) → slower decay
@@ -131,6 +136,34 @@ export function capMasteryByPracticeDays(rawScore, uniqueDays = 1) {
     if (uniqueDays >= minDays) cap = maxMastery;
   }
   return Math.min(rawScore, cap);
+}
+
+/**
+ * Compute standards breadth — what fraction of the topic's curriculum standards
+ * this scholar has been exposed to, expressed as a mastery multiplier.
+ *
+ * Prevents false mastery when a scholar has answered many questions but they
+ * are all mapped to a narrow subset of the topic's required standards.
+ *
+ * At 0% coverage: returns STANDARDS_BREADTH_FLOOR (0.20) — a soft floor so a
+ * single unanswered standard doesn't obliterate a genuinely hard-working scholar.
+ * At 80%+ coverage: returns 1.0 (full weight).
+ * Linear interpolation between floor and 1.0 for 0–80% coverage.
+ *
+ * Caller passes totalCount = 0 when no standard mapping exists, which
+ * disables the breadth cap entirely (returns 1.0) — never penalise
+ * topics whose standards haven't been catalogued yet.
+ *
+ * @param {number} coveredCount - distinct standards encountered by this scholar
+ * @param {number} totalCount   - total standards defined for this curriculum/topic/year
+ * @returns {number}            - multiplier 0.20–1.0
+ */
+export function computeStandardsBreadth(coveredCount = 0, totalCount = 0) {
+  if (totalCount === 0) return 1.0;                              // no standards → no penalty
+  const ratio = Math.min(1, coveredCount / totalCount);
+  if (ratio >= 0.8) return 1.0;                                 // 80%+ coverage → no penalty
+  // Linear: from STANDARDS_BREADTH_FLOOR at 0% to 1.0 at 80%
+  return STANDARDS_BREADTH_FLOOR + (ratio / 0.8) * (1.0 - STANDARDS_BREADTH_FLOOR);
 }
 
 /**
@@ -206,15 +239,18 @@ export function computeRecency(lastSeenAt) {
 /**
  * Compute composite mastery score.
  * Blends acquisition (BKT), stability (SM-2 retention), and recency.
- * Then applies volume + distributed-practice caps.
+ * Then applies volume + distributed-practice caps + optional standards breadth.
  *
  * @param {object} params
- * @param {number} params.acquisitionScore - BKT P(mastery) after update
- * @param {number} params.stability        - stability score 0-1
- * @param {number} params.recency          - recency factor 0.3-1.0
- * @param {number} params.timesSeen        - total questions answered
+ * @param {number} params.acquisitionScore  - BKT P(mastery) after update
+ * @param {number} params.stability         - stability score 0-1
+ * @param {number} params.recency           - recency factor 0.3-1.0
+ * @param {number} params.timesSeen         - total questions answered
  * @param {number} params.uniquePracticeDays - unique calendar days practiced
- * @returns {number}                       - composite mastery 0-1
+ * @param {number} [params.standardsBreadth=1.0] - fraction of topic standards covered (0.20–1.0)
+ *   Pass computeStandardsBreadth(coveredCount, totalCount) here.
+ *   Defaults to 1.0 so existing callers are unaffected.
+ * @returns {number} - composite mastery 0-1
  */
 export function computeCompositeMastery({
   acquisitionScore,
@@ -222,6 +258,7 @@ export function computeCompositeMastery({
   recency,
   timesSeen = 0,
   uniquePracticeDays = 1,
+  standardsBreadth = 1.0,
 }) {
   const { acquisition: wA, stability: wS, recency: wR } = COMPOSITE_WEIGHTS;
 
@@ -234,6 +271,12 @@ export function computeCompositeMastery({
   // Apply both caps — the more restrictive cap wins
   composite = capMasteryByVolume(composite, timesSeen);
   composite = capMasteryByPracticeDays(composite, uniquePracticeDays);
+
+  // Apply standards breadth multiplier — prevents false mastery from narrow coverage.
+  // standardsBreadth is 0.20 (no coverage) to 1.0 (≥80% of standards covered).
+  // Backward-compatible: defaults to 1.0 (no effect) when not provided.
+  composite = composite * standardsBreadth;
+  composite = Math.max(0.01, composite);
 
   return composite;
 }
@@ -408,20 +451,35 @@ function updatePracticeDays(existingDays = []) {
  * @param {boolean} correct
  * @returns {object}              - updated mastery record
  */
-export function processAnswer(masteryRecord, correct) {
+/**
+ * Process a scholar's answer: update mastery + SR schedule + composite score.
+ *
+ * @param {object}  masteryRecord         - current DB row from scholar_topic_mastery (or null for new)
+ * @param {boolean} correct               - whether the scholar answered correctly
+ * @param {string|null} [standardCode]    - curriculum standard code for this question (e.g. "NC-Y7-A-1")
+ *   Pass the question's `standard_code` field when available. Used to track which
+ *   curriculum standards the scholar has been exposed to per topic, feeding
+ *   standardsBreadth into the composite mastery score.
+ * @param {number} [totalStandardsForTopic=0] - total curriculum standards for this topic/year.
+ *   Pass the count from curriculum_coverage_stats or curriculum_standards.
+ *   When 0 (unknown), standardsBreadth defaults to 1.0 (no cap applied).
+ * @returns {object} - updated mastery record
+ */
+export function processAnswer(masteryRecord, correct, standardCode = null, totalStandardsForTopic = 0) {
   const current = masteryRecord ?? {
-    mastery_score:       BKT.pInit,
-    acquisition_score:   BKT.pInit,
-    ease_factor:         SM2_DEFAULTS.easeFactor,
-    interval_days:       SM2_DEFAULTS.intervalDays,
-    repetitions:         SM2_DEFAULTS.repetitions,
-    times_seen:          0,
-    times_correct:       0,
-    current_streak:      0,
-    stability:           0,
-    spaced_review_count: 0,
-    practice_days:       [],
-    unique_practice_days: 0,
+    mastery_score:          BKT.pInit,
+    acquisition_score:      BKT.pInit,
+    ease_factor:            SM2_DEFAULTS.easeFactor,
+    interval_days:          SM2_DEFAULTS.intervalDays,
+    repetitions:            SM2_DEFAULTS.repetitions,
+    times_seen:             0,
+    times_correct:          0,
+    current_streak:         0,
+    stability:              0,
+    spaced_review_count:    0,
+    practice_days:          [],
+    unique_practice_days:   0,
+    covered_standard_codes: [],
   };
 
   // 1. Apply forgetting-curve decay to acquisition score BEFORE BKT update
@@ -469,13 +527,33 @@ export function processAnswer(masteryRecord, correct) {
   const timesSeen = (current.times_seen ?? 0) + 1;
   const cappedAcquisition = capMasteryByVolume(rawAcquisition, timesSeen);
 
-  // 9. Compute composite mastery score
+  // 8b. Track curriculum standard codes — accumulate distinct standards practised.
+  //     Builds a picture of which standards within this topic the scholar has seen,
+  //     enabling standardsBreadth to discount mastery for narrow topic coverage.
+  const prevCoveredCodes = Array.isArray(current.covered_standard_codes)
+    ? current.covered_standard_codes
+    : [];
+  const coveredStandardCodes = standardCode && !prevCoveredCodes.includes(standardCode)
+    ? [...prevCoveredCodes, standardCode]
+    : [...prevCoveredCodes];
+  // Cap at 500 entries to prevent unbounded growth on high-volume topics
+  const trimmedStandardCodes = coveredStandardCodes.length > 500
+    ? coveredStandardCodes.slice(-500)
+    : coveredStandardCodes;
+
+  // Compute standards breadth (0.20–1.0) when total count is known; otherwise 1.0
+  const standardsBreadth = totalStandardsForTopic > 0
+    ? computeStandardsBreadth(trimmedStandardCodes.length, totalStandardsForTopic)
+    : 1.0;
+
+  // 9. Compute composite mastery score (breadth-discounted when standard data available)
   const compositeMastery = computeCompositeMastery({
     acquisitionScore: cappedAcquisition,
     stability: newStability,
     recency,
     timesSeen,
     uniquePracticeDays,
+    standardsBreadth,
   });
 
   // 10. Determine tier with full gating
@@ -504,12 +582,14 @@ export function processAnswer(masteryRecord, correct) {
     times_correct:       (current.times_correct ?? 0) + (correct ? 1 : 0),
     current_streak:      correct ? (current.current_streak ?? 0) + 1 : 0,
     // v2 fields
-    spaced_review_count: spacedReviewCount,
-    practice_days:       practiceDays,
-    unique_practice_days: uniquePracticeDays,
+    spaced_review_count:    spacedReviewCount,
+    practice_days:          practiceDays,
+    unique_practice_days:   uniquePracticeDays,
+    // v3 standards breadth fields
+    covered_standard_codes: trimmedStandardCodes,
     // Tier
-    current_tier:        tier,
-    updated_at:          new Date().toISOString(),
+    current_tier:           tier,
+    updated_at:             new Date().toISOString(),
   };
 }
 
