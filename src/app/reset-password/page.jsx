@@ -40,39 +40,61 @@ function ResetPasswordForm() {
   const [sessionReady, setSessionReady] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // ── Wait for Supabase to exchange the token from the URL hash ─────
+  // ── Wait for Supabase to exchange the token (supports both PKCE and implicit flow) ─────
   useEffect(() => {
+    let cancelled = false;
+
     const checkSession = async () => {
-      // Supabase auto-detects the token in the URL hash (#access_token=...)
-      // and exchanges it for a session. We just need to wait for it.
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // 1. Handle PKCE flow: if ?code= is in the URL, exchange it for a session
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
 
-      if (session) {
-        setSessionReady(true);
-      } else {
-        // Listen for auth state change — token exchange may be async
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
-            setSessionReady(true);
-          }
-        });
-
-        // Give it a few seconds, then show error
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession) {
-            setSessionReady(true);
-          } else {
-            setChecking(false);
-          }
-        }, 3000);
-
-        return () => subscription?.unsubscribe();
+      if (code) {
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (!cancelled && data?.session) {
+          setSessionReady(true);
+          setChecking(false);
+          // Clean the URL so code isn't reused
+          window.history.replaceState({}, "", "/reset-password");
+          return;
+        }
+        if (exchangeError) {
+          console.error("PKCE exchange error:", exchangeError.message);
+        }
       }
-      setChecking(false);
+
+      // 2. Check if session already exists (implicit flow / hash token auto-exchange)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!cancelled && session) {
+        setSessionReady(true);
+        setChecking(false);
+        return;
+      }
+
+      // 3. Listen for auth state change — token exchange may be async
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (cancelled) return;
+        if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+          setSessionReady(true);
+          setChecking(false);
+        }
+      });
+
+      // 4. Retry after 8 seconds (generous timeout for slow networks)
+      setTimeout(async () => {
+        if (cancelled) return;
+        const { data: { session: retrySession } } = await supabase.auth.getSession();
+        if (retrySession) {
+          setSessionReady(true);
+        }
+        setChecking(false);
+      }, 8000);
+
+      return () => subscription?.unsubscribe();
     };
 
     checkSession();
+    return () => { cancelled = true; };
   }, [supabase]);
 
   // ── Handle password update ────────────────────────────────────────
