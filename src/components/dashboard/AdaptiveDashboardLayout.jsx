@@ -906,7 +906,7 @@ function ReviewScheduleWidget({ reviewSchedule = { dueNow: [], upcoming: [] }, o
 // COIN SHOP BANNER — prominent "coins + open shop" shortcut in dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CoinShopBanner({ coins = 0, onOpenShop }) {
+function CoinShopBanner({ coins = 0, onOpenShop, isDark = false }) {
   const [showGuide, setShowGuide] = React.useState(false);
   if (!onOpenShop) return null;
   return (
@@ -1904,7 +1904,7 @@ export default function AdaptiveDashboardLayout({
     <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "relative", zIndex: 1 }}>
 
       {/* Coin Shop shortcut — all bands */}
-      <CoinShopBanner coins={coins} onOpenShop={onAvatar} />
+      <CoinShopBanner coins={coins} onOpenShop={onAvatar} isDark={isDark} />
 
       {/* KS1: Digital Pet Prominent */}
       {band === "ks1" && <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />}

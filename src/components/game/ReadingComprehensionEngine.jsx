@@ -147,13 +147,25 @@ export default function ReadingComprehensionEngine({
         topic: q.topic || "comprehension",
         correct: answers[i]?.isCorrect ?? false,
       }));
-      await supabase.from("quiz_results").insert({
+      const { data: qrRow } = await supabase.from("quiz_results").insert({
         scholar_id: student.id, subject: "english",
-        score: finalScore, total_questions: normalizedQuestions.length,
+        score: finalScore, questions_total: normalizedQuestions.length,
+        accuracy,
         completed_at: new Date().toISOString(),
-      }).catch(() => {});
+      }).select("id").single().catch(() => ({}));
       await supabase.rpc("update_scholar_skills",  { p_scholar_id: student.id, p_details: details }).catch(() => {});
       await supabase.rpc("increment_scholar_xp",   { s_id: student.id, xp_to_add: finalScore * 10 }).catch(() => {});
+      // Coins + streak + quest progress (non-fatal)
+      try {
+        let cs = 0;
+        try { const { data: sv } = await supabase.rpc("update_scholar_streak", { p_scholar_id: student.id }); cs = sv ?? 0; } catch {}
+        if (qrRow?.id) {
+          const { awardCoinsForQuiz } = await import("../../lib/coins");
+          await awardCoinsForQuiz(supabase, { scholarId: student.id, quizResultId: qrRow.id, score: accuracy, xpEarned: finalScore * 10, topic: "comprehension", currentStreak: cs });
+        }
+        const { updateQuestProgress } = await import("../../lib/questSystem");
+        await updateQuestProgress(student.id, { subject: "english", totalQuestions: normalizedQuestions.length, correctCount: finalScore, accuracy, timeSpent: 0 });
+      } catch {}
     }
     onComplete?.({ score: finalScore, accuracy, answers, topicSummary });
   }, [normalizedQuestions, student, onComplete, topicSummary]);

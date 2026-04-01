@@ -216,7 +216,7 @@ export async function saveQuizResult(supabase, {
     const topics = [...new Set(questions.map(q => q.topic).filter(Boolean))];
 
     // quiz_results row — only columns that exist on the table
-    const { error: insertErr } = await supabase.from('quiz_results').insert({
+    const { data: insertedRow, error: insertErr } = await supabase.from('quiz_results').insert({
       scholar_id:         studentId,
       subject:            normSubject,
       curriculum:         curriculum || 'uk_national',
@@ -225,7 +225,7 @@ export async function saveQuizResult(supabase, {
       accuracy,
       time_spent_seconds: timeSpentSeconds || 0,
       topics:             JSON.stringify(topics),
-    });
+    }).select('id').single();
 
     if (insertErr) {
       console.error('[saveQuizResult] insert failed:', insertErr.message);
@@ -259,6 +259,41 @@ export async function saveQuizResult(supabase, {
 
     try { await supabase.rpc('increment_scholar_xp', { s_id: studentId, xp_to_add: xp }); }
     catch (err) { console.warn('[saveQuizResult] increment_scholar_xp RPC failed:', err?.message); }
+
+    // ── Update daily streak (non-fatal) ─────────────────────────────────
+    let currentStreak = 0;
+    try {
+      const { data: streakVal } = await supabase.rpc('update_scholar_streak', { p_scholar_id: studentId });
+      currentStreak = streakVal ?? 0;
+    } catch (err) { console.warn('[saveQuizResult] update_scholar_streak RPC failed:', err?.message); }
+
+    // ── Award coins: quiz base + perfect bonus + streak + first-topic (non-fatal) ──
+    const quizResultId = insertedRow?.id || null;
+    if (quizResultId) {
+      try {
+        const { awardCoinsForQuiz } = await import('@/lib/coins');
+        await awardCoinsForQuiz(supabase, {
+          scholarId:     studentId,
+          quizResultId,
+          score:         accuracy,
+          xpEarned:      xp,
+          topic:         topics[0] || 'general',
+          currentStreak,
+        });
+      } catch (err) { console.warn('[saveQuizResult] awardCoinsForQuiz failed:', err?.message); }
+    }
+
+    // ── Update quest progress — awards quest coin_reward on completion (non-fatal) ──
+    try {
+      const { updateQuestProgress } = await import('@/lib/questSystem');
+      await updateQuestProgress(studentId, {
+        subject:        normSubject,
+        totalQuestions:  questions.length,
+        correctCount:   finalScore,
+        accuracy,
+        timeSpent:      timeSpentSeconds || 0,
+      });
+    } catch (err) { console.warn('[saveQuizResult] updateQuestProgress failed:', err?.message); }
 
     // ── Journal entry for KS1/KS2 adaptive dashboards (non-fatal) ─────
     try {

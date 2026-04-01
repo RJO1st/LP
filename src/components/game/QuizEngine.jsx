@@ -1323,7 +1323,7 @@ export default function QuizEngine({
 
         // 1. Insert quiz_results row — canonical column names only
         const topics = [...new Set(details.map(d => d.topic).filter(Boolean))];
-        await supabase.from("quiz_results").insert({
+        const { data: qrRow } = await supabase.from("quiz_results").insert({
           scholar_id:         student.id,
           subject,
           curriculum,
@@ -1332,12 +1332,34 @@ export default function QuizEngine({
           time_spent_seconds: sessionQuestions.length * 45,
           accuracy,
           topics:             JSON.stringify(topics),
-        }).catch(e => console.error("[finishQuest] quiz_results insert:", e.message));
+        }).select("id").single().catch(e => { console.error("[finishQuest] quiz_results insert:", e.message); return {}; });
 
         // 2. Award XP
         await supabase.rpc("increment_scholar_xp", {
           s_id: student.id, xp_to_add: totalScore,
         }).catch(e => console.error("[finishQuest] XP rpc:", e.message));
+
+        // 2b. Update daily streak + award coins + update quest progress (non-fatal)
+        try {
+          let currentStreak = 0;
+          try {
+            const { data: sv } = await supabase.rpc("update_scholar_streak", { p_scholar_id: student.id });
+            currentStreak = sv ?? 0;
+          } catch {}
+          if (qrRow?.id) {
+            const { awardCoinsForQuiz } = await import("../../lib/coins");
+            await awardCoinsForQuiz(supabase, {
+              scholarId: student.id, quizResultId: qrRow.id,
+              score: accuracy, xpEarned: totalScore,
+              topic: topics[0] || "general", currentStreak,
+            });
+          }
+          const { updateQuestProgress } = await import("../../lib/questSystem");
+          await updateQuestProgress(student.id, {
+            subject, totalQuestions: sessionQuestions.length,
+            correctCount: finalScore, accuracy, timeSpent: sessionQuestions.length * 45,
+          });
+        } catch (e) { console.warn("[finishQuest] coin/quest wiring:", e?.message); }
 
         // 3. Update mastery — use BKT processSession from masteryEngine
         try {

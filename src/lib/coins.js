@@ -5,15 +5,8 @@
 // Idempotent via ref_id — safe to call twice for the same quiz result.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createBrowserClient } from "@supabase/ssr";
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
 // ── Earn rates ────────────────────────────────────────────────────────────────
-const RATES = {
+export const RATES = {
   quizBase:        10,   // every completed quiz
   quizPerfect:     20,   // bonus for 100%
   quizGoodPass:     5,   // bonus for ≥80%
@@ -42,7 +35,7 @@ const XP_PER_COIN = 10;  // 1 coin per 10 XP earned
  *
  * @returns {{ awarded: number, breakdown: string[], balanceAfter: number } | { skipped: true }}
  */
-export async function awardCoinsForQuiz({
+export async function awardCoinsForQuiz(supabase, {
   scholarId,
   quizResultId,
   score,
@@ -92,7 +85,7 @@ export async function awardCoinsForQuiz({
   }
 
   // First-time topic bonus
-  const isFirst = await isFirstTopicCompletion(scholarId, topic, quizResultId);
+  const isFirst = await isFirstTopicCompletion(supabase, scholarId, topic, quizResultId);
   if (isFirst) {
     total += RATES.firstTopic;
     breakdown.push(`${RATES.firstTopic} for first time completing "${topic}"`);
@@ -100,7 +93,7 @@ export async function awardCoinsForQuiz({
 
   if (total <= 0) return { awarded: 0, breakdown };
 
-  const result = await creditCoins({
+  const result = await creditCoins(supabase, {
     scholarId,
     delta: total,
     reason: `Quiz complete (${score}%): ${breakdown.join(", ")}`,
@@ -115,7 +108,7 @@ export async function awardCoinsForQuiz({
 /**
  * Award coins for completing a mission.
  */
-export async function awardCoinsForMission({ scholarId, missionId, missionName }) {
+export async function awardCoinsForMission(supabase, { scholarId, missionId, missionName }) {
   const { data: existing } = await supabase
     .from("coin_transactions")
     .select("id")
@@ -126,7 +119,7 @@ export async function awardCoinsForMission({ scholarId, missionId, missionName }
 
   if (existing) return { skipped: true };
 
-  return creditCoins({
+  return creditCoins(supabase, {
     scholarId,
     delta: RATES.missionComplete,
     reason: `Mission complete: ${missionName}`,
@@ -146,7 +139,7 @@ function getStreakBonus(streak) {
   return 0;
 }
 
-async function isFirstTopicCompletion(scholarId, topic, currentResultId) {
+async function isFirstTopicCompletion(supabase, scholarId, topic, currentResultId) {
   if (!topic) return false;
   const { count } = await supabase
     .from("quiz_results")
@@ -157,7 +150,7 @@ async function isFirstTopicCompletion(scholarId, topic, currentResultId) {
   return count === 0;
 }
 
-async function creditCoins({ scholarId, delta, reason, source, refId }) {
+async function creditCoins(supabase, { scholarId, delta, reason, source, refId }) {
   // Read current balance from scholars table (matches existing schema)
   const { data: scholar, error } = await supabase
     .from("scholars")

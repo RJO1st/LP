@@ -24,6 +24,7 @@ import DashboardRouter from '@/components/dashboard/DashboardRouter';
 import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundary';
 import useDashboardData from '@/hooks/useDashboardData';
 import { getAgeBand } from '@/lib/ageBandConfig';
+import { invalidateCache as invalidateAnalyticsCache } from '@/lib/analyticsService';
 import DashboardTour from "@/components/DashboardTour";
 
 // ── Tier 1 components ─────────────────────────────────────────────
@@ -704,6 +705,7 @@ export default function StudentDashboard() {
 
   // ── Age-adaptive dashboard ─────────────────────────────────────────
   const adaptiveData = useDashboardData(scholar, supabase);
+  const refetchDashboard = adaptiveData.refetch;
   const [dashboardMode, setDashboardMode] = useState("adaptive");
 
   // ── Free tier: derived access info ──────────────────────────────
@@ -1043,6 +1045,17 @@ export default function StudentDashboard() {
       // Badge RPC not yet deployed — skip silently
     }
 
+    // ── Award mission-complete coins (+50) — non-fatal ──
+    try {
+      const { awardCoinsForMission } = await import("@/lib/coins");
+      const missionId = payload?.sessionId || `mission_${scholar.id}_${Date.now()}`;
+      await awardCoinsForMission(supabase, {
+        scholarId:   scholar.id,
+        missionId,
+        missionName: activeSubject || "Quest",
+      });
+    } catch (e) { console.warn("[handleQuestComplete] awardCoinsForMission:", e?.message); }
+
     const { data: fresh } = await supabase
       .from("scholars")
       .select("*")
@@ -1057,12 +1070,21 @@ export default function StudentDashboard() {
     // ← Tier 1: refresh insight + streak after each completed mission
     await refreshTier1(scholar.id);
 
+    // ← Refresh dashboard stats (mission count, XP, mastery %) immediately
+    //   Invalidate ALL analytics caches so useDashboardData re-fetches fresh data
+    invalidateAnalyticsCache(`quizResults:${scholar.id}`);
+    invalidateAnalyticsCache(`weeklySummary:${scholar.id}`);
+    invalidateAnalyticsCache(`mastery:${scholar.id}`);
+    invalidateAnalyticsCache(`subjectProf:${scholar.id}`);
+    invalidateAnalyticsCache(`activityCal:${scholar.id}`);
+    refetchDashboard();
+
     // ← Free tier: refresh daily question count for nav badge
     if (effectiveTier === "free") {
       const access = await checkQuestAccess(supabase, parentInfo, scholar.id);
       setTodayQCount(access.todayCount || 0);
     }
-  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, loadMasteryRecords, loadJourneyTopics, refreshTier1, effectiveTier, parentInfo, activeSubject]);
+  }, [scholar, supabase, refreshHistory, loadRecentQuizzes, loadQuests, loadBadges, loadMasteryRecords, loadJourneyTopics, refreshTier1, effectiveTier, parentInfo, activeSubject, refetchDashboard]);
 
   // ── Launch weekly challenge ──────────────────────────────────────
   const handleWeeklyChallengeStart = useCallback(async () => {

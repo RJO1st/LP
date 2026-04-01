@@ -382,6 +382,14 @@ export default function useDashboardData(scholar, supabase) {
     recentQuizzes, mockTests, revisionSessions, leaderboard,
     subjectProficiency, reviewSchedule, activityCalendar,
     loading, refetch: fetchAll,
+    invalidateAll: () => {
+      invalidateCache(`mastery:${scholarId}`);
+      invalidateCache(`weeklySummary:${scholarId}`);
+      invalidateCache(`quizResults:${scholarId}`);
+      invalidateCache(`subjectProf:${scholarId}`);
+      invalidateCache(`examReadiness:${scholarId}`);
+      invalidateCache(`activityCal:${scholarId}`);
+    },
     invalidateCache: () => invalidateCache(`mastery:${scholarId}`),
   };
 }

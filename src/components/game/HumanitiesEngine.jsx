@@ -108,16 +108,27 @@ export default function HumanitiesEngine({
         };
       });
 
-      await supabase.from("quiz_results").insert({
+      const { data: qrRow } = await supabase.from("quiz_results").insert({
         scholar_id: student.id,
         subject: subject,
         score: finalScore,
-        total_questions: normalizedQuestions.length,
+        questions_total: normalizedQuestions.length,
+        accuracy,
         completed_at: new Date().toISOString(),
-        details,
-      });
+      }).select("id").single().catch(() => ({}));
       await supabase.rpc("update_scholar_skills",  { p_scholar_id: student.id, p_details: details });
       await supabase.rpc("increment_scholar_xp",   { s_id: student.id, xp_to_add: totalScore });
+      // Coins + streak + quest progress (non-fatal)
+      try {
+        let cs = 0;
+        try { const { data: sv } = await supabase.rpc("update_scholar_streak", { p_scholar_id: student.id }); cs = sv ?? 0; } catch {}
+        if (qrRow?.id) {
+          const { awardCoinsForQuiz } = await import("../../lib/coins");
+          await awardCoinsForQuiz(supabase, { scholarId: student.id, quizResultId: qrRow.id, score: accuracy, xpEarned: totalScore, topic: normalizedQuestions[0]?.topic || "humanities", currentStreak: cs });
+        }
+        const { updateQuestProgress } = await import("../../lib/questSystem");
+        await updateQuestProgress(student.id, { subject, totalQuestions: normalizedQuestions.length, correctCount: finalScore, accuracy, timeSpent: 0 });
+      } catch {}
     }
 
     if (onComplete) onComplete({ score: finalScore, totalScore, accuracy, answers, topicSummary });
