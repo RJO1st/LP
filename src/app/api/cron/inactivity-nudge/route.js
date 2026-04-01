@@ -34,10 +34,17 @@ export async function GET(req) {
     return NextResponse.json({ error: "RESEND_API_KEY not set" }, { status: 500 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const supabaseUrl = process.env.SUPABASE_URL
+    || process.env.NEXT_PUBLIC_SUPABASE_URL
+    || "https://vjslqdvhujzlupxyosbq.supabase.co";
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseKey) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   // ── 2. Config ──────────────────────────────────────────────────────────────
   const url = new URL(req.url);
