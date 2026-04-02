@@ -106,6 +106,11 @@ const NebulaTrials = dynamic(
   { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
 );
 
+const ExamOrchestrator = dynamic(
+  () => import("../../../components/exam/ExamOrchestrator"),
+  { ssr: false, loading: () => <LoadingScreen message="Loading Exam Centre…" /> }
+);
+
 
 // ─── ICONS ────────────────────────────────────────────────────────
 const Icon = ({ d, size = 20 }) => (
@@ -708,6 +713,9 @@ export default function StudentDashboard() {
   const refetchDashboard = adaptiveData.refetch;
   const [dashboardMode, setDashboardMode] = useState("adaptive");
 
+  // ── Exam orchestration ─────────────────────────────────────────────
+  const [examMode, setExamMode] = useState(null); // null | "active"
+
   // ── Free tier: derived access info ──────────────────────────────
   const effectiveTier = parentInfo ? getEffectiveTier(parentInfo) : "pro"; // default pro during load
   const featureAccess = getFeatureAccess(effectiveTier);
@@ -1202,8 +1210,9 @@ const UK_NATIONAL_SUBJECTS = {
         const streamSubjects = stream ? (NG_SSS_STREAMS[stream]?.subjects || []) : [];
         return [...base, ...streamSubjects];
       }
-      case 'uk_national':
-      case 'uk_11plus': {
+      case 'uk_11plus':
+        return getSubjectsForCurriculum('uk_11plus');
+      case 'uk_national': {
         const ks = getUkNationalKeyStage(yr);
         return UK_NATIONAL_SUBJECTS[ks] || ['mathematics', 'english', 'science'];
       }
@@ -1329,6 +1338,14 @@ const UK_NATIONAL_SUBJECTS = {
   // ── Dashboard ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen font-sans" style={{ background: "transparent" }}>
+
+      {/* Exam orchestrator — fullscreen when active */}
+      {examMode === "active" && (
+        <ExamOrchestrator
+          scholar={scholar}
+          onClose={() => setExamMode(null)}
+        />
+      )}
 
       {/* Toasts */}
       {newBadges.length > 0 && (
@@ -1546,6 +1563,7 @@ const UK_NATIONAL_SUBJECTS = {
             isFirstLogin={isFirstLogin}
             onSignOut={handleSignOut}
             onAvatar={() => setShowAvatarShop(true)}
+            onOpenExams={() => setExamMode("active")}
           />
         </ThemeProvider>
         </DashboardErrorBoundary>

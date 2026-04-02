@@ -79,6 +79,7 @@ const NAV_CONFIG = {
       { icon: "insights", emoji: "📈", label: "Radar", key: "stats" },
       { icon: "explore", emoji: "🧭", label: "Navigation", key: "galaxy" },
       { icon: "work", emoji: "💼", label: "Careers", key: "careers" },
+      { icon: "quiz", emoji: "📝", label: "Practice Exams", key: "exam-papers", action: "exam-papers" },
     ],
     cta: { icon: "bolt", label: "Start Challenge" },
   },
@@ -99,6 +100,7 @@ const NAV_CONFIG = {
     navItemHeight: 36,
     items: [
       { icon: "school", emoji: "🎓", label: "Exam Mastery", key: "exams" },
+      { icon: "description", emoji: "📝", label: "Exam Papers", key: "exam-papers", action: "exam-papers" },
       { icon: "insights", emoji: "📈", label: "Telemetry", key: "stats" },
       { icon: "psychology", emoji: "🧠", label: "Star Chart", key: "heatmap" },
       { icon: "assignment", emoji: "📋", label: "Simulation Bay", key: "tutor" },

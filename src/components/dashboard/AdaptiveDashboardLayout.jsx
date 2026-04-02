@@ -984,7 +984,7 @@ export default function AdaptiveDashboardLayout({
   scholarId, supabase, coins = 0, todayQCount = 0, effectiveTier = "pro",
   earnedBadgeIds = [], isFirstLogin = false,
   onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
-  onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic,
+  onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic, onOpenExams,
 }) {
   const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
@@ -997,6 +997,7 @@ export default function AdaptiveDashboardLayout({
   // Handle nav actions (e.g. opening modals from nav buttons)
   const handleNavAction = (action) => {
     if (action === "nebula-trials") setShowNebulaTrials(true);
+    if (action === "exam-papers" && onOpenExams) onOpenExams();
   };
 
   const subjectMastery = useMemo(() => {
@@ -1456,6 +1457,37 @@ export default function AdaptiveDashboardLayout({
               <GoalSetting scholarId={scholarId} stats={stats} />
             </HudPanel>
 
+            {/* ── PRACTICE EXAMS: Mock Test Gateway (KS3) ─────────────────────── */}
+            <HudPanel designation="PRC" label="Practice Exams">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <p style={{ fontSize: 13, color: "#cbd5e1", margin: 0 }}>
+                  Sharpen your skills with practice exam papers
+                </p>
+                <button
+                  onClick={onOpenExams}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "rgba(91,106,191,0.15)",
+                    color: "#818cf8",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    border: "1px solid rgba(91,106,191,0.25)",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "rgba(91,106,191,0.25)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "rgba(91,106,191,0.15)";
+                  }}
+                >
+                  Browse
+                </button>
+              </div>
+            </HudPanel>
+
             {/* ── TRAJECTORY: Year Progression ───────────────────────────────── */}
             {masteryData.length > 0 && (
               <HudPanel designation="TRJ" label="Flight Trajectory">
@@ -1808,6 +1840,43 @@ export default function AdaptiveDashboardLayout({
                 />
               </BandCard>
             )}
+
+            {/* ── Exam Papers (KS4 official papers gateway) ──────────────── */}
+            <BandCard band={band} glow>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2 }}>Examination Centre</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe" }}>Exam Papers</div>
+                </div>
+                <button
+                  onClick={onOpenExams}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    background: "linear-gradient(135deg, #8b5cf6, #a78bfa)",
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "scale(1.05)";
+                    e.target.style.boxShadow = "0 10px 20px rgba(139,92,246,0.3)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "scale(1)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                >
+                  Browse Papers
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: "#c4b5fd", marginTop: 12, lineHeight: 1.5 }}>
+                Access official exam papers, practice questions, and timed mock tests. Prepare systematically with papers from your curriculum board.
+              </p>
+            </BandCard>
 
             {/* ── Simulation Bay (main content anchor for nav linking) ─── */}
             <div data-section="tutor">
