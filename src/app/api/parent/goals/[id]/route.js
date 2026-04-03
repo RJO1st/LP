@@ -9,7 +9,7 @@ const getClient = () =>
 
 // ── PUT — toggle achieved status ─────────────────────────────────────────────
 export async function PUT(req, { params }) {
-  const { id } = params;
+  const { id } = await params;
 
   let body;
   try {
@@ -48,7 +48,7 @@ export async function PUT(req, { params }) {
 
 // ── DELETE — remove a goal ────────────────────────────────────────────────────
 export async function DELETE(req, { params }) {
-  const { id } = params;
+  const { id } = await params;
 
   const supabase = getClient();
 

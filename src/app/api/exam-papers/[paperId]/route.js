@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
       }
     )
 
-    const paperId = params.paperId
+    const { paperId } = await params
 
     // Fetch the exam paper (must be published)
     const { data: paper, error: paperError } = await supabase

@@ -26,7 +26,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const sittingId = params.sittingId
+    const { sittingId } = await params
 
     // Fetch sitting
     const { data: sitting, error: sittingError } = await supabase
@@ -135,7 +135,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const sittingId = params.sittingId
+    const { sittingId } = await params
 
     // Fetch sitting
     const { data: sitting, error: sittingError } = await supabase

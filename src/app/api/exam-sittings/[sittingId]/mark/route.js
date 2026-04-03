@@ -38,7 +38,7 @@ export async function POST(req, { params }) {
   const TIMEOUT_WARNING_MS = 30000 // 30 seconds
 
   try {
-    const { sittingId } = params
+    const { sittingId } = await params
 
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -150,7 +150,7 @@ export async function POST(req, { params }) {
 
     return NextResponse.json(response)
   } catch (err) {
-    console.error(`POST /api/exam-sittings/${params.sittingId}/mark error:`, err)
+    console.error('POST /api/exam-sittings/[sittingId]/mark error:', err)
     return NextResponse.json(
       { error: 'Internal server error during marking' },
       { status: 500 }

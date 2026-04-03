@@ -99,8 +99,7 @@ export default function ExamMarkingScreen({
               </p>
               <button
                 onClick={onRetry}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg
-                           font-bold text-sm transition-colors"
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
               >
                 Try Again
               </button>
