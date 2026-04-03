@@ -28,6 +28,31 @@ export default function LoginPage() {
   );
 }
 
+/** Detect network-level fetch failures vs auth/API errors */
+function isNetworkError(err) {
+  if (!err) return false;
+  const msg = (err.message || err.toString()).toLowerCase();
+  return (
+    msg.includes("failed to fetch") ||
+    msg.includes("networkerror") ||
+    msg.includes("network request failed") ||
+    msg.includes("load failed") ||        // Safari
+    msg.includes("type error") ||
+    msg === "fetch failed"
+  );
+}
+
+function friendlyError(err) {
+  if (isNetworkError(err)) {
+    return "Unable to connect. Please check your internet connection and try again.";
+  }
+  const msg = err?.message || "";
+  if (msg.includes("Invalid login credentials")) return "Incorrect email or password. Please try again.";
+  if (msg.includes("Email not confirmed")) return "Please confirm your email before logging in. Check your inbox.";
+  if (msg.includes("Too many requests")) return "Too many attempts. Please wait a minute and try again.";
+  return msg || "Something went wrong. Please try again.";
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -89,7 +114,8 @@ function LoginForm() {
       } catch (_) {}
       router.push("/dashboard/parent");
     } catch (err) {
-      setError(err.message || "Invalid login credentials");
+      console.error("Parent login error:", err);
+      setError(friendlyError(err));
       setLoading(false);
     }
   };
@@ -128,7 +154,8 @@ function LoginForm() {
       localStorage.setItem("scholar_login", "true");
       router.push("/dashboard/student");
     } catch (err) {
-      setError(err.message || "Login failed");
+      console.error("Scholar login error:", err);
+      setError(friendlyError(err));
       setLoading(false);
     }
   };
@@ -151,7 +178,8 @@ function LoginForm() {
 
       setResetSent(true);
     } catch (err) {
-      setError(err.message || "Failed to send reset email");
+      console.error("Forgot password error:", err);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -182,7 +210,8 @@ function LoginForm() {
 
       setCodeSent(true);
     } catch (err) {
-      setError(err.message || "Failed to send access code");
+      console.error("Forgot code error:", err);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -352,7 +381,13 @@ function LoginForm() {
 
             {error && (
               <div className="mb-4 p-3 bg-rose-100 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 rounded-xl text-rose-700 dark:text-rose-300 text-sm font-bold">
-                {error}
+                <p>{error}</p>
+                {error.includes("internet connection") && (
+                  <button type="button" onClick={() => setError(null)}
+                    className="mt-2 text-xs underline text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200">
+                    Dismiss and try again
+                  </button>
+                )}
               </div>
             )}
 

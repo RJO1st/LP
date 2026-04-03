@@ -71,7 +71,7 @@ export async function GET(req, { params }) {
     // Fetch paper metadata
     const { data: paper } = await supabase
       .from('exam_papers')
-      .select('id, exam_board, exam_type, subject, tier, year, paper_number, total_marks, duration_minutes, display_title')
+      .select('id, exam_board, exam_type, subject, component_code, tier, year, session, paper_number, total_marks, duration_minutes, display_title')
       .eq('id', sitting.exam_paper_id)
       .maybeSingle()
 

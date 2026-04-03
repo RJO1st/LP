@@ -162,7 +162,13 @@ function SignupForm() {
 
       if (!signInError) router.push("/dashboard/parent");
     } catch (err) {
-      setError(err.message || "Failed to create account. Please try again.");
+      console.error("Signup error:", err);
+      const msg = (err.message || "").toLowerCase();
+      if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed") || msg === "fetch failed") {
+        setError("Unable to connect. Please check your internet connection and try again.");
+      } else {
+        setError(err.message || "Failed to create account. Please try again.");
+      }
       setLoading(false);
     }
   };

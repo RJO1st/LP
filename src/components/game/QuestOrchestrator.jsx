@@ -276,19 +276,26 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const { speak, speakOptions, speakExplanation, speakTaraResponse, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1, keyStage } = useReadAloud(student);
 
   // Auto-speak question text when question changes (if enabled)
+  // Pattern: read question FIRST → wait for it to finish → then read options
+  // If the scholar answers before speech finishes, handlePick() calls stopSpeaking()
   const currentQuestionText = sessionQuestions[qIdx]?.q || "";
   const currentOpts = sessionQuestions[qIdx]?.opts;
+  const speechCancelledRef = useRef(false);
   useEffect(() => {
     if (!readAloudEnabled || !currentQuestionText || generating) return;
+    speechCancelledRef.current = false;
     // Small delay to ensure DOM has rendered the correct question
     const timer = setTimeout(async () => {
+      // 1. Read the question text and wait for it to FINISH
       await speak(currentQuestionText);
-      // For KS1: also read answer options aloud after the question
-      if (isKS1 && currentOpts?.length) {
-        setTimeout(() => speakOptions(currentOpts), 400);
+      // 2. If scholar answered during question speech, stop here
+      if (speechCancelledRef.current) return;
+      // 3. Read answer options aloud after question finishes (KS1 always, KS2+ when enabled)
+      if (currentOpts?.length) {
+        await speakOptions(currentOpts);
       }
     }, 300);
-    return () => { clearTimeout(timer); stopSpeaking(); };
+    return () => { speechCancelledRef.current = true; clearTimeout(timer); stopSpeaking(); };
   }, [currentQuestionText, readAloudEnabled, generating]);
 
   // Auto-speak explanation after an answer is selected (all KS when enabled)
@@ -487,6 +494,7 @@ const year = rawYear;
   const handlePick = useCallback((idx) => {
     if (selected !== null || timerExpired) return;
     // Stop any playing audio immediately when scholar clicks an answer
+    speechCancelledRef.current = true;
     stopSpeaking();
     const q         = sessionQuestions[qIdx];
     const isCorrect = idx === q.a;

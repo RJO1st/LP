@@ -138,10 +138,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
     }
 
-    // Fetch the exam paper
+    // Fetch the exam paper (full metadata for ExamRunner display)
     const { data: paper, error: paperError } = await supabase
       .from('exam_papers')
-      .select('id, duration_minutes, total_marks, is_published')
+      .select('id, exam_board, exam_type, subject, component_code, tier, year, session, paper_number, total_marks, duration_minutes, display_title, is_published')
       .eq('id', exam_paper_id)
       .maybeSingle()
 
@@ -185,14 +185,12 @@ export async function POST(req) {
       return rest
     })
 
+    // Return full paper metadata (strip is_published — not needed client-side)
+    const { is_published, ...paperMeta } = paper
     return NextResponse.json({
       sitting,
       questions: safeQuestions,
-      paper: {
-        id: paper.id,
-        duration_minutes: paper.duration_minutes,
-        total_marks: paper.total_marks
-      }
+      paper: paperMeta
     }, { status: 201 })
   } catch (err) {
     console.error('POST /api/exam-sittings error:', err)

@@ -106,10 +106,7 @@ const NebulaTrials = dynamic(
   { loading: () => <LoadingScreen message="Setting up the Arena…" /> }
 );
 
-const ExamOrchestrator = dynamic(
-  () => import("../../../components/exam/ExamOrchestrator"),
-  { ssr: false, loading: () => <LoadingScreen message="Loading Exam Centre…" /> }
-);
+// ExamOrchestrator moved to dedicated page: /dashboard/student/exams/page.jsx
 
 
 // ─── ICONS ────────────────────────────────────────────────────────
@@ -714,7 +711,7 @@ export default function StudentDashboard() {
   const [dashboardMode, setDashboardMode] = useState("adaptive");
 
   // ── Exam orchestration ─────────────────────────────────────────────
-  const [examMode, setExamMode] = useState(null); // null | "active"
+  // examMode removed — exams now on dedicated /dashboard/student/exams page
 
   // ── Free tier: derived access info ──────────────────────────────
   const effectiveTier = parentInfo ? getEffectiveTier(parentInfo) : "pro"; // default pro during load
@@ -1339,13 +1336,7 @@ const UK_NATIONAL_SUBJECTS = {
   return (
     <div className="min-h-screen font-sans" style={{ background: "transparent" }}>
 
-      {/* Exam orchestrator — fullscreen when active */}
-      {examMode === "active" && (
-        <ExamOrchestrator
-          scholar={scholar}
-          onClose={() => setExamMode(null)}
-        />
-      )}
+      {/* Exam papers now on dedicated page: /dashboard/student/exams */}
 
       {/* Toasts */}
       {newBadges.length > 0 && (
@@ -1563,7 +1554,7 @@ const UK_NATIONAL_SUBJECTS = {
             isFirstLogin={isFirstLogin}
             onSignOut={handleSignOut}
             onAvatar={() => setShowAvatarShop(true)}
-            onOpenExams={() => setExamMode("active")}
+            onOpenExams={() => router.push("/dashboard/student/exams")}
           />
         </ThemeProvider>
         </DashboardErrorBoundary>

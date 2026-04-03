@@ -123,74 +123,80 @@ export function useReadAloud(scholar) {
   }, []);
 
   // ── Core speak function ────────────────────────────────────────────────
-  const speak = useCallback(async (text, { force = false } = {}) => {
-    // force: speak even if globally disabled (used for one-off speaker button taps)
-    if (!text || (!enabled && !force)) return;
-    stop();
+  // Returns a Promise that resolves when the speech FINISHES playing (not just starts).
+  // This lets callers chain: await speak(question); await speak(options);
+  const speak = useCallback((text, { force = false } = {}) => {
+    return new Promise(async (resolve) => {
+      // force: speak even if globally disabled (used for one-off speaker button taps)
+      if (!text || (!enabled && !force)) { resolve(); return; }
+      stop();
 
-    const clean = cleanForSpeech(text);
-    if (!clean) return;
-    setSpeaking(true);
+      const clean = cleanForSpeech(text);
+      if (!clean) { resolve(); return; }
+      setSpeaking(true);
 
-    const ttsUrl = process.env.NEXT_PUBLIC_TTS_API_URL;
-    const voice = VOICE_MAP[scholar?.curriculum] || VOICE_MAP.default;
+      const ttsUrl = process.env.NEXT_PUBLIC_TTS_API_URL;
+      const voice = VOICE_MAP[scholar?.curriculum] || VOICE_MAP.default;
 
-    // Primary: Cloudflare Worker with OpenAI TTS
-    if (ttsUrl) {
-      try {
-        abortRef.current = new AbortController();
+      // Primary: Cloudflare Worker with OpenAI TTS
+      if (ttsUrl) {
+        try {
+          abortRef.current = new AbortController();
 
-        const resp = await fetch(`${ttsUrl}/v1/audio/speech`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: abortRef.current.signal,
-          body: JSON.stringify({
-            input: clean,
-            voice,
-            speed: ks1 ? 0.85 : 0.9, // slightly slower for KS1
-          }),
-        });
+          const resp = await fetch(`${ttsUrl}/v1/audio/speech`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: abortRef.current.signal,
+            body: JSON.stringify({
+              input: clean,
+              voice,
+              speed: ks1 ? 0.85 : 0.9, // slightly slower for KS1
+            }),
+          });
 
-        if (resp.ok) {
-          const blob = await resp.blob();
-          if (blob.size > 100) {
-            const url = URL.createObjectURL(blob);
-            audioRef.current = new Audio(url);
-            audioRef.current.onended = () => {
-              setSpeaking(false);
-              URL.revokeObjectURL(url);
-              // Process queue if there are pending items
-              processQueue();
-            };
-            audioRef.current.onerror = () => { setSpeaking(false); processQueue(); };
-            await audioRef.current.play();
-            return;
+          if (resp.ok) {
+            const blob = await resp.blob();
+            if (blob.size > 100) {
+              const url = URL.createObjectURL(blob);
+              audioRef.current = new Audio(url);
+              audioRef.current.onended = () => {
+                setSpeaking(false);
+                URL.revokeObjectURL(url);
+                resolve();
+                // Process queue if there are pending items
+                processQueue();
+              };
+              audioRef.current.onerror = () => { setSpeaking(false); resolve(); processQueue(); };
+              await audioRef.current.play();
+              return;
+            }
           }
+          console.warn("[useReadAloud] TTS API returned non-ok, falling back");
+        } catch (err) {
+          if (err.name === "AbortError") { setSpeaking(false); resolve(); return; }
+          console.warn("[useReadAloud] TTS API failed:", err.message);
         }
-        console.warn("[useReadAloud] TTS API returned non-ok, falling back");
-      } catch (err) {
-        if (err.name === "AbortError") { setSpeaking(false); return; }
-        console.warn("[useReadAloud] TTS API failed:", err.message);
       }
-    }
 
-    // Fallback: Web Speech API
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.rate = ks1 ? 0.8 : 0.85;
-      utterance.pitch = 1.05;
-      utterance.volume = 1;
+      // Fallback: Web Speech API
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(clean);
+        utterance.rate = ks1 ? 0.8 : 0.85;
+        utterance.pitch = 1.05;
+        utterance.volume = 1;
 
-      const browserVoice = getWebSpeechVoice(scholar?.curriculum);
-      if (browserVoice) utterance.voice = browserVoice;
+        const browserVoice = getWebSpeechVoice(scholar?.curriculum);
+        if (browserVoice) utterance.voice = browserVoice;
 
-      utterance.onend = () => { setSpeaking(false); processQueue(); };
-      utterance.onerror = () => { setSpeaking(false); processQueue(); };
+        utterance.onend = () => { setSpeaking(false); resolve(); processQueue(); };
+        utterance.onerror = () => { setSpeaking(false); resolve(); processQueue(); };
 
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setSpeaking(false);
-    }
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setSpeaking(false);
+        resolve();
+      }
+    });
   }, [enabled, stop, scholar?.curriculum, ks1]);
 
   // ── Queue processor for sequential speech ──────────────────────────────
