@@ -1,6 +1,36 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+
+/**
+ * Helper: create auth-aware client (for verifying user identity via cookies)
+ */
+async function getAuthClient() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll()
+      }
+    }
+  )
+}
+
+/**
+ * Helper: create service-role client (bypasses RLS for DB operations after auth is verified)
+ */
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    console.error('[exam-sittings] Missing env vars:', { hasUrl: !!url, hasKey: !!key })
+    throw new Error('Server misconfiguration: missing Supabase credentials')
+  }
+  return createClient(url, key)
+}
 
 /**
  * GET /api/exam-sittings/[sittingId]
@@ -9,35 +39,48 @@ import { NextResponse } from 'next/server'
  */
 export async function GET(req, { params }) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll()
-        }
-      }
-    )
+    const authClient = await getAuthClient()
+    const supabase = getServiceClient()
 
     // Verify authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { sittingId } = await params
+    const { sittingId: rawSittingId } = await params
+    const sittingId = (rawSittingId || '').trim()
 
-    // Fetch sitting
-    const { data: sitting, error: sittingError } = await supabase
-      .from('exam_sittings')
-      .select('id, scholar_id, exam_paper_id, mode, started_at, finished_at, time_used_seconds, total_score, total_marks_available, percentage, predicted_grade, status, flagged_questions')
-      .eq('id', sittingId)
-      .maybeSingle()
+    if (!sittingId) {
+      return NextResponse.json({ error: 'Missing sittingId parameter' }, { status: 400 })
+    }
+
+    // Validate UUID format
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(sittingId)) {
+      return NextResponse.json({ error: 'Invalid sittingId format', sittingId }, { status: 400 })
+    }
+
+    // Fetch sitting (with single retry on transient failure)
+    let sitting, sittingError
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await supabase
+        .from('exam_sittings')
+        .select('id, scholar_id, exam_paper_id, mode, started_at, finished_at, time_used_seconds, total_score, total_marks_available, percentage, predicted_grade, status, flagged_questions')
+        .eq('id', sittingId)
+        .maybeSingle()
+      sitting = result.data
+      sittingError = result.error
+      if (!sittingError) break
+      if (attempt === 0) {
+        console.warn('GET sitting fetch retry after error:', sittingError?.message, 'sittingId:', sittingId)
+        await new Promise(r => setTimeout(r, 500))
+      }
+    }
 
     if (sittingError) {
-      console.error('sitting fetch error:', sittingError)
-      return NextResponse.json({ error: 'Failed to fetch sitting' }, { status: 500 })
+      console.error('sitting fetch error (after retry):', sittingError, 'sittingId:', sittingId)
+      return NextResponse.json({ error: 'Failed to fetch sitting', details: sittingError?.message || String(sittingError), sittingId }, { status: 500 })
     }
 
     if (!sitting) {
@@ -118,39 +161,52 @@ export async function GET(req, { params }) {
  */
 export async function PATCH(req, { params }) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll()
-        }
-      }
-    )
+    const authClient = await getAuthClient()
+    const supabase = getServiceClient()
 
     // Verify authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { sittingId } = await params
+    const { sittingId: rawSittingId } = await params
+    const sittingId = (rawSittingId || '').trim()
 
-    // Fetch sitting
-    const { data: sitting, error: sittingError } = await supabase
-      .from('exam_sittings')
-      .select('id, scholar_id, status')
-      .eq('id', sittingId)
-      .maybeSingle()
+    if (!sittingId) {
+      return NextResponse.json({ error: 'Missing sittingId parameter' }, { status: 400 })
+    }
+
+    // Validate UUID format before querying
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(sittingId)) {
+      return NextResponse.json({ error: 'Invalid sittingId format', sittingId }, { status: 400 })
+    }
+
+    // Fetch sitting (with single retry on transient failure)
+    let sitting, sittingError
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await supabase
+        .from('exam_sittings')
+        .select('id, scholar_id, status')
+        .eq('id', sittingId)
+        .maybeSingle()
+      sitting = result.data
+      sittingError = result.error
+      if (!sittingError) break
+      if (attempt === 0) {
+        console.warn('sitting fetch retry after error:', sittingError?.message, 'sittingId:', sittingId)
+        await new Promise(r => setTimeout(r, 500))
+      }
+    }
 
     if (sittingError) {
-      console.error('sitting fetch error:', sittingError)
-      return NextResponse.json({ error: 'Failed to fetch sitting' }, { status: 500 })
+      console.error('sitting fetch error (after retry):', sittingError, 'sittingId:', sittingId)
+      return NextResponse.json({ error: 'Failed to fetch sitting', details: sittingError?.message || String(sittingError), sittingId }, { status: 500 })
     }
 
     if (!sitting) {
-      return NextResponse.json({ error: 'Sitting not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Sitting not found', sittingId }, { status: 404 })
     }
 
     // Verify scholar belongs to this parent (auth user = parent)
@@ -162,10 +218,16 @@ export async function PATCH(req, { params }) {
       .maybeSingle()
 
     if (scholarError || !scholar) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      console.error('Scholar auth check failed:', { scholarError, scholarFound: !!scholar, userId: user.id, scholarId: sitting.scholar_id })
+      return NextResponse.json({ error: 'Forbidden', details: scholarError?.message || 'Scholar not linked to auth user' }, { status: 403 })
     }
 
-    const body = await req.json()
+    let body
+    try {
+      body = await req.json()
+    } catch (parseErr) {
+      return NextResponse.json({ error: 'Invalid request body', details: parseErr?.message }, { status: 400 })
+    }
     const { action } = body
 
     if (!action) {
@@ -240,12 +302,18 @@ export async function PATCH(req, { params }) {
     if (action === 'finish') {
       const now = new Date().toISOString()
 
+      // Guard against NaN / invalid time values
+      const rawTime = body.time_used_seconds
+      const safeTime = (typeof rawTime === 'number' && Number.isFinite(rawTime) && rawTime >= 0)
+        ? Math.round(rawTime)
+        : null
+
       const { data: updatedSitting, error: finishError } = await supabase
         .from('exam_sittings')
         .update({
           finished_at: now,
           status: 'completed',
-          time_used_seconds: body.time_used_seconds || null
+          time_used_seconds: safeTime
         })
         .eq('id', sittingId)
         .select()
@@ -253,7 +321,7 @@ export async function PATCH(req, { params }) {
 
       if (finishError) {
         console.error('finish error:', finishError)
-        return NextResponse.json({ error: 'Failed to finish sitting' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to finish sitting', details: finishError.message }, { status: 500 })
       }
 
       return NextResponse.json({
@@ -265,6 +333,6 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (err) {
     console.error('PATCH /api/exam-sittings/[sittingId] error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: err?.message || String(err) }, { status: 500 })
   }
 }

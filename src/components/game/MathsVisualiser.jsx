@@ -22,6 +22,7 @@ import { CONCEPT_VISUALS } from "./KS12ScienceVisuals";
 import { CivicEducationVis, GovernmentVis, ReligiousStudiesVis, DesignTechVis, AgricultureVis, EconomicsVis, TopicCardVis } from "./HumanitiesVisuals";
 import { PieChartVis, PercentageBarVis, ProbabilityVis, SymmetryVis, EquationSolverVis, ProbabilityTreeVis, GraphPlotterVis, TimelineVis as AnimatedTimelineVis, PlaceValueVis as AdvancedPlaceValueVis, ClockFaceVis, TallyChartVis } from "./AdvancedVisuals";
 // Quiz3DVisual — shelved (3D inline visuals disabled)
+import { CircleTheoremVis, NumberMachineVis, ReactionProfileVis, PeriodicTableOutlineVis, PedigreeChartVis, PetriDishVis, MicroscopeDiagramVis, CoordinateGridVis } from "./ExamStyleVisuals";
 import KenneyVisuals, { resolveKenneyVisual } from "./KenneyVisuals";
 import InteractiveGraph from "./InteractiveGraph";
 import JSXGraphBoard, { createLinearGraphProps, createQuadraticGraphProps, createTrigGraphProps, createGeometryProps, createSliderExplorerProps } from "./JSXGraphBoard";
@@ -3237,6 +3238,67 @@ export function resolveVisual(question, subject, yearLevel) {
     if (histFallback) return histFallback;
   }
 
+  // ── ExamStyle visuals — shared renderers from ExamRunner ──────────────────
+
+  // Circle theorem (Maths KS3/KS4)
+  if (isMaths && year >= 7 && (topicStr.includes("circle_theorem") || /circle theorem|tangent.*radius|angle.*centre|cyclic quadrilateral|alternate segment|angle in.*semicircle|inscribed angle|angle at.*circumference/i.test(qLower))) {
+    let theorem = "tangent";
+    if (/inscribed|angle.*centre|angle at the cent|angle.*circumference/i.test(qLower)) theorem = "inscribed";
+    else if (/cyclic quadrilateral|opposite angles/i.test(qLower)) theorem = "cyclic_quadrilateral";
+    else if (/alternate segment/i.test(qLower)) theorem = "alternate_segment";
+    return { type: "circle_theorem", theorem };
+  }
+
+  // Number machine / function machine (Maths KS2-KS4)
+  if (isMaths && (topicStr.includes("function_machine") || topicStr.includes("number_machine") || /function machine|number machine|input.*output.*rule|input.*operation/i.test(qLower))) {
+    const opsMatch = [...questionStr.matchAll(/([+\-×x*÷/]\s*\d+)/g)];
+    const ops = opsMatch.length ? opsMatch.map(m => m[1].trim()) : ["× 2", "+ 3"];
+    const inputMatch = questionStr.match(/input[:\s]+(\d+|n|x)/i);
+    const outputMatch = questionStr.match(/output[:\s]+(\d+|\?)/i);
+    return { type: "number_machine", input: inputMatch?.[1] || "n", operations: ops.slice(0, 3), output: outputMatch?.[1] || "?" };
+  }
+
+  // Reaction profile / energy profile (Chemistry KS3/KS4)
+  if ((isScience || enrichedSubject === "chemistry") && year >= 7 && (topicStr.includes("reaction_profile") || topicStr.includes("energy_profile") || /reaction profile|energy profile|activation energy|exothermic.*endothermic|energy diagram|enthalpy/i.test(qLower))) {
+    const isExo = /exothermic/i.test(qLower);
+    const showCat = /catalyst/i.test(qLower);
+    return { type: "reaction_profile", profileType: isExo ? "exothermic" : /endothermic/i.test(qLower) ? "endothermic" : "exothermic", showCatalyst: showCat };
+  }
+
+  // Periodic table outline (Chemistry KS3/KS4)
+  if ((isScience || enrichedSubject === "chemistry") && year >= 7 && (topicStr.includes("periodic_table") || /periodic table|group [1-70]|period [1-7]|alkali metal|noble gas|halogen|transition metal/i.test(qLower)) && !/element.*symbol|atomic number.*of/i.test(qLower)) {
+    const elemMatch = [...questionStr.matchAll(/\b(H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar)\b/g)];
+    const highlighted = elemMatch.map(m => m[1]);
+    return { type: "periodic_table_outline", highlighted };
+  }
+
+  // Pedigree chart (Biology KS3/KS4)
+  if ((isScience || enrichedSubject === "biology") && year >= 7 && (topicStr.includes("pedigree") || topicStr.includes("inheritance") || /pedigree|family tree.*inherit|autosomal|carrier.*recessive|genetic.*cross.*family|inherited.*disorder/i.test(qLower))) {
+    let pattern = "autosomal_recessive";
+    if (/dominant/i.test(qLower)) pattern = "autosomal_dominant";
+    if (/sex.linked|x.linked/i.test(qLower)) pattern = "x_linked";
+    return { type: "pedigree_chart", generations: 3, affectedPattern: pattern };
+  }
+
+  // Petri dish / microbiology (Biology KS3/KS4)
+  if ((isScience || enrichedSubject === "biology") && year >= 7 && (topicStr.includes("petri") || topicStr.includes("microbiol") || /petri dish|agar|bacterial colony|zone of inhibition|antibiotic.*disc|aseptic technique/i.test(qLower))) {
+    const showInhibition = /inhibition|antibiotic|clear zone|disc/i.test(qLower);
+    return { type: "petri_dish", showInhibition, colonies: 8 };
+  }
+
+  // Microscope diagram (Biology KS2-KS4)
+  if ((isScience || enrichedSubject === "biology") && (topicStr.includes("microscop") || /microscope|eyepiece|objective lens|magnification.*lens|stage.*clip|coarse focus|fine focus/i.test(qLower))) {
+    const hideLabels = /label|identify|name.*part/i.test(qLower);
+    return { type: "microscope_diagram", hideLabels };
+  }
+
+  // Coordinate grid for transformations (Maths KS3/KS4)
+  if (isMaths && year >= 7 && (topicStr.includes("transformation") || topicStr.includes("translation") || topicStr.includes("reflection") || topicStr.includes("rotation") || topicStr.includes("enlargement") || /translat|reflect.*line|rotat.*centre|enlarg.*scale.*factor|transform.*shape/i.test(qLower))) {
+    const coordPairs = [...questionStr.matchAll(/\((-?\d+),\s*(-?\d+)\)/g)];
+    const points = coordPairs.slice(0, 6).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]) }));
+    return { type: "coordinate_grid", xRange: [-6, 6], yRange: [-6, 6], points, showGrid: true };
+  }
+
   // Pie chart
   if (subj.includes("math") && (topicStr.includes("pie_chart") || topicStr.includes("pie") || /pie chart|pie graph|sector|slice/i.test(qLower))) {
     const labelValuePairs = [...questionStr.matchAll(/([A-Za-z][A-Za-z ]{0,12}):\s*(\d+)/g)];
@@ -3489,6 +3551,14 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "magnet":              return `Magnet diagram: ${visual.scenario}`;
       case "photosynthesis":      return `Photosynthesis diagram`;
       case "respiration":         return `${visual.respType} respiration diagram`;
+      case "circle_theorem":     return `Circle theorem: ${visual.theorem?.replace(/_/g, " ") || "tangent"}`;
+      case "number_machine":     return `Number machine: input ${visual.input} → ${(visual.operations || []).join(" → ")} → output ${visual.output}`;
+      case "reaction_profile":   return `${visual.profileType || "Exothermic"} reaction energy profile${visual.showCatalyst ? " with catalyst" : ""}`;
+      case "periodic_table_outline": return `Periodic table${visual.highlighted?.length ? ` highlighting ${visual.highlighted.join(", ")}` : ""}`;
+      case "pedigree_chart":     return `Pedigree chart: ${visual.affectedPattern?.replace(/_/g, " ") || "inheritance pattern"}`;
+      case "petri_dish":         return `Petri dish${visual.showInhibition ? " with zone of inhibition" : " with bacterial colonies"}`;
+      case "microscope_diagram": return `Microscope diagram${visual.hideLabels ? " — label the parts" : ""}`;
+      case "coordinate_grid":    return `Coordinate grid for transformations${visual.points?.length ? ` with ${visual.points.length} points` : ""}`;
       // scene_3d shelved
       case "kenney_sprite":      return visual.ariaLabel || "Sprite visual";
       case "basic_concept":        return visual.label || "Science concept";
@@ -3645,6 +3715,16 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "sorting":            return <SortingVis values={visual.values} algorithm={visual.algorithm} highlightIdx={visual.highlightIdx} />;
       case "database_table":     return <DatabaseTableVis tableName={visual.tableName} fields={visual.fields} records={visual.records} />;
       case "html_structure":     return <HTMLStructureVis tag={visual.tag} children={visual.children} />;
+
+      // ── ExamStyle shared visuals ────────────────────────────────────────
+      case "circle_theorem":         return <CircleTheoremVis theorem={visual.theorem} />;
+      case "number_machine":         return <NumberMachineVis input={visual.input} operations={visual.operations} output={visual.output} />;
+      case "reaction_profile":       return <ReactionProfileVis type={visual.profileType} showCatalyst={visual.showCatalyst} />;
+      case "periodic_table_outline": return <PeriodicTableOutlineVis highlighted={visual.highlighted} />;
+      case "pedigree_chart":         return <PedigreeChartVis generations={visual.generations} affectedPattern={visual.affectedPattern} />;
+      case "petri_dish":             return <PetriDishVis showInhibition={visual.showInhibition} colonies={visual.colonies} />;
+      case "microscope_diagram":     return <MicroscopeDiagramVis hideLabels={visual.hideLabels} />;
+      case "coordinate_grid":        return <CoordinateGridVis xRange={visual.xRange} yRange={visual.yRange} points={visual.points} showGrid={visual.showGrid} />;
 
       // ── KS3/KS4 geometry visual types ─────────────────────────────────
       case "right_triangle":     return <RightTriangleVis {...visual} />;

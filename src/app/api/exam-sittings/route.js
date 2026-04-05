@@ -1,6 +1,36 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+
+/**
+ * Helper: create auth-aware client (for verifying user identity via cookies)
+ */
+async function getAuthClient() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll()
+      }
+    }
+  )
+}
+
+/**
+ * Helper: create service-role client (bypasses RLS for DB operations after auth is verified)
+ */
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    console.error('[exam-sittings] Missing env vars:', { hasUrl: !!url, hasKey: !!key })
+    throw new Error('Server misconfiguration: missing Supabase credentials')
+  }
+  return createClient(url, key)
+}
 
 /**
  * GET /api/exam-sittings
@@ -11,19 +41,11 @@ import { NextResponse } from 'next/server'
  */
 export async function GET(req) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll()
-        }
-      }
-    )
+    const authClient = await getAuthClient()
+    const supabase = getServiceClient()
 
     // Verify authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -96,19 +118,11 @@ export async function GET(req) {
  */
 export async function POST(req) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll()
-        }
-      }
-    )
+    const authClient = await getAuthClient()
+    const supabase = getServiceClient()
 
     // Verify authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

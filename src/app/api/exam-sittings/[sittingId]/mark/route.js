@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { markSitting } from '@/lib/markingEngine'
@@ -40,8 +41,9 @@ export async function POST(req, { params }) {
   try {
     const { sittingId } = await params
 
+    // Auth client for user verification, service client for DB operations (bypasses RLS)
     const cookieStore = await cookies()
-    const supabase = createServerClient(
+    const authClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
@@ -50,9 +52,13 @@ export async function POST(req, { params }) {
         }
       }
     )
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
 
     // Verify authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
