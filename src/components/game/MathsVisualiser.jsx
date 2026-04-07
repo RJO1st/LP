@@ -1328,10 +1328,10 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   }
 
   // ── PHYSICS ──────────────────────────────────────────────────────────────
-  if (subj.includes("physics") || (subj.includes("science") && (t.includes("force") || t.includes("velocit") || t.includes("speed") || t.includes("motion")))) {
+  if (subj.includes("physics") || (subj.includes("science") && (/\bforce/.test(t) || t.includes("velocit") || /\bspeed/.test(t) || /\bmotion/.test(t)))) {
 
     // Velocity / speed
-    if (t.includes("velocit") || t.includes("speed") || t.includes("motion") || /m\/s|km\/h|mph/i.test(questionStr)) {
+    if (t.includes("velocit") || /\bspeed/.test(t) || /\bmotion/.test(t) || /m\/s|km\/h|mph/i.test(questionStr)) {
       const speeds = nums.filter(n => n > 0 && n < 1000);
       if (speeds.length >= 1) {
         const unit = /km\/h/i.test(questionStr) ? "km/h" : /mph/i.test(questionStr) ? "mph" : "m/s";
@@ -1347,7 +1347,7 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
     }
 
     // Forces
-    if (t.includes("force") || t.includes("newton") || /\d+\s*n\b/i.test(questionStr)) {
+    if (/\bforce/.test(t) || t.includes("newton") || /\d+\s*n\b/i.test(questionStr)) {
       const forces = nums.filter(n => n <= 1000);
       if (forces.length >= 2) {
         return {
@@ -1420,7 +1420,7 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   }
 
   // ── COUNTING (only when NOT a word problem with 2+ numbers) ─────────────
-  if ((t.includes("count") || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
+  if ((/\bcount/.test(t) || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
     // Skip counting if this looks like an addition/subtraction word problem
     const hasMultipleNums = nums.length >= 2;
     const isWordProblem = /altogether|total|in all|more|left|take away|add|join/i.test(questionStr);
@@ -1972,7 +1972,7 @@ function parseNVRExt(topicStr, questionStr, yearLevel) {
  
   // Letter/number codes
   if (/code|cipher|A\s*=\s*1|letter.*number|number.*letter|decode|encode/i.test(questionStr) &&
-      (t.includes("code") || t.includes("cipher") || t.includes("verbal") || t.includes("nvr"))) {
+      (/\bcode\b|\bcipher\b/.test(t) || t.includes("verbal") || t.includes("nvr"))) {
     const encodedMatch = (questionStr || "").match(/['"]([A-Z0-9\s-]{2,20})['"]/);
     const encoded = encodedMatch?.[1] || "";
     return { type: "nvr_code", encoded, decoded: "", codeType: "a1" };
@@ -1980,7 +1980,7 @@ function parseNVRExt(topicStr, questionStr, yearLevel) {
  
   // Plan and elevation
   if (/plan view|elevation|front view|side view|bird.*eye|3d.*2d|2d.*3d/i.test(questionStr) ||
-      t.includes("plan") || t.includes("elevation")) {
+      /\bplan_view\b|\bplan\b/.test(t) || t.includes("elevation")) {
     const shapes = { cuboid: "cuboid", cylinder: "cylinder", "l-shape": "l-shape", "l shape": "l-shape",
                      "triangular prism": "triangular_prism", prism: "triangular_prism" };
     let shape3d = "cuboid";
@@ -2227,7 +2227,7 @@ function parseTier3(topicStr, questionStr, subject, yearLevel) {
   }
 
   // ── MONEY / COINS ──────────────────────────────────────────────────────────
-  if (subj.includes("math") && (t.includes("money") || t.includes("coin") || /pence|penny|pennies|£|\bp\b/i.test(questionStr))) {
+  if (subj.includes("math") && (t.includes("money") || t.includes("coin") || /pence|penny|pennies|£|\d+\s*p\b/i.test(questionStr))) {
     const coinPatterns = [
       { re: /£2\s*coin/gi, coin:"£2" },
       { re: /£1\s*coin/gi, coin:"£1" },
@@ -2381,12 +2381,12 @@ function parseTier3(topicStr, questionStr, subject, yearLevel) {
       const prefixMap = { un:"happy", re:"write", pre:"view", dis:"agree", mis:"spell", over:"come", im:"possible", in:"visible" };
       const suffixMap = { ness:"happy", ful:"care", less:"hope", tion:"invent", ing:"play", ed:"play", er:"teach" };
       for (const [pre, root] of Object.entries(prefixMap)) {
-        if (q.includes(pre) || q.includes(`${pre}${root}`)) {
+        if (new RegExp(`\\b${pre}${root}\\b`, 'i').test(q) || new RegExp(`\\b${pre}\\b.*\\b${root}\\b`, 'i').test(q)) {
           return { type:"word_builder", prefix:pre, root, suffix:null };
         }
       }
       for (const [suf, root] of Object.entries(suffixMap)) {
-        if (q.includes(suf) || q.includes(`${root}${suf}`)) {
+        if (new RegExp(`\\b${root}${suf}\\b`, 'i').test(q) || new RegExp(`\\b${root}\\b.*\\b${suf}\\b`, 'i').test(q)) {
           return { type:"word_builder", prefix:null, root, suffix:suf };
         }
       }
@@ -2421,7 +2421,7 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
   const isPhysics   = subj.includes("physics")   || (subj.includes("science") && (t.includes("force") || t.includes("wave") || t.includes("energy") || /\belectr(?:ic|on|omag)/.test(t)));
   const isChem      = subj.includes("chem")       || (subj.includes("science") && (t.includes("atom") || /\belement/.test(t) || /\breact(?:ion|iv|ing|ant)/.test(t) || t.includes("periodic") || /\bph\b|ph_scale/.test(t) || /\bstate(?:s)?_of_matter\b|states_matter/.test(t) || t.includes("molecul")));
   const isBio       = subj.includes("biol")       || (subj.includes("science") && (t.includes("cell") || /\bgene(?:tic|s|ration)?\b/.test(t) || /(?:^|[_\s])organs?(?:[_\s]|$)/i.test(t) || t.includes("punnett") || t.includes("inherit")));
-  const isAccounting = subj.includes("account")   || subj.includes("commerce") || subj.includes("business") || subj.includes("economics") || subj.includes("econ");
+  const isAccounting = /\baccount(?:ing|ancy)?\b/.test(subj) || subj.includes("commerce") || subj.includes("business") || subj.includes("economics") || subj.includes("econ");
 
   // ── PHYSICS ─────────────────────────────────────────────────────────────────
 
@@ -2644,25 +2644,25 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
   const isBasicSci = isBio || subj.includes("science") || subj.includes("basic_science");
   if (isBasicSci) {
     const BASIC_CONCEPTS = [
-      { rx: /leaf|leaves|green.*makes food|chlorophyll|photosynthesis/i, concept: "leaf", label: "Leaf — makes food using sunlight", emoji: "🍃" },
+      { rx: /\bleaf\b|\bleaves\b|green.*makes food|chlorophyll|photosynthesis/i, concept: "leaf", label: "Leaf — makes food using sunlight", emoji: "🍃" },
       { rx: /root|roots.*absorb|water.*from.*soil/i, concept: "root", label: "Roots — absorb water and nutrients", emoji: "🌱" },
-      { rx: /\bstem\b|\btrunk\b|transport.*water/i, concept: "stem", label: "Stem — supports and transports", emoji: "🌿" },
-      { rx: /flower|petal|pollen|pollination/i, concept: "flower", label: "Flower — makes seeds", emoji: "🌸" },
+      { rx: /\bstem\b|\btrunk\b|\btransport\b.*\bwater\b|\bwater\b.*\btransport/i, concept: "stem", label: "Stem — supports and transports", emoji: "🌿" },
+      { rx: /\bflower(?:s|ing)?\b|\bpetal(?:s)?\b|\bpollen\b|\bpollinat(?:ion|e|ed|ing)\b/i, concept: "flower", label: "Flower — makes seeds", emoji: "🌸" },
       { rx: /\bseed(?:s)?\b|germination|germinate/i, concept: "seed", label: "Seed — grows into a new plant", emoji: "🌰" },
       { rx: /plant.*parts|parts.*plant/i, concept: "plant_parts", label: "Parts of a Plant", emoji: "🪴" },
       { rx: /habitat|forest|pond|desert|ocean|savanna|arctic/i, concept: "habitat", label: "Habitats — where living things live", emoji: "🏞️" },
       { rx: /life.*cycle|egg.*larva|tadpole|caterpillar|metamorphosis/i, concept: "lifecycle", label: "Life Cycle", emoji: "🔄" },
-      { rx: /food.*chain|predator|prey|producer|consumer/i, concept: "food_chain", label: "Food Chain", emoji: "🔗" },
+      { rx: /food.*chain|predator|prey|\bproducer(?:s)?\b.*(?:consumer|food|chain|energy)|\bconsumer(?:s)?\b.*(?:producer|food|chain|energy|primary|secondary|tertiary)/i, concept: "food_chain", label: "Food Chain", emoji: "🔗" },
       { rx: /\bseason|\bwinter\b|\bspring\b.*(?:season|autumn|summer|weather)|\bsummer\b|\bautumn\b/i, concept: "seasons", label: "Seasons", emoji: "🍂" },
       { rx: /\bweather\b|\brain(?:fall|y|bow)?\b|\bcloud(?:s|y)?\b|\bwind(?:y|s)?\b|\bsun(?:ny|light|shine)?\b.*(?:weather|cloud|rain)|\btemperature\b/i, concept: "weather", label: "Weather", emoji: "🌦️" },
       { rx: /material(?:s)?\b.*(?:property|rough|smooth|transparent|opaque|waterproof)|\brought?\b|\bsmooth\b|\btransparent\b|\bopaque\b|\bwaterproof/i, concept: "materials", label: "Materials & Properties", emoji: "🧱" },
       { rx: /magnet|attract|repel|magnetic/i, concept: "magnet_basic", label: "Magnets", emoji: "🧲" },
       { rx: /\blight\b.*(?:shadow|opaque|reflect)|\bshadow\b|\btransparent\b|\bopaque\b/i, concept: "light_basic", label: "Light & Shadows", emoji: "💡" },
-      { rx: /\bsound\b|\bloud\b|\bquiet\b|\bvibrat|\bpitch\b.*(?:sound|high|low)/i, concept: "sound_basic", label: "Sound", emoji: "🔊" },
+      { rx: /\bsound\b|\bloud\b|\bquiet\b|\bvibrat(?:e|ion|ing)\b|\bpitch\b.*(?:sound|high|low)/i, concept: "sound_basic", label: "Sound", emoji: "🔊" },
       { rx: /teeth|canine|molar|incisor/i, concept: "teeth", label: "Types of Teeth", emoji: "🦷" },
       { rx: /skeleton|bones|skull|ribs/i, concept: "skeleton_basic", label: "The Skeleton", emoji: "🦴" },
       { rx: /\binsect|\bbutterfl|\bbeetle|\bants?\b|\bspider|\bminibeasts?/i, concept: "insects", label: "Minibeasts & Insects", emoji: "🐛" },
-      { rx: /\bbird(?:s)?\b|\bfeather|\bbeak|\bwing(?:s)?\b(?!.*insect)|\bfly\b.*\bbird/i, concept: "birds", label: "Birds", emoji: "🐦" },
+      { rx: /\bbird(?:s)?\b|\bfeather(?:s)?\b|\bbeak(?:s)?\b|\bbird.*\bwing|\bfly\b.*\bbird/i, concept: "birds", label: "Birds", emoji: "🐦" },
       { rx: /\bfish\b|\bfins?\b|\bgills?\b/i, concept: "fish", label: "Fish", emoji: "🐟" },
       { rx: /\bmammal|\bfur\b.*\banimal|\bwarm.blooded/i, concept: "mammals", label: "Mammals", emoji: "🐾" },
     ];
@@ -2775,12 +2775,21 @@ function parseGeography(topicStr, questionStr, yearLevel) {
   if (t.includes("compass") || t.includes("direction") || t.includes("bearing") ||
       /north|south|east|west|bearing|compass|cardinal/i.test(questionStr)) {
     const bearingMatch = (questionStr || "").match(/(\d+)\s*(?:°|degrees?)/i);
-    const dirMap = { north: 0, northeast: 45, east: 90, southeast: 135, south: 180, southwest: 225, west: 270, northwest: 315,
-                     ne: 45, se: 135, sw: 225, nw: 315, n: 0, e: 90, s: 180, w: 270 };
+    const dirMap = { northwest: 315, northeast: 45, southwest: 225, southeast: 135, north: 0, south: 180, east: 90, west: 270 };
+    const abbrMap = { nw: 315, ne: 45, sw: 225, se: 135 };
     let bearing = bearingMatch ? parseInt(bearingMatch[1]) : 0;
     let label = "";
     for (const [name, deg] of Object.entries(dirMap)) {
-      if (q.includes(name)) { bearing = deg; label = name.toUpperCase(); break; }
+      if (new RegExp(`\\b${name}\\b`, 'i').test(q)) { bearing = deg; label = name.toUpperCase(); break; }
+    }
+    if (!label) {
+      for (const [abbr, deg] of Object.entries(abbrMap)) {
+        if (new RegExp(`\\b${abbr}\\b`, 'i').test(q)) { bearing = deg; label = abbr.toUpperCase(); break; }
+      }
+    }
+    if (!label) {
+      const singleMatch = q.match(/\b([NESW])\b(?=.*(?:bearing|direction|compass|°|degree))/i);
+      if (singleMatch) { const d = { N:0, E:90, S:180, W:270 }; bearing = d[singleMatch[1].toUpperCase()] ?? 0; label = singleMatch[1].toUpperCase(); }
     }
     return { type: "compass", bearing, label: label || (bearing > 0 ? `${bearing}°` : "") };
   }
@@ -2818,7 +2827,7 @@ function parseGeography(topicStr, questionStr, yearLevel) {
     const highlighted = ["igneous", "sedimentary", "metamorphic"].find(r => q.includes(r)) || "";
     return { type: "layer_diagram", context: "rock_cycle", highlighted };
   }
-  if (/earth.*layer|crust|mantle|core|inner core|outer core/i.test(questionStr) || t.includes("earth_layer")) {
+  if (/earth.*layer|\bcrust\b|\bmantle\b|\bcore\b|inner core|outer core/i.test(questionStr) || t.includes("earth_layer")) {
     const highlighted = ["crust", "mantle", "outer core", "inner core"].find(l => q.includes(l)) || "";
     return { type: "layer_diagram", context: "earth", highlighted };
   }
@@ -2857,13 +2866,13 @@ function parseHistory(topicStr, questionStr, yearLevel) {
     if (/egypt|pharaoh|pyramid|nile|hieroglyph|tutankhamun|mummy|sarcophagus/i.test(questionStr + " " + t)) {
       return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Egypt", emoji: "🏛️", civilisation: "egypt" };
     }
-    if (/rome|roman|gladiator|colosseum|emperor|centurion|toga|latin|aqueduct/i.test(questionStr + " " + t)) {
+    if (/\brome\b|\broman\b|\bgladiator|\bcolosseum\b|\bemperor\b|\bcenturion\b|\btoga\b|\blatin\b|\baqueduct\b/i.test(questionStr + " " + t)) {
       return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Rome", emoji: "🏛️", civilisation: "rome" };
     }
-    if (/greece|greek|athens|sparta|olymp|parthenon|zeus|myth/i.test(questionStr + " " + t)) {
+    if (/\bgreece\b|\bgreek\b|\bathens\b|\bsparta\b|\bolymp|\bparthenon\b|\bzeus\b|\bmyth(?:s|ology|ological)?\b/i.test(questionStr + " " + t)) {
       return { type: "basic_concept", concept: "ancient_civ", label: "Ancient Greece", emoji: "🏛️", civilisation: "greece" };
     }
-    if (/viking|norse|longship|rune|scandinav|raid|thor|odin|valhalla/i.test(questionStr + " " + t)) {
+    if (/\bviking|norse|longship|\brune\b|scandinav|\braid(?:s|ed|ing)?\b|\bthor\b|\bodin\b|valhalla/i.test(questionStr + " " + t)) {
       return { type: "basic_concept", concept: "ancient_civ", label: "The Vikings", emoji: "⚔️", civilisation: "viking" };
     }
     // Cause and consequence
@@ -2912,7 +2921,7 @@ function parseHistory(topicStr, questionStr, yearLevel) {
     };
   }
  
-  if (/where.*happen|map|empire|invasion|location.*battle|route/i.test(questionStr)) {
+  if (/where.*happen|\bmap\b|\bempire\b|\binvasion\b|location.*battle|\broute\b/i.test(questionStr)) {
     return { type: "map_region", region: "europe", highlighted: "" };
   }
 
@@ -2920,39 +2929,39 @@ function parseHistory(topicStr, questionStr, yearLevel) {
   const combo = (questionStr || "") + " " + (t || "");
 
   // Buildings & architecture
-  if (/\bbuilding|church|cathedral|castle|palace|manor|monastery|abbey|fort|fortress|tower|house|cottage|hut|dwelling|temple|mosque|synagogue|chapel|barn|mill|windmill|lighthouse|bridge|wall|gate|arch|dome|column|pillar/i.test(combo)) {
+  if (/\b(?:building|church|cathedral|castle|palace|manor|monastery|abbey|fort|fortress|tower|house|cottage|hut|dwelling|temple|mosque|synagogue|chapel|barn|mill|windmill|lighthouse|bridge|wall|gate|arch|dome|column|pillar)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_building", label: "Historical Buildings", emoji: "🏰" };
   }
   // Battles, wars & conflict
-  if (/\bbattle|war\b|siege|invasion|conquer|defeat|victory|trench|blitz|bomb|armada|armistice|treaty|surrender|conflict|rebellion|revolt|uprising|civil war/i.test(combo)) {
+  if (/\b(?:battle|war|siege|invasion|conquer|defeat|victory|trench|blitz|bomb|armada|armistice|treaty|surrender|conflict|rebellion|revolt|uprising)\b|civil war/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_battle", label: "Battles & Conflict", emoji: "⚔️" };
   }
   // Royalty, rulers & leadership
-  if (/\bking\b|queen\b|prince|princess|monarch|reign|throne|crown|coronation|dynasty|royal|emperor|empress|pharaoh|chief|sultan|tsar|ruler/i.test(combo)) {
+  if (/\b(?:king|queen|prince|princess|monarch|reign|throne|crown|coronation|dynasty|royal|emperor|empress|pharaoh|chief|sultan|tsar|ruler)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_royalty", label: "Rulers & Royalty", emoji: "👑" };
   }
   // Transport & exploration
-  if (/ships?\b|longship|boat\b|sail|voyage|explorer|expedition|discovery|navigation|caravel|galleon|steam.*train|railway|locomotive|coach|carriage|canal|horse.*cart|wagon|chariot|aircraft|aeroplane|airplane/i.test(combo)) {
+  if (/\b(?:ships?|longship|boat|sail|voyage|explorer|expedition|discovery|navigation|caravel|galleon|railway|locomotive|coach|carriage|canal|wagon|chariot|aircraft|aeroplane|airplane)\b|steam.*train|horse.*cart/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_transport", label: "Transport & Exploration", emoji: "⛵" };
   }
   // Inventions & technology
-  if (/\binvent|discovery|telegraph|telephone|printing press|steam engine|factory|industrial|revolution|machine|tool|weapon|gunpowder|compass|clock|wheel|plough|loom|spinning jenny|electricity/i.test(combo)) {
+  if (/\b(?:invent(?:ion|ed|or)?|discovery|telegraph|telephone|factory|industrial|revolution|machine|tool|weapon|gunpowder|compass|clock|wheel|plough|loom|electricity)\b|printing press|steam engine|spinning jenny/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_invention", label: "Inventions & Discovery", emoji: "⚙️" };
   }
   // Daily life, clothing, food
-  if (/\bcloth|costume|armour|armor|tunic|toga|fashion|dress|uniform|food|feast|banquet|diet|farming|harvest|crop|plough|market|trade|merchant|craft|pottery|weaving|cooking/i.test(combo)) {
+  if (/\b(?:cloth(?:es|ing)?|costume|armour|armor|tunic|toga|fashion|dress|uniform|food|feast|banquet|diet|farming|harvest|crop|plough|market|trade|merchant|craft|pottery|weaving|cooking)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_daily_life", label: "Daily Life", emoji: "🏺" };
   }
   // Religion & beliefs
-  if (/\breligion|worship|god\b|gods\b|goddess|belief|ritual|ceremony|sacrifice|prayer|pilgrim|crusade|missionary|bible|quran|torah|monastery|monk|nun|priest|temple|shrine/i.test(combo)) {
+  if (/\b(?:religion|worship|gods?|goddess|belief|ritual|ceremony|sacrifice|prayer|pilgrim|crusade|missionary|bible|quran|torah|monastery|monk|nun|priest|temple|shrine)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_religion", label: "Religion & Beliefs", emoji: "🕯️" };
   }
   // People & society
-  if (/\bslave|slavery|abolition|emancipation|suffrage|vote|rights|protest|reform|parliament|democracy|law\b|justice|punishment|crime|peasant|noble|lord|lady|knight|soldier|warrior|gladiator|citizen/i.test(combo)) {
+  if (/\b(?:slave|slavery|abolition|emancipation|suffrage|vote|rights|protest|reform|parliament|democracy|law|justice|punishment|crime|peasant|noble|lord|lady|knight|soldier|warrior|gladiator|citizen)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_society", label: "People & Society", emoji: "👥" };
   }
   // Artefacts & archaeology
-  if (/\bartefact|artifact|fossil|archaeolog|excavat|tomb|burial|treasure|relic|museum|pottery|coin|jewel|scroll|manuscript|inscription|carving|statue|monument|memorial/i.test(combo)) {
+  if (/\b(?:artefact|artifact|fossil|archaeolog(?:y|ist|ical)?|excavat(?:e|ion|ed)?|tomb|burial|treasure|relic|museum|pottery|coin|jewel|scroll|manuscript|inscription|carving|statue|monument|memorial)\b/i.test(combo)) {
     return { type: "basic_concept", concept: "hist_artefact", label: "Artefacts & Archaeology", emoji: "🏺" };
   }
   // Generic history fallback — if the topic/subject clearly says "history" but nothing else matched
@@ -3157,14 +3166,14 @@ export function resolveVisual(question, subject, yearLevel) {
   const isScience  = subj.includes("science") || subj.includes("physics") || subj.includes("biology") || subj.includes("chemistry");
   const isNVR      = subj.includes("verbal") || subj.includes("nvr");
   const isEnglish  = subj.includes("english");
-  const isCommerce   = subj.includes("account") || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
+  const isCommerce   = /\baccount(?:ing|ancy)?\b/.test(subj) || subj.includes("commerce") || subj.includes("business") || subj.includes("econ");
   const isGeography  = subj.includes("geograph") || subj.includes("hass") || subj.includes("social_stud");
   const isHistory    = subj.includes("histor") || subj.includes("canadian_hist");
-  const isComputing  = subj.includes("comput") || subj.includes("digital") || subj === "ict";
+  const isComputing  = /\bcomput(?:er|ing|er_science)\b/.test(subj) || /\bdigital_(?:literacy|technology)\b/.test(subj) || subj === "ict";
   const isCivic      = subj.includes("civic") || subj.includes("citizenship");
   const isGovernment = subj.includes("government") || subj.includes("politic");
   const isReligion   = subj.includes("religi") || subj === "re" || subj === "religious_studies" || subj === "religious_education";
-  const isDesignTech = subj.includes("design") && subj.includes("tech") || subj.includes("d&t") || subj.includes("pre_vocational");
+  const isDesignTech = (subj.includes("design") && subj.includes("tech")) || subj.includes("d&t") || subj.includes("pre_vocational");
   const isAgriculture = subj.includes("agric");
   const isCulturalArts = subj.includes("cultural") || subj.includes("creative_art") || subj.includes("art") || subj.includes("music");
   const isFurtherMaths = subj.includes("further_math");
