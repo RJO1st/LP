@@ -37,8 +37,15 @@ const BOSS_CONFIGS = {
       eye: "eye_cute_light",
       mouth: "mouthA",
       eyebrow: "eyebrowA",
+      detail: "detail_blueA",
+      horn: null,
+      wing: null,
+      tail: "tail_short_blue",
+      accessory: null,
     },
     primaryColor: "#3b82f6",
+    size: { body: 1.0, limb: 0.35 },
+    personality: "bouncy",
   },
   ks2: {
     name: "Riddle Sphinx",
@@ -49,8 +56,15 @@ const BOSS_CONFIGS = {
       eye: "eye_human",
       mouth: "mouthE",
       eyebrow: "eyebrowB",
+      detail: "detail_yellowB",
+      horn: "horn_long_yellow",
+      wing: null,
+      tail: "tail_long_yellow",
+      accessory: "crown",
     },
     primaryColor: "#f59e0b",
+    size: { body: 1.1, limb: 0.35 },
+    personality: "regal",
   },
   ks3: {
     name: "Code Phantom",
@@ -61,8 +75,15 @@ const BOSS_CONFIGS = {
       eye: "eye_psycho_light",
       mouth: "mouthH",
       eyebrow: "eyebrowC",
+      detail: "detail_greenC",
+      horn: null,
+      wing: "wing_ghostly_green",
+      tail: null,
+      accessory: "binary_monocle",
     },
     primaryColor: "#10b981",
+    size: { body: 1.05, limb: 0.32 },
+    personality: "glitchy",
   },
   ks4: {
     name: "Equation Dragon",
@@ -73,18 +94,35 @@ const BOSS_CONFIGS = {
       eye: "eye_angry_red",
       mouth: "mouthJ",
       eyebrow: "eyebrowC",
+      detail: "detail_redD",
+      horn: "horn_curved_red",
+      wing: "wing_dragon_red",
+      tail: "tail_spiked_red",
+      accessory: null,
     },
     primaryColor: "#ef4444",
+    size: { body: 1.15, limb: 0.38 },
+    personality: "fierce",
   },
 };
 
 // ─── MONSTER SPRITE (STATIC COMPOSITE) ────────────────────────────────────
 
-function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
+function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = true }) {
   const config = BOSS_CONFIGS[ksLevel] || BOSS_CONFIGS.ks2;
   const sizeMap = { sm: 80, md: 120, lg: 160 };
   const dimension = sizeMap[size] || sizeMap.md;
   const assetBase = "/assets/kenney/monsters/parts";
+  const personality = config.personality || "bouncy";
+
+  // Personality-based animation classes
+  const personalityAnimations = {
+    bouncy: "monsterBouncy",
+    regal: "monsterRegal",
+    glitchy: "monsterGlitchy",
+    fierce: "monsterFierce",
+  };
+  const animationClass = animate ? personalityAnimations[personality] : "";
 
   return (
     <div
@@ -93,9 +131,67 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
         width: dimension,
         height: dimension,
         margin: "0 auto",
+        animation: animationClass ? `${animationClass} ${["bouncy", "fierce"].includes(personality) ? "2s" : "3s"} ease-in-out infinite` : "none",
         ...style,
       }}
     >
+      {/* Tail (behind body) */}
+      {config.parts.tail && (
+        <img
+          src={`${assetBase}/${config.parts.tail}.png`}
+          alt="tail"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "40%",
+            height: "45%",
+            right: "-15%",
+            bottom: "15%",
+            objectFit: "contain",
+            zIndex: 1,
+          }}
+        />
+      )}
+
+      {/* Wing Left (KS3/KS4) */}
+      {config.parts.wing && (
+        <img
+          src={`${assetBase}/${config.parts.wing}.png`}
+          alt="wing-left"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "50%",
+            height: "55%",
+            left: "-25%",
+            top: "10%",
+            objectFit: "contain",
+            transform: "scaleX(-1)",
+            zIndex: 1,
+            opacity: 0.9,
+          }}
+        />
+      )}
+
+      {/* Wing Right (KS3/KS4) */}
+      {config.parts.wing && (
+        <img
+          src={`${assetBase}/${config.parts.wing}.png`}
+          alt="wing-right"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "50%",
+            height: "55%",
+            right: "-25%",
+            top: "10%",
+            objectFit: "contain",
+            zIndex: 1,
+            opacity: 0.9,
+          }}
+        />
+      )}
+
       {/* Body (center) */}
       <img
         src={`${assetBase}/${config.parts.body}.png`}
@@ -105,8 +201,27 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           width: "100%",
           height: "100%",
           objectFit: "contain",
+          zIndex: 5,
         }}
       />
+
+      {/* Detail overlay on body */}
+      {config.parts.detail && (
+        <img
+          src={`${assetBase}/${config.parts.detail}.png`}
+          alt="detail"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            zIndex: 6,
+            opacity: 0.7,
+          }}
+        />
+      )}
+
       {/* Left Arm */}
       <img
         src={`${assetBase}/${config.parts.arm}.png`}
@@ -119,6 +234,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           top: "25%",
           objectFit: "contain",
           transform: "scaleX(-1)",
+          zIndex: 3,
         }}
       />
       {/* Right Arm */}
@@ -132,6 +248,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           right: "-12%",
           top: "25%",
           objectFit: "contain",
+          zIndex: 3,
         }}
       />
       {/* Left Leg */}
@@ -145,6 +262,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           left: "20%",
           bottom: "-8%",
           objectFit: "contain",
+          zIndex: 2,
         }}
       />
       {/* Right Leg */}
@@ -158,6 +276,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           right: "20%",
           bottom: "-8%",
           objectFit: "contain",
+          zIndex: 2,
         }}
       />
       {/* Left Eye */}
@@ -171,6 +290,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           left: "25%",
           top: "20%",
           objectFit: "contain",
+          zIndex: 7,
         }}
       />
       {/* Right Eye */}
@@ -184,6 +304,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           right: "25%",
           top: "20%",
           objectFit: "contain",
+          zIndex: 7,
         }}
       />
       {/* Mouth */}
@@ -198,8 +319,228 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {} }) {
           top: "52%",
           transform: "translateX(-50%)",
           objectFit: "contain",
+          zIndex: 8,
         }}
       />
+
+      {/* Horn (KS2/KS4) */}
+      {config.parts.horn && (
+        <img
+          src={`${assetBase}/${config.parts.horn}.png`}
+          alt="horn"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "35%",
+            height: "40%",
+            left: "50%",
+            top: "-8%",
+            transform: "translateX(-50%)",
+            objectFit: "contain",
+            zIndex: 9,
+          }}
+        />
+      )}
+
+      {/* Accessory (crown/monocle/etc) */}
+      {config.parts.accessory && (
+        <img
+          src={`${assetBase}/${config.parts.accessory}.png`}
+          alt="accessory"
+          onError={() => {}}
+          style={{
+            position: "absolute",
+            width: "45%",
+            height: "35%",
+            left: "50%",
+            top: "15%",
+            transform: "translateX(-50%)",
+            objectFit: "contain",
+            zIndex: 10,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── BOSS ENTRANCE ANIMATION ────────────────────────────────────────────
+
+function BossEntrance({ ksLevel = "ks2", onComplete }) {
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  const config = BOSS_CONFIGS[ksLevel] || BOSS_CONFIGS.ks2;
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      background: "linear-gradient(135deg, rgba(0,0,0,0.9), rgba(0,0,0,0.7))",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 24,
+      zIndex: 1000,
+      animation: "fadeOut 0.5s ease-out forwards",
+      animationDelay: "1.5s",
+    }}>
+      <div style={{
+        fontSize: 120,
+        animation: "slideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+      }}>
+        <MonsterSprite ksLevel={ksLevel} size="lg" animate={false} />
+      </div>
+      <div style={{
+        fontSize: 32,
+        fontWeight: 900,
+        color: config.primaryColor,
+        textShadow: `0 0 20px ${config.primaryColor}`,
+        animation: "fadeInScale 0.8s ease-out forwards",
+        animationDelay: "0.4s",
+        opacity: 0,
+      }}>
+        {config.name}
+      </div>
+      <style>{`
+        @keyframes fadeOut { to { opacity: 0; } }
+        @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── PROJECTILE EFFECT ──────────────────────────────────────────────────
+
+function ProjectileEffect({ type = "laser", fromX, fromY, toX, toY, color = "#22c55e", onComplete }) {
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+  const angle = Math.atan2(toY - fromY, toX - fromX) * (180 / Math.PI);
+
+  return (
+    <div style={{
+      position: "fixed",
+      left: fromX,
+      top: fromY,
+      zIndex: 999,
+      pointerEvents: "none",
+    }}>
+      {type === "laser" && (
+        <div style={{
+          width: distance,
+          height: 4,
+          background: `linear-gradient(90deg, ${color}, transparent)`,
+          boxShadow: `0 0 10px ${color}`,
+          transform: `rotate(${angle}deg)`,
+          transformOrigin: "0 50%",
+          animation: "laserFire 0.5s ease-out",
+        }} />
+      )}
+      {type === "missile" && (
+        <div style={{
+          fontSize: 24,
+          animation: "missileArc 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards",
+          transform: `translate(${distance * Math.cos(angle * Math.PI / 180)}px, ${distance * Math.sin(angle * Math.PI / 180)}px)`,
+        }}>
+          🚀
+        </div>
+      )}
+      {type === "plasma" && (
+        <div style={{
+          width: 16,
+          height: 16,
+          background: color,
+          borderRadius: "50%",
+          boxShadow: `0 0 15px ${color}`,
+          animation: `plasmaExpand 0.5s ease-out forwards, fadePlasma 0.5s ease-out forwards`,
+        }} />
+      )}
+      <style>{`
+        @keyframes laserFire { from { scaleX(0); opacity: 1; } to { scaleX(1); opacity: 0; } }
+        @keyframes missileArc { to { opacity: 0; } }
+        @keyframes plasmaExpand { to { transform: scale(2); } }
+        @keyframes fadePlasma { to { opacity: 0; } }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── EXPLOSION EFFECT ────────────────────────────────────────────────────
+
+function ExplosionEffect({ x, y, size = "md", color = "#ef4444", onComplete }) {
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  const sizeMap = { sm: 40, md: 60, lg: 100 };
+  const explosionSize = sizeMap[size] || sizeMap.md;
+
+  // Generate random particles
+  const particles = Array.from({ length: 12 }).map((_, i) => ({
+    id: i,
+    angle: (i / 12) * Math.PI * 2,
+    distance: 40 + Math.random() * 60,
+  }));
+
+  return (
+    <div style={{
+      position: "fixed",
+      left: x,
+      top: y,
+      zIndex: 999,
+      pointerEvents: "none",
+    }}>
+      {/* Center burst */}
+      <div style={{
+        position: "absolute",
+        left: -explosionSize / 2,
+        top: -explosionSize / 2,
+        width: explosionSize,
+        height: explosionSize,
+        background: `radial-gradient(circle, ${color}, transparent)`,
+        borderRadius: "50%",
+        boxShadow: `0 0 ${explosionSize / 2}px ${color}`,
+        animation: "explosionBurst 0.6s ease-out forwards",
+      }} />
+
+      {/* Particles */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: "absolute",
+            left: -4,
+            top: -4,
+            width: 8,
+            height: 8,
+            background: color,
+            borderRadius: "50%",
+            animation: `explosionParticle 0.6s ease-out forwards`,
+            transform: `translate(${Math.cos(p.angle) * p.distance}px, ${Math.sin(p.angle) * p.distance}px)`,
+            opacity: 0,
+          }}
+        />
+      ))}
+
+      <style>{`
+        @keyframes explosionBurst { 0% { transform: scale(0); opacity: 1; } 50% { opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+        @keyframes explosionParticle { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0); } }
+      `}</style>
     </div>
   );
 }
@@ -322,11 +663,41 @@ function BossDisplay({
           animationState={animationState}
           size="lg"
         />
+        {/* Fallback: Enhanced MonsterSprite with personality animations */}
+        <style>{`
+          @media (prefers-reduced-motion: reduce) {
+            .monsterBouncy, .monsterRegal, .monsterGlitchy, .monsterFierce {
+              animation: none !important;
+            }
+          }
+          @keyframes monsterBouncy {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+          }
+          @keyframes monsterRegal {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+          }
+          @keyframes monsterGlitchy {
+            0%, 100% { transform: translateX(0); }
+            10% { transform: translateX(-2px); }
+            20% { transform: translateX(2px); }
+            30% { transform: translateX(0); }
+            70% { transform: translateX(0); }
+            80% { transform: translateX(-3px); }
+            90% { transform: translateX(3px); }
+          }
+          @keyframes monsterFierce {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.03) rotate(-0.5deg); }
+            75% { transform: scale(1.03) rotate(0.5deg); }
+          }
+        `}</style>
       </div>
 
-      {/* Optional: Show static sprite if spritesheet fails */}
-      {/* Uncomment to fallback to static MonsterSprite:
-      <MonsterSprite ksLevel={ksLevel} size="lg" />
+      {/* Optional: Show static enhanced sprite if spritesheet fails */}
+      {/* Uncomment to fallback to enhanced MonsterSprite:
+      <MonsterSprite ksLevel={ksLevel} size="lg" animate={true} />
       */}
     </div>
   );
@@ -529,6 +900,9 @@ export default function BossBattleUI({
   const [questionIndex, setQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showEntrance, setShowEntrance] = useState(true);
+  const [projectile, setProjectile] = useState(null);
+  const [explosion, setExplosion] = useState(null);
 
   // Determine if we're using new or legacy interface
   const isNewInterface = !!(scholar && bossQuest && supabase);
@@ -651,6 +1025,16 @@ export default function BossBattleUI({
   const bossColour = bossConfig.primaryColor;
   const fontSize = band === "ks1" ? 16 : 14;
 
+  // Show entrance animation on first mount
+  if (showEntrance) {
+    return (
+      <BossEntrance
+        ksLevel={configKsLevel}
+        onComplete={() => setShowEntrance(false)}
+      />
+    );
+  }
+
   function handleSelect(optionIndex) {
     if (selected !== null) return; // Already answered
     setSelected(optionIndex);
@@ -665,6 +1049,29 @@ export default function BossBattleUI({
 
     if (battleResult.damage > 0) {
       setShowDamage(true);
+
+      // Trigger projectile effect from bottom center to boss
+      const projectileType = battleResult.isWeaknessHit ? "plasma" : "laser";
+      const projectileColor = battleResult.isWeaknessHit ? "#fbbf24" : bossColour;
+      setProjectile({
+        type: projectileType,
+        fromX: window.innerWidth / 2,
+        fromY: window.innerHeight - 100,
+        toX: window.innerWidth / 2,
+        toY: 150,
+        color: projectileColor,
+      });
+
+      // Trigger explosion at boss position
+      setTimeout(() => {
+        setExplosion({
+          x: window.innerWidth / 2,
+          y: 150,
+          size: "md",
+          color: projectileColor,
+        });
+      }, 300);
+
       setTimeout(() => setShowDamage(false), 1000);
     }
 
@@ -794,6 +1201,20 @@ export default function BossBattleUI({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0" }}>
+      {/* Effect components */}
+      {projectile && (
+        <ProjectileEffect
+          {...projectile}
+          onComplete={() => setProjectile(null)}
+        />
+      )}
+      {explosion && (
+        <ExplosionEffect
+          {...explosion}
+          onComplete={() => setExplosion(null)}
+        />
+      )}
+
       {/* Injected CSS for damage animation */}
       <style>{`
         @keyframes floatUp {

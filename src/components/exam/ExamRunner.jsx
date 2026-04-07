@@ -4334,38 +4334,24 @@ export default function ExamRunner({
       );
     }
 
-    // 17. Figure reference — with clear "original paper needed" messaging
+    // 17. Figure reference — suppress if only a bare reference, else show subtle notice
     if (/figure\s+\d/i.test(descLower)) {
+      // If description is ONLY a figure reference with minimal text (e.g., "Figure 1." or "Figure 1: A diagram"),
+      // and no useful structural detail, suppress it entirely
+      const strippedDesc = desc.replace(/figure\s+\d+[:.]?\s*/i, '').trim();
+      if (strippedDesc.length < 15 || !strippedDesc) {
+        // Bare figure reference with no substantive description — don't show anything
+        return null;
+      }
+
+      // If we reach here, there IS meaningful description alongside the figure reference
+      // Render a subtle inline notice rather than a prominent card
       const figNum = desc.match(/figure\s+(\d+)/i)?.[0] || "Figure";
-      // Check if description mentions something that could be generated (e.g., graph, diagram)
-      const isPhoto = /photo|image|picture|shows\s+a\s+\w+\s+(?:in|on|under|above|with)/i.test(descLower) ||
-                      /fossil|specimen|organism|plant|animal|apparatus/i.test(descLower);
       return (
-        <div className={`mb-8 p-5 rounded-lg border-2 ${isPhoto ? 'bg-slate-50 border-slate-300' : 'bg-blue-50 border-blue-300'}`}>
-          <div className="flex items-center gap-2 mb-3">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className={isPhoto ? "text-slate-600" : "text-blue-700"}>
-              <rect x="2" y="2" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              {isPhoto ? (
-                <>
-                  <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-                  <polyline points="2,16 7,11 11,14 15,9 20,13" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
-                </>
-              ) : (
-                <>
-                  <polyline points="4,16 8,8 12,13 16,6 20,11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
-                </>
-              )}
-            </svg>
-            <p className={`text-sm font-bold uppercase tracking-wide ${isPhoto ? 'text-slate-700' : 'text-blue-800'}`}>{figNum}</p>
-          </div>
-          <p className={`text-base leading-relaxed mb-3 ${isPhoto ? 'text-slate-800' : 'text-blue-900'}`}>{desc}</p>
-          {isPhoto && (
-            <div className="mt-2 p-3 bg-amber-50 rounded border border-amber-200">
-              <p className="text-xs text-amber-800">
-                <strong>Note:</strong> This question references a photograph/image from the original exam paper that cannot be reproduced digitally. The question can still be attempted using the description above.
-              </p>
-            </div>
-          )}
+        <div className="mb-6 p-3 bg-slate-100 rounded border border-slate-300">
+          <p className="text-xs text-slate-600 italic">
+            [{figNum} — referenced in original exam paper] {strippedDesc}
+          </p>
         </div>
       );
     }

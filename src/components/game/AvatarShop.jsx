@@ -316,8 +316,12 @@ export default function AvatarShop({ scholarId, onAvatarChange }) {
   const previewFor = (itemId) => {
     const def = AVATAR_ITEMS[itemId];
     if (!def) return liveAvatar;
-    const val = def.category === 'base' ? itemId.replace(/^base_/, '') : itemId;
-    return { ...liveAvatar, [def.category]: val };
+    if (def.category === 'base') {
+      // Base items: show THAT character fresh (not merged onto current base)
+      return { base: itemId.replace(/^base_/, ''), hat: null, pet: null, accessory: null, background: null };
+    }
+    // Non-base items: apply to current avatar
+    return { ...liveAvatar, [def.category]: itemId };
   };
 
   // GSAP stagger entrance

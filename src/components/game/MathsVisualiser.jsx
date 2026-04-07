@@ -2418,9 +2418,9 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
   const subj = (subject || "").toLowerCase();
   const nums = ((questionStr || "").match(RX_NUM) || []).map(Number);
 
-  const isPhysics   = subj.includes("physics")   || (subj.includes("science") && (t.includes("force") || t.includes("wave") || t.includes("energy") || t.includes("electr")));
-  const isChem      = subj.includes("chem")       || (subj.includes("science") && (t.includes("atom") || t.includes("element") || t.includes("react") || t.includes("periodic") || t.includes("ph") || t.includes("state") || t.includes("molecul")));
-  const isBio       = subj.includes("biol")       || (subj.includes("science") && (t.includes("cell") || t.includes("gene") || t.includes("organ") || t.includes("punnett") || t.includes("inherit")));
+  const isPhysics   = subj.includes("physics")   || (subj.includes("science") && (t.includes("force") || t.includes("wave") || t.includes("energy") || /\belectr(?:ic|on|omag)/.test(t)));
+  const isChem      = subj.includes("chem")       || (subj.includes("science") && (t.includes("atom") || /\belement/.test(t) || /\breact(?:ion|iv|ing|ant)/.test(t) || t.includes("periodic") || /\bph\b|ph_scale/.test(t) || /\bstate(?:s)?_of_matter\b|states_matter/.test(t) || t.includes("molecul")));
+  const isBio       = subj.includes("biol")       || (subj.includes("science") && (t.includes("cell") || /\bgene(?:tic|s|ration)?\b/.test(t) || /(?:^|[_\s])organs?(?:[_\s]|$)/i.test(t) || t.includes("punnett") || t.includes("inherit")));
   const isAccounting = subj.includes("account")   || subj.includes("commerce") || subj.includes("business") || subj.includes("economics") || subj.includes("econ");
 
   // ── PHYSICS ─────────────────────────────────────────────────────────────────
@@ -2555,7 +2555,7 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
     }
   }
 
-  if (isChem && (t.includes("state") || /melting|freezing|evaporation|condensation|sublimation|solid|liquid|gas|boiling/i.test(questionStr))) {
+  if (isChem && (/\bstate(?:s)?(?:_of)?(?:_matter)?\b/.test(t) || /melting|freezing|evaporation|condensation|sublimation|solid|liquid|gas|boiling/i.test(questionStr))) {
     const STATES = ["solid","liquid","gas"];
     const found = STATES.filter(s => q.includes(s));
     return { type:"state_changes", highlighted: found };
@@ -2572,7 +2572,7 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
     if (/sodium chloride|salt/i.test(questionStr)) return { type:"molecule", formula:"NaCl" };
   }
 
-  if (isChem && (t.includes("ph") || /\bpH\b|acid|alkali|alkaline|neutral|indicator/i.test(questionStr))) {
+  if (isChem && (/\bph\b|ph_scale/.test(t) || /\bpH\b|acid|alkali|alkaline|neutral|indicator/i.test(questionStr))) {
     const phMatch = (questionStr||"").match(/pH\s*(?:of\s*)?(?:=\s*)?(\d+(?:\.\d+)?)/i);
     const SUBSTANCE_PH = {
       "lemon juice":3, "vinegar":3, "cola":4, "rain":6, "pure water":7, "water":7,
@@ -2603,7 +2603,7 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
   }
   
   if (isBio && (t.includes("skeleton") || t.includes("digestive") || t.includes("circulat") ||
-      t.includes("respirat") || t.includes("body_system") || t.includes("organ") ||
+      t.includes("respirat") || t.includes("body_system") || /(?:^|[_\s])organs?(?:[_\s]|$)/i.test(t) ||
       /skeleton|skull|ribs|spine|femur|digestive|stomach|intestine|oesophagus|circulatory|heart|arteries|veins|respiratory|lungs|trachea|diaphragm/i.test(questionStr))) {
     const system = /digestive|stomach|intestine|oesophagus/i.test(questionStr + t) ? "digestive"
       : /circulat|heart|arter|vein|blood/i.test(questionStr + t) ? "circulatory"
@@ -2646,25 +2646,25 @@ function parseTier4(topicStr, questionStr, subject, yearLevel) {
     const BASIC_CONCEPTS = [
       { rx: /leaf|leaves|green.*makes food|chlorophyll|photosynthesis/i, concept: "leaf", label: "Leaf — makes food using sunlight", emoji: "🍃" },
       { rx: /root|roots.*absorb|water.*from.*soil/i, concept: "root", label: "Roots — absorb water and nutrients", emoji: "🌱" },
-      { rx: /stem|trunk|transport.*water/i, concept: "stem", label: "Stem — supports and transports", emoji: "🌿" },
+      { rx: /\bstem\b|\btrunk\b|transport.*water/i, concept: "stem", label: "Stem — supports and transports", emoji: "🌿" },
       { rx: /flower|petal|pollen|pollination/i, concept: "flower", label: "Flower — makes seeds", emoji: "🌸" },
-      { rx: /seed|germination|grow/i, concept: "seed", label: "Seed — grows into a new plant", emoji: "🌰" },
+      { rx: /\bseed(?:s)?\b|germination|germinate/i, concept: "seed", label: "Seed — grows into a new plant", emoji: "🌰" },
       { rx: /plant.*parts|parts.*plant/i, concept: "plant_parts", label: "Parts of a Plant", emoji: "🪴" },
       { rx: /habitat|forest|pond|desert|ocean|savanna|arctic/i, concept: "habitat", label: "Habitats — where living things live", emoji: "🏞️" },
       { rx: /life.*cycle|egg.*larva|tadpole|caterpillar|metamorphosis/i, concept: "lifecycle", label: "Life Cycle", emoji: "🔄" },
       { rx: /food.*chain|predator|prey|producer|consumer/i, concept: "food_chain", label: "Food Chain", emoji: "🔗" },
-      { rx: /season|winter|spring|summer|autumn/i, concept: "seasons", label: "Seasons", emoji: "🍂" },
-      { rx: /weather|rain|cloud|wind|sun|temperature/i, concept: "weather", label: "Weather", emoji: "🌦️" },
-      { rx: /material|hard|soft|rough|smooth|transparent|opaque|waterproof/i, concept: "materials", label: "Materials & Properties", emoji: "🧱" },
+      { rx: /\bseason|\bwinter\b|\bspring\b.*(?:season|autumn|summer|weather)|\bsummer\b|\bautumn\b/i, concept: "seasons", label: "Seasons", emoji: "🍂" },
+      { rx: /\bweather\b|\brain(?:fall|y|bow)?\b|\bcloud(?:s|y)?\b|\bwind(?:y|s)?\b|\bsun(?:ny|light|shine)?\b.*(?:weather|cloud|rain)|\btemperature\b/i, concept: "weather", label: "Weather", emoji: "🌦️" },
+      { rx: /material(?:s)?\b.*(?:property|rough|smooth|transparent|opaque|waterproof)|\brought?\b|\bsmooth\b|\btransparent\b|\bopaque\b|\bwaterproof/i, concept: "materials", label: "Materials & Properties", emoji: "🧱" },
       { rx: /magnet|attract|repel|magnetic/i, concept: "magnet_basic", label: "Magnets", emoji: "🧲" },
-      { rx: /light|shadow|dark|reflect|transparent/i, concept: "light_basic", label: "Light & Shadows", emoji: "💡" },
-      { rx: /sound|loud|quiet|vibrat|hear|pitch/i, concept: "sound_basic", label: "Sound", emoji: "🔊" },
+      { rx: /\blight\b.*(?:shadow|opaque|reflect)|\bshadow\b|\btransparent\b|\bopaque\b/i, concept: "light_basic", label: "Light & Shadows", emoji: "💡" },
+      { rx: /\bsound\b|\bloud\b|\bquiet\b|\bvibrat|\bpitch\b.*(?:sound|high|low)/i, concept: "sound_basic", label: "Sound", emoji: "🔊" },
       { rx: /teeth|canine|molar|incisor/i, concept: "teeth", label: "Types of Teeth", emoji: "🦷" },
       { rx: /skeleton|bones|skull|ribs/i, concept: "skeleton_basic", label: "The Skeleton", emoji: "🦴" },
-      { rx: /insect|butterfly|beetle|ant|spider|minibeasts/i, concept: "insects", label: "Minibeasts & Insects", emoji: "🐛" },
-      { rx: /bird|feather|beak|wing|fly/i, concept: "birds", label: "Birds", emoji: "🐦" },
-      { rx: /fish|fins|gills|scales/i, concept: "fish", label: "Fish", emoji: "🐟" },
-      { rx: /mammal|fur|warm.blooded|milk/i, concept: "mammals", label: "Mammals", emoji: "🐾" },
+      { rx: /\binsect|\bbutterfl|\bbeetle|\bants?\b|\bspider|\bminibeasts?/i, concept: "insects", label: "Minibeasts & Insects", emoji: "🐛" },
+      { rx: /\bbird(?:s)?\b|\bfeather|\bbeak|\bwing(?:s)?\b(?!.*insect)|\bfly\b.*\bbird/i, concept: "birds", label: "Birds", emoji: "🐦" },
+      { rx: /\bfish\b|\bfins?\b|\bgills?\b/i, concept: "fish", label: "Fish", emoji: "🐟" },
+      { rx: /\bmammal|\bfur\b.*\banimal|\bwarm.blooded/i, concept: "mammals", label: "Mammals", emoji: "🐾" },
     ];
     const combo = (questionStr || "") + " " + (t || "");
     for (const c of BASIC_CONCEPTS) {
@@ -3182,11 +3182,11 @@ export function resolveVisual(question, subject, yearLevel) {
   if (subj === "science" || subj.includes("science")) {
     const q2 = (question.q || question.question_text || "").toLowerCase();
     const t2 = (question.topic || "").toLowerCase();
-    if (/cell|mitochondria|photosynthesis|organ|plant|animal|dna|gene|inherit|chloroplast|vacuole|nucleus|ribosome|membrane/i.test(q2 + t2))
+    if (/\bcell\b|mitochondria|photosynthesis|\borgan(?:s|ism|elle)?\b|\bplant\b|\banimal\b|\bdna\b|\bgene(?:tic|s)?\b|\binherit|chloroplast|vacuole|nucleus|ribosome|membrane/i.test(q2 + t2))
       enrichedSubject = "biology";
-    else if (/force|velocity|speed|wave|circuit|energy|electric|magnet|light|sound|pressure|gravity|motion|newton/i.test(q2 + t2))
+    else if (/\bforce\b|velocity|\bspeed\b|\bwave\b|circuit|\benergy\b|\belectric|magnet|\blight\b.*(?:shadow|reflect|refract|optic)|\bsound\b|pressure|gravity|\bmotion\b|newton/i.test(q2 + t2))
       enrichedSubject = "physics";
-    else if (/atom|element|compound|reaction|acid|alkali|periodic|molecule|ph|bond|oxidat|precipitat|dissolv|solut/i.test(q2 + t2))
+    else if (/\batom|\belement\b|compound|\breaction\b|\bacid\b|\balkali|periodic|\bmolecule|\bph\b|\bbond\b|oxidat|precipitat|dissolv|\bsolut/i.test(q2 + t2))
       enrichedSubject = "chemistry";
   }
 
