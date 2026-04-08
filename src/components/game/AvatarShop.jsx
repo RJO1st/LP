@@ -67,20 +67,19 @@ const EARN_METHODS = [
 ];
 
 // ── Categories with display-friendly labels ─────────────────────────────────
+// NOTE: hat, accessory (gear), pet removed — they are not visible on the
+// Canvas 2D renderer so showing them confuses scholars (all look identical).
 const CATEGORIES = [
   { key: 'all',        icon: '🎨', label: 'All' },
   { key: 'base',       icon: '🚀', label: 'Suit' },
-  { key: 'hat',        icon: '🎩', label: 'Hats' },
-  { key: 'accessory',  icon: '✨', label: 'Gear' },
-  { key: 'pet',        icon: '🐾', label: 'Pets' },
   { key: 'background', icon: '🌌', label: 'Scene' },
 ];
 
-// Categories to exclude from "All" view (hidden under space suit)
-const HIDDEN_CATEGORIES = new Set(['skin', 'hair', 'expression']);
+// Categories to exclude from "All" view (hidden / not visually rendered)
+const HIDDEN_CATEGORIES = new Set(['skin', 'hair', 'expression', 'hat', 'accessory', 'pet']);
 
 // Categories that support "None" (unequip)
-const UNEQUIPPABLE = new Set(['hat', 'pet', 'accessory', 'background']);
+const UNEQUIPPABLE = new Set(['background']);
 
 export default function AvatarShop({ scholarId, onAvatarChange }) {
   const [scholar, setScholar] = useState(null);
@@ -312,13 +311,27 @@ export default function AvatarShop({ scholarId, onAvatarChange }) {
     return item.category === selectedCategory;
   });
 
+  // ── Distinct face presets per base so shop previews look unique ───────────
+  const BASE_PREVIEW_FACES = {
+    astronaut:  { skin: 'light',     expression: 'happy'   },
+    explorer:   { skin: 'brown',     expression: 'excited' },
+    scientist:  { skin: 'olive',     expression: 'cool'    },
+    pilot:      { skin: 'tanned',    expression: 'wink'    },
+    captain:    { skin: 'darkBrown', expression: 'serious' },
+    ranger:     { skin: 'pale',      expression: 'mischief'},
+    guardian:   { skin: 'black',     expression: 'starry'  },
+    vanguard:   { skin: 'brown',     expression: 'proud'   },
+  };
+
   // Build a preview avatar for a specific item (for mini preview thumbnails)
   const previewFor = (itemId) => {
     const def = AVATAR_ITEMS[itemId];
     if (!def) return liveAvatar;
     if (def.category === 'base') {
-      // Base items: show THAT character fresh (not merged onto current base)
-      return { base: itemId.replace(/^base_/, ''), hat: null, pet: null, accessory: null, background: null };
+      const bare = itemId.replace(/^base_/, '');
+      const face = BASE_PREVIEW_FACES[bare] || {};
+      // Base items: show THAT character with a unique face preset
+      return { base: bare, hat: null, pet: null, accessory: null, background: null, ...face };
     }
     // Non-base items: apply to current avatar
     return { ...liveAvatar, [def.category]: itemId };

@@ -21,7 +21,12 @@ import React from "react";
 // Renders Kenney puzzle shapes (blue/red/green/yellow diamonds, squares, etc.)
 // Usage: <KenneyShape type="square" color="blue" size={80} />
 
-export function KenneyShape({ type = "square", color = "blue", glossy = false, size = 80 }) {
+export function KenneyShape({
+  type = "square",
+  color = "blue",
+  glossy = false,
+  size = 80,
+}) {
   // Kenney puzzle shapes: 6 colors × multiple shapes
   const COLORS = {
     blue: "blue",
@@ -142,7 +147,12 @@ export function KenneyPlanet({ index = 0, size = 120, label = null }) {
 // Displays multiple copies of a sprite in a grid (for counting/multiplication)
 // Usage: <KenneyGrid items={12} columns={4} sprite="ballBlue" size={40} />
 
-export function KenneyGrid({ items = 12, columns = 4, sprite = "ballBlue", size = 40 }) {
+export function KenneyGrid({
+  items = 12,
+  columns = 4,
+  sprite = "ballBlue",
+  size = 40,
+}) {
   const SPRITES = {
     ballBlue: "ballBlue",
     ballRed: "ballRed",
@@ -188,7 +198,13 @@ export function KenneyGrid({ items = 12, columns = 4, sprite = "ballBlue", size 
 // Shows shaded fraction using puzzle shapes
 // Usage: <KenneyFraction numerator={3} denominator={4} shape="diamond" color="blue" size={60} />
 
-export function KenneyFraction({ numerator = 1, denominator = 4, shape = "diamond", color = "blue", size = 60 }) {
+export function KenneyFraction({
+  numerator = 1,
+  denominator = 4,
+  shape = "diamond",
+  color = "blue",
+  size = 60,
+}) {
   return (
     <div className="flex flex-col items-center gap-3">
       <div
@@ -259,7 +275,12 @@ export function KenneyComparison({
   const rightSrc = `/assets/kenney/puzzle/${rightActual}.png`;
 
   const operatorSymbol = operator === ">" ? ">" : operator === "<" ? "<" : "=";
-  const operatorText = operator === ">" ? "is greater than" : operator === "<" ? "is less than" : "equals";
+  const operatorText =
+    operator === ">"
+      ? "is greater than"
+      : operator === "<"
+        ? "is less than"
+        : "equals";
 
   return (
     <div
@@ -331,7 +352,7 @@ export function KenneyNumberLine({
   const actualSprite = SPRITES[markerSprite] || "ballGreen";
   const src = `/assets/kenney/puzzle/${actualSprite}.png`;
   const range = end - start;
-  const markerSet = new Set(markers.map(m => parseInt(m, 10)));
+  const markerSet = new Set(markers.map((m) => parseInt(m, 10)));
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -407,7 +428,7 @@ export function KenneyBarChart({ data = [], sprite = "ballBlue", size = 28 }) {
 
   const actualSprite = SPRITES[sprite] || "ballBlue";
   const src = `/assets/kenney/puzzle/${actualSprite}.png`;
-  const maxValue = Math.max(...data.map(d => d.value || 0), 1);
+  const maxValue = Math.max(...data.map((d) => d.value || 0), 1);
 
   return (
     <div
@@ -467,7 +488,7 @@ export function KenneyPattern({ sequence = [], size = 40 }) {
     <div
       className="flex items-center justify-center gap-3 p-4"
       role="img"
-      aria-label={`Pattern: ${sequence.filter(s => s !== "question").join(", ")}, what comes next?`}
+      aria-label={`Pattern: ${sequence.filter((s) => s !== "question").join(", ")}, what comes next?`}
     >
       {sequence.map((sprite, idx) => {
         const isQuestion = sprite === "question" || sprite === "?";
@@ -514,7 +535,13 @@ export function KenneyPattern({ sequence = [], size = 40 }) {
 // Balance scale with items on each side (for equality/equations)
 // Usage: <KenneyBalance leftItems={3} rightItems={5} sprite="ballBlue" size={30} balanced={false} />
 
-export function KenneyBalance({ leftItems = 3, rightItems = 5, sprite = "ballBlue", size = 30, balanced = false }) {
+export function KenneyBalance({
+  leftItems = 3,
+  rightItems = 5,
+  sprite = "ballBlue",
+  size = 30,
+  balanced = false,
+}) {
   const SPRITES = {
     ballBlue: "ballBlue",
     ballRed: "ballRed",
@@ -525,8 +552,8 @@ export function KenneyBalance({ leftItems = 3, rightItems = 5, sprite = "ballBlu
   const actualSprite = SPRITES[sprite] || "ballBlue";
   const src = `/assets/kenney/puzzle/${actualSprite}.png`;
 
-  const leftHeight = 80 - (leftItems * 5); // Tilt left if fewer items
-  const rightHeight = 80 - (rightItems * 5); // Tilt right if fewer items
+  const leftHeight = 80 - leftItems * 5; // Tilt left if fewer items
+  const rightHeight = 80 - rightItems * 5; // Tilt right if fewer items
   const isBalanced = leftItems === rightItems;
 
   return (
@@ -537,30 +564,81 @@ export function KenneyBalance({ leftItems = 3, rightItems = 5, sprite = "ballBlu
     >
       <svg width="280" height="140" viewBox="0 0 280 140">
         {/* Fulcrum */}
-        <polygon points="140,80 125,100 155,100" fill="currentColor" className="text-gray-600 dark:text-gray-300" />
+        <polygon
+          points="140,80 125,100 155,100"
+          fill="currentColor"
+          className="text-gray-600 dark:text-gray-300"
+        />
 
         {/* Left pan */}
         <g transform={`rotate(${balanced ? 0 : -5} 70 80)`}>
-          <rect x="40" y="70" width="60" height="15" fill="currentColor" className="text-blue-500" />
-          <rect x="50" y="75" width="40" height="8" fill="currentColor" className="text-blue-400" />
+          <rect
+            x="40"
+            y="70"
+            width="60"
+            height="15"
+            fill="currentColor"
+            className="text-blue-500"
+          />
+          <rect
+            x="50"
+            y="75"
+            width="40"
+            height="8"
+            fill="currentColor"
+            className="text-blue-400"
+          />
         </g>
 
         {/* Right pan */}
         <g transform={`rotate(${balanced ? 0 : 5} 210 80)`}>
-          <rect x="180" y="70" width="60" height="15" fill="currentColor" className="text-blue-500" />
-          <rect x="190" y="75" width="40" height="8" fill="currentColor" className="text-blue-400" />
+          <rect
+            x="180"
+            y="70"
+            width="60"
+            height="15"
+            fill="currentColor"
+            className="text-blue-500"
+          />
+          <rect
+            x="190"
+            y="75"
+            width="40"
+            height="8"
+            fill="currentColor"
+            className="text-blue-400"
+          />
         </g>
 
         {/* Left lever */}
-        <line x1="40" y1="80" x2="140" y2="80" stroke="currentColor" strokeWidth="3" className="text-gray-500 dark:text-gray-400" />
+        <line
+          x1="40"
+          y1="80"
+          x2="140"
+          y2="80"
+          stroke="currentColor"
+          strokeWidth="3"
+          className="text-gray-500 dark:text-gray-400"
+        />
 
         {/* Right lever */}
-        <line x1="140" y1="80" x2="240" y2="80" stroke="currentColor" strokeWidth="3" className="text-gray-500 dark:text-gray-400" />
+        <line
+          x1="140"
+          y1="80"
+          x2="240"
+          y2="80"
+          stroke="currentColor"
+          strokeWidth="3"
+          className="text-gray-500 dark:text-gray-400"
+        />
       </svg>
 
       <div className="flex justify-center gap-12">
         <div className="flex flex-col items-center gap-2">
-          <div className="flex flex-wrap gap-1 justify-center" style={{ maxWidth: `${Math.min(120, size * 4)}px` }}>
+          <div
+            className="flex flex-wrap gap-1 justify-center"
+            style={{ maxWidth: `${Math.min(120, size * 4)}px` }}
+          >
             {Array.from({ length: leftItems }).map((_, idx) => (
               <div
                 key={idx}
@@ -581,7 +659,10 @@ export function KenneyBalance({ leftItems = 3, rightItems = 5, sprite = "ballBlu
         </div>
 
         <div className="flex flex-col items-center gap-2">
-          <div className="flex flex-wrap gap-1 justify-center" style={{ maxWidth: `${Math.min(120, size * 4)}px` }}>
+          <div
+            className="flex flex-wrap gap-1 justify-center"
+            style={{ maxWidth: `${Math.min(120, size * 4)}px` }}
+          >
             {Array.from({ length: rightItems }).map((_, idx) => (
               <div
                 key={idx}
@@ -615,11 +696,36 @@ export function KenneyDice({ value = 4, size = 80 }) {
   // Dice dot patterns for values 1-6
   const PATTERNS = {
     1: [[2, 2]],
-    2: [[1, 1], [3, 3]],
-    3: [[1, 1], [2, 2], [3, 3]],
-    4: [[1, 1], [1, 3], [3, 1], [3, 3]],
-    5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
-    6: [[1, 1], [1, 2], [1, 3], [3, 1], [3, 2], [3, 3]],
+    2: [
+      [1, 1],
+      [3, 3],
+    ],
+    3: [
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ],
+    4: [
+      [1, 1],
+      [1, 3],
+      [3, 1],
+      [3, 3],
+    ],
+    5: [
+      [1, 1],
+      [1, 3],
+      [2, 2],
+      [3, 1],
+      [3, 3],
+    ],
+    6: [
+      [1, 1],
+      [1, 2],
+      [1, 3],
+      [3, 1],
+      [3, 2],
+      [3, 3],
+    ],
   };
 
   const pattern = PATTERNS[actualValue] || PATTERNS[1];
@@ -672,10 +778,18 @@ export function KenneyClockFace({ hours = 3, minutes = 30, size = 120 }) {
     >
       <svg width={size} height={size} viewBox="0 0 100 100">
         {/* Clock face */}
-        <circle cx="50" cy="50" r="48" fill="white" stroke="currentColor" strokeWidth="2" className="text-gray-700 dark:text-gray-300" />
+        <circle
+          cx="50"
+          cy="50"
+          r="48"
+          fill="white"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-gray-700 dark:text-gray-300"
+        />
 
         {/* Hour markers */}
-        {[0, 3, 6, 9].map(num => {
+        {[0, 3, 6, 9].map((num) => {
           const angle = (num / 12) * Math.PI * 2 - Math.PI / 2;
           const x = 50 + 38 * Math.cos(angle);
           const y = 50 + 38 * Math.sin(angle);
@@ -694,16 +808,38 @@ export function KenneyClockFace({ hours = 3, minutes = 30, size = 120 }) {
         })}
 
         {/* Center dot */}
-        <circle cx="50" cy="50" r="3" fill="currentColor" className="text-gray-700 dark:text-gray-300" />
+        <circle
+          cx="50"
+          cy="50"
+          r="3"
+          fill="currentColor"
+          className="text-gray-700 dark:text-gray-300"
+        />
 
         {/* Minute hand */}
         <g transform={`rotate(${minuteAngle} 50 50)`}>
-          <line x1="50" y1="50" x2="50" y2="15" stroke="currentColor" strokeWidth="2" className="text-gray-700 dark:text-gray-300" />
+          <line
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="15"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-gray-700 dark:text-gray-300"
+          />
         </g>
 
         {/* Hour hand */}
         <g transform={`rotate(${hourAngle} 50 50)`}>
-          <line x1="50" y1="50" x2="50" y2="28" stroke="currentColor" strokeWidth="3" className="text-gray-700 dark:text-gray-300" />
+          <line
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="28"
+            stroke="currentColor"
+            strokeWidth="3"
+            className="text-gray-700 dark:text-gray-300"
+          />
         </g>
       </svg>
     </div>
@@ -755,6 +891,152 @@ export function KenneyMoneyVisual({ coins = [], size = 40 }) {
   );
 }
 
+// ─── SCIENCE LAB VISUAL ─────────────────────────────────────────────────────
+// Displays science lab equipment sprites for experiment questions
+// Usage: <KenneyScience equipment="beaker" label="100ml Beaker" size={100} />
+
+export function KenneyScience({ equipment = "beaker", label, size = 100 }) {
+  const EQUIPMENT = {
+    beaker: "/assets/kenney/physics/elementGlass011.png",
+    flask: "/assets/kenney/physics/elementGlass014.png",
+    test_tube: "/assets/kenney/physics/elementGlass010.png",
+    thermometer: "/assets/kenney/physics/elementMetal036.png",
+    magnet: "/assets/kenney/physics/elementMetal019.png",
+    battery: "/assets/kenney/physics/elementMetal020.png",
+    bulb: "/assets/kenney/physics/elementGlass009.png",
+    weight: "/assets/kenney/physics/elementStone010.png",
+    spring: "/assets/kenney/physics/elementMetal024.png",
+    lever: "/assets/kenney/physics/elementWood018.png",
+    pulley: "/assets/kenney/physics/elementMetal029.png",
+    ramp: "/assets/kenney/physics/elementWood011.png",
+  };
+
+  const src = EQUIPMENT[equipment] || EQUIPMENT.beaker;
+
+  return (
+    <div
+      className="flex flex-col items-center gap-2 p-3"
+      role="img"
+      aria-label={label || `Science equipment: ${equipment}`}
+    >
+      <div
+        className="relative"
+        style={{ width: `${size}px`, height: `${size}px` }}
+      >
+        <img
+          src={src}
+          alt={equipment}
+          className="w-full h-full object-contain drop-shadow-md"
+          onError={(e) => {
+            e.target.style.display = "none";
+          }}
+        />
+      </div>
+      {label && (
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 text-center">
+          {label}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── SPACE VISUAL ────────────────────────────────────────────────────────────
+// Displays space sprites for astronomy and physics questions
+// Usage: <KenneySpace type="planet" variant={3} label="Mars" size={100} />
+
+export function KenneySpace({
+  type = "planet",
+  variant = 0,
+  label,
+  size = 100,
+}) {
+  const SPACE_SPRITES = {
+    planet: (v) => `/assets/kenney/planets/planet0${Math.min(v, 9)}.png`,
+    ship: () => "/assets/kenney/space-shooter/playerShip1_blue.png",
+    meteor: () => "/assets/kenney/space-shooter/meteorBrown_big1.png",
+    star_gold: () => "/assets/kenney/space-shooter/star_gold.png",
+    ufo: () => "/assets/kenney/alien-ufo/shipGreen_manned.png",
+    satellite: () => "/assets/kenney/space-shooter/satellite.png",
+    sun: () => "/assets/kenney/planets/planet09.png",
+  };
+
+  const getSrc = SPACE_SPRITES[type] || SPACE_SPRITES.planet;
+  const src = getSrc(variant);
+
+  return (
+    <div
+      className="flex flex-col items-center gap-2 p-3"
+      role="img"
+      aria-label={label || `Space: ${type}`}
+    >
+      <div
+        className="relative"
+        style={{ width: `${size}px`, height: `${size}px` }}
+      >
+        <img
+          src={src}
+          alt={type}
+          className="w-full h-full object-contain drop-shadow-lg"
+          onError={(e) => {
+            e.target.style.display = "none";
+          }}
+        />
+      </div>
+      {label && (
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 text-center">
+          {label}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── ANIMAL/BIOLOGY VISUAL ──────────────────────────────────────────────────
+// Displays animal sprites for biology and ecosystem questions
+// Usage: <KenneyAnimal animal="alien_round" label="Cell" size={80} />
+
+export function KenneyAnimal({ animal = "alien_round", label, size = 80 }) {
+  const ANIMALS = {
+    alien_round: "/assets/kenney/alien-ufo/alienGreen_round.png",
+    alien_square: "/assets/kenney/alien-ufo/alienBlue_square.png",
+    alien_front: "/assets/kenney/alien-ufo/alienBeige_front.png",
+    alien_pink: "/assets/kenney/alien-ufo/alienPink_round.png",
+    alien_yellow: "/assets/kenney/alien-ufo/alienYellow_front.png",
+    bug_green: "/assets/kenney/alien-ufo/alienGreen_front.png",
+    bug_blue: "/assets/kenney/alien-ufo/alienBlue_front.png",
+  };
+
+  const src = ANIMALS[animal] || ANIMALS.alien_round;
+
+  return (
+    <div
+      className="flex flex-col items-center gap-2 p-3"
+      role="img"
+      aria-label={label || `Biology: ${animal}`}
+    >
+      <div
+        className="relative"
+        style={{ width: `${size}px`, height: `${size}px` }}
+      >
+        <img
+          src={src}
+          alt={animal}
+          className="w-full h-full object-contain drop-shadow-md"
+          onError={(e) => {
+            e.target.style.display = "none";
+          }}
+        />
+      </div>
+      {label && (
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 text-center">
+          {label}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN KENNEY VISUALS WRAPPER ─────────────────────────────────────────────
 // Generic wrapper for any kenney sprite type resolved by resolveKenneyVisual()
 
@@ -798,6 +1080,15 @@ export default function KenneyVisuals({ component = null, ...props }) {
   if (component === "money") {
     return <KenneyMoneyVisual {...props} />;
   }
+  if (component === "science") {
+    return <KenneyScience {...props} />;
+  }
+  if (component === "space") {
+    return <KenneySpace {...props} />;
+  }
+  if (component === "animal") {
+    return <KenneyAnimal {...props} />;
+  }
   return null;
 }
 
@@ -816,18 +1107,21 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
   // ── SHAPES: Square, rectangle, diamond, polygon, star ───────────────────────
   if (subj.includes("math")) {
     // "Which shape is a square?" / "properties of a rectangle"
-    if (/shape|square|rectangle|diamond|polygon|pentagon|hexagon/i.test(fullText)) {
-      const shape = (/square/i.test(q) || /square/i.test(topic))
-        ? "square"
-        : /rectangle/i.test(q) || /rectangle/i.test(topic)
-        ? "rectangle"
-        : /diamond/i.test(q) || /diamond/i.test(topic)
-        ? "diamond"
-        : /polygon|hexagon|pentagon/i.test(q) || /polygon/i.test(topic)
-        ? "polygon"
-        : /star/i.test(q) || /star/i.test(topic)
-        ? "star"
-        : null;
+    if (
+      /shape|square|rectangle|diamond|polygon|pentagon|hexagon/i.test(fullText)
+    ) {
+      const shape =
+        /square/i.test(q) || /square/i.test(topic)
+          ? "square"
+          : /rectangle/i.test(q) || /rectangle/i.test(topic)
+            ? "rectangle"
+            : /diamond/i.test(q) || /diamond/i.test(topic)
+              ? "diamond"
+              : /polygon|hexagon|pentagon/i.test(q) || /polygon/i.test(topic)
+                ? "polygon"
+                : /star/i.test(q) || /star/i.test(topic)
+                  ? "star"
+                  : null;
 
       if (shape) {
         const colors = ["blue", "red", "green", "yellow"];
@@ -845,7 +1139,11 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Comparison: "Which is bigger/smaller/greater/less"
-    if (/compare|bigger|smaller|greater|less than|more than|fewer|which is/i.test(fullText)) {
+    if (
+      /compare|bigger|smaller|greater|less than|more than|fewer|which is/i.test(
+        fullText,
+      )
+    ) {
       const numMatch = fullText.match(/(\d+)\s+(?:or|vs|and|,)?\s+(\d+)/);
       if (numMatch) {
         const left = parseInt(numMatch[1]);
@@ -867,8 +1165,14 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Number line: "count on", "between", "order numbers"
-    if (/number line|count on|count back|between.*and|order.*number/i.test(fullText)) {
-      const rangeMatch = fullText.match(/(?:between|from|0?)\s*(\d+)\s*(?:and|to)\s*(\d+)/i);
+    if (
+      /number line|count on|count back|between.*and|order.*number/i.test(
+        fullText,
+      )
+    ) {
+      const rangeMatch = fullText.match(
+        /(?:between|from|0?)\s*(\d+)\s*(?:and|to)\s*(\d+)/i,
+      );
       if (rangeMatch) {
         const start = parseInt(rangeMatch[1]);
         const end = parseInt(rangeMatch[2]);
@@ -886,7 +1190,11 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Bar chart: "bar chart", "tally", "data", "most popular"
-    if (/bar chart|tally|pictogram|data|graph|how many more|most popular/i.test(fullText)) {
+    if (
+      /bar chart|tally|pictogram|data|graph|how many more|most popular/i.test(
+        fullText,
+      )
+    ) {
       // Generic 3-category bar chart
       return {
         ariaLabel: `Bar chart with data`,
@@ -902,7 +1210,11 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Pattern: "sequence", "what comes next", "pattern"
-    if (/pattern|sequence|next.*number|what comes next|continues|following/i.test(fullText)) {
+    if (
+      /pattern|sequence|next.*number|what comes next|continues|following/i.test(
+        fullText,
+      )
+    ) {
       return {
         ariaLabel: `Pattern sequence with missing element`,
         component: "pattern",
@@ -912,9 +1224,13 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Dice: "dice", "roll", "probability", "fair"
-    if (/dice|die|roll|probability.*number|fair.*dice|outcome/i.test(fullText)) {
+    if (
+      /dice|die|roll|probability.*number|fair.*dice|outcome/i.test(fullText)
+    ) {
       const valueMatch = fullText.match(/(?:shows?|rolling?|roll)\s+(\d)/);
-      const value = valueMatch ? parseInt(valueMatch[1]) : Math.floor(Math.random() * 6) + 1;
+      const value = valueMatch
+        ? parseInt(valueMatch[1])
+        : Math.floor(Math.random() * 6) + 1;
 
       return {
         ariaLabel: `Dice showing ${value}`,
@@ -925,8 +1241,14 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Clock: "time", "o'clock", "half past", "quarter"
-    if (/clock|time|o'clock|half past|quarter past|quarter to|:\d{2}/i.test(fullText)) {
-      const timeMatch = fullText.match(/(\d{1,2})\s*(?:o'clock|:|)?\s*(?:(\d{2})|half|quarter)/i);
+    if (
+      /clock|time|o'clock|half past|quarter past|quarter to|:\d{2}/i.test(
+        fullText,
+      )
+    ) {
+      const timeMatch = fullText.match(
+        /(\d{1,2})\s*(?:o'clock|:|)?\s*(?:(\d{2})|half|quarter)/i,
+      );
       if (timeMatch) {
         let hours = parseInt(timeMatch[1]) || 3;
         let minutes = 0;
@@ -950,12 +1272,14 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Money: "coin", "penny", "pence", "pound", "cost", "price"
-    if (/coin|penny|pence|pound|money|change|cost|price|£|\bp/i.test(fullText)) {
+    if (
+      /coin|penny|pence|pound|money|change|cost|price|£|\bp/i.test(fullText)
+    ) {
       const coinMatches = fullText.match(/(\d+)\s*(?:p|pence|penny)/gi);
       let coins = [];
 
       if (coinMatches) {
-        coins = coinMatches.map(m => {
+        coins = coinMatches.map((m) => {
           const val = parseInt(m);
           return val;
         });
@@ -964,7 +1288,7 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
       }
 
       return {
-        ariaLabel: `Money: ${coins.map(c => c + "p").join(", ")}`,
+        ariaLabel: `Money: ${coins.map((c) => c + "p").join(", ")}`,
         component: "money",
         coins,
         size: 40,
@@ -991,7 +1315,9 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Fraction questions with kenney shapes
-    if (/fraction|shaded|part of|one third|one quarter|one half/i.test(fullText)) {
+    if (
+      /fraction|shaded|part of|one third|one quarter|one half/i.test(fullText)
+    ) {
       const frMatch = fullText.match(/(\d+)[^\d]*(?:out of|\/)\s*(\d+)/);
       if (frMatch) {
         const num = parseInt(frMatch[1]);
@@ -1013,7 +1339,9 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
 
     // Multiplication as grid: "3 groups of 4" or "2 rows of 5"
     if (/multiply|multiplication|groups? of|rows? of|array/i.test(fullText)) {
-      const groupMatch = fullText.match(/(\d+)\s+(?:groups? of|rows? of|×|x)\s+(\d+)/i);
+      const groupMatch = fullText.match(
+        /(\d+)\s+(?:groups? of|rows? of|×|x)\s+(\d+)/i,
+      );
       if (groupMatch) {
         const groups = parseInt(groupMatch[1]);
         const perGroup = parseInt(groupMatch[2]);
@@ -1033,19 +1361,124 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
   }
 
-  // ── PHYSICS: Materials, forces, blocks ─────────────────────────────────────
-  if (subj.includes("science") || subj.includes("physics")) {
-    // "Which material..." / "wood block" / "metal spring"
-    if (/material|wood|metal|glass|stone|block|spring|force|friction/i.test(fullText)) {
-      const material = /wood/i.test(q) || /wood/i.test(topic)
-        ? "wood"
-        : /metal/i.test(q) || /metal/i.test(topic)
-        ? "metal"
-        : /glass/i.test(q) || /glass/i.test(topic)
-        ? "glass"
-        : /stone/i.test(q) || /stone/i.test(topic)
-        ? "stone"
-        : null;
+  // ── SCIENCE: Lab equipment, forces, materials, space, biology ────────────────
+  if (
+    subj.includes("science") ||
+    subj.includes("basic_science") ||
+    subj.includes("physics") ||
+    subj.includes("chemistry") ||
+    subj.includes("biology")
+  ) {
+    // Lab equipment questions
+    if (
+      /beaker|flask|test tube|thermometer|bunsen|experiment|apparatus|equipment|measure.*liquid|heat.*water/i.test(
+        fullText,
+      )
+    ) {
+      const equip = /flask/i.test(fullText)
+        ? "flask"
+        : /test tube/i.test(fullText)
+          ? "test_tube"
+          : /thermometer|temperature/i.test(fullText)
+            ? "thermometer"
+            : "beaker";
+      return {
+        ariaLabel: `Science equipment: ${equip}`,
+        component: "science",
+        equipment: equip,
+        label: equip.replace(/_/g, " "),
+        size: 100,
+      };
+    }
+
+    // Forces and physics
+    if (/magnet|magnetic|attract|repel|pole|iron|steel/i.test(fullText)) {
+      return {
+        ariaLabel: "Magnet",
+        component: "science",
+        equipment: "magnet",
+        label: "Magnet",
+        size: 100,
+      };
+    }
+
+    if (/battery|circuit|electric|bulb|switch|wire|current/i.test(fullText)) {
+      const equip = /battery/i.test(fullText)
+        ? "battery"
+        : /bulb|light/i.test(fullText)
+          ? "bulb"
+          : "battery";
+      return {
+        ariaLabel: `Electricity: ${equip}`,
+        component: "science",
+        equipment: equip,
+        label: equip.charAt(0).toUpperCase() + equip.slice(1),
+        size: 100,
+      };
+    }
+
+    if (/spring|stretch|compress|elastic|force/i.test(fullText)) {
+      return {
+        ariaLabel: "Spring / Force",
+        component: "science",
+        equipment: "spring",
+        label: "Spring",
+        size: 100,
+      };
+    }
+
+    if (/lever|fulcrum|pivot|seesaw|balance|simple machine/i.test(fullText)) {
+      return {
+        ariaLabel: "Lever",
+        component: "science",
+        equipment: "lever",
+        label: "Lever",
+        size: 100,
+      };
+    }
+
+    if (/pulley|lift|hoist|mechanical advantage/i.test(fullText)) {
+      return {
+        ariaLabel: "Pulley",
+        component: "science",
+        equipment: "pulley",
+        label: "Pulley",
+        size: 100,
+      };
+    }
+
+    if (/ramp|inclined plane|slope|friction|slide/i.test(fullText)) {
+      return {
+        ariaLabel: "Ramp / Inclined plane",
+        component: "science",
+        equipment: "ramp",
+        label: "Inclined Plane",
+        size: 100,
+      };
+    }
+
+    if (/weight|mass|heavy|light|kilogram|gram|scales/i.test(fullText)) {
+      return {
+        ariaLabel: "Weight",
+        component: "science",
+        equipment: "weight",
+        label: "Weight",
+        size: 100,
+      };
+    }
+
+    // Materials/Physics blocks (original code)
+    if (/material|wood|metal|glass|stone|block/i.test(fullText)) {
+      const material =
+        /wood/i.test(q) || /wood/i.test(topic)
+          ? "wood"
+          : /metal/i.test(q) || /metal/i.test(topic)
+            ? "metal"
+            : /glass/i.test(q) || /glass/i.test(topic)
+              ? "glass"
+              : /stone/i.test(q) || /stone/i.test(topic)
+                ? "stone"
+                : null;
 
       if (material) {
         return {
@@ -1057,50 +1490,101 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
         };
       }
     }
-  }
 
-  // ── PLANETS: Solar system, space ─────────────────────────────────────────────
-  if (
-    subj.includes("science") ||
-    (subj.includes("geograph") && /planet|solar|space|orbit/i.test(fullText))
-  ) {
-    const planets = {
-      mercury: 0,
-      venus: 1,
-      earth: 2,
-      mars: 3,
-      jupiter: 4,
-      saturn: 5,
-      uranus: 6,
-      neptune: 7,
-      pluto: 8,
-      sun: 9,
-    };
-
-    if (/planet|mercury|venus|earth|mars|jupiter|saturn|uranus|neptune|pluto|solar|orbit/i.test(fullText)) {
-      let planetName = null;
-      for (const [name, idx] of Object.entries(planets)) {
-        if (new RegExp(name, "i").test(q)) {
-          planetName = name.charAt(0).toUpperCase() + name.slice(1);
-          return {
-            ariaLabel: `Planet: ${planetName}`,
-            component: "planet",
-            index: idx,
-            label: planetName,
-            size: Math.min(200, 80 + parseInt(yearLevel ?? 1, 10) * 8),
-          };
+    // Space / astronomy
+    if (
+      /planet|solar system|orbit|mercury|venus|mars|jupiter|saturn|neptune|uranus|earth/i.test(
+        fullText,
+      )
+    ) {
+      const planetMap = {
+        mercury: 0,
+        venus: 1,
+        earth: 2,
+        mars: 3,
+        jupiter: 4,
+        saturn: 5,
+        uranus: 6,
+        neptune: 7,
+      };
+      let variant = 2; // default Earth
+      for (const [name, idx] of Object.entries(planetMap)) {
+        if (new RegExp(name, "i").test(fullText)) {
+          variant = idx;
+          break;
         }
       }
+      const label =
+        Object.keys(planetMap).find((k) => planetMap[k] === variant) || "Earth";
+      return {
+        ariaLabel: `Planet: ${label}`,
+        component: "space",
+        type: "planet",
+        variant,
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        size: 120,
+      };
+    }
 
-      if (/solar|planet|orbit|space|earth/i.test(fullText)) {
-        const idx = Math.floor(Math.random() * 8);
-        return {
-          ariaLabel: `Solar system planet`,
-          component: "planet",
-          index: idx,
-          size: 120,
-        };
-      }
+    if (/sun|solar|star.*burn|nuclear fusion/i.test(fullText)) {
+      return {
+        ariaLabel: "Sun",
+        component: "space",
+        type: "sun",
+        variant: 9,
+        label: "The Sun",
+        size: 120,
+      };
+    }
+
+    if (/meteor|asteroid|comet|space rock/i.test(fullText)) {
+      return {
+        ariaLabel: "Meteor",
+        component: "space",
+        type: "meteor",
+        variant: 0,
+        label: "Meteor",
+        size: 100,
+      };
+    }
+
+    // Biology — living things
+    if (
+      /habitat|ecosystem|food chain|prey|predator|organism|species|classify|vertebrate|invertebrate/i.test(
+        fullText,
+      )
+    ) {
+      return {
+        ariaLabel: "Living things",
+        component: "animal",
+        animal: "alien_round",
+        label: "Living Organism",
+        size: 80,
+      };
+    }
+
+    if (/cell|membrane|nucleus|cytoplasm|mitochondri/i.test(fullText)) {
+      return {
+        ariaLabel: "Cell",
+        component: "animal",
+        animal: "alien_square",
+        label: "Cell",
+        size: 80,
+      };
+    }
+
+    if (
+      /plant|photosynthesis|leaf|root|stem|flower|seed|germination/i.test(
+        fullText,
+      )
+    ) {
+      return {
+        ariaLabel: "Plant biology",
+        component: "animal",
+        animal: "alien_front",
+        label: "Plant",
+        size: 80,
+      };
     }
   }
 

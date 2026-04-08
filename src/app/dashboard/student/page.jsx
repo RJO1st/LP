@@ -48,10 +48,6 @@ const FullAvatarShop = dynamic(
   { ssr: false, loading: () => <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontWeight: 700 }}>Loading shop…</div> }
 );
 
-const AvatarCustomiser = dynamic(
-  () => import("../../../components/game/AvatarCustomiser"),
-  { ssr: false, loading: () => <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontWeight: 700 }}>Loading customiser…</div> }
-);
 
 const BossBattleUI = dynamic(
   () => import("../../../components/game/BossBattleUI"),
@@ -687,7 +683,7 @@ export default function StudentDashboard() {
   const [skillProficiency, setSkillProficiency] = useState({});
   const [recentQuizzes,    setRecentQuizzes]    = useState([]);
   const [showAvatarShop,   setShowAvatarShop]   = useState(false);
-  const [showAvatarCustomiser, setShowAvatarCustomiser] = useState(false);
+
   const [activeBossBattle, setActiveBossBattle] = useState(null); // boss quest data or null
   // 3D sims shelved
 
@@ -1360,32 +1356,6 @@ const UK_NATIONAL_SUBJECTS = {
           onClose={async () => {
             setShowAvatarShop(false);
             // Final refresh to pick up coin balance + any last-second changes
-            if (scholar?.id) {
-              const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
-              if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }
-            }
-          }}
-        />
-      )}
-      {showAvatarCustomiser && (
-        <AvatarCustomiser
-          scholar={scholar}
-          onSave={async (updatedAvatar) => {
-            if (!scholar?.id) return;
-            // Persist avatar config to scholars.avatar JSONB column
-            const { error } = await supabase
-              .from("scholars")
-              .update({ avatar: updatedAvatar })
-              .eq("id", scholar.id);
-            if (error) { console.error("Avatar save failed:", error); return; }
-            // Refresh local state
-            const merged = { ...scholar, avatar: updatedAvatar };
-            setScholar(merged);
-            localStorage.setItem("active_scholar", JSON.stringify(merged));
-            setShowAvatarCustomiser(false);
-          }}
-          onClose={async () => {
-            setShowAvatarCustomiser(false);
             if (scholar?.id) {
               const { data } = await supabase.from("scholars").select("*").eq("id", scholar.id).single();
               if (data) { setScholar(data); localStorage.setItem("active_scholar", JSON.stringify(data)); }

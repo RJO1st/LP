@@ -196,6 +196,7 @@ const BASES = {
 const FACE_SKIN_TONES = {
   pale:      { fill: '#fde2c8', shadow: '#f5c89a', blush: '#f4a683' },
   light:     { fill: '#edb98a', shadow: '#d6a070', blush: '#d4845e' },
+  olive:     { fill: '#c9a97c', shadow: '#af8d62', blush: '#b8824e' },
   brown:     { fill: '#c68642', shadow: '#a66e34', blush: '#b06830' },
   darkBrown: { fill: '#8d5524', shadow: '#724020', blush: '#6b3a1c' },
   black:     { fill: '#614335', shadow: '#4a3028', blush: '#533529' },
@@ -205,23 +206,31 @@ const FACE_SKIN_TONES = {
 const FACE_DEFAULTS = {
   astronaut: { skin: 'pale', eyes: 'default', mouth: 'smile', brow: 'default', hair: 'shortCurly' },
   explorer:  { skin: 'darkBrown', eyes: 'happy', mouth: 'grin', brow: 'raised', hair: 'fro' },
-  scientist: { skin: 'brown', eyes: 'wink', mouth: 'tongue', brow: 'default', hair: 'bob' },
-  pilot:     { skin: 'tanned', eyes: 'default', mouth: 'serious', brow: 'default', hair: 'long' },
-  captain:   { skin: 'black', eyes: 'surprised', mouth: 'open', brow: 'raised', hair: 'dreads' },
+  scientist: { skin: 'olive', eyes: 'sleepy', mouth: 'smirk', brow: 'concerned', hair: 'bob' },
+  pilot:     { skin: 'tanned', eyes: 'squint', mouth: 'serious', brow: 'flat', hair: 'buzz' },
+  captain:   { skin: 'black', eyes: 'default', mouth: 'teeth', brow: 'raised', hair: 'dreads' },
   ranger:    { skin: 'light', eyes: 'default', mouth: 'smile', brow: 'default', hair: 'hijab' },
-  guardian:  { skin: 'pale', eyes: 'happy', mouth: 'grin', brow: 'raised', hair: 'none' },
-  vanguard:  { skin: 'darkBrown', eyes: 'default', mouth: 'smile', brow: 'default', hair: 'shortCurly' },
+  guardian:  { skin: 'brown', eyes: 'stars', mouth: 'ooh', brow: 'arched', hair: 'mohawk' },
+  vanguard:  { skin: 'darkBrown', eyes: 'side_eye', mouth: 'cat', brow: 'default', hair: 'braids' },
 };
 
 const EXPRESSION_MAP = {
   happy:     { eyes: 'happy', mouth: 'grin', brow: 'raised' },
   excited:   { eyes: 'surprised', mouth: 'open', brow: 'raised' },
-  cool:      { eyes: 'default', mouth: 'smile', brow: 'default' },
+  cool:      { eyes: 'squint', mouth: 'smirk', brow: 'flat' },
   wink:      { eyes: 'wink', mouth: 'tongue', brow: 'default' },
   serious:   { eyes: 'default', mouth: 'serious', brow: 'angry' },
-  love:      { eyes: 'hearts', mouth: 'smile', brow: 'default' },
-  surprised: { eyes: 'surprised', mouth: 'open', brow: 'raised' },
+  love:      { eyes: 'hearts', mouth: 'smile', brow: 'arched' },
+  surprised: { eyes: 'surprised', mouth: 'ooh', brow: 'raised' },
   neutral:   { eyes: 'default', mouth: 'smile', brow: 'default' },
+  sleepy:    { eyes: 'sleepy', mouth: 'frown', brow: 'concerned' },
+  silly:     { eyes: 'dizzy', mouth: 'tongue', brow: 'raised' },
+  angry:     { eyes: 'squint', mouth: 'frown', brow: 'angry' },
+  mischief:  { eyes: 'side_eye', mouth: 'smirk', brow: 'raised' },
+  starry:    { eyes: 'stars', mouth: 'ooh', brow: 'arched' },
+  crying:    { eyes: 'cry', mouth: 'frown', brow: 'concerned' },
+  proud:     { eyes: 'closed', mouth: 'teeth', brow: 'flat' },
+  cat_face:  { eyes: 'default', mouth: 'cat', brow: 'default' },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1003,6 +1012,160 @@ function drawHair(ctx, cx, cy, hairType, r, s, skinTone) {
       ctx.stroke();
       break;
     }
+    case 'turban': {
+      ctx.fillStyle = '#1e40af';
+      // Main wrap
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.35, r * 0.65, r * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Top fold
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.55, r * 0.3, r * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Gold pin
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(cx, cy - r * 0.4, r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'braids': {
+      ctx.fillStyle = '#1a1a1a';
+      // Base hair
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.35, r * 0.55, r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Left braid
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.ellipse(cx - r * 0.4, cy - r * 0.1 + i * r * 0.15, r * 0.08, r * 0.1, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Right braid
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.ellipse(cx + r * 0.4, cy - r * 0.1 + i * r * 0.15, r * 0.08, r * 0.1, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Braid ties
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.4, cy + r * 0.5, r * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.4, cy + r * 0.5, r * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'ponytail': {
+      ctx.fillStyle = '#5b3a1a';
+      // Main hair volume
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.35, r * 0.55, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Ponytail going up
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.7, r * 0.15, r * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Hair tie
+      ctx.fillStyle = '#ec4899';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.55, r * 0.12, r * 0.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'pixie': {
+      ctx.fillStyle = '#b8860b';
+      // Short cropped with volume on top
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.4, r * 0.5, r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Side wisps
+      ctx.beginPath();
+      ctx.ellipse(cx - r * 0.45, cy - r * 0.15, r * 0.12, r * 0.2, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'mohawk': {
+      ctx.fillStyle = '#7c3aed';
+      // Central ridge of hair
+      for (let i = -4; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - r * 0.3 + i * r * 0.08, r * 0.12 - Math.abs(i) * r * 0.01, r * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'buzz': {
+      ctx.fillStyle = '#374151';
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.35, r * 0.52, r * 0.38, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Stubble dots
+      ctx.fillStyle = '#1f2937';
+      ctx.globalAlpha = 0.3;
+      for (let i = 0; i < 20; i++) {
+        const angle = (i / 20) * Math.PI * 2;
+        const dr = r * 0.3 + Math.random() * r * 0.15;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(angle) * dr, cy - r * 0.35 + Math.sin(angle) * dr * 0.7, r * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case 'cornrows': {
+      ctx.fillStyle = '#1a1a1a';
+      // Rows of tight braids going back
+      for (let row = -2; row <= 2; row++) {
+        for (let seg = 0; seg < 6; seg++) {
+          ctx.beginPath();
+          ctx.ellipse(
+            cx + row * r * 0.12,
+            cy - r * 0.55 + seg * r * 0.08,
+            r * 0.05, r * 0.06, 0, 0, Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'buns': {
+      ctx.fillStyle = '#3d3a2f';
+      // Base hair
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.35, r * 0.5, r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Left bun
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.35, cy - r * 0.55, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      // Right bun
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.35, cy - r * 0.55, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'wavy': {
+      ctx.fillStyle = '#8b4513';
+      // Main volume
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.25, r * 0.6, r * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Wave texture using overlapping curves
+      ctx.fillStyle = '#a0522d';
+      ctx.globalAlpha = 0.5;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.ellipse(cx + i * r * 0.15, cy - r * 0.35, r * 0.15, r * 0.25, 0.3 * i, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
   }
 }
 
@@ -1032,6 +1195,43 @@ function drawEyebrows(ctx, cx, cy, r, browType, s) {
       ctx.beginPath();
       ctx.moveTo(cx + r * 0.05, browY + r * 0.05);
       ctx.lineTo(cx + r * 0.25, browY - r * 0.1);
+      ctx.stroke();
+      break;
+    }
+    case 'concerned': {
+      // Worried upward inner tilt
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.25, browY - r * 0.05);
+      ctx.quadraticCurveTo(cx - r * 0.15, browY - r * 0.15, cx - r * 0.05, browY + r * 0.02);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + r * 0.05, browY + r * 0.02);
+      ctx.quadraticCurveTo(cx + r * 0.15, browY - r * 0.15, cx + r * 0.25, browY - r * 0.05);
+      ctx.stroke();
+      break;
+    }
+    case 'flat': {
+      // Completely flat straight brows
+      ctx.lineWidth = 2.5 * s;
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.25, browY);
+      ctx.lineTo(cx - r * 0.05, browY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + r * 0.05, browY);
+      ctx.lineTo(cx + r * 0.25, browY);
+      ctx.stroke();
+      break;
+    }
+    case 'arched': {
+      // High dramatic arches
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.25, browY + r * 0.02);
+      ctx.quadraticCurveTo(cx - r * 0.15, browY - r * 0.15, cx - r * 0.05, browY + r * 0.02);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + r * 0.05, browY + r * 0.02);
+      ctx.quadraticCurveTo(cx + r * 0.15, browY - r * 0.15, cx + r * 0.25, browY + r * 0.02);
       ctx.stroke();
       break;
     }
@@ -1128,6 +1328,191 @@ function drawEyes(ctx, cx, cy, r, eyeType, s) {
       drawHeart(ctx, cx + eyeW * 1.5, eyeY, eyeW * 0.6);
       break;
     }
+    case 'sleepy': {
+      // Half-closed drowsy eyes
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.5, eyeY + eyeW * 0.1, eyeW * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyelid drooping
+      ctx.fillStyle = ctx.canvas ? (FACE_SKIN_TONES.pale.fill) : '#fde2c8';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY - eyeW * 0.15, eyeW * 0.55, eyeW * 0.25, 0, 0, Math.PI);
+      ctx.fill();
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.5, eyeY + eyeW * 0.1, eyeW * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ctx.canvas ? (FACE_SKIN_TONES.pale.fill) : '#fde2c8';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY - eyeW * 0.15, eyeW * 0.55, eyeW * 0.25, 0, 0, Math.PI);
+      ctx.fill();
+      break;
+    }
+    case 'side_eye': {
+      // Eyes looking to the right
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.5 + eyeW * 0.25, eyeY, eyeW * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.5 + eyeW * 0.15, eyeY - eyeW * 0.12, eyeW * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.5 + eyeW * 0.25, eyeY, eyeW * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.5 + eyeW * 0.15, eyeY - eyeW * 0.12, eyeW * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'squint': {
+      // Narrow squinting eyes
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY, eyeW * 0.3, eyeW * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.4, eyeY - eyeW * 0.05, eyeW * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY, eyeW * 0.3, eyeW * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.4, eyeY - eyeW * 0.05, eyeW * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'cry': {
+      // Sad eyes with tear drops
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.5, eyeY + eyeW * 0.15, eyeW * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.35, eyeY - eyeW * 0.1, eyeW * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Tear on left
+      ctx.fillStyle = '#60a5fa';
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeW * 1.5, eyeY + eyeW * 0.65, eyeW * 0.12, eyeW * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY, eyeW * 0.5, eyeW * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.5, eyeY + eyeW * 0.15, eyeW * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.35, eyeY - eyeW * 0.1, eyeW * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Tear on right
+      ctx.fillStyle = '#60a5fa';
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeW * 1.5, eyeY + eyeW * 0.65, eyeW * 0.12, eyeW * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case 'stars': {
+      // Star-shaped eyes
+      ctx.fillStyle = '#fbbf24';
+      drawStar(ctx, cx - eyeW * 1.5, eyeY, eyeW * 0.5, 5);
+      drawStar(ctx, cx + eyeW * 1.5, eyeY, eyeW * 0.5, 5);
+      break;
+    }
+    case 'dizzy': {
+      // Spiral dizzy eyes
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 1.5 * s;
+      // Left spiral
+      for (let t = 0; t < Math.PI * 4; t += 0.15) {
+        const spiralR = (t / (Math.PI * 4)) * eyeW * 0.5;
+        const sx = cx - eyeW * 1.5 + Math.cos(t) * spiralR;
+        const sy = eyeY + Math.sin(t) * spiralR;
+        if (t === 0) { ctx.beginPath(); ctx.moveTo(sx, sy); }
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+      // Right spiral
+      for (let t = 0; t < Math.PI * 4; t += 0.15) {
+        const spiralR = (t / (Math.PI * 4)) * eyeW * 0.5;
+        const sx = cx + eyeW * 1.5 + Math.cos(t) * spiralR;
+        const sy = eyeY + Math.sin(t) * spiralR;
+        if (t === 0) { ctx.beginPath(); ctx.moveTo(sx, sy); }
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+      break;
+    }
+    case 'closed': {
+      // Peacefully closed eyes (curved lines)
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx - eyeW * 1.5, eyeY + eyeW * 0.1, eyeW * 0.4, 1.1 * Math.PI, 1.9 * Math.PI);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx + eyeW * 1.5, eyeY + eyeW * 0.1, eyeW * 0.4, 1.1 * Math.PI, 1.9 * Math.PI);
+      ctx.stroke();
+      // Small eyelashes
+      ctx.lineWidth = 1.5 * s;
+      ctx.beginPath();
+      ctx.moveTo(cx - eyeW * 1.5 - eyeW * 0.35, eyeY + eyeW * 0.05);
+      ctx.lineTo(cx - eyeW * 1.5 - eyeW * 0.42, eyeY - eyeW * 0.05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + eyeW * 1.5 + eyeW * 0.35, eyeY + eyeW * 0.05);
+      ctx.lineTo(cx + eyeW * 1.5 + eyeW * 0.42, eyeY - eyeW * 0.05);
+      ctx.stroke();
+      break;
+    }
     case 'default':
     default: {
       // Standard eyes with iris and shine
@@ -1220,6 +1605,110 @@ function drawMouth(ctx, cx, cy, r, mouthType, s) {
       ctx.stroke();
       break;
     }
+    case 'smirk': {
+      // Asymmetric half-smile
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthW * 0.5, mouthY + mouthW * 0.1);
+      ctx.quadraticCurveTo(cx + mouthW * 0.3, mouthY + mouthW * 0.3, cx + mouthW, mouthY - mouthW * 0.15);
+      ctx.stroke();
+      break;
+    }
+    case 'teeth': {
+      // Big toothy grin
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.ellipse(cx, mouthY, mouthW * 1.1, mouthW * 0.55, 0, 0, Math.PI);
+      ctx.fill();
+      // White teeth row
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.rect(cx - mouthW * 0.8, mouthY - mouthW * 0.05, mouthW * 1.6, mouthW * 0.22);
+      ctx.fill();
+      // Tooth dividers
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + i * mouthW * 0.22, mouthY - mouthW * 0.05);
+        ctx.lineTo(cx + i * mouthW * 0.22, mouthY + mouthW * 0.17);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'frown': {
+      // Sad downward curve
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthW, mouthY + mouthW * 0.2);
+      ctx.quadraticCurveTo(cx, mouthY - mouthW * 0.3, cx + mouthW, mouthY + mouthW * 0.2);
+      ctx.stroke();
+      break;
+    }
+    case 'bite_lip': {
+      // Biting lower lip
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = 'round';
+      // Upper lip line
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthW * 0.7, mouthY);
+      ctx.lineTo(cx + mouthW * 0.7, mouthY);
+      ctx.stroke();
+      // Lower lip bump (bitten)
+      ctx.fillStyle = '#d17a7a';
+      ctx.beginPath();
+      ctx.ellipse(cx, mouthY + mouthW * 0.2, mouthW * 0.5, mouthW * 0.15, 0, 0, Math.PI);
+      ctx.fill();
+      break;
+    }
+    case 'whistle': {
+      // Small round whistling mouth
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.arc(cx, mouthY, mouthW * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Inner highlight
+      ctx.fillStyle = '#d17a7a';
+      ctx.beginPath();
+      ctx.arc(cx, mouthY + mouthW * 0.05, mouthW * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'ooh': {
+      // Oval open mouth (surprised/amazed)
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.ellipse(cx, mouthY, mouthW * 0.45, mouthW * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Tongue hint
+      ctx.fillStyle = '#d17a7a';
+      ctx.beginPath();
+      ctx.ellipse(cx, mouthY + mouthW * 0.25, mouthW * 0.25, mouthW * 0.15, 0, 0, Math.PI);
+      ctx.fill();
+      break;
+    }
+    case 'cat': {
+      // Cat-like :3 mouth (w shape)
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = 'round';
+      // Left curve
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthW, mouthY);
+      ctx.quadraticCurveTo(cx - mouthW * 0.5, mouthY + mouthW * 0.35, cx, mouthY);
+      ctx.stroke();
+      // Right curve
+      ctx.beginPath();
+      ctx.moveTo(cx, mouthY);
+      ctx.quadraticCurveTo(cx + mouthW * 0.5, mouthY + mouthW * 0.35, cx + mouthW, mouthY);
+      ctx.stroke();
+      break;
+    }
     case 'smile':
     default: {
       // Simple curved smile
@@ -1240,6 +1729,22 @@ function drawHeart(ctx, cx, cy, size) {
   ctx.moveTo(cx, cy + size * 0.4);
   ctx.bezierCurveTo(cx - size * 0.5, cy, cx - size * 0.5, cy - size * 0.3, cx, cy - size * 0.5);
   ctx.bezierCurveTo(cx + size * 0.5, cy - size * 0.3, cx + size * 0.5, cy, cx, cy + size * 0.4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawStar(ctx, cx, cy, size, points, color) {
+  if (color) ctx.fillStyle = color;
+  const step = Math.PI / points;
+  ctx.beginPath();
+  for (let i = 0; i < 2 * points; i++) {
+    const r = i % 2 === 0 ? size : size * 0.4;
+    const angle = i * step - Math.PI / 2;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
   ctx.closePath();
   ctx.fill();
 }
@@ -2612,21 +3117,6 @@ function drawPet(ctx, px, py, pet, B) {
     }
   }
   ctx.restore();
-}
-
-function drawStar(ctx, cx, cy, size, points, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 === 0 ? size : size * 0.45;
-    const a = (i * Math.PI) / points - Math.PI / 2;
-    const px = cx + Math.cos(a) * r;
-    const py = cy + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fill();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -106,23 +106,80 @@ const BOSS_CONFIGS = {
   },
 };
 
-// ─── MONSTER SPRITE (STATIC COMPOSITE) ────────────────────────────────────
+// ─── SVG FALLBACK BOSS RENDERER ─────────────────────────────────────────────
 
-function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = true }) {
+function FallbackBossSVG({ ksLevel = "ks2", size = "md", animate = true, style = {} }) {
   const config = BOSS_CONFIGS[ksLevel] || BOSS_CONFIGS.ks2;
   const sizeMap = { sm: 80, md: 120, lg: 160 };
   const dimension = sizeMap[size] || sizeMap.md;
-  const assetBase = "/assets/kenney/monsters/parts";
+  const color = config.primaryColor;
   const personality = config.personality || "bouncy";
 
   // Personality-based animation classes
   const personalityAnimations = {
-    bouncy: "monsterBouncy",
-    regal: "monsterRegal",
-    glitchy: "monsterGlitchy",
-    fierce: "monsterFierce",
+    bouncy: "svgBouncy",
+    regal: "svgRegal",
+    glitchy: "svgGlitchy",
+    fierce: "svgFierce",
   };
   const animationClass = animate ? personalityAnimations[personality] : "";
+
+  const renderBoss = () => {
+    switch (ksLevel) {
+      case "ks1":
+        // Bouncy Critter: Blue circle with googly eyes
+        return (
+          <g>
+            <circle cx="60" cy="60" r="45" fill={color} opacity="0.8" />
+            <circle cx="42" cy="50" r="8" fill="white" />
+            <circle cx="42" cy="50" r="5" fill="black" />
+            <circle cx="78" cy="50" r="8" fill="white" />
+            <circle cx="78" cy="50" r="5" fill="black" />
+            <path d="M 55 75 Q 60 82 65 75" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" />
+          </g>
+        );
+      case "ks2":
+        // Regal Sphinx: Gold pyramid/sphinx shape
+        return (
+          <g>
+            <polygon points="60,15 20,90 100,90" fill={color} opacity="0.8" />
+            <circle cx="45" cy="65" r="6" fill="white" />
+            <circle cx="45" cy="65" r="3" fill="black" />
+            <circle cx="75" cy="65" r="6" fill="white" />
+            <circle cx="75" cy="65" r="3" fill="black" />
+            <polygon points="30,85 35,78 40,85" fill={color} opacity="0.6" />
+            <polygon points="80,85 85,78 90,85" fill={color} opacity="0.6" />
+          </g>
+        );
+      case "ks3":
+        // Code Phantom: Green ghostly shape
+        return (
+          <g>
+            <path d="M 30 40 Q 20 50 25 70 Q 30 85 60 90 Q 90 85 95 70 Q 100 50 90 40 Z" fill={color} opacity="0.7" />
+            <circle cx="45" cy="55" r="7" fill="white" />
+            <circle cx="45" cy="55" r="3" fill={color} />
+            <circle cx="75" cy="55" r="7" fill="white" />
+            <circle cx="75" cy="55" r="3" fill={color} />
+            <rect x="35" y="75" width="8" height="10" fill={color} opacity="0.5" />
+            <rect x="60" y="75" width="8" height="10" fill={color} opacity="0.5" />
+          </g>
+        );
+      case "ks4":
+      default:
+        // Equation Dragon: Red angular dragon silhouette
+        return (
+          <g>
+            <polygon points="60,20 80,35 75,50 90,55 60,85 30,55 45,50 40,35" fill={color} opacity="0.8" />
+            <circle cx="50" cy="45" r="6" fill="white" />
+            <circle cx="50" cy="45" r="3" fill="black" />
+            <circle cx="70" cy="45" r="6" fill="white" />
+            <circle cx="70" cy="45" r="3" fill="black" />
+            <polygon points="75,30 85,25 80,35" fill={color} opacity="0.6" />
+            <polygon points="45,30 35,25 40,35" fill={color} opacity="0.6" />
+          </g>
+        );
+    }
+  };
 
   return (
     <div
@@ -135,12 +192,84 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         ...style,
       }}
     >
+      <svg
+        width={dimension}
+        height={dimension}
+        viewBox="0 0 120 120"
+        style={{ display: "block", filter: "drop-shadow(0 0 8px rgba(0,0,0,0.3))" }}
+      >
+        {renderBoss()}
+      </svg>
+      <style>{`
+        @keyframes svgBouncy {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-12px); }
+        }
+        @keyframes svgRegal {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          50% { transform: scale(1.05) rotate(2deg); }
+        }
+        @keyframes svgGlitchy {
+          0%, 100% { transform: translateX(0); }
+          10% { transform: translateX(-3px); }
+          20% { transform: translateX(3px); }
+          30% { transform: translateX(0); }
+          70% { transform: translateX(0); }
+          80% { transform: translateX(-4px); }
+          90% { transform: translateX(4px); }
+        }
+        @keyframes svgFierce {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          25% { transform: scale(1.08) rotate(-1deg); }
+          75% { transform: scale(1.08) rotate(1deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── MONSTER SPRITE (STATIC COMPOSITE) ────────────────────────────────────
+
+function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = true }) {
+  const config = BOSS_CONFIGS[ksLevel] || BOSS_CONFIGS.ks2;
+  const sizeMap = { sm: 80, md: 120, lg: 160 };
+  const dimension = sizeMap[size] || sizeMap.md;
+  const assetBase = "/assets/kenney/monsters/parts";
+  const personality = config.personality || "bouncy";
+  const [useFallback, setUseFallback] = React.useState(false);
+
+  // Personality-based animation classes
+  const personalityAnimations = {
+    bouncy: "monsterBouncy",
+    regal: "monsterRegal",
+    glitchy: "monsterGlitchy",
+    fierce: "monsterFierce",
+  };
+  const animationClass = animate ? personalityAnimations[personality] : "";
+
+  // Fallback to SVG if PNG parts fail
+  if (useFallback) {
+    return <FallbackBossSVG ksLevel={ksLevel} size={size} animate={animate} style={style} />;
+  }
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: dimension,
+        height: dimension,
+        margin: "0 auto",
+        animation: animationClass ? `${animationClass} ${["bouncy", "fierce"].includes(personality) ? "2s" : "3s"} ease-in-out infinite` : "none",
+        ...style,
+      }}
+      onError={() => setUseFallback(true)}
+    >
       {/* Tail (behind body) */}
       {config.parts.tail && (
         <img
           src={`${assetBase}/${config.parts.tail}.png`}
           alt="tail"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "40%",
@@ -158,7 +287,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         <img
           src={`${assetBase}/${config.parts.wing}.png`}
           alt="wing-left"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "50%",
@@ -178,7 +307,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         <img
           src={`${assetBase}/${config.parts.wing}.png`}
           alt="wing-right"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "50%",
@@ -210,7 +339,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         <img
           src={`${assetBase}/${config.parts.detail}.png`}
           alt="detail"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "100%",
@@ -328,7 +457,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         <img
           src={`${assetBase}/${config.parts.horn}.png`}
           alt="horn"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "35%",
@@ -347,7 +476,7 @@ function MonsterSprite({ ksLevel = "ks2", size = "md", style = {}, animate = tru
         <img
           src={`${assetBase}/${config.parts.accessory}.png`}
           alt="accessory"
-          onError={() => {}}
+          onError={() => setUseFallback(true)}
           style={{
             position: "absolute",
             width: "45%",
@@ -636,6 +765,8 @@ function BossDisplay({
   }
 
   const hpPercent = Math.max(0, (currentHp / maxHp) * 100);
+  const isDefeated = hpPercent <= 0;
+  const isHit = result?.damage > 0;
 
   return (
     <div
@@ -648,14 +779,21 @@ function BossDisplay({
         ...style,
       }}
     >
-      {/* Boss sprite with hover effect */}
+      {/* Boss sprite with hover effect and flinch animation */}
       <div
         style={{
           position: "relative",
-          transform: hpPercent < 25 ? "scale(0.95)" : "scale(1)",
-          opacity: hpPercent <= 0 ? 0.6 : 1,
+          transform: isDefeated
+            ? "scale(0) translateY(20px)"
+            : isHit
+              ? "scale(0.95) translateX(0)"
+              : hpPercent < 25
+                ? "scale(0.95)"
+                : "scale(1)",
+          opacity: isDefeated ? 0 : 1,
           filter: hpPercent <= 0 ? "grayscale(1)" : "none",
           transition: "all 0.4s ease",
+          animation: isHit ? "bossFlinch 0.3s ease-out" : "none",
         }}
       >
         <AnimatedBossSprite
@@ -672,25 +810,30 @@ function BossDisplay({
           }
           @keyframes monsterBouncy {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+            50% { transform: translateY(-12px); }
           }
           @keyframes monsterRegal {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+            50% { transform: scale(1.04); }
           }
           @keyframes monsterGlitchy {
             0%, 100% { transform: translateX(0); }
-            10% { transform: translateX(-2px); }
-            20% { transform: translateX(2px); }
+            10% { transform: translateX(-3px); }
+            20% { transform: translateX(3px); }
             30% { transform: translateX(0); }
             70% { transform: translateX(0); }
-            80% { transform: translateX(-3px); }
-            90% { transform: translateX(3px); }
+            80% { transform: translateX(-4px); }
+            90% { transform: translateX(4px); }
           }
           @keyframes monsterFierce {
             0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.03) rotate(-0.5deg); }
-            75% { transform: scale(1.03) rotate(0.5deg); }
+            25% { transform: scale(1.05) rotate(-1deg); }
+            75% { transform: scale(1.05) rotate(1deg); }
+          }
+          @keyframes bossFlinch {
+            0% { transform: scale(1) translateX(0) !important; }
+            30% { transform: scale(0.92) translateX(-4px) !important; }
+            100% { transform: scale(0.95) translateX(0) !important; }
           }
         `}</style>
       </div>
@@ -758,20 +901,22 @@ function BossHPBar({ current, max, colour }) {
 
 // ─── DAMAGE FLASH ────────────────────────────────────────────────────────────
 
-function DamageFlash({ damage, isWeakness, visible }) {
+function DamageFlash({ damage, isWeakness, visible, isHeal = false }) {
   if (!visible || !damage) return null;
+
+  const color = isHeal ? "#22c55e" : isWeakness ? "#fbbf24" : "#ef4444";
 
   return (
     <div style={{
       position: "absolute", top: "30%", left: "50%",
       transform: "translate(-50%, -50%)",
       fontSize: 28, fontWeight: 900,
-      color: isWeakness ? "#fbbf24" : "#ef4444",
-      textShadow: `0 0 20px ${isWeakness ? "#fbbf24" : "#ef4444"}`,
-      animation: "floatUp 1s ease-out forwards",
+      color: color,
+      textShadow: `0 0 20px ${color}`,
+      animation: isHeal ? "floatUpGreen 1s ease-out forwards" : "floatUp 1s ease-out forwards",
       pointerEvents: "none", zIndex: 10,
     }}>
-      -{damage}{isWeakness ? " 💥" : ""}
+      {isHeal ? `+${damage}` : `-${damage}`}{isWeakness ? " 💥" : isHeal ? " ✨" : ""}
     </div>
   );
 }
@@ -1215,27 +1360,58 @@ export default function BossBattleUI({
         />
       )}
 
-      {/* Injected CSS for damage animation */}
+      {/* Injected CSS for damage animation and visual effects */}
       <style>{`
         @keyframes floatUp {
           0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           100% { opacity: 0; transform: translate(-50%, -120%) scale(1.3); }
         }
+        @keyframes floatUpGreen {
+          0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -120%) scale(1.2); }
+        }
         @keyframes bossShake {
           0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-6px); }
+          10% { transform: translateX(-8px); }
+          20% { transform: translateX(8px); }
+          30% { transform: translateX(-6px); }
           40% { transform: translateX(6px); }
-          60% { transform: translateX(-4px); }
-          80% { transform: translateX(4px); }
+          50% { transform: translateX(-4px); }
+          60% { transform: translateX(4px); }
+          70% { transform: translateX(-2px); }
+          80% { transform: translateX(2px); }
+        }
+        @keyframes screenFlashRed {
+          0% { background: rgba(239, 68, 68, 0.3); }
+          100% { background: rgba(239, 68, 68, 0); }
+        }
+        @keyframes screenFlashGreen {
+          0% { background: rgba(34, 197, 94, 0.3); }
+          100% { background: rgba(34, 197, 94, 0); }
+        }
+        @keyframes victoryPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+        @keyframes defeatFade {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(20px); }
         }
       `}</style>
 
-      {/* Boss section */}
+      {/* Boss section with flash effects */}
       <div style={{
         position: "relative",
         background: `linear-gradient(135deg, ${bossColour}15, ${bossColour}08)`,
         border: `1px solid ${bossColour}30`,
         borderRadius: 16, padding: 16,
+        animation: showDamage && result?.damage > 0
+          ? "screenFlashRed 0.4s ease-out"
+          : showDamage && result?.damage === 0
+            ? "screenFlashRed 0.5s ease-out"
+            : "none",
+        overflow: "hidden",
       }}>
         <DamageFlash
           damage={result?.damage}
@@ -1246,8 +1422,13 @@ export default function BossBattleUI({
         {/* Boss sprite with animation */}
         <div
           style={{
-            animation: result?.damage ? "bossShake 0.5s ease" : "none",
+            animation: result?.damage > 0
+              ? "bossShake 0.5s cubic-bezier(0.36, 0, 0.66, 1)"
+              : result?.damage === 0
+                ? "bossShake 0.6s ease-out"
+                : "none",
             marginBottom: 12,
+            perspective: "1000px",
           }}
         >
           <BossDisplay
