@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAgeBand, getBandConfig, getTaraSystemPrompt } from '@/lib/ageBandConfig';
+import { taraRequestSchema, parseBody } from '@/lib/validation';
 
 // ─── Deploy to: src/app/api/tara/route.js ────────────────────────────────────
 // Updated to use ageBandConfig for age-adaptive Tara personality.
@@ -144,11 +145,23 @@ export async function POST(req) {
     return NextResponse.json({ feedback: "Tara: Great effort! Tell me more about your thinking. 🌟" });
   }
 
+  // Validate request body with Zod
+  const parsed = parseBody(taraRequestSchema, {
+    text: body.text,
+    subject: body.subject,
+    correctAnswer: body.correctAnswer,
+    question: body.question,
+    scholarName: body.scholarName,
+    scholarYear: body.scholarYear,
+    mode: body.mode,
+  })
+  if (!parsed.success) return parsed.error
+
   const {
     text, subject = "mathematics", correctAnswer = "", scholarAnswer = "",
     scholarName = "Scholar", scholarYear = 4, question = null,
     mode = "eib", context = "", curriculum = "",
-  } = body;
+  } = { ...body, ...parsed.data };
 
   // ── Resolve age band ─────────────────────────────────────────────────────
   const band   = getAgeBand(scholarYear, curriculum);

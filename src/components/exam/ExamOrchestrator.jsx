@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * ExamOrchestrator.jsx
@@ -51,7 +52,7 @@ export default function ExamOrchestrator({ scholar, onClose }) {
         paper = data.paper;
       } else {
         // Create new exam sitting via API
-        const response = await fetch("/api/exam-sittings", {
+        const response = await apiFetch("/api/exam-sittings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

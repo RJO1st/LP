@@ -20,6 +20,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Prevent flash of wrong theme — runs before React hydrates */}
+        {/* SECURITY: Hardcoded static script — no user/DB input, safe to use dangerouslySetInnerHTML */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var d=localStorage.getItem('lp-dark-mode');if(d==='true'||(d===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,

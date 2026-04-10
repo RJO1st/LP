@@ -1,14 +1,21 @@
-import { createClient } from "@supabase/supabase-js";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const getClient = () =>
-  createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  createRouteHandlerClient({ cookies });
 
 // ── PUT — toggle achieved status ─────────────────────────────────────────────
 export async function PUT(req, { params }) {
+  const supabase = getClient();
+
+  // ── Authentication check ──────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const parentId = session.user.id;
+
   const { id } = await params;
 
   let body;
@@ -27,7 +34,23 @@ export async function PUT(req, { params }) {
     );
   }
 
-  const supabase = getClient();
+  // ── Verify goal ownership ────────────────────────────────────────────────
+  const { data: goal, error: fetchError } = await supabase
+    .from("scholar_goals")
+    .select("parent_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !goal) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
+
+  if (goal.parent_id !== parentId) {
+    return NextResponse.json(
+      { error: "Cannot modify goals for other parents" },
+      { status: 403 }
+    );
+  }
 
   const { data, error } = await supabase
     .from("scholar_goals")
@@ -48,9 +71,34 @@ export async function PUT(req, { params }) {
 
 // ── DELETE — remove a goal ────────────────────────────────────────────────────
 export async function DELETE(req, { params }) {
+  const supabase = getClient();
+
+  // ── Authentication check ──────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const parentId = session.user.id;
+
   const { id } = await params;
 
-  const supabase = getClient();
+  // ── Verify goal ownership ────────────────────────────────────────────────
+  const { data: goal, error: fetchError } = await supabase
+    .from("scholar_goals")
+    .select("parent_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !goal) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
+
+  if (goal.parent_id !== parentId) {
+    return NextResponse.json(
+      { error: "Cannot delete goals for other parents" },
+      { status: 403 }
+    );
+  }
 
   const { error } = await supabase
     .from("scholar_goals")

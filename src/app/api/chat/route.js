@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
+import { chatRequestSchema, parseBody } from '@/lib/validation';
 
 // Chat uses Claude via OpenRouter — quality matters for student-facing conversation
 const CHAT_MODEL = 'anthropic/claude-3.5-haiku';  // $0.80/$4.00 per 1M — fast + cheap Claude
 
 export async function POST(req) {
   try {
-    const { system, messages } = await req.json();
+    const raw = await req.json();
+    const parsed = parseBody(chatRequestSchema, raw);
+    if (!parsed.success) return parsed.error;
+    const { system, messages } = parsed.data;
 
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: "Communications offline: OPENROUTER_API_KEY missing" }, { status: 500 });

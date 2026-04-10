@@ -64,6 +64,7 @@
  */
 
 import { scoreDiagnostic, masteryToTier, MASTERY_THRESHOLDS } from './masteryEngine.js';
+import { cache } from './cache.js';
 
 // Re-export key functions for convenience
 // (computeExamReadinessIndex, predictGrade, fetchExamBoardData are defined below)
@@ -511,6 +512,11 @@ function _buildPathItem(topic, subject, curriculum, yearLevel, currentScore, ban
 /**
  * Fetch curriculum standards relevant to a scholar's learning path.
  *
+ * OPTIMIZATIONS:
+ *   - Parallel queries: standards + coverage stats run concurrently (Promise.all)
+ *   - In-memory cache: keyed on curriculum:subject:yearLevel with 5min TTL
+ *   - Graceful degradation: if either query fails, returns partial result
+ *
  * Returns an object with:
  *   - standards: array of { code, statement, strand_name, year_level }
  *   - coverageGaps: { critical: [...], high: [...] } — standards with few/no questions
@@ -525,43 +531,55 @@ function _buildPathItem(topic, subject, curriculum, yearLevel, currentScore, ban
 export async function fetchStandardsForPath(curriculum, subject, yearLevel, supabase) {
   if (!supabase || !curriculum || !subject) return null;
 
+  // Check in-memory cache first (5 min TTL)
+  const cacheKey = `curriculum_standards:${curriculum}:${subject}:${yearLevel}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   try {
-    // Fetch standards for this curriculum + subject + year (and ±1 year for context)
     const yearMin = Math.max(1, yearLevel - 1);
     const yearMax = yearLevel + 1;
 
-    const { data: standards, error } = await supabase
-      .from('curriculum_standards')
-      .select(`
-        standard_code,
-        statement,
-        year_level,
-        bloom_level,
-        difficulty_band,
-        strand:strand_id ( strand_name, strand_code )
-      `)
-      .eq('curriculum_id', curriculum)
-      .eq('subject', subject)
-      .gte('year_level', yearMin)
-      .lte('year_level', yearMax)
-      .order('year_level', { ascending: true });
+    // Run standards + coverage queries in parallel
+    const [standardsResult, coverageResult] = await Promise.allSettled([
+      supabase
+        .from('curriculum_standards')
+        .select(`
+          standard_code,
+          statement,
+          year_level,
+          bloom_level,
+          difficulty_band,
+          strand:strand_id ( strand_name, strand_code )
+        `)
+        .eq('curriculum_id', curriculum)
+        .eq('subject', subject)
+        .gte('year_level', yearMin)
+        .lte('year_level', yearMax)
+        .order('year_level', { ascending: true }),
+      supabase
+        .from('curriculum_coverage_stats')
+        .select('standard_code, question_count')
+        .eq('curriculum_id', curriculum)
+        .eq('subject', subject),
+    ]);
 
-    if (error || !standards?.length) return null;
+    // Extract results with graceful degradation
+    const standards = standardsResult.status === 'fulfilled' ? (standardsResult.value?.data ?? []) : [];
+    const coverage = coverageResult.status === 'fulfilled' ? (coverageResult.value?.data ?? []) : [];
 
-    // Fetch coverage stats to identify gaps
-    const { data: coverage } = await supabase
-      .from('curriculum_coverage_stats')
-      .select('standard_code, question_count')
-      .eq('curriculum_id', curriculum)
-      .eq('subject', subject);
+    // Bail if no standards could be fetched
+    if (!standards?.length) return null;
 
+    // Build coverage map (safe even if coverage array is empty)
     const coverageMap = {};
-    for (const c of coverage ?? []) coverageMap[c.standard_code] = c.question_count ?? 0;
+    for (const c of coverage) {
+      coverageMap[c.standard_code] = c.question_count ?? 0;
+    }
 
     // Categorise gaps
-    const critical = []; // 0 questions
-    const high = [];     // < 5 questions
-
+    const critical = [];
+    const high = [];
     for (const s of standards) {
       const qCount = coverageMap[s.standard_code] ?? 0;
       const entry = {
@@ -577,10 +595,10 @@ export async function fetchStandardsForPath(curriculum, subject, yearLevel, supa
       else if (qCount < 5) high.push(entry);
     }
 
-    // Map standards to topic slugs using keyword matching
+    // Map standards to topic slugs
     const standardsByTopic = _mapStandardsToTopics(standards);
 
-    return {
+    const result = {
       standards: standards.map(s => ({
         code: s.standard_code,
         statement: s.statement,
@@ -595,6 +613,10 @@ export async function fetchStandardsForPath(curriculum, subject, yearLevel, supa
       totalStandards: standards.length,
       coveredStandards: standards.length - critical.length,
     };
+
+    // Cache for 5 minutes
+    cache.set(cacheKey, result, 300);
+    return result;
   } catch {
     return null;
   }

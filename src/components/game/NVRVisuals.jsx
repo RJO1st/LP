@@ -2,6 +2,7 @@
 // ─── Deploy to: src/components/game/NVRVisuals.jsx ───────────────────────────
 // Extracted from MathsVisualiser — Non-Verbal Reasoning visual components.
 import React from "react";
+import DOMPurify from "dompurify";
 
 // ─── Shared design tokens ────────────────────────────────────────────────────
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
@@ -126,6 +127,11 @@ export function NVRShapeItem({ shape, size, fill, stroke, rotate = 0, opacity = 
   const cx = 24, cy = 24, r = size;
   const shapeFn = NVR_SHAPES[shape] || NVR_SHAPES.circle;
   const svgContent = shapeFn(cx, cy, r, fill, stroke);
+  // Sanitize SVG content to prevent XSS attacks
+  const sanitizedSVG = DOMPurify.sanitize(svgContent, {
+    USE_PROFILES: { svg: true, svgFilters: true }
+  });
+
   return (
     <div style={{
       width: 48, height: 48,
@@ -141,7 +147,7 @@ export function NVRShapeItem({ shape, size, fill, stroke, rotate = 0, opacity = 
       ) : (
         <svg width={48} height={48} viewBox="0 0 48 48"
           style={{ transform: `rotate(${rotate}deg)`, opacity }}>
-          <g dangerouslySetInnerHTML={{ __html: svgContent }} />
+          <g dangerouslySetInnerHTML={{ __html: sanitizedSVG }} />
         </svg>
       )}
     </div>

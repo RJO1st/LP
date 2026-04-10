@@ -22,6 +22,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { ImageOff, BookOpen, FlaskConical, Table2, FunctionSquare } from "lucide-react";
+import DOMPurify from "dompurify";
 
 // ── KaTeX lazy loader ─────────────────────────────────────────────────────────
 let katexLoaded  = false;
@@ -122,11 +123,16 @@ function DiagramImage({ src, alt }) {
 
 // ── Inline SVG panel ──────────────────────────────────────────────────────────
 function SVGDiagram({ svgContent }) {
+  // Sanitize SVG content from database to prevent XSS attacks
+  const sanitizedSVG = DOMPurify.sanitize(svgContent, {
+    USE_PROFILES: { svg: true, svgFilters: true }
+  });
+
   return (
     <div
       className="w-full bg-white rounded-xl border border-slate-200 p-3 overflow-auto"
       style={{ maxHeight: 280 }}
-      dangerouslySetInnerHTML={{ __html: svgContent }}
+      dangerouslySetInnerHTML={{ __html: sanitizedSVG }}
     />
   );
 }

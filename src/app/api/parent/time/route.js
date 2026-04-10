@@ -1,4 +1,6 @@
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from 'next/headers';
 import { NextResponse } from "next/server";
 
 const PERIOD_OFFSETS = {
@@ -9,25 +11,58 @@ const PERIOD_OFFSETS = {
 };
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const scholar_id = searchParams.get("scholar_id");
-  const period     = searchParams.get("period") || "week";
+  try {
+    const { searchParams } = new URL(req.url);
+    const scholar_id = searchParams.get("scholar_id");
+    const period     = searchParams.get("period") || "week";
 
-  if (!scholar_id) {
-    return NextResponse.json({ error: "Missing scholar_id" }, { status: 400 });
-  }
+    if (!scholar_id) {
+      return NextResponse.json({ error: "Missing scholar_id" }, { status: 400 });
+    }
 
-  if (!PERIOD_OFFSETS[period]) {
-    return NextResponse.json(
-      { error: `Invalid period. Use: ${Object.keys(PERIOD_OFFSETS).join(", ")}` },
-      { status: 400 }
+    if (!PERIOD_OFFSETS[period]) {
+      return NextResponse.json(
+        { error: `Invalid period. Use: ${Object.keys(PERIOD_OFFSETS).join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // ── Authentication check ──────────────────────────────────────────────
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll()
+        }
+      }
     );
-  }
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+    // ── Verify scholar belongs to this parent ──────────────────────────────
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data: scholar, error: scholarError } = await supabaseAdmin
+      .from('scholars')
+      .select('id')
+      .eq('id', scholar_id)
+      .eq('parent_id', user.id)
+      .maybeSingle();
+
+    if (scholarError || !scholar) {
+      return NextResponse.json({ error: 'Unauthorized: scholar not found or does not belong to you' }, { status: 403 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
   const startDate = PERIOD_OFFSETS[period](new Date());
 
@@ -66,5 +101,9 @@ export async function GET(req) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('[time] error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

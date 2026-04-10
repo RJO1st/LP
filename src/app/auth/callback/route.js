@@ -12,10 +12,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+function getSafeRedirectUrl(nextParam) {
+  if (!nextParam || typeof nextParam !== 'string') return '/dashboard/student';
+  const trimmed = nextParam.trim();
+  if (trimmed.startsWith('//') || trimmed.includes('://') || !trimmed.startsWith('/')) {
+    return '/dashboard/student';
+  }
+  return trimmed;
+}
+
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") || "/dashboard/parent";
+  const next = searchParams.get("next") || "/dashboard/student";
 
   if (code) {
     const cookieStore = await cookies();
@@ -51,7 +60,8 @@ export async function GET(request) {
       if (type === "recovery") {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
-      return NextResponse.redirect(`${origin}${next}`);
+      const safeUrl = getSafeRedirectUrl(next);
+      return NextResponse.redirect(`${origin}${safeUrl}`);
     }
   }
 

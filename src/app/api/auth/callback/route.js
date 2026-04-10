@@ -7,10 +7,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+function getSafeRedirectUrl(nextParam) {
+  if (!nextParam || typeof nextParam !== 'string') return '/dashboard/student';
+  const trimmed = nextParam.trim();
+  if (trimmed.startsWith('//') || trimmed.includes('://') || !trimmed.startsWith('/')) {
+    return '/dashboard/student';
+  }
+  return trimmed;
+}
+
 export async function GET(request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') || '/dashboard/parent';
+  const next = requestUrl.searchParams.get('next') || '/dashboard/student';
 
   if (code) {
     const supabase = createClient(
@@ -54,8 +63,9 @@ export async function GET(request) {
         console.error('Welcome email failed:', err);
       }
 
-      // Redirect to dashboard
-      return NextResponse.redirect(new URL(next, requestUrl.origin));
+      // Redirect to dashboard (with open-redirect protection)
+      const safeUrl = getSafeRedirectUrl(next);
+      return NextResponse.redirect(new URL(safeUrl, requestUrl.origin));
     }
   }
 

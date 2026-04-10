@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { scholarLoginSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request) {
   try {
@@ -13,15 +14,12 @@ export async function POST(request) {
       );
     }
 
-    const body = await request.json();
-    const code = (body?.code ?? "").trim().toUpperCase();
-
-    if (!code || code.length < 4) {
-      return NextResponse.json(
-        { error: "Invalid access code format." },
-        { status: 400 }
-      );
+    const raw = await request.json();
+    const parsed = parseBody(scholarLoginSchema, { code: (raw?.code ?? "").trim().toUpperCase() });
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid access code format." }, { status: 400 });
     }
+    const { code } = parsed.data;
 
     const supabaseAdmin = createClient(url, key);
 

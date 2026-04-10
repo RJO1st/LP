@@ -47,6 +47,7 @@ import KS1QuizShell from "./KS1QuizShell";
 import KS2QuizShell from "./KS2QuizShell";
 import KS3QuizShell from "./KS3QuizShell";
 import KS4QuizShell from "./KS4QuizShell";
+import { apiFetch } from "@/lib/apiFetch";
 const XP_PER_QUESTION = 10;
 
 // ─── TOPIC LABEL FORMATTER ────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ function useMastery(student) {
     const updated = processAnswer(prev, correct);
     masteryCache.current[topic] = updated;
 
-    fetch("/api/mastery/update", {
+    apiFetch("/api/mastery/update", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -632,7 +633,14 @@ const year = rawYear;
   }
 
   const isCorrectAnswer = selected === q.a;
-  const canProceed      = isCorrectAnswer || (selected !== null && !isCorrectAnswer && taraComplete);
+  // KS1 scholars (Year 1-2) bypass TaraEIB entirely — age-inappropriate to ask
+  // a 6-year-old to type reasoning. They see rich per-distractor explanations
+  // instead (rendered inside KS1QuizShell) and can proceed immediately.
+  const questBand       = getAgeBand(student?.year_level, student?.curriculum || curriculum);
+  const isKS1Band       = questBand === 'ks1';
+  const canProceed      = isCorrectAnswer
+                          || (selected !== null && isKS1Band)
+                          || (selected !== null && !isCorrectAnswer && taraComplete);
   const progress        = ((qIdx + 1) / sessionQuestions.length) * 100;
   // labels is declared via useMemo at the top of this component — no re-declaration needed
 
@@ -759,7 +767,15 @@ const year = rawYear;
   // ── Band-specific quiz shell (KS1-KS4 split-screen layouts) ──────────────
   if (BandQuizShell && !finished) {
     // Build TaraEIB widget for wrong answers (hidden when timer expired — no time to explain)
-    const taraEIBWidget = (selected !== null && !timerExpired && !isCorrectAnswer && taraEnabled !== false) ? (
+    // KS1 (Year 1-2): ALWAYS null — 6-year-olds cannot be asked to type reasoning.
+    // The KS1QuizShell renders rich per-distractor "why this is wrong" explanations instead.
+    const taraEIBWidget = (
+      !isKS1Band
+      && selected !== null
+      && !timerExpired
+      && !isCorrectAnswer
+      && taraEnabled !== false
+    ) ? (
       <TaraEIB
         student={student}
         subject={subject}
@@ -767,12 +783,12 @@ const year = rawYear;
         correctAnswer={q.opts?.[q.a]}
         scholarAnswer={typeof q.opts?.[selected] === "string" ? q.opts[selected] : q.opts?.[selected]?.text}
         onFeedbackReceived={onFeedbackReceived}
-        band={getAgeBand(student?.year_level, student?.curriculum || curriculum)}
+        band={questBand}
         onSpeak={readAloudEnabled ? speakTaraResponse : undefined}
       />
     ) : null;
 
-    const ageBandStr = getAgeBand(student?.year_level, student?.curriculum || curriculum);
+    const ageBandStr = questBand;
 
     return (
       <>
@@ -821,6 +837,7 @@ const year = rawYear;
         leftPanelContent={leftPanelContent}
         taraEIBWidget={taraEIBWidget}
         canProceed={canProceed}
+        correctIndex={q.a}
       />
       </>
     );

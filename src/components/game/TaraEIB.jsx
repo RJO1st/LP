@@ -14,6 +14,7 @@
 
 import React, { useState, useCallback } from "react";
 import { Zap, MessageCircle } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ─── PROFANITY GUARD ─────────────────────────────────────────────────────────
 // Client-side first line of defence. API/system prompt handles edge cases.
@@ -200,7 +201,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
     const timeout    = setTimeout(() => controller.abort(), 6000);
 
     try {
-      const res = await fetch("/api/tara", {
+      const res = await apiFetch("/api/tara", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         signal:  controller.signal,
@@ -245,7 +246,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
     const timeout    = setTimeout(() => controller.abort(), 6000);
 
     try {
-      const res = await fetch("/api/tara", {
+      const res = await apiFetch("/api/tara", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         signal:  controller.signal,

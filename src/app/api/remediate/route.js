@@ -1,9 +1,32 @@
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { remediateSchema, parseBody } from '@/lib/validation';
 
 export async function POST(req) {
   try {
-    const { scholar_id, skill_topic, wrong_answer } = await req.json();
+    // ── Authentication check ──────────────────────────────────────────────
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll()
+        }
+      }
+    );
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const scholarId = user.id;
+
+    const raw = await req.json();
+    const parsed = parseBody(remediateSchema, raw);
+    if (!parsed.success) return parsed.error;
+    const { skill_topic, wrong_answer } = parsed.data;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -64,7 +87,7 @@ export async function POST(req) {
 
     // 4. Log that this scholar received it
     await supabase.from('scholar_remediation_log').insert({
-      scholar_id,
+      scholar_id: scholarId,
       remediation_id: inserted.id,
     });
 

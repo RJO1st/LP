@@ -5,6 +5,7 @@
 // ╚══════════════════════════════════════════════════════════════╝
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ImageDisplay from "./ImageDisplay";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ─── REAL SUPABASE CLIENT ──────────────────────────────────────────────────────
 import { supabase } from "../../lib/supabase";
@@ -479,7 +480,7 @@ const fetchTaraFeedback = async ({ text, subject, correctAnswer, scholarName, sc
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), 6000);
   try {
-    const response = await fetch("/api/tara", {
+    const response = await apiFetch("/api/tara", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
@@ -701,14 +702,35 @@ function dbRowToQuestion(row, fallbackSubject) {
 
   let correctIndex = null;
 
-  // ── Strategy 1: If `answer` field is explicitly set, match it against options ──
-  if (data.answer != null && String(data.answer).trim()) {
+  // ── PRIMARY: DB `correct_index` is the single source of truth ──
+  // Question generation produces `correct_index` atomically with options.
+  // Runtime MUST NOT override this value. If it's wrong in the DB, fix the DB.
+  // (See scripts/validateCorrectIndex.mjs for AI-powered DB cross-validation.)
+  if (data.correct_index != null) {
+    const idx = typeof data.correct_index === 'number'
+      ? data.correct_index
+      : parseInt(data.correct_index, 10);
+    if (Number.isInteger(idx) && idx >= 0 && idx < opts.length) {
+      correctIndex = idx;
+    }
+  } else if (row.a != null) {
+    const idx = typeof row.a === 'number' ? row.a : parseInt(row.a, 10);
+    if (Number.isInteger(idx) && idx >= 0 && idx < opts.length) {
+      correctIndex = idx;
+    }
+  }
+
+  // ── FALLBACK 1: If DB `correct_index` is null/invalid, try `answer` field ──
+  // Legacy rows without `correct_index` set. Never runs when DB has a valid index.
+  if (correctIndex == null && data.answer != null && String(data.answer).trim()) {
     const ansStr = String(data.answer).trim();
     const exactIdx = opts.findIndex(opt => String(opt).trim() === ansStr);
     if (exactIdx !== -1) correctIndex = exactIdx;
   }
 
-  // ── Strategy 2: Extract answer from explanation with multiple smart patterns ──
+  // ── FALLBACK 2: Extract answer from explanation via smart patterns ──
+  // Only for legacy rows with NO `correct_index` AND NO `answer` field.
+  // Never runs when DB has a valid `correct_index`.
   if (correctIndex == null && data.explanation) {
     const exp = data.explanation;
     // Pattern A: "the answer is X", "answer is X", "the missing number is X"
@@ -758,38 +780,15 @@ function dbRowToQuestion(row, fallbackSubject) {
     }
   }
 
-  // ── Strategy 3: Use correct_index from DB (may be wrong — last resort) ──
+  // Last-ditch: if everything above failed, log a warning and default to 0.
+  // This should be extremely rare — it means the DB row has no correct_index,
+  // no answer field, and no parseable explanation.
   if (correctIndex == null) {
-    if (data.correct_index != null) {
-      correctIndex = data.correct_index;
-    } else if (row.a != null) {
-      correctIndex = row.a;
+    if (typeof window !== 'undefined' && row?.id) {
+      console.warn(`[Quiz] No correct_index resolvable for question ${row.id} — defaulting to 0. Please audit this row.`);
     }
+    correctIndex = 0;
   }
-
-  // ── Strategy 4: Cross-validate correct_index against explanation ──
-  // If we ended up using correct_index, double-check it makes sense
-  if (correctIndex != null && data.explanation) {
-    const chosenOpt = String(opts[correctIndex] || "").trim();
-    const exp = data.explanation;
-    // If the chosen option's value does NOT appear in the explanation at all,
-    // but another option's value does appear prominently, flag it
-    if (chosenOpt && !exp.includes(chosenOpt)) {
-      for (let i = 0; i < opts.length; i++) {
-        if (i === correctIndex) continue;
-        const optVal = String(opts[i]).trim();
-        // Check if this option appears in a key answer position in the explanation
-        const isAnswer = exp.match(new RegExp(`(?:answer|missing|need)\\S*\\s+(?:is\\s+)?${optVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
-        if (isAnswer) {
-          console.warn(`[Quiz] Corrected answer from "${chosenOpt}" (idx ${correctIndex}) to "${optVal}" (idx ${i}) based on explanation`);
-          correctIndex = i;
-          break;
-        }
-      }
-    }
-  }
-
-  if (correctIndex == null) correctIndex = 0;
 
   const correctAnswer =
     qType === "multi_select"
@@ -1260,7 +1259,7 @@ export default function QuizEngine({
     setRemediationShown(true);
     const currQ = sessionQuestions[qIdx];
     try {
-      const res = await fetch("/api/remediate", {
+      const res = await apiFetch("/api/remediate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scholar_id: student.id, skill_topic: currQ.topic }),

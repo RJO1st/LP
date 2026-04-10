@@ -118,16 +118,25 @@ export async function GET(req, { params }) {
       .eq('id', sitting.exam_paper_id)
       .maybeSingle()
 
-    // Fetch questions — include acceptable_answers only if sitting is marked (results mode)
-    const isMarked = sitting.status === 'marked' || sitting.status === 'completed'
-    const questionSelect = isMarked
-      ? 'id, exam_paper_id, question_number, parent_question_number, question_text, question_type, marks, mark_breakdown, band_descriptors, answer_input_type, mcq_options, correct_mcq_index, acceptable_answers, topic_slug, marking_difficulty, display_order'
+    // Fetch questions — include acceptable_answers, mark_scheme, marking_tier only if sitting is completed/marked
+    const isFinished = sitting.status === 'marked' || sitting.status === 'completed' || sitting.status === 'reviewed'
+    const questionSelect = isFinished
+      ? 'id, exam_paper_id, question_number, parent_question_number, question_text, question_type, marks, mark_breakdown, band_descriptors, answer_input_type, mcq_options, correct_mcq_index, acceptable_answers, mark_scheme, marking_tier, topic_slug, marking_difficulty, display_order'
       : 'id, exam_paper_id, question_number, parent_question_number, question_text, question_type, marks, mark_breakdown, band_descriptors, answer_input_type, mcq_options, topic_slug, marking_difficulty, display_order'
     const { data: questions } = await supabase
       .from('exam_questions')
       .select(questionSelect)
       .eq('exam_paper_id', sitting.exam_paper_id)
       .order('display_order', { ascending: true })
+
+    // Strip sensitive answer fields from response if sitting is not finished
+    if (!isFinished && questions) {
+      for (const q of questions) {
+        delete q.acceptable_answers
+        delete q.mark_scheme
+        delete q.marking_tier
+      }
+    }
 
     return NextResponse.json({
       sitting,

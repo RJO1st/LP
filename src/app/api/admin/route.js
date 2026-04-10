@@ -1,8 +1,35 @@
 // src/app/api/admin/fill/route.js
 // Thin server-side wrapper so the client never needs CRON_SECRET
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+// List of admin email addresses — extend as needed
+const ADMIN_EMAILS = [
+  'admin@launchpard.com',
+  'founder@launchpard.com',
+];
+
 export async function GET(req) {
+  const supabase = createRouteHandlerClient({ cookies });
+
+  // ── Authentication check ──────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // ── Admin role verification ───────────────────────────────────────────
+  const userEmail = session.user.email;
+  const isAdmin = ADMIN_EMAILS.includes(userEmail);
+
+  if (!isAdmin) {
+    return NextResponse.json(
+      { error: 'Access denied. Admin privileges required.' },
+      { status: 403 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const curriculum = searchParams.get('curriculum') || 'uk_11plus';
   const subject    = searchParams.get('subject')    || null;

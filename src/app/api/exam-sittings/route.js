@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { startSittingSchema, parseBody } from '@/lib/validation'
 
 /**
  * Helper: create auth-aware client (for verifying user identity via cookies)
@@ -127,11 +128,11 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Parse request
-    const { exam_paper_id, mode, scholar_id: scholarIdBody } = await req.json()
-    if (!exam_paper_id || !mode || !scholarIdBody) {
-      return NextResponse.json({ error: 'exam_paper_id, mode, and scholar_id required' }, { status: 400 })
-    }
+    // Parse + validate request body
+    const raw = await req.json()
+    const parsed = parseBody(startSittingSchema, raw)
+    if (!parsed.success) return parsed.error
+    const { exam_paper_id, mode, scholar_id: scholarIdBody } = parsed.data
 
     // Verify scholar belongs to this parent (auth user = parent)
     const { data: scholar, error: scholarError } = await supabase
@@ -146,11 +147,6 @@ export async function POST(req) {
     }
 
     const scholarId = scholar.id
-
-    const validModes = ['timed', 'practice', 'topic_focus', 'review']
-    if (!validModes.includes(mode)) {
-      return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
-    }
 
     // Fetch the exam paper (full metadata for ExamRunner display)
     const { data: paper, error: paperError } = await supabase

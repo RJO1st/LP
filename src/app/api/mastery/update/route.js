@@ -25,8 +25,10 @@
  * Returns: { mastery, milestones, storyPointsEarned, tier_crossed, new_tier, prev_tier }
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { NextResponse }  from "next/server";
+import { masteryUpdateSchema, parseBody } from '@/lib/validation';
 
 // Fallbacks if optional modules don't exist
 const _fallbackCalcStoryPoints = (correct, total, streak) => correct * 5 + (correct === total ? 10 : 0);
@@ -170,15 +172,30 @@ function updatePracticeDays(existingDays = []) {
 }
 
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export async function POST(request) {
   try {
+    // ── Authentication check ──────────────────────────────────────────────
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const sessionUserId = session.user.id;
+
     const { calcStoryPoints, checkMilestones } = await safeImports();
     const body = await request.json();
+
+    // ── Zod validation ─────────────────────────────────────────────────────
+    const parsed = parseBody(masteryUpdateSchema, {
+      scholar_id: body.scholarId,
+      subject: body.subject,
+      topic: body.topic,
+      correct: body.correct,
+      standard_code: body.standard_code,
+      total_standards_for_topic: body.total_standards_for_topic,
+    })
+    if (!parsed.success) return parsed.error
+
     const {
       scholarId,
       sessionId,
@@ -192,11 +209,14 @@ export async function POST(request) {
       correctIndex,
       timeTakenMs,
       difficultyTier,
-    } = body;
+    } = { ...body, ...parsed.data, scholarId: parsed.data.scholar_id };
 
-    // ── Validation ────────────────────────────────────────────────────────
-    if (!scholarId || !curriculum || !subject || !topic || correct === undefined) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    // ── Verify scholar_id matches authenticated user ──────────────────────
+    if (scholarId !== sessionUserId) {
+      return NextResponse.json(
+        { error: 'Cannot update mastery for another scholar' },
+        { status: 403 }
+      );
     }
 
     // ── 1. Fetch current mastery ─────────────────────────────────────────

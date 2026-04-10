@@ -24,6 +24,7 @@
 
 import { getSubjectLabel, getSubjectColor } from "./subjectDisplay";
 import { calculatePercentage } from "./calculationUtils";
+import { markDeterministic, QUESTION_TYPES } from "./markingEngine";
 
 // ─── BOSS DEFINITIONS ────────────────────────────────────────────────────────
 // Each boss is themed around a subject area and has scaling HP.
@@ -255,11 +256,88 @@ export async function assignBossBattle(scholarId, supabaseClient) {
   return data;
 }
 
+// ─── TIER 1 ONLY MARKING FOR BOSS BATTLES ───────────────────────────────────
+
+/**
+ * Mark a question using ONLY Tier 1 (deterministic) marking.
+ * Boss battles require <500ms response times — no AI or fuzzy matching.
+ * @param {Object} question — from exam_questions
+ * @param {string} answer — scholar's answer
+ * @param {Object} answerData — structured answer (e.g., { mcqSelectedIndex })
+ * @returns {Promise<Object>} { marks_awarded, marks_possible, is_correct, error, timing_ms }
+ */
+export async function markForBossBattle(question, answer, answerData = {}) {
+  const startTime = Date.now()
+  const result = {
+    marks_awarded: 0,
+    marks_possible: question.marks || 0,
+    is_correct: false,
+    error: null,
+    timing_ms: 0,
+    tier_used: 'tier1_boss_battle'
+  }
+
+  try {
+    // Enforce 500ms hard timeout
+    const markResult = await Promise.race([
+      Promise.resolve(markDeterministic(question, answer, answerData)),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Boss battle marking timeout (500ms)')), 500)
+      )
+    ])
+
+    result.marks_awarded = markResult.marks_awarded
+    result.is_correct = markResult.is_correct
+
+    // If Tier 1 cannot mark (e.g., essay question), flag as needs_review
+    if (markResult.reason && markResult.reason.includes('requires Tier')) {
+      result.error = `Question type not Tier 1 compatible: ${markResult.reason}`
+      console.warn(`[markForBossBattle] Skipping Tier 2/3 question:`, {
+        questionId: question.id,
+        type: question.question_type
+      })
+      // Return 0 marks gracefully, don't fail the battle
+    }
+  } catch (err) {
+    console.warn(`[markForBossBattle] Timeout or error:`, {
+      error: err.message,
+      questionId: question.id,
+      timing_ms: Date.now() - startTime
+    })
+    result.error = err.message
+  }
+
+  result.timing_ms = Date.now() - startTime
+  return result
+}
+
+/**
+ * Filter questions to only include Tier 1-compatible types for boss battles.
+ * Ensures marking will complete in <500ms.
+ * @param {Array} questions — from exam_questions
+ * @returns {Array} Filtered questions (MCQ, numeric, short_answer only)
+ */
+export function filterQuestionsForBossBattle(questions) {
+  const TIER1_TYPES = [
+    QUESTION_TYPES.MCQ,
+    QUESTION_TYPES.NUMERIC,
+    QUESTION_TYPES.CALCULATION,
+    QUESTION_TYPES.SHORT_ANSWER
+  ]
+
+  return questions.filter(q => {
+    const type = q.question_type || QUESTION_TYPES.SHORT_ANSWER
+    // Accept if type is in Tier1 list, OR has marking_tier explicitly set to 1
+    return TIER1_TYPES.includes(type) || q.marking_tier === 1
+  })
+}
+
 // ─── BOSS BATTLE SESSION (CLIENT-SIDE) ───────────────────────────────────────
 
 /**
  * Manages a live boss battle session in the browser.
  * Tracks damage, shields, and determines win/lose.
+ * NOTE: All questions are pre-filtered to Tier 1-compatible types.
  */
 export class BossBattle {
   /**

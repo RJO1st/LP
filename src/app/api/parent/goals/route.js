@@ -1,27 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const getClient = () =>
-  createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  createRouteHandlerClient({ cookies });
 
 // ── GET — fetch all goals for a scholar ─────────────────────────────────────
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const scholar_id = searchParams.get("scholar_id");
-
-  if (!scholar_id) {
-    return NextResponse.json({ error: "Missing scholar_id" }, { status: 400 });
-  }
-
   const supabase = getClient();
 
+  // ── Authentication check ──────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const parentId = session.user.id;
+
+  // Filter goals by parent_id from session
   const { data, error } = await supabase
     .from("scholar_goals")
     .select("*")
-    .eq("scholar_id", scholar_id)
+    .eq("parent_id", parentId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -33,6 +32,15 @@ export async function GET(req) {
 
 // ── POST — create a new goal ─────────────────────────────────────────────────
 export async function POST(req) {
+  const supabase = getClient();
+
+  // ── Authentication check ──────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const parentId = session.user.id;
+
   let body;
   try {
     body = await req.json();
@@ -40,7 +48,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { scholar_id, parent_id, goal_type, target_value } = body;
+  const { scholar_id, goal_type, target_value } = body;
 
   if (!scholar_id || !goal_type || target_value == null) {
     return NextResponse.json(
@@ -49,13 +57,11 @@ export async function POST(req) {
     );
   }
 
-  const supabase = getClient();
-
   const { data, error } = await supabase
     .from("scholar_goals")
     .insert({
       scholar_id,
-      parent_id:    parent_id   ?? null,
+      parent_id:    parentId,
       goal_type,
       target_value: Number(target_value),
       achieved:     false,

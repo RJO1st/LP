@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+import { submitQuestSchema, parseBody } from '@/lib/validation'
 
 /**
  * Submit Mission API Route
@@ -9,14 +11,8 @@ import { cookies } from 'next/headers'
 export async function POST(req) {
   try {
     const cookieStore = cookies()
-    const { scholarId, subject, answers, timeSpent } = await req.json();
 
-    // 1. Anti-Cheat: Validate time spent (e.g., questions can't be done in under 5 seconds)
-    if (timeSpent < 5) {
-      return Response.json({ error: "Mission too swift. Flight telemetry suggests suspicious activity." }, { status: 400 });
-    }
-
-    // 2. Initialize Server-Side Supabase Client
+    // ── Authentication check ──────────────────────────────────────────────
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -26,6 +22,28 @@ export async function POST(req) {
         },
       }
     )
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const scholarId = session.user.id
+
+    const body = await req.json();
+
+    // ── Zod validation ─────────────────────────────────────────────────────
+    const parsed = parseBody(submitQuestSchema, {
+      subject: body.subject,
+      answers: body.answers,
+      timeSpent: body.timeSpent,
+    })
+    if (!parsed.success) return parsed.error
+
+    const { subject, answers, timeSpent } = parsed.data
+
+    // 1. Anti-Cheat: Validate time spent (e.g., questions can't be done in under 5 seconds)
+    if (timeSpent < 5) {
+      return NextResponse.json({ error: "Mission too swift. Flight telemetry suggests suspicious activity." }, { status: 400 });
+    }
 
     // 3. Secure Score Calculation
     let actualScore = 0;
@@ -52,15 +70,15 @@ export async function POST(req) {
 
     if (rpcError) throw rpcError;
 
-    return Response.json({ 
-      success: true, 
-      score: actualScore, 
+    return NextResponse.json({
+      success: true,
+      score: actualScore,
       stardustEarned: stardustEarned,
-      accuracy: accuracy 
+      accuracy: accuracy
     });
 
   } catch (error) {
     console.error("Mission Control Submission Error:", error);
-    return Response.json({ error: "Internal Telemetry Error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal Telemetry Error" }, { status: 500 });
   }
 }

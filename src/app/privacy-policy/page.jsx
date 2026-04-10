@@ -25,6 +25,7 @@ export default function PrivacyPolicyPage() {
       {/* Termly Policy Content */}
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Termly custom styles are embedded in the HTML below */}
+        {/* SECURITY: Static imported HTML from termly-policy module — no user/DB input, safe to use dangerouslySetInnerHTML */}
         <div
           className="termly-policy-content prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{ __html: termlyPolicyHTML }}

@@ -1,24 +1,59 @@
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from 'next/headers';
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const scholar_id = searchParams.get("scholar_id");
-  const period     = searchParams.get("period") || "month";
+  try {
+    const { searchParams } = new URL(req.url);
+    const scholar_id = searchParams.get("scholar_id");
+    const period     = searchParams.get("period") || "month";
 
-  if (!scholar_id) {
-    return NextResponse.json({ error: "Missing scholar_id" }, { status: 400 });
-  }
+    if (!scholar_id) {
+      return NextResponse.json({ error: "Missing scholar_id" }, { status: 400 });
+    }
 
-  // Guard against missing env vars — return empty rather than crash
-  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    console.error("[accuracy] Missing Supabase env vars — NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-    return NextResponse.json([], { status: 200 });
-  }
+    // ── Authentication check ──────────────────────────────────────────────
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll()
+        }
+      }
+    );
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const supabase = createClient(supabaseUrl, serviceKey);
+    // ── Verify scholar belongs to this parent ──────────────────────────────
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data: scholar, error: scholarError } = await supabaseAdmin
+      .from('scholars')
+      .select('id')
+      .eq('id', scholar_id)
+      .eq('parent_id', user.id)
+      .maybeSingle();
+
+    if (scholarError || !scholar) {
+      return NextResponse.json({ error: 'Unauthorized: scholar not found or does not belong to you' }, { status: 403 });
+    }
+
+    // Guard against missing env vars — return empty rather than crash
+    const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      console.error("[accuracy] Missing Supabase env vars — NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json([], { status: 200 });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey);
 
   // Calculate start date
   const now = new Date();
@@ -82,7 +117,11 @@ export async function GET(req) {
     });
   });
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('[accuracy] error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 // ─── Helper ────────────────────────────────────────────────────────────────────

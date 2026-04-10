@@ -23,6 +23,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+import logger from './logger.js';
+
 // ─── BKT PARAMETERS (conservative — must match route.js) ─────────────────────
 const BKT = {
   pLearn:  0.025,
@@ -266,17 +268,50 @@ export function computeCompositeMastery({
   let composite = (acquisitionScore * wA) + (stability * wS) + (recency * wR);
 
   // Clamp to 0-1
+  const beforeRangeBound = composite;
   composite = Math.max(0.01, Math.min(0.99, composite));
+  if (beforeRangeBound !== composite) {
+    logger.warn('mastery_clamped', {
+      reason: 'range_bound_0.01_0.99',
+      original: Math.round(beforeRangeBound * 1000) / 1000,
+      clamped: Math.round(composite * 1000) / 1000,
+    });
+  }
 
   // Apply both caps — the more restrictive cap wins
+  const beforeVolume = composite;
   composite = capMasteryByVolume(composite, timesSeen);
+  if (beforeVolume !== composite) {
+    logger.warn('mastery_clamped', {
+      reason: `volume_cap_${timesSeen}_seen`,
+      original: Math.round(beforeVolume * 1000) / 1000,
+      clamped: Math.round(composite * 1000) / 1000,
+    });
+  }
+
+  const beforePracticeDays = composite;
   composite = capMasteryByPracticeDays(composite, uniquePracticeDays);
+  if (beforePracticeDays !== composite) {
+    logger.warn('mastery_clamped', {
+      reason: `practice_day_cap_${uniquePracticeDays}_days`,
+      original: Math.round(beforePracticeDays * 1000) / 1000,
+      clamped: Math.round(composite * 1000) / 1000,
+    });
+  }
 
   // Apply standards breadth multiplier — prevents false mastery from narrow coverage.
   // standardsBreadth is 0.20 (no coverage) to 1.0 (≥80% of standards covered).
   // Backward-compatible: defaults to 1.0 (no effect) when not provided.
+  const beforeBreadth = composite;
   composite = composite * standardsBreadth;
   composite = Math.max(0.01, composite);
+  if (beforeBreadth !== Math.round(beforeBreadth * standardsBreadth * 1000) / 1000) {
+    logger.warn('mastery_clamped', {
+      reason: `standards_breadth_${Math.round(standardsBreadth * 100)}%`,
+      original: Math.round(beforeBreadth * 1000) / 1000,
+      clamped: Math.round(composite * 1000) / 1000,
+    });
+  }
 
   return composite;
 }
@@ -348,7 +383,15 @@ export function updateMastery(currentMastery, correct) {
   }
 
   const updated = pMasteryGivenObs + (1 - pMasteryGivenObs) * pLearn;
-  return Math.max(0.01, Math.min(0.99, updated));
+  const posterior = Math.max(0.01, Math.min(0.99, updated));
+
+  logger.debug('bkt_update', {
+    prior: Math.round(currentMastery * 1000) / 1000,
+    posterior: Math.round(posterior * 1000) / 1000,
+    correct,
+  });
+
+  return posterior;
 }
 
 /**
@@ -361,6 +404,7 @@ export function updateSR(srState, correct) {
   };
 
   const quality = correct ? 4 : 1;
+  const prevIntervalDays = intervalDays;
 
   if (quality >= 3) {
     if (repetitions === 0) {
@@ -383,6 +427,13 @@ export function updateSR(srState, correct) {
 
   intervalDays = Math.min(90, Math.max(1, intervalDays));
   const nextReviewAt = new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000);
+
+  logger.debug('sm2_review', {
+    quality,
+    prevInterval: prevIntervalDays,
+    newInterval: intervalDays,
+    repetitions,
+  });
 
   return { easeFactor, intervalDays, repetitions, nextReviewAt };
 }

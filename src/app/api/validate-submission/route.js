@@ -5,33 +5,49 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { validateExplanation } from '@/lib/aiValidator';
+import { validateSubmissionSchema, parseBody } from '@/lib/validation';
 
 export async function POST(request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    // ── Authentication check ──────────────────────────────────────────────
+    const authSupabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await authSupabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const scholarId = session.user.id;
+
+    const supabase = createRouteHandlerClient({ cookies });
+
+    const body = await request.json();
+
+    // ── Zod validation ─────────────────────────────────────────────────────
+    const parsed = parseBody(validateSubmissionSchema, {
+      question: body.question || body.questionId,
+      answer: body.answer || body.explanation,
+      subject: body.subject,
+      year: body.year,
+    })
+    if (!parsed.success) return parsed.error
 
     const {
-      scholarId,
       questionId,
       numericalAnswer,
       explanation,
       workPhotoUrl,
       timeSpentSeconds,
       sessionId
-    } = await request.json();
-
-    // Validation
-    if (!scholarId || !questionId || !numericalAnswer || !explanation) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
+    } = {
+      questionId: body.questionId,
+      numericalAnswer: body.numericalAnswer,
+      explanation: body.explanation,
+      workPhotoUrl: body.workPhotoUrl,
+      timeSpentSeconds: body.timeSpentSeconds,
+      sessionId: body.sessionId,
+    };
 
     // Get question details
     const { data: question, error: questionError } = await supabase
