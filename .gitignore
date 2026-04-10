@@ -53,3 +53,32 @@ node_modules
 .env*.backup
 .env*.backup
 .env*.backup
+
+# Script outputs & audit logs (never commit these — may contain PII / question data)
+logs/
+scripts/output/
+*.audit.csv
+*.audit.json
+
+# Exam paper PDFs — large binaries (217MB+), stored separately, not in git
+exam-papers-staging/
+
+# Dev / design prototypes — HTML mockups, not part of the app
+public/boss-preview.html
+public/test-3d-quiz-visuals.html
+public/test-avatar-colors.html
+science-simulations-boss-battles.html
+science-simulations-boss-battles-v2.html
+stellar-command-dashboard.html
+avatar-concept-prototype.html
+FREE_ASSET_CATALOGUE.html
+
+# Generated / cached audio files — can be regenerated, not source code
+public/audio/
+
+# Marketing & outreach assets — not part of the codebase
+launchpard-beta-invite.png
+whatsapp-promos-and-beta-invite.md
+
+# One-off utility scripts not part of the main project
+trigger-nudge.mjs

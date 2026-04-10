@@ -59,31 +59,11 @@ function findRationaleForOption(explanation, optText) {
   return null;
 }
 
-/** Speak text aloud using Web Speech API with a friendly voice. */
-function speakText(text) {
-  if (typeof window === "undefined" || !window.speechSynthesis || !text) return;
-  try {
-    window.speechSynthesis.cancel();
-    const utter = new window.SpeechSynthesisUtterance(String(text));
-    utter.rate = 0.85;   // Slower for young children
-    utter.pitch = 1.1;   // Slightly higher, friendlier tone
-    utter.volume = 1.0;
-
-    const voices = window.speechSynthesis.getVoices() || [];
-    const preferred =
-      voices.find((v) => /female|samantha|karen|tessa|serena/i.test(v.name)) ||
-      voices.find((v) => /en[-_]GB/i.test(v.lang)) ||
-      voices.find((v) => /^en/i.test(v.lang));
-    if (preferred) utter.voice = preferred;
-
-    window.speechSynthesis.speak(utter);
-  } catch (e) {
-    // Silent fail — TTS is a bonus, not required
-  }
-}
+// speakText removed — KS1QuizShell now receives onSpeak prop from parent
+// (QuestOrchestrator passes useReadAloud's speak fn → OpenAI TTS, no browser TTS)
 
 /* ── Collapsible per-distractor explanation cards ───── */
-function DistractorExplanations({ options, correctIndex, explanation, isCorrect }) {
+function DistractorExplanations({ options, correctIndex, explanation, isCorrect, onSpeak }) {
   const [expanded, setExpanded] = useState(false);
 
   if (correctIndex == null || !Array.isArray(options)) return null;
@@ -180,7 +160,7 @@ function DistractorExplanations({ options, correctIndex, explanation, isCorrect 
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      speakText(`${optText}. ${rationale}`);
+                      onSpeak?.(`${optText}. ${rationale}`);
                     }}
                     aria-label={`Read explanation for ${optText} aloud`}
                     style={{
@@ -262,6 +242,7 @@ export default function KS1QuizShell({
   subjectLabel = "Science", xp = 0, timeLeft, streak = 0,
   taraHint, isCorrect, showResult, explanation, missionTitle,
   leftPanelContent, taraEIBWidget, canProceed, correctIndex,
+  onSpeak,   // useReadAloud.speak — OpenAI TTS, passed from QuestOrchestrator
 }) {
   const [showTaraHelp, setShowTaraHelp] = useState(false);
   const optionsRef = useStaggerEntrance(".ks1-option", [questionIndex]);
@@ -575,7 +556,7 @@ export default function KS1QuizShell({
                     {correctText && (
                       <button
                         type="button"
-                        onClick={() => speakText(correctText)}
+                        onClick={() => onSpeak?.(correctText)}
                         aria-label="Read the answer aloud"
                         style={{
                           fontSize: 22, background: "rgba(34,197,94,0.15)",
@@ -601,7 +582,7 @@ export default function KS1QuizShell({
                       </span>
                       <button
                         type="button"
-                        onClick={() => speakText(primaryWhy)}
+                        onClick={() => onSpeak?.(primaryWhy)}
                         aria-label="Listen to the explanation"
                         style={{
                           marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
@@ -625,6 +606,7 @@ export default function KS1QuizShell({
                   correctIndex={correctIndex}
                   explanation={explanation}
                   isCorrect={isCorrect}
+                  onSpeak={onSpeak}
                 />
               </div>
             );

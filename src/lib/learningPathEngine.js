@@ -99,6 +99,14 @@ export const TOPIC_SEQUENCES = {
     advanced:     ['spatial_reasoning','complex_matrices','3d_visualisation','code_shapes','series_completion'],
   },
 
+  // 'nvr' is the DB subject slug for Non-Verbal Reasoning (uk_11plus).
+  // Topic slugs here match the actual question_bank.topic values in production.
+  nvr: {
+    foundation:   ['odd_shape_out','odd_one_out_shapes','similar_figures','symmetry','pattern_completion','translations','reflection'],
+    intermediate: ['figure_classification','analogous_figures','matrices','shape_matrices','nets_of_shapes','congruent_figures','embedded_figures','combining_shapes','separating_shapes','symbol_substitution','shape_codes'],
+    advanced:     ['spatial_reasoning','3d_visualization','cube_views','spatial_awareness','shape_construction','rotations_clockwise_anticlockwise'],
+  },
+
   science: {
     foundation:   ['living_organisms','plants_and_animals','food_chains','materials','states_of_matter','forces_basics'],
     intermediate: ['cells_and_tissues','human_body','electricity','light_and_sound','chemical_reactions','earth_and_space'],

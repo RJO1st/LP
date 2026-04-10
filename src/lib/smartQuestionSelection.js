@@ -1237,12 +1237,17 @@ function postProcessQuestions(rows, year, subject) {
     // If the explanation contradicts the marked correct answer, the question is broken.
     // This is a lightweight heuristic — checks if explanation says "the answer is X"
     // but marked answer is Y.
+    //
+    // Two sub-checks:
+    //   G17a — numeric answers  ("the answer is 42", "= 15 apples")
+    //   G17b — quoted word answers ("the correct spelling is 'week'", "correct word is 'sent'")
     {
       const exp = (row.explanation || row.question_data?.exp || '').toLowerCase();
       const correctIdx = row.correct_index ?? row.correct_answer_index;
       if (exp && correctIdx != null && opts[correctIdx]) {
         const markedAnswer = String(opts[correctIdx]).toLowerCase().trim();
-        // Extract what the explanation claims the answer is.
+
+        // ── G17a: Numeric answer mismatch ──────────────────────────────────
         // Capture: number + optional unit (apples, cm, kg etc), stop before "because/since/as/,"
         const expAnswerMatch = exp.match(
           /\b(?:the\s+)?(?:correct\s+)?answer\s+is\s+["']?(-?\d+[\d,.]*(?:\s+[a-z]{1,10})?)(?:\s*[.,;]|\s+(?:because|since|as|so|and|but|which|that|$))/i
@@ -1256,7 +1261,35 @@ function postProcessQuestions(rows, year, subject) {
           if (expAnswer !== markedAnswer &&
               expAnswer.length > 0 &&
               optsLower.some(o => o.trim() === expAnswer || o.trim().startsWith(expAnswer))) {
-            return reject('G17', row, `explanation says "${expAnswer}" but marked answer is "${markedAnswer}"`);
+            return reject('G17a', row, `explanation says "${expAnswer}" but marked answer is "${markedAnswer}"`);
+          }
+        }
+
+        // ── G17b: Quoted-word answer mismatch ──────────────────────────────
+        // Catches: "the correct spelling is 'week'", "correct answer is \"sent\"",
+        // "correct word is 'Night'", "correct form is 'ran'", etc.
+        // Only fires when the quoted word exactly matches one of the OTHER options
+        // (not the marked answer), preventing false positives on questions where
+        // the explanation quotes the correct option for emphasis.
+        //
+        // Excluded: find-error / spot-the-mistake question types where the DB
+        // intentionally marks the wrong spelling as correct_index.
+        const isErrorSpotting = /find\s+the\s+(?:error|mistake|misspell)|spot\s+the|identify\s+the\s+error|spelling\s+mistake|incorrectly\s+spell|has\s+a\s+spelling|word\s+misspelled/i.test(
+          row.question_text || row.question_data?.q || ''
+        );
+        if (!isErrorSpotting) {
+          const wordMatch = exp.match(
+            /\bcorrect\s+(?:answer|spelling|word|option|form|one)\s+(?:is|are)\s+['"]([A-Za-z]{3,})['"]?/i
+          ) || exp.match(
+            /\bthe\s+answer\s+is\s+['"]([A-Za-z]{3,})['"]?(?:\s*[.,;]|\s+(?:because|since|as|so|and|but|which|that|$))/i
+          );
+          if (wordMatch) {
+            const expWord = (wordMatch[1] || '').trim().toLowerCase();
+            if (expWord.length >= 3 &&
+                expWord !== markedAnswer &&
+                optsLower.some(o => o.trim() === expWord)) {
+              return reject('G17b', row, `explanation says correct word is "${expWord}" but marked answer is "${markedAnswer}"`);
+            }
           }
         }
       }

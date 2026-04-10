@@ -274,7 +274,7 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const [pendingMilestone, setPendingMilestone] = useState(null);
 
   // ── Read-aloud for all scholars (KS1 ON by default, KS2-4 toggle) ────────
-  const { speak, speakOptions, speakExplanation, speakTaraResponse, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1, keyStage } = useReadAloud(student);
+  const { speak, speakOptions, speakExplanation, speakTaraResponse, prefetch: prefetchAudio, stop: stopSpeaking, speaking, enabled: readAloudEnabled, setEnabled: setReadAloud, isKS1, keyStage } = useReadAloud(student);
 
   // Auto-speak question text when question changes (if enabled)
   // Pattern: read question FIRST → wait for it to finish → then read options
@@ -282,6 +282,18 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const currentQuestionText = sessionQuestions[qIdx]?.q || "";
   const currentOpts = sessionQuestions[qIdx]?.opts;
   const speechCancelledRef = useRef(false);
+
+  // Prefetch audio for the current question immediately when it loads —
+  // eliminates cold-start lag whether the scholar clicks the speaker button
+  // or auto-play fires after the 300 ms delay below.
+  useEffect(() => {
+    if (!currentQuestionText || generating) return;
+    prefetchAudio(currentQuestionText);
+    // Also pre-warm the next question if available
+    const nextQ = sessionQuestions[qIdx + 1]?.q;
+    if (nextQ) prefetchAudio(nextQ);
+  }, [currentQuestionText, generating, qIdx]);
+
   useEffect(() => {
     if (!readAloudEnabled || !currentQuestionText || generating) return;
     speechCancelledRef.current = false;
@@ -838,6 +850,7 @@ const year = rawYear;
         taraEIBWidget={taraEIBWidget}
         canProceed={canProceed}
         correctIndex={q.a}
+        onSpeak={speak}
       />
       </>
     );
