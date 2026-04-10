@@ -287,7 +287,7 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLe
     english: 'phonics', english_studies: 'phonics',
     science: 'living_organisms', basic_science: 'living_organisms',
     verbal_reasoning: 'word_relationships', verbal: 'word_relationships',
-    non_verbal_reasoning: 'pattern_recognition', nvr: 'pattern_recognition',
+    non_verbal_reasoning: 'odd_shape_out', nvr: 'odd_shape_out',
   };
   // Year-appropriate defaults for older students
   const INTERMEDIATE_DEFAULTS = {
@@ -295,7 +295,7 @@ function resolveAnchorTopic(masteryRows, currentTopic, subject, sequence, yearLe
     english: 'comprehension', english_studies: 'comprehension',
     science: 'cells_and_tissues', basic_science: 'cells_and_tissues',
     verbal_reasoning: 'analogies', verbal: 'analogies',
-    non_verbal_reasoning: 'matrix_puzzles', nvr: 'matrix_puzzles',
+    non_verbal_reasoning: 'matrices', nvr: 'matrices',
   };
   const ADVANCED_DEFAULTS = {
     mathematics: 'pythagoras_theorem', maths: 'pythagoras_theorem',
@@ -1404,9 +1404,44 @@ export async function getSmartQuestions(
 
     // ── 2. Resolve anchor and adjacent topics ─────────────────────────────
     // If focusedTopic is provided (from JourneyMap), use it directly — skip auto-resolution
-    const { topic: anchorTopic, reason: selectionReason } = focusedTopic
+    let { topic: anchorTopic, reason: selectionReason } = focusedTopic
       ? { topic: focusedTopic, reason: "journey_map_selected" }
       : resolveAnchorTopic(masteryRows, currentTopic, activeSubject, sequence, year, topicStandardCounts);
+
+    // ── 2.1 Validate anchor topic has questions — safety net against stale/wrong slugs ──
+    // If the resolved topic has 0 active questions in the DB, null it out so the
+    // fetch falls back to a broad curriculum/subject/year scan instead of returning
+    // an empty quest (blank screen). This guards against: stale learning-path entries,
+    // DB topic slug mismatches, or hardcoded defaults that no longer match question_bank.
+    if (anchorTopic && !focusedTopic) {
+      const resolvedCurriculumCheck = resolveDbCurriculum(curriculum, activeSubject, year);
+      const resolvedSubjectCheck    = resolveDbSubject(activeSubject, curriculum);
+      const resolvedYearCheck       = resolveDbYear(curriculum, year);
+      const yearLowCheck  = resolvedYearCheck <= 2 ? resolvedYearCheck : Math.max(1, resolvedYearCheck - 1);
+      const yearHighCheck = resolvedYearCheck <= 2 ? resolvedYearCheck : resolvedYearCheck + 1;
+      try {
+        const { count: topicCount } = await supabase
+          .from('question_bank')
+          .select('id', { count: 'exact', head: true })
+          .eq('curriculum', resolvedCurriculumCheck)
+          .eq('subject', resolvedSubjectCheck)
+          .eq('topic', anchorTopic)
+          .eq('is_active', true)
+          .gte('year_level', yearLowCheck)
+          .lte('year_level', yearHighCheck);
+        if (!topicCount || topicCount === 0) {
+          console.warn(
+            `[getSmartQuestions] Anchor topic "${anchorTopic}" has 0 questions for ` +
+            `${resolvedSubjectCheck}/${resolvedCurriculumCheck}/Y${resolvedYearCheck}. ` +
+            `Falling back to broad fetch.`
+          );
+          anchorTopic = null;
+          selectionReason = 'broad_fallback';
+        }
+      } catch {
+        // Validation failed — proceed with anchor topic, broad fetch is worse than slightly wrong topic
+      }
+    }
 
     if (!anchorTopic) {
       console.warn(

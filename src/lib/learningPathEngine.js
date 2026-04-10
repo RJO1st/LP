@@ -306,10 +306,21 @@ export async function getTopicSequence(subject, curriculum = null, supabase = nu
   // ── DB lookup — skipped entirely once table confirmed missing ─────────────
   if (supabase && _dbTableExists) {
     try {
+      // Some subjects are stored under different names in curriculum_topic_progression
+      // than the code-side slugs used in question_bank and throughout the app.
+      // e.g. 'nvr' in code → 'non_verbal_reasoning' in DB progression table.
+      const SUBJECT_DB_ALIASES = {
+        nvr: 'non_verbal_reasoning',
+        vr:  'verbal_reasoning',
+        non_verbal_reasoning: 'non_verbal_reasoning',
+        verbal_reasoning:     'verbal_reasoning',
+      };
+      const dbSubject = SUBJECT_DB_ALIASES[subject] ?? subject;
+
       let query = supabase
         .from('curriculum_topic_progression')
         .select('strand, topic_slug, position')
-        .eq('subject', subject)
+        .eq('subject', dbSubject)
         .is('valid_to', null)
         .order('position', { ascending: true });
 

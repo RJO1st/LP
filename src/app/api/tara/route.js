@@ -160,7 +160,7 @@ export async function POST(req) {
   const {
     text, subject = "mathematics", correctAnswer = "", scholarAnswer = "",
     scholarName = "Scholar", scholarYear = 4, question = null,
-    mode = "eib", context = "", curriculum = "",
+    explanation = "", mode = "eib", context = "", curriculum = "",
   } = { ...body, ...parsed.data };
 
   // ── Resolve age band ─────────────────────────────────────────────────────
@@ -218,6 +218,12 @@ export async function POST(req) {
     ks4: `This student is ${ageMin}–${ageMax} years old (KS4/GCSE+). Be precise and efficient. No emojis. Reference exam technique and mark schemes where relevant. Focus on method and common errors. They want accuracy, not encouragement.`,
   }[band] || `This student is ${ageMin}–${ageMax} years old.`;
 
+  // Explanation text — ground Tara's response in the DB-authored rationale when available
+  const explanationClause = (explanation || question?.explanation || "").trim();
+  const explanationBlock = explanationClause
+    ? `Question explanation (use this to ground your feedback): "${explanationClause}"`
+    : "";
+
   const systemPrompt = mode === "followup"
     ? `${bandPersonality}
 
@@ -228,6 +234,7 @@ Topic: ${topic}
 Original question: "${question?.q || 'unknown'}"
 Correct answer: "${correctAnswer}"
 Student originally chose: "${scholarAnswer || 'unknown'}"
+${explanationBlock}
 Your previous reply: "${context}"
 Their follow-up question: "${text}"
 
@@ -235,6 +242,7 @@ ${ageGuidance}
 
 INSTRUCTIONS:
 - This is a curiosity/depth question, NOT an assessment
+- If an explanation is provided above, use it to give a more specific, grounded answer
 - Go slightly deeper than the original answer — add one interesting fact or "why"
 - Keep it to 2–3 sentences, age-appropriate
 - Start with "${tara.name}:" so it's clear who is speaking
@@ -249,6 +257,7 @@ Question: "${question?.q || 'unknown'}"
 Options: ${(question?.opts || []).map((o, i) => `${i + 1}. ${o}`).join(', ')}
 Stored correct answer: "${correctAnswer}"
 Student chose: "${scholarAnswer || 'unknown'}"${scholarAnswer && scholarAnswer !== correctAnswer ? ' (INCORRECT)' : ''}
+${explanationBlock}
 Student's reasoning: "${text}"
 
 ${ageGuidance}
@@ -256,6 +265,7 @@ ${ageGuidance}
 ANSWER VERIFICATION — CRITICAL: Before giving any explanation, independently verify whether "${correctAnswer}" is factually correct for the question above using your own subject knowledge. Do NOT blindly trust the stored answer — question databases sometimes contain errors. If you are confident a different option is the true correct answer, state that clearly at the start of your response (e.g. "Actually, I need to correct something — the right answer here is [X], not [Y], because...") and explain from there. Only proceed with the normal explanation flow if you are confident "${correctAnswer}" is genuinely correct.
 
 INSTRUCTIONS:
+- If an explanation is provided above, use it as your primary source of truth for WHY the correct answer is right — reference it directly in your response
 - Acknowledge what the student chose — explain briefly why it might have seemed right, then guide them to the correct answer
 - If you corrected the stored answer above, frame your explanation around the true correct answer, not the stored one
 - Be specific to THIS question about ${topic}

@@ -973,47 +973,71 @@ export default function QuizEngine({
       }
     }
 
-    // Apply robust normalization and option shuffling to fix index bugs
+    // Shuffle options while preserving the correct answer pointer.
+    // CRITICAL: For DB questions (q.id set, q.a is a valid index), trust q.a directly —
+    // dbRowToQuestion() already set it from correct_index as the single source of truth.
+    // Explanation-scanning strategies (last number in text, quoted string) are ONLY used
+    // for procedural/legacy questions that have no DB id, because those strategies can
+    // produce false positives (e.g. explanation says "don't confuse with 8" → last number
+    // is 8 → "8" gets flagged as correct even when the right answer is "9").
     questions = questions.map(q => {
       const qType = q.type || 'mcq';
       if (!q || qType !== 'mcq' || !q.opts || !q.opts.length) return q;
 
       const opts = q.opts;
-      const explanation = q.exp || q.explanation || '';
-      let matchIdx = -1;
+      let actualA;
 
-      if (q.correctAnswer || q.answer) {
-        const target = String(q.correctAnswer || q.answer).toLowerCase().trim();
-        matchIdx = opts.findIndex(opt => String(opt).toLowerCase().trim() === target);
-      }
+      // DB question: q.id present and q.a is already the validated correct_index.
+      // dbRowToQuestion() explicitly states "Runtime MUST NOT override this value."
+      const hasValidDbIndex = q.id && typeof q.a === 'number' && q.a >= 0 && q.a < opts.length;
 
-      if (matchIdx === -1 && explanation) {
-        const numberMatch = explanation.match(/(\d+(?:\.\d+)?)(?!.*\d)/);
-        if (numberMatch) {
-          const lastNumber = numberMatch[1];
-          matchIdx = opts.findIndex(opt => String(opt).includes(lastNumber));
-          if (matchIdx === -1) {
-            const expNum = parseFloat(lastNumber);
-            matchIdx = opts.findIndex(opt => {
-              const optNum = parseFloat(String(opt));
-              return !isNaN(optNum) && !isNaN(expNum) && Math.abs(optNum - expNum) < 0.001;
-            });
+      if (hasValidDbIndex) {
+        // Trust DB correct_index — no explanation scanning needed or safe.
+        actualA = q.a;
+      } else {
+        // Procedural / legacy questions without a DB id: attempt text-based matching.
+        const explanation = q.exp || q.explanation || '';
+        let matchIdx = -1;
+
+        // Strategy 1: correctAnswer or answer field matches an option exactly.
+        if (q.correctAnswer || q.answer) {
+          const target = String(q.correctAnswer || q.answer).toLowerCase().trim();
+          matchIdx = opts.findIndex(opt => String(opt).toLowerCase().trim() === target);
+        }
+
+        // Strategy 2: last number in explanation matches an option.
+        // Only used for procedural questions — too risky for DB questions because
+        // explanations routinely mention wrong answers ("don't confuse with 8…").
+        if (matchIdx === -1 && explanation) {
+          const numberMatch = explanation.match(/(\d+(?:\.\d+)?)(?!.*\d)/);
+          if (numberMatch) {
+            const lastNumber = numberMatch[1];
+            matchIdx = opts.findIndex(opt => String(opt).includes(lastNumber));
+            if (matchIdx === -1) {
+              const expNum = parseFloat(lastNumber);
+              matchIdx = opts.findIndex(opt => {
+                const optNum = parseFloat(String(opt));
+                return !isNaN(optNum) && !isNaN(expNum) && Math.abs(optNum - expNum) < 0.001;
+              });
+            }
           }
         }
-      }
 
-      if (matchIdx === -1 && explanation) {
-        for (let i = 0; i < opts.length; i++) {
-          const optStr = String(opts[i]);
-          if (explanation.includes(`"${optStr}"`) || explanation.includes(`'${optStr}'`)) {
-            matchIdx = i; break;
+        // Strategy 3: quoted option text appears in explanation.
+        if (matchIdx === -1 && explanation) {
+          for (let i = 0; i < opts.length; i++) {
+            const optStr = String(opts[i]);
+            if (explanation.includes(`"${optStr}"`) || explanation.includes(`'${optStr}'`)) {
+              matchIdx = i; break;
+            }
           }
         }
+
+        actualA = matchIdx !== -1 ? matchIdx : (typeof q.a === 'number' ? q.a : 0);
       }
 
-      const actualA = matchIdx !== -1 ? matchIdx : (typeof q.a === 'number' ? q.a : 0);
       const safeA = (actualA >= 0 && actualA < opts.length) ? actualA : 0;
-      
+
       const correctOptText = opts[safeA];
       const shuffledOpts = shuffle([...opts]);
       const newA = shuffledOpts.indexOf(correctOptText);

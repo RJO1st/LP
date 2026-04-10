@@ -210,6 +210,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
           scholarName: student?.name,
           scholarYear,
           question: currentQ,
+          explanation: currentQ?.explanation || currentQ?.exp || "",
           curriculum: student?.curriculum || "",
         }),
       });
@@ -258,6 +259,7 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
           scholarName: student?.name,
           scholarYear,
           question:    currentQ,
+          explanation: currentQ?.explanation || currentQ?.exp || "",
           mode:        "followup",
           context:     feedback,
           curriculum:  student?.curriculum || "",
@@ -307,6 +309,14 @@ export default function TaraEIB({ student, subject, currentQ, correctAnswer, sch
         <p className="text-red-600 font-bold text-xs mb-2 bg-red-50 border border-red-200 rounded-lg p-2">
           ⚠️ Let's keep it respectful! Rephrase your answer and try again.
         </p>
+      )}
+
+      {/* ── Explanation hint (shown for factual/non-maths subjects so scholars have grounding context) ── */}
+      {currentQ?.explanation && !["maths","mathematics"].includes((subject || "").toLowerCase()) && (
+        <div className={`mb-2 p-2 sm:p-3 rounded-lg border text-xs sm:text-xs leading-relaxed opacity-80 ${t.response}`}>
+          <span className="font-black uppercase tracking-wide opacity-60 text-[10px]">Hint · </span>
+          {currentQ.explanation}
+        </div>
       )}
 
       {/* ── Main input ── */}
