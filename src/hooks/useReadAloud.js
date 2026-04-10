@@ -7,23 +7,83 @@
 // KS4  (Year 10-11): OFF by default — toggle available
 //
 // Primary:  /api/tts  (server-side OpenAI TTS — natural voices, no cold start)
-// Fallback: Browser Web Speech API (always available, lower quality)
+// Fallback: Browser Web Speech API — ONLY used when /api/tts is unavailable
+//           (NOT used merely because autoplay was blocked; iOS unlock handles that)
+//
+// iOS / Chrome on iPad fix:
+//   iOS requires a user gesture before HTMLAudioElement.play() is allowed.
+//   We install a one-time touchstart + click listener that plays a silent audio
+//   on the first user interaction, permanently unlocking the audio context for
+//   the page session.  All subsequent speak() calls then work without a gesture.
+//   If play() is still blocked (e.g. speak() fires before any touch has occurred),
+//   we fail silently rather than degrading to the lower-quality browser TTS —
+//   the scholar can tap the speaker button (itself a user gesture) to retry.
 //
 // Cold-start elimination: call ra.prefetch(text) when a question LOADS so audio
 // is already cached by the time the scholar clicks play or auto-play fires.
 //
 // Usage:
 //   const ra = useReadAloud(scholar);
-//   // Pre-load as soon as question is known:
 //   useEffect(() => { ra.prefetch(questionText); }, [questionText]);
-//   // Play:
 //   useEffect(() => { ra.speak(questionText); }, [questionText]);
-//   // After answer:
 //   ra.speakExplanation(explanation);
-//   // After Tara:
 //   ra.speakTaraResponse(taraText);
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+
+// ─── iOS audio unlock ───────────────────────────────────────────────────────
+// Module-level flag: true once a silent audio has been successfully played
+// in response to a user gesture.  Shared across all hook instances on the page.
+
+let _audioUnlocked = false;
+
+// A valid, zero-duration, single-sample silent WAV (44 bytes).
+// RIFF header + PCM fmt chunk + empty data chunk.
+const SILENT_WAV_SRC =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
+/**
+ * Registers one-time event listeners to unlock HTMLAudioElement.play() on iOS.
+ * Safe to call multiple times — is a no-op after the first call.
+ */
+function setupAudioUnlock() {
+  if (typeof window === "undefined" || _audioUnlocked) return;
+
+  const unlock = () => {
+    if (_audioUnlocked) return; // already done
+    try {
+      const a = new Audio();
+      a.src = SILENT_WAV_SRC;
+      a.volume = 0;
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          a.pause();
+          _audioUnlocked = true;
+        }).catch(() => {
+          // Unlock failed — user will need to trigger it on next interaction
+        });
+      } else {
+        // Older engines: synchronous play, assume unlocked
+        _audioUnlocked = true;
+      }
+    } catch {
+      // Ignore — environment doesn't support Audio
+    }
+  };
+
+  // touchstart fires before click on mobile; capture phase so we intercept it
+  // even if a child element calls stopPropagation.
+  document.addEventListener("touchstart", unlock, {
+    once: true,
+    passive: true,
+    capture: true,
+  });
+  document.addEventListener("click", unlock, {
+    once: true,
+    capture: true,
+  });
+}
 
 // ─── Key Stage helpers ──────────────────────────────────────────────────────
 
@@ -54,7 +114,9 @@ const VOICE_MAP = {
   default:        "en-GB-SoniaNeural",
 };
 
-// ─── Web Speech API fallback — best available voice ────────────────────────
+// ─── Web Speech API fallback — best available voice ─────────────────────────
+// Used ONLY when /api/tts returns a non-2xx response (i.e. the server is down
+// or the API key is missing).  NOT used when play() is autoplay-blocked.
 
 function getBestBrowserVoice(curriculum) {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
@@ -65,7 +127,6 @@ function getBestBrowserVoice(curriculum) {
     ? "en-US"
     : "en-GB";
 
-  // Priority order: named high-quality voices > lang match > any English
   const priorities = [
     // macOS / iOS high-quality voices
     v => /Samantha|Karen|Tessa|Serena|Daniel|Moira|Fiona/i.test(v.name),
@@ -112,7 +173,6 @@ export function useReadAloud(scholar) {
   const abortRef   = useRef(null);
   const queueRef   = useRef([]);
   // In-memory blob URL cache: cacheKey → blobUrl
-  // Prevents re-fetching the same phrase multiple times in a session.
   const cacheRef   = useRef(new Map());
   // In-flight prefetch promises: cacheKey → Promise<blobUrl|null>
   const prefetchRef = useRef(new Map());
@@ -121,6 +181,11 @@ export function useReadAloud(scholar) {
   const ks1 = ks === 1;
 
   const voice = VOICE_MAP[scholar?.curriculum] || VOICE_MAP.default;
+
+  // ── Install iOS audio unlock on first mount ─────────────────────────────
+  useEffect(() => {
+    setupAudioUnlock();
+  }, []);
 
   // ── Auto-enable based on key stage ─────────────────────────────────────
   useEffect(() => {
@@ -160,6 +225,7 @@ export function useReadAloud(scholar) {
 
   // ── Fetch audio blob (with cache) ──────────────────────────────────────
   // Returns a blobUrl string or null on failure.
+  // null means the /api/tts call itself failed — caller may fall back to browser TTS.
   const fetchAudio = useCallback(async (clean, signal) => {
     const key = cacheKey(clean, voice);
 
@@ -209,14 +275,12 @@ export function useReadAloud(scholar) {
   }, [voice, ks1]);
 
   // ── Prefetch (fire-and-forget) ─────────────────────────────────────────
-  // Call this when a question LOADS to eliminate cold-start lag.
   const prefetch = useCallback((text) => {
     if (!text) return;
     const clean = cleanForSpeech(text);
     if (!clean) return;
     const key = cacheKey(clean, voice);
     if (cacheRef.current.has(key) || prefetchRef.current.has(key)) return;
-    // Start fetch without awaiting — result is cached for speak()
     fetchAudio(clean, new AbortController().signal);
   }, [fetchAudio, voice]);
 
@@ -243,7 +307,6 @@ export function useReadAloud(scholar) {
       const blobUrl = await fetchAudio(clean, abortRef.current.signal);
 
       if (blobUrl) {
-        // Reuse existing Audio element or create new one
         if (!audioRef.current) audioRef.current = new Audio();
         audioRef.current.src = blobUrl;
         audioRef.current.playbackRate = 1.0;
@@ -261,22 +324,35 @@ export function useReadAloud(scholar) {
 
         try {
           await audioRef.current.play();
-          return; // Success — we're done
+          return; // Success
         } catch (playErr) {
-          // Autoplay blocked or other error → fall through to browser TTS
-          console.warn("[useReadAloud] Audio.play() failed:", playErr.message);
+          if (playErr.name === "NotAllowedError") {
+            // iOS / Chrome autoplay blocked — audio was fetched successfully
+            // and is cached.  Do NOT degrade to browser TTS — the scholar can
+            // tap the speaker button (a user gesture) to replay.
+            // The audio unlock registered on mount will fire on their next touch
+            // so subsequent questions will play automatically.
+            console.info("[useReadAloud] Autoplay blocked (iOS); tap speaker to play.");
+            setSpeaking(false);
+            resolve();
+            return;
+          }
+          // Other play() error (decode, network, etc) — fall through to browser TTS
+          console.warn("[useReadAloud] Audio.play() error:", playErr.message);
           setSpeaking(false);
         }
       }
 
       // ── Fallback: Browser Web Speech API ─────────────────────────────
+      // Only reached when /api/tts returned null (server error / no API key),
+      // OR when play() failed for a non-autoplay reason (e.g. decode error).
+      // NOT reached for NotAllowedError — that is handled above.
       if (typeof window !== "undefined" && window.speechSynthesis) {
         const utterance = new SpeechSynthesisUtterance(clean);
         utterance.rate   = ks1 ? 0.8 : 0.85;
         utterance.pitch  = 1.05;
         utterance.volume = 1;
 
-        // Voices may not be loaded yet — retry once if empty
         const trySetVoice = () => {
           const bv = getBestBrowserVoice(scholar?.curriculum);
           if (bv) utterance.voice = bv;
@@ -312,7 +388,6 @@ export function useReadAloud(scholar) {
     if (!explanationText || !enabled) return;
     const clean = cleanForSpeech(explanationText);
     if (!clean) return;
-    // Pre-fetch immediately in case it isn't cached yet
     prefetch(explanationText);
     if (speaking) {
       queueRef.current.push(() => speak(clean));
