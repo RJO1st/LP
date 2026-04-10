@@ -1,13 +1,26 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const getClient = () =>
-  createRouteHandlerClient({ cookies });
+async function getClient() {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+        },
+      },
+    }
+  );
+}
 
 // ── PUT — toggle achieved status ─────────────────────────────────────────────
 export async function PUT(req, { params }) {
-  const supabase = getClient();
+  const supabase = await getClient();
 
   // ── Authentication check ──────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();
@@ -71,7 +84,7 @@ export async function PUT(req, { params }) {
 
 // ── DELETE — remove a goal ────────────────────────────────────────────────────
 export async function DELETE(req, { params }) {
-  const supabase = getClient();
+  const supabase = await getClient();
 
   // ── Authentication check ──────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();

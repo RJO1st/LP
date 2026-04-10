@@ -8,13 +8,25 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function GET(req) {
+async function getClient() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  { cookies: { getAll: () => cookieStore.getAll() } }
-);
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+        },
+      },
+    }
+  );
+}
+
+export async function GET(req) {
+  const supabase = await getClient();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scholarId = req.nextUrl.searchParams.get("scholar_id");
@@ -42,7 +54,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await getClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -81,7 +93,7 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await getClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

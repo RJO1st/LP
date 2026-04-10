@@ -1,6 +1,6 @@
 // src/app/api/admin/fill/route.js
 // Thin server-side wrapper so the client never needs CRON_SECRET
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -11,7 +11,19 @@ const ADMIN_EMAILS = [
 ];
 
 export async function GET(req) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+        },
+      },
+    }
+  );
 
   // ── Authentication check ──────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();

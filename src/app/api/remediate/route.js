@@ -68,8 +68,8 @@ export async function POST(req) {
     if (!response.ok) throw new Error('AI generation failed');
 
     const data = await response.json();
-    const raw = data.choices[0].message.content;
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+    const rawContent = data.choices[0].message.content;
+    const cleaned = rawContent.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
     const remediation = JSON.parse(cleaned);
 
     // 3. Insert into skill_remediation (optional – for reuse)
