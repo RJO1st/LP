@@ -9,7 +9,7 @@
  * Softer, friendlier take on the HUD aesthetic.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
 import useStaggerEntrance from "../../hooks/useStaggerEntrance";
 
@@ -64,7 +64,8 @@ function findRationaleForOption(explanation, optText) {
 
 /* ── Collapsible per-distractor explanation cards ───── */
 function DistractorExplanations({ options, correctIndex, explanation, isCorrect, onSpeak }) {
-  const [expanded, setExpanded] = useState(false);
+  // Always expanded by default — 6-year-olds won't know to click a toggle.
+  const [expanded, setExpanded] = useState(true);
 
   if (correctIndex == null || !Array.isArray(options)) return null;
 
@@ -246,6 +247,31 @@ export default function KS1QuizShell({
 }) {
   const [showTaraHelp, setShowTaraHelp] = useState(false);
   const optionsRef = useStaggerEntrance(".ks1-option", [questionIndex]);
+
+  // Auto-read the result aloud when the answer is revealed.
+  // A 6-year-old should hear the feedback without having to tap 🔊 manually.
+  // We track whether we've already spoken for this result reveal to avoid repeat firing.
+  const didAutoReadRef = useRef(false);
+  useEffect(() => {
+    if (showResult && !didAutoReadRef.current && onSpeak) {
+      didAutoReadRef.current = true;
+      const correctOpt = correctIndex != null ? options[correctIndex] : null;
+      const correctText = typeof correctOpt === "string"
+        ? correctOpt
+        : (correctOpt?.text || correctOpt?.label || "");
+      const primaryWhy = getPrimaryExplanation(explanation);
+      const resultMsg = isCorrect
+        ? `Amazing! You got it! The answer is ${correctText}. ${primaryWhy}`
+        : `The right answer is ${correctText}. ${primaryWhy}`;
+      // Small delay so the UI can paint the result panel before audio starts.
+      const timer = setTimeout(() => onSpeak(resultMsg), 400);
+      return () => clearTimeout(timer);
+    }
+    // Reset so the next question's result can auto-read again.
+    if (!showResult) {
+      didAutoReadRef.current = false;
+    }
+  }, [showResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatTime = (s) => {
     if (!s && s !== 0) return "";

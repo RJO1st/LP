@@ -337,16 +337,23 @@ export function useReadAloud(scholar) {
             resolve();
             return;
           }
-          // Other play() error (decode, network, etc) — fall through to browser TTS
-          console.warn("[useReadAloud] Audio.play() error:", playErr.message);
+          // Other play() error (decode, network, etc.)
+          // The server is working fine — audio was fetched successfully.
+          // Do NOT fall through to browser TTS; fail silently so the scholar
+          // can retry via the speaker button rather than getting low-quality
+          // browser synthesis unexpectedly.
+          console.warn("[useReadAloud] Audio.play() error:", playErr.message, "— failing silently (server OK)");
           setSpeaking(false);
+          resolve();
+          return; // ← prevent fall-through to browser TTS
         }
       }
 
       // ── Fallback: Browser Web Speech API ─────────────────────────────
-      // Only reached when /api/tts returned null (server error / no API key),
-      // OR when play() failed for a non-autoplay reason (e.g. decode error).
-      // NOT reached for NotAllowedError — that is handled above.
+      // ONLY reached when fetchAudio() returned null, meaning /api/tts is
+      // completely unavailable (server down, OPENAI_API_KEY missing, 5xx).
+      // NOT reached for autoplay blocks (handled above).
+      // NOT reached for audio decode/play errors (handled above with silent fail).
       if (typeof window !== "undefined" && window.speechSynthesis) {
         const utterance = new SpeechSynthesisUtterance(clean);
         utterance.rate   = ks1 ? 0.8 : 0.85;
