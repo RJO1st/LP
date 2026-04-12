@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { submitQuestSchema, parseBody } from '@/lib/validation'
@@ -69,6 +70,47 @@ export async function POST(req) {
     });
 
     if (rpcError) throw rpcError;
+
+    // ── Analytics event: quest_completed ─────────────────────────────────
+    // Fire-and-forget — never let analytics block the quest result response.
+    try {
+      // Fetch scholar metadata for denormalised event columns
+      const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      )
+      const { data: scholar } = await serviceClient
+        .from('scholars')
+        .select('curriculum, year_level')
+        .eq('id', scholarId)
+        .maybeSingle()
+
+      if (scholar) {
+        // Derive device_type from User-Agent
+        const ua = req.headers.get('user-agent') || ''
+        const deviceType = /mobile/i.test(ua) ? 'mobile'
+          : /tablet|ipad/i.test(ua) ? 'tablet'
+          : 'desktop'
+
+        await serviceClient.from('quest_analytics_events').insert({
+          scholar_id:         scholarId,
+          curriculum:         scholar.curriculum || 'uk_national',
+          year_level:         scholar.year_level  || 1,
+          event_type:         'quest_completed',
+          subject,
+          score:              actualScore,
+          total_questions:    answers.length,
+          accuracy,
+          time_spent_seconds: body.timeSpent ?? null,
+          topic_slug:         body.topicSlug   ?? null,
+          session_id:         body.sessionId   ?? null,
+          device_type:        deviceType,
+        })
+      }
+    } catch (analyticsErr) {
+      // Never fail the main request over analytics
+      console.warn('[submit-quest] Analytics insert failed:', analyticsErr?.message)
+    }
 
     return NextResponse.json({
       success: true,

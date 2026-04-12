@@ -1,10 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+import { saveResultSchema, parseBody } from '@/lib/validation'
 
 export async function POST(req) {
   try {
     const cookieStore = await cookies() // Await cookies for Next.js 15/16 compatibility
-    const { scholarId, subject, score, totalQuestions, answers } = await req.json()
+
+    // Validate + sanitise request body
+    const raw = await req.json()
+    const parsed = parseBody(saveResultSchema, raw)
+    if (!parsed.success) return parsed.error
+    const { scholarId, subject, score, totalQuestions, answers } = parsed.data
 
     // 1. Verify Cadet session from secure cookie
     // (We keep the cookie name 'scholar_session' to avoid breaking existing logins)

@@ -81,6 +81,8 @@ import RetentionHealthRing from "./RetentionHealthRing";
 import StudySessionMetrics from "./StudySessionMetrics";
 import CertificateProgress from "./CertificateProgress";
 import MockTestDebrief from "./MockTestDebrief";
+import WAECCountdown from "./WAECCountdown";
+import WAECGradeTracker from "./WAECGradeTracker";
 
 // 3D Simulation Cards — shelved
 
@@ -1042,6 +1044,7 @@ export default function AdaptiveDashboardLayout({
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
                 isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+                curriculum={scholar.curriculum}
               />
               <div style={{ marginTop: 16 }}>
                 <AdaptiveStats stats={{ ...stats, masteryPct: subjectMastery.pct, topicCount: subjectMastery.count }} />
@@ -1119,7 +1122,7 @@ export default function AdaptiveDashboardLayout({
             {leaderboard.length > 0 && (
               <BandCard band={band}>
                 <SectionHeader band={band} icon="🌟" title="Star Collectors" subtitle="top explorers" />
-                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />
               </BandCard>
             )}
 
@@ -1152,6 +1155,7 @@ export default function AdaptiveDashboardLayout({
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
                 isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+                curriculum={scholar.curriculum}
               />
               <div style={{ marginTop: 20 }}>
                 {/* Commander Stats Row */}
@@ -1337,7 +1341,7 @@ export default function AdaptiveDashboardLayout({
             {leaderboard.length > 0 && (
               <BandCard band={band}>
                 <SectionHeader band={band} icon="🏅" title="Rankings" subtitle="top commanders" />
-                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+                <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />
               </BandCard>
             )}
           </>
@@ -1358,6 +1362,7 @@ export default function AdaptiveDashboardLayout({
                     daysUntilExam={examData?.daysUntilExam}
                     avatar={scholar.avatar} onAvatarClick={onAvatar}
                     isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+                    curriculum={scholar.curriculum}
                   />
                 </div>
                 {/* Instrument gauge cluster */}
@@ -1572,6 +1577,7 @@ export default function AdaptiveDashboardLayout({
                 daysUntilExam={examData?.daysUntilExam}
                 avatar={scholar.avatar} onAvatarClick={onAvatar}
                 isFirstLogin={isFirstLogin} questsCompleted={stats.questsCompleted ?? 0}
+                curriculum={scholar.curriculum}
               />
 
               {/* ── Inline 3-column status metrics ────── */}
@@ -1662,6 +1668,13 @@ export default function AdaptiveDashboardLayout({
                   visible={encouragement.visible !== false}
                   onDismiss={onDismissEncourage}
                 />
+              </BandCard>
+            )}
+
+            {/* ── WAEC Countdown (ng_sss scholars only) ──── */}
+            {scholar.curriculum === 'ng_sss' && (
+              <BandCard band={band}>
+                <WAECCountdown curriculum={scholar.curriculum} yearLevel={scholar.year_level} />
               </BandCard>
             )}
 
@@ -1841,6 +1854,13 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
+            {/* ── WAEC Grade Tracker (ng_sss scholars only) ──────────────── */}
+            {scholar.curriculum === 'ng_sss' && (
+              <BandCard band={band} glow>
+                <WAECGradeTracker scholar={scholar} supabase={supabase} />
+              </BandCard>
+            )}
+
             {/* ── Exam Papers (KS4 official papers gateway) ──────────────── */}
             <BandCard band={band} glow>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1982,7 +2002,7 @@ export default function AdaptiveDashboardLayout({
       {band === "ks2" && (
         <>
           <DigitalPet totalXp={stats.xp ?? 0} scholarId={scholarId} />
-          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />
           {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
         </>
       )}
@@ -1991,7 +2011,7 @@ export default function AdaptiveDashboardLayout({
       {band === "ks3" && (
         <>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
-          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />
           {careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
         </>
       )}
@@ -2023,7 +2043,7 @@ export default function AdaptiveDashboardLayout({
             <RetentionHealthRing examData={examData} masteryData={masteryData} subjects={subjects} compact />
           </div>
           {peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
-          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />
+          <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />
         </>
       )}
 
@@ -2038,7 +2058,7 @@ export default function AdaptiveDashboardLayout({
         revisionPlan={examData.revisionPlan ?? []}
       />}
 
-      {band === "ks1" && <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} />}
+      {band === "ks1" && <AdaptiveLeaderboard entries={leaderboard} currentScholarId={scholarId} curriculum={scholar.curriculum} />}
 
       {band === "ks1" && peerComparisons.length > 0 && <PeerComparison comparisons={peerComparisons} />}
 

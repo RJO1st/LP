@@ -17,7 +17,7 @@ import React from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import AvatarRenderer from "@/components/game/AvatarRendererCanvas";
 
-export default function AdaptiveLeaderboard({ entries = [], currentScholarId, maxEntries = 5 }) {
+export default function AdaptiveLeaderboard({ entries = [], currentScholarId, maxEntries = 5, curriculum = 'uk_national' }) {
   const { band, theme: t, isDark } = useTheme();
 
   if (entries.length === 0) return null;
@@ -25,14 +25,32 @@ export default function AdaptiveLeaderboard({ entries = [], currentScholarId, ma
   const visible = entries.slice(0, maxEntries);
   const myRank = entries.findIndex(e => e.id === currentScholarId) + 1;
 
-  const titles = {
-    ks1: "⭐ Star Collectors",
-    ks2: "🏆 Commander Rankings",
-    ks3: "📊 Year Group Standings",
-    ks4: "📊 Standings",
-  };
+  const isNigerian = curriculum && (curriculum === 'ng_primary' || curriculum === 'ng_jss' || curriculum === 'ng_sss');
 
-  const xpLabel = { ks1: "Stars", ks2: "Stardust", ks3: "XP", ks4: "Points" };
+  let titles, xpLabel;
+
+  if (isNigerian) {
+    titles = {
+      ks1: "⭐ Primary Champions",
+      ks2: "⭐ Primary Champions",
+      ks3: "🏆 JSS Rankings",
+      ks4: "📊 SSS Standings",
+    };
+    xpLabel = {
+      ks1: "Stars",
+      ks2: "Stars",
+      ks3: "Points",
+      ks4: "Points",
+    };
+  } else {
+    titles = {
+      ks1: "⭐ Star Collectors",
+      ks2: "🏆 Commander Rankings",
+      ks3: "📊 Year Group Standings",
+      ks4: "📊 Standings",
+    };
+    xpLabel = { ks1: "Stars", ks2: "Stardust", ks3: "XP", ks4: "Points" };
+  }
 
   return (
     <div style={{

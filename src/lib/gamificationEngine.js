@@ -1,4 +1,5 @@
 // lib/gamificationEngine.js
+import { getNigerianSubjectLabel, isNigerianCurriculum } from './nigerianCurriculumLabels.js';
 
 export const BADGES = {
   first_quest:      { name: 'Launch Initiated',         icon: '🚀', tier: 'bronze', xp: 25,  coins: 5   },
@@ -403,13 +404,21 @@ export const formatGradeLabel = (grade, curriculum) => {
 };
 
 /** Combined icon + Tailwind colour classes for a subject */
-export const getSubjectMeta = (subject) => ({
-  label:  subject.charAt(0).toUpperCase() + subject.slice(1).replace(/_/g, ' '),
-  icon:   SUBJECT_ICONS[subject] ?? '📚',
-  ...(SUBJECT_COLORS[subject] ?? {
-    bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400',
-  }),
-});
+export const getSubjectMeta = (subject, curriculum = null) => {
+  let label;
+  if (curriculum && isNigerianCurriculum(curriculum)) {
+    label = getNigerianSubjectLabel(subject, curriculum);
+  } else {
+    label = subject.charAt(0).toUpperCase() + subject.slice(1).replace(/_/g, ' ');
+  }
+  return {
+    label,
+    icon:   SUBJECT_ICONS[subject] ?? '📚',
+    ...(SUBJECT_COLORS[subject] ?? {
+      bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400',
+    }),
+  };
+};
 
 export default {
   BADGES,

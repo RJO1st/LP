@@ -8,9 +8,10 @@ import { useTheme } from "@/components/theme/ThemeProvider";
  * ExamResults.jsx
  *
  * Professional exam results dashboard inspired by SaveMyExams.
+ * Supports both GCSE (9-1) and WAEC (A1-F9) grading scales.
  * Displays:
  *   - Overall score with grade prediction
- *   - Grade boundary visualization
+ *   - Grade boundary visualization (context-aware)
  *   - Question-by-question breakdown (expandable)
  *   - Topic performance breakdown
  *   - Areas to improve with revision links
@@ -22,6 +23,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
  *   onRetake:      function() — start a new attempt
  *   onBackToLobby: function() — navigate back
  *   onReviewExam:  function(sittingId) — open review mode
+ *   scholar:       object (optional, { curriculum, ... }) — for WAEC detection
  *
  * Styling:
  *   - Light professional theme (white backgrounds, clean borders)
@@ -31,7 +33,22 @@ import { useTheme } from "@/components/theme/ThemeProvider";
  *   - Mobile-first responsive design
  */
 
-export default function ExamResults({ sittingId, onRetake, onBackToLobby, onReviewExam }) {
+// ═════════════════════════════════════════════════════════════════════════
+// WAEC GRADING HELPER
+// ═════════════════════════════════════════════════════════════════════════
+function getWAECGrade(percentage) {
+  if (percentage >= 85) return { grade: 'A1', label: 'Distinction', color: 'bg-emerald-600', textColor: 'text-emerald-400' };
+  if (percentage >= 75) return { grade: 'B2', label: 'Very Good', color: 'bg-green-600', textColor: 'text-green-400' };
+  if (percentage >= 65) return { grade: 'B3', label: 'Good', color: 'bg-green-500', textColor: 'text-green-400' };
+  if (percentage >= 60) return { grade: 'C4', label: 'Credit', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  if (percentage >= 55) return { grade: 'C5', label: 'Credit', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  if (percentage >= 50) return { grade: 'C6', label: 'Credit', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  if (percentage >= 40) return { grade: 'D7', label: 'Pass', color: 'bg-orange-500', textColor: 'text-orange-400' };
+  if (percentage >= 30) return { grade: 'E8', label: 'Weak Pass', color: 'bg-orange-600', textColor: 'text-orange-400' };
+  return { grade: 'F9', label: 'Fail', color: 'bg-red-600', textColor: 'text-red-400' };
+}
+
+export default function ExamResults({ sittingId, onRetake, onBackToLobby, onReviewExam, scholar }) {
   // ── STATE ──────────────────────────────────────────────────────────────────
   const [sitting, setSitting] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -46,6 +63,9 @@ export default function ExamResults({ sittingId, onRetake, onBackToLobby, onRevi
   const [copied, setCopied] = useState(false);
 
   const { isDark } = useTheme();
+
+  // Detect WAEC grading scale
+  const isWAEC = scholar?.curriculum === 'ng_sss';
 
   // ── FETCH SITTING & ANSWERS ────────────────────────────────────────────────
   useEffect(() => {
@@ -119,9 +139,16 @@ export default function ExamResults({ sittingId, onRetake, onBackToLobby, onRevi
 
   /**
    * Get predicted grade from score
+   * Supports both GCSE (9-1) and WAEC (A1-F9) scales
    */
   function getPredictedGrade(score, maxScore) {
     const percentage = (score / maxScore) * 100;
+
+    if (isWAEC) {
+      return getWAECGrade(percentage);
+    }
+
+    // GCSE 9-1 scale (default)
     if (percentage >= 90) return { grade: 9, color: "bg-green-600" };
     if (percentage >= 81) return { grade: 8, color: "bg-green-500" };
     if (percentage >= 71) return { grade: 7, color: "bg-green-400" };
@@ -319,14 +346,25 @@ export default function ExamResults({ sittingId, onRetake, onBackToLobby, onRevi
         <div className="space-y-6">
           {/* Grade Badge */}
           <div>
-            <p className={`text-sm font-semibold ${isDark ? "text-gray-400" : "text-gray-600"} mb-2`}>PREDICTED GRADE</p>
+            <p className={`text-sm font-semibold ${isDark ? "text-gray-400" : "text-gray-600"} mb-2`}>
+              {isWAEC ? "PREDICTED WAEC GRADE" : "PREDICTED GRADE"}
+            </p>
             <div className={`${predictedGrade.color} text-white rounded-lg p-6 text-center`}>
               <div className="text-5xl sm:text-6xl font-bold">{predictedGrade.grade}</div>
               <div className="text-sm mt-2 opacity-90">
-                {predictedGrade.grade >= 7 && "Strong Pass"}
-                {predictedGrade.grade >= 5 && predictedGrade.grade < 7 && "Secure Pass"}
-                {predictedGrade.grade >= 4 && predictedGrade.grade < 5 && "Standard Pass"}
-                {predictedGrade.grade < 4 && "Below Pass"}
+                {isWAEC ? (
+                  <>
+                    {predictedGrade.label}
+                    {(predictedGrade.grade === 'A1' || predictedGrade.grade === 'B2' || predictedGrade.grade === 'B3') && " 🇳🇬"}
+                  </>
+                ) : (
+                  <>
+                    {predictedGrade.grade >= 7 && "Strong Pass"}
+                    {predictedGrade.grade >= 5 && predictedGrade.grade < 7 && "Secure Pass"}
+                    {predictedGrade.grade >= 4 && predictedGrade.grade < 5 && "Standard Pass"}
+                    {predictedGrade.grade < 4 && "Below Pass"}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -358,9 +396,11 @@ export default function ExamResults({ sittingId, onRetake, onBackToLobby, onRevi
           GRADE BOUNDARY BAR
           ────────────────────────────────────────────────────────────────────── */}
       {gradeBoundaries && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 border-t border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}">
-          <p className={`text-sm font-semibold ${isDark ? "text-gray-400" : "text-gray-600"} mb-4`}>GRADE BOUNDARIES</p>
-          <div className="relative h-12 bg-gradient-to-r from-red-500 via-amber-500 to-green-600 rounded-lg overflow-hidden">
+        <div className={`max-w-6xl mx-auto px-4 sm:px-8 py-8 border-t border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+          <p className={`text-sm font-semibold ${isDark ? "text-gray-400" : "text-gray-600"} mb-4`}>
+            {isWAEC ? "WAEC GRADE BOUNDARIES" : "GRADE BOUNDARIES"}
+          </p>
+          <div className={`relative h-12 bg-gradient-to-r ${isWAEC ? 'from-red-600 via-orange-500 via-amber-500 to-emerald-600' : 'from-red-500 via-amber-500 to-green-600'} rounded-lg overflow-hidden`}>
             {/* Score pin */}
             <div
               className="absolute top-0 h-full w-1 bg-black flex items-center justify-center"
@@ -368,18 +408,45 @@ export default function ExamResults({ sittingId, onRetake, onBackToLobby, onRevi
             >
               <div className="absolute -top-6 w-6 h-6 bg-black rounded-full border-2 border-white" />
             </div>
+            {/* WAEC credit pass line at 50% */}
+            {isWAEC && (
+              <div
+                className="absolute top-0 h-full w-0.5 bg-white opacity-75 border-l border-dashed border-white"
+                style={{ left: '50%' }}
+                title="C6 - Credit Pass (50%)"
+              />
+            )}
           </div>
-          <div className="mt-4 flex justify-between text-xs font-semibold">
-            {gradeBoundaries.grades.slice(0, 3).map((g) => (
-              <div key={g.grade}>
-                <p className={isDark ? "text-gray-400" : "text-gray-600"}>Grade {g.label}</p>
-                <p className={isDark ? "text-gray-300" : "text-gray-900"}>{Math.round(g.threshold)} marks</p>
+          <div className="mt-4">
+            {isWAEC ? (
+              <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
+                <div>
+                  <p className={isDark ? "text-emerald-400" : "text-emerald-700"}>A1-B3</p>
+                  <p className={isDark ? "text-gray-300" : "text-gray-900"}>{Math.round(0.65 * maxScore)}+ marks</p>
+                </div>
+                <div className="text-center">
+                  <p className={isDark ? "text-amber-400" : "text-amber-700"}>C4-C6 (Credit)</p>
+                  <p className={isDark ? "text-gray-300" : "text-gray-900"}>50-59%</p>
+                </div>
+                <div className="text-right">
+                  <p className={isDark ? "text-gray-400" : "text-gray-600"}>Your Score</p>
+                  <p className={isDark ? "text-gray-300" : "text-gray-900"}>{score} marks ({percentage}%)</p>
+                </div>
               </div>
-            ))}
-            <div>
-              <p className={isDark ? "text-gray-400" : "text-gray-600"}>Your Score</p>
-              <p className={isDark ? "text-gray-300" : "text-gray-900"}>{score} marks</p>
-            </div>
+            ) : (
+              <div className="flex justify-between text-xs font-semibold">
+                {gradeBoundaries.grades.slice(0, 3).map((g) => (
+                  <div key={g.grade}>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>Grade {g.label}</p>
+                    <p className={isDark ? "text-gray-300" : "text-gray-900"}>{Math.round(g.threshold)} marks</p>
+                  </div>
+                ))}
+                <div>
+                  <p className={isDark ? "text-gray-400" : "text-gray-600"}>Your Score</p>
+                  <p className={isDark ? "text-gray-300" : "text-gray-900"}>{score} marks</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

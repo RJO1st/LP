@@ -12,6 +12,7 @@
 import React, { useState } from "react";
 import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
 import useStaggerEntrance from "../../hooks/useStaggerEntrance";
+import { resolveVisualOptions, VisualOptionGrid } from "./VisualOptionDetectors";
 
 const N = { fontFamily: "'Orbitron', 'Rajdhani', 'Nunito', sans-serif" };
 const NB = { fontFamily: "'Rajdhani', 'Nunito', sans-serif" };
@@ -72,6 +73,8 @@ function DataReadout({ label, value, unit, color = CYAN }) {
     </div>
   );
 }
+
+/* ── Visual option detection delegated to VisualOptionDetectors.jsx ── */
 
 export default function KS2QuizShell({
   question, options = [], passage, questionIndex = 0, totalQuestions = 20,
@@ -302,7 +305,18 @@ export default function KS2QuizShell({
             {question}
           </h2>
 
-          {/* Option buttons with HUD styling */}
+          {/* Option buttons — visual grid for clock/fraction/money/shape, HUD list otherwise */}
+          {resolveVisualOptions(options) ? (
+            <VisualOptionGrid
+              options={options}
+              visualType={resolveVisualOptions(options).type}
+              selectedAnswer={selectedAnswer}
+              showResult={showResult}
+              isCorrect={isCorrect}
+              onSelect={onSelect}
+              theme="ks2"
+            />
+          ) : (
           <div className="ks2-options-grid" ref={optionsRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
@@ -364,6 +378,7 @@ export default function KS2QuizShell({
               );
             })}
           </div>
+          )} {/* end visual/text conditional */}
 
           {/* Explanation */}
           {showResult && explanation && (

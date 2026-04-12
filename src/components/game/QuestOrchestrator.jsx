@@ -48,6 +48,9 @@ import KS2QuizShell from "./KS2QuizShell";
 import KS3QuizShell from "./KS3QuizShell";
 import KS4QuizShell from "./KS4QuizShell";
 import { apiFetch } from "@/lib/apiFetch";
+import NPSPrompt, { useNPSPrompt } from "@/components/dashboard/NPSPrompt";
+import dynamic from "next/dynamic";
+const ConceptCardRenderer = dynamic(() => import("./ConceptCardRenderer"), { ssr: false });
 const XP_PER_QUESTION = 10;
 
 // ─── TOPIC LABEL FORMATTER ────────────────────────────────────────────────────
@@ -1218,6 +1221,66 @@ const c = (curriculum || '').toLowerCase();
 const isNigerianSecondary = c === 'ng_jss' || c === 'ng_sss';
 const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel <= 1 ? 10 : yearLevel <= 2 ? 15 : 20);
 
+  // Read-aloud for concept card (KS1 auto-read on mount)
+  const { speak: conceptSpeak } = useReadAloud(student);
+
+  // ── NPS prompt — fires after every 5th quest when ≥5 total done ────────────
+  const { shouldShow: showNPS, markCompleted: markNPSCompleted, dismiss: dismissNPS } = useNPSPrompt();
+
+  // Wrap onComplete so we can tick the NPS counter on every quest completion.
+  // Never blocks the scholar — NPS logic is fire-and-forget.
+  const handleComplete = useCallback((payload) => {
+    try { markNPSCompleted(); } catch (_) { /* never block */ }
+    onComplete?.(payload);
+  }, [onComplete, markNPSCompleted]);
+
+  // ── Concept card state ──────────────────────────────────────────────────────
+  // shownConceptCardsRef tracks topic slugs shown this session — never show twice
+  const shownConceptCardsRef = useRef(new Set());
+  const [conceptCard,        setConceptCard]        = useState(null);
+  const [conceptCardLoading, setConceptCardLoading] = useState(false);
+
+  // Maps band → year_band param for concept-cards API
+  // Nigerian secondary uses their own year_band codes
+  const _getYearBand = useCallback(() => {
+    const cur = (curriculum || "").toLowerCase();
+    if (cur === "ng_jss") return "jss";
+    if (cur === "ng_sss") return "sss";
+    return band; // "ks1" | "ks2" | "ks3" | "ks4"
+  }, [band, curriculum]);
+
+  // Called by the "Launch Quest 🚀" button.
+  // If this topic has already shown a card this session, go straight to quiz.
+  const handleLaunchQuest = useCallback(async () => {
+    const slug = rawTopic || subj;
+    if (!slug || shownConceptCardsRef.current.has(slug)) {
+      setStage("quiz");
+      return;
+    }
+    setConceptCardLoading(true);
+    try {
+      const params = new URLSearchParams({ topic_slug: slug, curriculum: curriculum || "universal", subject: subj });
+      const yb = _getYearBand();
+      if (yb) params.set("year_band", yb);
+      const res = await fetch(`/api/concept-cards?${params.toString()}`);
+      if (res.status === 200) {
+        const json = await res.json();
+        if (json?.card) {
+          shownConceptCardsRef.current.add(slug);
+          setConceptCard(json.card);
+          setConceptCardLoading(false);
+          setStage("concept");
+          return;
+        }
+      }
+    } catch (err) {
+      // Never block the scholar — fall through to quiz
+      console.warn("[QuestOrchestrator] Concept card fetch failed:", err.message);
+    }
+    setConceptCardLoading(false);
+    setStage("quiz");
+  }, [rawTopic, subj, curriculum, _getYearBand]);
+
   // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
   // Journey shows the scholar their personalised path and auto-advances after 3 seconds
   const [stage,          setStage]          = useState("journey");
@@ -1369,11 +1432,12 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
           {/* Launch button — 1 click */}
           <div className="px-5 py-4 shrink-0">
             <button
-              onClick={() => setStage("quiz")}
-              className="w-full py-3.5 rounded-2xl font-black text-sm text-white transition-all active:scale-95 shadow-lg"
+              onClick={handleLaunchQuest}
+              disabled={conceptCardLoading}
+              className="w-full py-3.5 rounded-2xl font-black text-sm text-white transition-all active:scale-95 shadow-lg disabled:opacity-70"
               style={{ background: `linear-gradient(135deg, ${theme.colour}, #7c3aed)` }}
             >
-              Launch Quest 🚀
+              {conceptCardLoading ? "Loading…" : "Launch Quest 🚀"}
             </button>
           </div>
         </div>
@@ -1381,17 +1445,44 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     );
   }
 
+  // ── Concept card stage ────────────────────────────────────────────────────
+  if (stage === "concept" && conceptCard) {
+    return (
+      <ConceptCardRenderer
+        card={conceptCard}
+        band={band}
+        topicLabel={topicLabel}
+        subject={subj}
+        curriculum={curriculum}
+        onSpeak={conceptSpeak}
+        onDismiss={() => {
+          setConceptCard(null);
+          setStage("quiz");
+        }}
+      />
+    );
+  }
+
   // ── Briefing + Intro stages REMOVED — 1-click flow goes straight to quiz ──
 
   if (subj === "english" && (questData.isComprehension || questData.passageText)) {
     return (
-      <ReadingComprehensionEngine
-          student={student} subject={subject}
-        scenario={questData.scenario}
-        questions={questData.questions || []}
-        onClose={onClose} onComplete={onComplete}
-        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
-      />
+      <>
+        <ReadingComprehensionEngine
+            student={student} subject={subject}
+          scenario={questData.scenario}
+          questions={questData.questions || []}
+          onClose={onClose} onComplete={handleComplete}
+          BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
+        />
+        {showNPS && (
+          <NPSPrompt
+            scholarId={student?.id}
+            curriculum={curriculum || student?.curriculum}
+            onDismiss={dismissNPS}
+          />
+        )}
+      </>
     );
   }
 
@@ -1403,13 +1494,22 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     "financial_accounting", "commerce", "basic_technology", "further_mathematics",
   ].includes(subj) && questData.scenario) {
     return (
-      <STEMEngine
-         student={student} subject={subject}
-        scenario={questData.scenario}
-        questions={questData.questions || []}
-        onClose={onClose} onComplete={onComplete}
-        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
-      />
+      <>
+        <STEMEngine
+           student={student} subject={subject}
+          scenario={questData.scenario}
+          questions={questData.questions || []}
+          onClose={onClose} onComplete={handleComplete}
+          BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
+        />
+        {showNPS && (
+          <NPSPrompt
+            scholarId={student?.id}
+            curriculum={curriculum || student?.curriculum}
+            onDismiss={dismissNPS}
+          />
+        )}
+      </>
     );
   }
 
@@ -1418,27 +1518,45 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     "economics", "government", "business_studies", "civic_education",
   ].includes(subj) && questData.sourceMaterial) {
     return (
-      <HumanitiesEngine
-         student={student} subject={subject}
-        scenario={questData.scenario}
-        questions={questData.questions || []}
-        onClose={onClose} onComplete={onComplete}
-        BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
-      />
+      <>
+        <HumanitiesEngine
+           student={student} subject={subject}
+          scenario={questData.scenario}
+          questions={questData.questions || []}
+          onClose={onClose} onComplete={handleComplete}
+          BandQuizShell={BandQuizShell} band={band} friendlySubject={friendlySubject}
+        />
+        {showNPS && (
+          <NPSPrompt
+            scholarId={student?.id}
+            curriculum={curriculum || student?.curriculum}
+            onDismiss={dismissNPS}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <MainQuizEngine
-      student={student} subject={subject} curriculum={curriculum}
-      questionCount={questionCount} previousQuestionIds={previousQuestionIds}
-      onClose={onClose} onComplete={onComplete}
-      taraEnabled={taraEnabled}
-      focusedTopic={focusedTopicProp || algorithmTopic}
-      BandQuizShell={BandQuizShell}
-      band={band}
-      friendlySubject={friendlySubject}
-      assessmentType={assessmentType}
-    />
+    <>
+      <MainQuizEngine
+        student={student} subject={subject} curriculum={curriculum}
+        questionCount={questionCount} previousQuestionIds={previousQuestionIds}
+        onClose={onClose} onComplete={handleComplete}
+        taraEnabled={taraEnabled}
+        focusedTopic={focusedTopicProp || algorithmTopic}
+        BandQuizShell={BandQuizShell}
+        band={band}
+        friendlySubject={friendlySubject}
+        assessmentType={assessmentType}
+      />
+      {showNPS && (
+        <NPSPrompt
+          scholarId={student?.id}
+          curriculum={curriculum || student?.curriculum}
+          onDismiss={dismissNPS}
+        />
+      )}
+    </>
   );
 }

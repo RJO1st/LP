@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import StepByStepTimeline, { parseExplanationSteps } from "./StepByStepTimeline";
 import useStaggerEntrance from "../../hooks/useStaggerEntrance";
+import { resolveVisualOptions, VisualOptionGrid } from "./VisualOptionDetectors";
 
 const N = { fontFamily: "'Nunito', 'Comic Sans MS', sans-serif" };
 const OPTION_ICONS = ["🌟", "🪐", "🌙", "⭐"];
@@ -199,6 +200,8 @@ function DistractorExplanations({ options, correctIndex, explanation, isCorrect,
     </div>
   );
 }
+
+/* ── Visual option detection delegated to VisualOptionDetectors.jsx ── */
 
 /* ── Soft glowing frame for cards ───── */
 function GlowFrame({ children, color = GOLD, intensity = 0.15, style = {} }) {
@@ -491,7 +494,19 @@ export default function KS1QuizShell({
             {question}
           </h2>
 
-          {/* Big, friendly answer buttons with glow */}
+          {/* Option buttons — visual grid for clock/fraction/money/shape, friendly list otherwise */}
+          {resolveVisualOptions(options) ? (
+            <VisualOptionGrid
+              options={options}
+              visualType={resolveVisualOptions(options).type}
+              selectedAnswer={selectedAnswer}
+              correctIndex={correctIndex}
+              showResult={showResult}
+              isCorrect={isCorrect}
+              onSelect={onSelect}
+              theme="ks1"
+            />
+          ) : (
           <div ref={optionsRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
             {options.map((opt, i) => {
               const selected = selectedAnswer === i;
@@ -552,6 +567,7 @@ export default function KS1QuizShell({
               );
             })}
           </div>
+          )} {/* end clock/text conditional */}
 
           {/* Result explanation — KS1 age-appropriate three-part structure */}
           {showResult && (() => {

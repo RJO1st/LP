@@ -37,6 +37,27 @@ export function getConfigForYear(yearLevel, curriculum = '') {
   return getBandConfig(getAgeBand(yearLevel, curriculum));
 }
 
+export function isNigerianCurriculum(curriculum) {
+  const c = (curriculum || '').toLowerCase();
+  return c === 'ng_primary' || c === 'ng_jss' || c === 'ng_sss';
+}
+
+export function getNigerianBandLabel(curriculum, yearLevel) {
+  const c = (curriculum || '').toLowerCase();
+  const yr = Number(yearLevel || 1);
+
+  if (c === 'ng_primary') {
+    return yr <= 2 ? 'Primary (Lower)' : 'Primary';
+  }
+  if (c === 'ng_jss') {
+    return 'Junior Secondary';
+  }
+  if (c === 'ng_sss') {
+    return 'Senior Secondary';
+  }
+  return null;
+}
+
 export const BAND_CONFIGS = {
   ks1: {
     id:'ks1', label:'KS1', ages:'5–7', years:[1,2], metaphor:'Magical Adventure',

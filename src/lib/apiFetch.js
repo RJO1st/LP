@@ -61,4 +61,33 @@ export async function apiFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+/**
+ * Convenience API helpers — typed shortcuts that handle JSON serialisation
+ * and Content-Type automatically in addition to CSRF injection.
+ *
+ * Examples:
+ *   import { api } from '@/lib/apiFetch'
+ *   const res = await api.post('/api/submit-quest', { subject, answers, timeSpent })
+ *   const res = await api.get('/api/exam-papers?page=1')
+ */
+export const api = {
+  get:   (url, opts = {}) => apiFetch(url, { ...opts, method: 'GET' }),
+  post:  (url, body, opts = {}) => apiFetch(url, {
+    ...opts, method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
+  }),
+  patch: (url, body, opts = {}) => apiFetch(url, {
+    ...opts, method: 'PATCH',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
+  }),
+  put:   (url, body, opts = {}) => apiFetch(url, {
+    ...opts, method: 'PUT',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
+  }),
+  del:   (url, opts = {}) => apiFetch(url, { ...opts, method: 'DELETE' }),
+};
+
 export default apiFetch;

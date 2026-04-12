@@ -96,6 +96,29 @@ export const remediateSchema = z.object({
   wrong_answer: z.string().max(1000).optional(),
 })
 
+// NPS survey submission
+export const npsSchema = z.object({
+  score:      z.number().int().min(0).max(10),
+  comment:    z.string().max(500).optional(),
+  curriculum: z.string().max(50).optional(),
+})
+
+// Save quest result (save-result/route.js)
+export const saveResultSchema = z.object({
+  scholarId: scholarIdSchema,
+  subject: z.string().min(1).max(50),
+  score: z.number().int().min(0).max(10000),
+  totalQuestions: z.number().int().min(1).max(200),
+  answers: z.array(
+    z.object({
+      question: z.string().max(2000).optional(),
+      selected: z.string().max(1000).optional(),
+      correct: z.string().max(1000).optional(),
+      isCorrect: z.boolean().optional(),
+    }).passthrough()  // allow additional fields without stripping
+  ).max(200).optional(),
+})
+
 // Helper to parse and validate request body
 export function parseBody(schema, body) {
   const result = schema.safeParse(body)

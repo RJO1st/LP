@@ -79,9 +79,27 @@ export default function AdaptiveGreeting({
   onAvatarClick,
   isFirstLogin = false,
   questsCompleted = 0,
+  curriculum = 'uk_national',
 }) {
   const { band, theme: t } = useTheme();
   const name = scholarName || "Scholar";
+  const isNigerian = curriculum && (curriculum === 'ng_primary' || curriculum === 'ng_jss' || curriculum === 'ng_sss');
+
+  // Nigerian-specific grade label formatting
+  let gradeLabel = `Year ${yearLevel || "1"}`;
+  if (isNigerian && curriculum === 'ng_primary') {
+    gradeLabel = `Primary ${yearLevel || "1"}`;
+  } else if (isNigerian && curriculum === 'ng_jss') {
+    gradeLabel = `JSS ${yearLevel || "1"}`;
+  } else if (isNigerian && curriculum === 'ng_sss') {
+    gradeLabel = `SS ${yearLevel || "1"}`;
+  }
+
+  // Default examName for Nigerian SSS scholars if not provided
+  let effectiveExamName = examName;
+  if (isNigerian && curriculum === 'ng_sss' && !examName) {
+    effectiveExamName = 'WAEC SSCE';
+  }
 
   const greetings = {
     ks1: { main: isFirstLogin ? `Welcome, ${name}! ✨` : `Hi ${name}! Ready for an adventure? ✨`, sub: null },
@@ -91,11 +109,11 @@ export default function AdaptiveGreeting({
     },
     ks3: {
       main: isFirstLogin ? `Welcome, ${name}.` : `Hey ${name}. Let's make progress.`,
-      sub: `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}`,
+      sub: isNigerian ? `${streak > 0 ? `${streak}-day streak · ` : ""}${gradeLabel}` : `${streak > 0 ? `${streak}-day streak · ` : ""}${xp.toLocaleString()} ${t.xpName}`,
     },
     ks4: {
-      main: `${name} · Year ${yearLevel || "11"}`,
-      sub: `Streak: ${streak}d${daysUntilExam ? ` · ${examName || "Exam"} in ${daysUntilExam} days` : ""}`,
+      main: `${name} · ${gradeLabel}`,
+      sub: `Streak: ${streak}d${daysUntilExam ? ` · ${effectiveExamName || "Exam"} in ${daysUntilExam} days` : ""}`,
     },
   };
 
