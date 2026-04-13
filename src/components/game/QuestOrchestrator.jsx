@@ -712,30 +712,32 @@ const year = rawYear;
   const hasVisual = (() => {
     if (q.image_url) return true; // explicit images always show
     if (!rawCanVisualise) return false;
-    // For KS1/KS2 word problems with multiple operations, basic dot grids don't help
     const qText = (q.q || q.question_text || "").toLowerCase();
     // Questions like "look at the diagram" should always try to visualise
     const explicitlyAsksForVisual = /look at|diagram|drawing|picture|image|chart|graph|table|map/i.test(qText);
     if (explicitlyAsksForVisual) return true;
-    // Only filter multi-step word problems for younger years (dot grids won't help)
-    if (yearLvl <= 6) {
-      const nums = (q.q || "").match(/\d+/g) || [];
-      const multiStep = nums.length >= 3;
-      const hasMultiOps = /(\bthen\b|\band\b.*\bthen\b|removed|left|remaining|gave away|eaten|taken|after)/i.test(qText)
-        && /(\bshelves?\b|\brows?\b|\bboxes?\b|\bbags?\b|\bgroups?\b|\bpacks?\b|\bsets?\b)/i.test(qText);
-      if (multiStep && hasMultiOps) return false;
+
+    // ── Subject-aware gating: English spelling/phonics questions don't benefit from visuals
+    // unless they have sentence structure, punctuation, or word class content
+    const subLower = (subject || "").toLowerCase();
+    const isEnglish = subLower.includes("english") || subLower === "english_studies" || subLower === "english_language";
+    if (isEnglish) {
+      const topicLower = (q.topic || "").toLowerCase();
+      const isSpellingPhonics = topicLower.includes("spelling") || topicLower.includes("phonics") ||
+        topicLower.includes("digraph") || topicLower.includes("trigraph") ||
+        /spell|silent letter|split digraph|magic e|double letter|irregular|vowel sound/i.test(qText);
+      if (isSpellingPhonics) return false; // no visual — the masked ? boxes add nothing
     }
+
+    // ── Multi-step word problem filter (all year levels, not just ≤6)
+    // Word problems with 3+ numbers and operation keywords get irrelevant number_line/addition visuals
+    const nums = (q.q || q.question_text || "").match(/\d+/g) || [];
+    const multiStep = nums.length >= 3;
+    const hasWordProblemOps = /sold|bought|received|gave away|eaten|taken|removed|left|remaining|more than|fewer|lost|spent|added|scored|collected|then|after/i.test(qText);
+    if (multiStep && hasWordProblemOps) return false;
+
     return true;
   })();
-
-  // Derive layout hint for the quiz shell.
-  // 'wide'  → visual stacks ABOVE the question (number lines, charts, bar models — need horizontal room)
-  // 'tall'  → visual sits BESIDE the question (circles, triangles, geometry — portrait-friendly)
-  // Only resolve when there is a genuine maths/science visual (not image_url, not a passage).
-  const visualData = (hasVisual && !q.image_url && !hasPassage)
-    ? resolveVisual(q, subject, yearLvl)
-    : null;
-  const visualLayout = visualData?.layout ?? 'wide';
 
   // ── Passage persistence: keep passage in left panel across all linked questions
   // When current question has a _passageId, use the session passage.
@@ -755,6 +757,15 @@ const year = rawYear;
     : (q.passage ? { id: null, title: q._passageTitle || "", body: q.passage } : null);
 
   const hasPassage = !!activePassage;
+
+  // Derive layout hint for the quiz shell.
+  // 'wide'  → visual stacks ABOVE the question (number lines, charts, bar models — need horizontal room)
+  // 'tall'  → visual sits BESIDE the question (circles, triangles, geometry — portrait-friendly)
+  // Only resolve when there is a genuine maths/science visual (not image_url, not a passage).
+  const visualData = (hasVisual && !q.image_url && !hasPassage)
+    ? resolveVisual(q, subject, yearLvl)
+    : null;
+  const visualLayout = visualData?.layout ?? 'wide';
 
   // For English w/o passage: use topic as panel label not generic "Reading Passage"
   const panelScenarioLabel = (subject === "english" && !hasPassage)
@@ -1312,6 +1323,17 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     return band; // "ks1" | "ks2" | "ks3" | "ks4"
   }, [band, curriculum]);
 
+  // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
+  // Journey shows the scholar their personalised path and auto-advances after 3 seconds
+  // NOTE: these MUST be declared before handleLaunchQuest — rawTopic is in its dep array
+  const [stage,          setStage]          = useState("journey");
+  const [masteryRecords, setMasteryRecords] = useState([]);
+  const [algorithmTopic, setAlgorithmTopic] = useState(null);
+  const [topicReason,    setTopicReason]    = useState(null);
+
+  const rawTopic   = focusedTopicProp || algorithmTopic || questData?.topic || subj;
+  const topicLabel = formatTopicLabel(rawTopic, questData?.questions || []);
+
   // Called by the "Launch Quest 🚀" button.
   // If this topic has already shown a card this session, go straight to quiz.
   const handleLaunchQuest = useCallback(async () => {
@@ -1343,16 +1365,6 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     setConceptCardLoading(false);
     setStage("quiz");
   }, [rawTopic, subj, curriculum, _getYearBand]);
-
-  // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
-  // Journey shows the scholar their personalised path and auto-advances after 3 seconds
-  const [stage,          setStage]          = useState("journey");
-  const [masteryRecords, setMasteryRecords] = useState([]);
-  const [algorithmTopic, setAlgorithmTopic] = useState(null);
-  const [topicReason,    setTopicReason]    = useState(null);
-
-  const rawTopic   = focusedTopicProp || algorithmTopic || questData?.topic || subj;
-  const topicLabel = formatTopicLabel(rawTopic, questData?.questions || []);
 
   // Load mastery for this subject
   useEffect(() => {

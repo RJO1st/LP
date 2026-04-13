@@ -2488,40 +2488,13 @@ function parseEnglish(topicStr, questionStr, yearLevel, question) {
     ]};
   }
  
-  // Spelling patterns
-  if (t.includes("spelling") || t.includes("phonics") || t.includes("digraph") || t.includes("trigraph") ||
-      /spell|silent letter|split digraph|magic e|double letter/i.test(questionStr)) {
-    // Try to extract the target word from the question text
-    const wordMatch = (questionStr || "").match(/(?:spell(?:ing)?\s+(?:of\s+)?(?:the\s+word\s+)?)['"]+(\w{3,12})['"]+/i)
-      || (questionStr || "").match(/(?:correct\s+spelling\s+(?:of|for)\s+)['"]?(\w{3,12})['"]?/i);
-    let word = wordMatch?.[1] || "";
-    // If regex captured a stop-word (the, for, a, is, etc.), fall back to correct answer from options
-    const STOP_WORDS = new Set(["the","for","a","an","is","of","to","in","it","on","at","by","or","and","as","if","do","so","up","no","my","me","he","we","us"]);
-    if (!word || STOP_WORDS.has(word.toLowerCase())) {
-      // Use the correct answer option as the spelling word (it IS the word being spelled)
-      const opts = question?.opts || [];
-      const correctIdx = question?.a ?? 0;
-      word = (opts[correctIdx] || "").replace(/[^a-zA-Z]/g, "");
-    }
-    if (word) {
-      const highlighted = [];
-      const lw = word.toLowerCase();
-      // Detect the pattern type — but NEVER expose the actual word (it leaks the answer)
-      let pattern = "";
-      if (/^kn/i.test(word)) { highlighted.push(0); pattern = "silent_k"; }
-      else if (/^wr/i.test(word)) { highlighted.push(0); pattern = "silent_w"; }
-      else if (/mb$/i.test(word)) { highlighted.push(word.length - 1); pattern = "silent_b"; }
-      else if (/[aeiou][bcdfghjklmnpqrstvwxyz]e$/i.test(word)) {
-        highlighted.push(word.length - 1); pattern = "magic_e";
-      } else {
-        for (let i = 0; i < word.length - 1; i++) {
-          if (lw[i] === lw[i+1]) { highlighted.push(i, i+1); pattern = "double_letter"; break; }
-        }
-      }
-      // Return masked visual: letter count + highlighted positions + pattern, but NO actual letters
-      return { type: "spelling_pattern", letterCount: word.length, pattern, highlighted, masked: true };
-    }
-  }
+  // Spelling patterns — DISABLED: masked visuals (generic ? boxes) provide zero pedagogical
+  // value for phonics/spelling questions. The visual doesn't show actual letters (to avoid
+  // leaking the answer), so scholars see only blank boxes with no useful information.
+  // Return null to let the question render without a misleading visual panel.
+  // TODO: Re-enable when we have concept-card-backed visuals that teach specific spelling
+  // rules (e.g., "magic e makes the vowel say its name") without revealing the answer.
+  // if (t.includes("spelling") || t.includes("phonics") || ...) { ... }
  
   // Punctuation
   if (t.includes("punctuation") || t.includes("apostrophe") || t.includes("comma") ||
@@ -5719,9 +5692,16 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
     }
 
     // Two or more numbers mentioned — use span as range, detect missing
-    if (nums.length >= 2) {
+    // GUARD: Only generate number_line for maths subjects AND only when the question is
+    // genuinely about number placement/comparison/ordering — NOT multi-step word problems.
+    const isMathsSubject = subj.includes("math") || subj.includes("number") || subj.includes("arithmetic");
+    const isMultiStepWordProblem = nums.length >= 3 &&
+      /sold|bought|received|gave away|eaten|taken|removed|left|remaining|more than|fewer|lost|spent|added|scored|collected/i.test(questionStr);
+    const isNumberPlacement = /number line|position|order|arrange|sequence|between|place value|rounding|compare|greater|less than|ascending|descending|sort/i.test(questionStr);
+
+    if (isMathsSubject && !isMultiStepWordProblem && nums.length >= 2) {
       const lo = Math.min(...nums), hi = Math.max(...nums);
-      if (hi - lo <= 200 && hi - lo >= 2) {
+      if (hi - lo <= 200 && hi - lo >= 2 && isNumberPlacement) {
         const missing = detectMissingNL(questionStr || "", nums);
         const known = nums.filter(n => n !== missing);
         return {
@@ -5735,7 +5715,8 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
     }
 
     // Single number — show its context neighbourhood
-    if (nums.length >= 1) {
+    // GUARD: Only for maths, and only when the question explicitly asks about number placement
+    if (isMathsSubject && !isMultiStepWordProblem && nums.length >= 1 && isNumberPlacement) {
       const val  = nums[0];
       const step = Math.abs(val) >= 100 ? 100 : Math.abs(val) >= 10 ? 10 : 1;
       const mn   = Math.floor(val / step) * step - step;
