@@ -43,7 +43,7 @@ export default function KS3QuizShell({
   selectedAnswer, onSelect, onSubmit, onSkip, onClose,
   subjectLabel = "Science", xp = 0, timeLeft, streak = 0,
   taraHint, isCorrect, showResult, explanation, missionTitle,
-  leftPanelContent, taraEIBWidget, canProceed,
+  leftPanelContent, visualLayout = 'wide', taraEIBWidget, canProceed,
 }) {
   const [showMentor, setShowMentor] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -116,11 +116,14 @@ export default function KS3QuizShell({
       </header>
 
       {/* ═══ SPLIT CONTENT ═══════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* visualLayout='tall' → side-by-side (lg:flex-row) for portrait geometry/triangles
+           visualLayout='wide' → always stacked (flex-col) for number lines, bar charts, etc. */}
+      <div className={`flex-1 flex flex-col${visualLayout === 'tall' ? ' lg:flex-row' : ''} overflow-hidden`}>
 
         {/* ─── LEFT: Scenario Brief ───────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
-          style={{ borderRight: "1px solid rgba(16,185,129,0.06)" }}>
+        {/* tall→half-width beside question; wide→full-width above with generous height cap */}
+        <div className={`${visualLayout === 'tall' ? 'lg:w-1/2' : 'w-full'} overflow-y-auto p-3 sm:p-5 md:p-8 ${visualLayout === 'tall' ? 'max-h-[32vh] sm:max-h-[38vh] lg:max-h-none' : 'max-h-[44vh]'}`}
+          style={{ borderRight: visualLayout === 'tall' ? '1px solid rgba(16,185,129,0.06)' : 'none', borderBottom: visualLayout === 'wide' ? '1px solid rgba(16,185,129,0.06)' : 'none' }}>
 
           {/* Dynamic left panel — visualiser/passage from QuestOrchestrator, or fallback */}
           {leftPanelContent ? (
@@ -207,7 +210,7 @@ export default function KS3QuizShell({
         </div>
 
         {/* ─── RIGHT: MCQ ─────────────────────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
+        <div className={`${visualLayout === 'tall' ? 'lg:w-1/2' : 'w-full'} overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col flex-1`}
           style={{ background: "rgba(12,18,34,0.5)" }}>
 
           <div className="flex items-center justify-between mb-2 sm:mb-4">

@@ -81,7 +81,7 @@ export default function KS2QuizShell({
   selectedAnswer, onSelect, onSubmit, onSkip, onClose,
   subjectLabel = "Science", xp = 0, timeLeft, streak = 0,
   taraHint, isCorrect, showResult, explanation, missionTitle,
-  leftPanelContent, taraEIBWidget, canProceed,
+  leftPanelContent, visualLayout = 'wide', taraEIBWidget, canProceed,
 }) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const optionsRef = useStaggerEntrance(".ks2-option", [questionIndex]);
@@ -194,11 +194,14 @@ export default function KS2QuizShell({
       </header>
 
       {/* ═══ SPLIT CONTENT ═══════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
+      {/* visualLayout='tall' → side-by-side (lg:flex-row) for portrait geometry/triangles
+           visualLayout='wide' → always stacked (flex-col) for number lines, bar charts, etc. */}
+      <div className={`flex-1 flex flex-col${visualLayout === 'tall' ? ' lg:flex-row' : ''} overflow-hidden`} style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Mission Narrative ──────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-5 md:p-8 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
-          style={{ borderRight: `1px solid ${CYAN}08` }}>
+        {/* tall→half-width beside question; wide→full-width above with generous height cap */}
+        <div className={`${visualLayout === 'tall' ? 'lg:w-1/2' : 'w-full'} overflow-y-auto p-3 sm:p-5 md:p-6 ${visualLayout === 'tall' ? 'max-h-[32vh] sm:max-h-[38vh] lg:max-h-none' : 'max-h-[44vh]'}`}
+          style={{ borderRight: visualLayout === 'tall' ? `1px solid ${CYAN}08` : 'none', borderBottom: visualLayout === 'wide' ? `1px solid ${CYAN}08` : 'none' }}>
 
           {leftPanelContent ? (
             <div className="h-full">{leftPanelContent}</div>
@@ -282,7 +285,7 @@ export default function KS2QuizShell({
         </div>
 
         {/* ─── RIGHT: MCQ Panel ──────────────────────────────── */}
-        <div className="lg:w-1/2 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
+        <div className={`${visualLayout === 'tall' ? 'lg:w-1/2' : 'w-full'} overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col flex-1`}
           style={{ background: "rgba(2,11,26,0.6)" }}>
 
           {/* Task badge */}

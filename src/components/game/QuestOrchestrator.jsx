@@ -21,7 +21,7 @@ import {
 } from "../../lib/quizUtils";
 import TaraEIB, { useTaraGate } from "./TaraEIB";
 import ImageDisplay             from "./ImageDisplay";
-import MathsVisualiser, { canVisualise } from "./MathsVisualiser";
+import MathsVisualiser, { canVisualise, resolveVisual } from "./MathsVisualiser";
 import AnimatedVisualiser              from "./AnimatedVisualiser";
 import CelebrationBurst                from "./CelebrationBurst";
 import AnswerReaction                  from "./AnswerReaction";
@@ -47,6 +47,7 @@ import KS1QuizShell from "./KS1QuizShell";
 import KS2QuizShell from "./KS2QuizShell";
 import KS3QuizShell from "./KS3QuizShell";
 import KS4QuizShell from "./KS4QuizShell";
+import QuestionVisualEnhancer from "./QuestionVisualEnhancer";
 import { apiFetch } from "@/lib/apiFetch";
 import NPSPrompt, { useNPSPrompt } from "@/components/dashboard/NPSPrompt";
 import dynamic from "next/dynamic";
@@ -272,8 +273,9 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   const sessionPassageRef = useRef(null);                    // ← persistent passage across linked questions
   const { taraComplete, onFeedbackReceived, resetTara } = useTaraGate();
 
-  const { recordAnswer, getSessionMilestones, getSessionStoryPoints } = useMastery(student);
+  const { recordAnswer, getSessionMilestones, getSessionStoryPoints, sessionId } = useMastery(student);
   const questionStartTime  = useRef(Date.now());
+  const questStartedRef    = useRef(false);          // ← guard: fire quest_started only once
   const [pendingMilestone, setPendingMilestone] = useState(null);
 
   // ── Read-aloud for all scholars (KS1 ON by default, KS2-4 toggle) ────────
@@ -429,6 +431,25 @@ const year = rawYear;
     setGenerating(false);
     sessionStartRef.current = Date.now(); // ← TIER 1: start clock once questions ready
     deadlineRef.current = Date.now() + perQTimer * 1000; // ← wall-clock deadline for Q1
+
+    // ── Analytics: quest_started ──────────────────────────────────────────────
+    // Fire-and-forget — never blocks question render. Guard prevents duplicate
+    // events if fetchQuestions() is ever called more than once (hasFetchedRef
+    // should prevent that, but questStartedRef is a belt-and-suspenders guard).
+    if (!questStartedRef.current && (qs || []).length > 0 && student?.id) {
+      questStartedRef.current = true;
+      try {
+        supabase.from('quest_analytics_events').insert({
+          scholar_id: student.id,
+          curriculum: student.curriculum || 'uk_national',
+          year_level: student.year_level  || 1,
+          event_type: 'quest_started',
+          subject,
+          topic_slug: focusedTopic ?? null,
+          session_id: sessionId.current,
+        }).then(() => {}).catch(() => {});
+      } catch (_) {}
+    }
   }, [student, subject, curriculum, questionCount, previousQuestionIds]);
 
   // Only fetch on initial mount — do NOT re-fetch when student prop updates mid-quiz
@@ -605,6 +626,30 @@ const year = rawYear;
     }
   };
 
+  // ── Analytics: quest_abandoned ────────────────────────────────────────────
+  // Fires when the scholar closes the quest mid-session (X button / onClose).
+  // Guarded by !finished — if the quest completed normally, EngineFinished
+  // calls onClose directly (the quest is already recorded as quest_completed
+  // server-side in submit-quest/route.js).
+  const handleClose = useCallback(() => {
+    if (!finished && student?.id) {
+      const timeSpentSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      try {
+        supabase.from('quest_analytics_events').insert({
+          scholar_id:         student.id,
+          curriculum:         student.curriculum || 'uk_national',
+          year_level:         student.year_level  || 1,
+          event_type:         'quest_abandoned',
+          subject,
+          topic_slug:         focusedTopic ?? null,
+          session_id:         sessionId.current,
+          time_spent_seconds: timeSpentSeconds > 0 ? timeSpentSeconds : null,
+        }).then(() => {}).catch(() => {});
+      } catch (_) {}
+    }
+    onClose?.();
+  }, [finished, student, subject, focusedTopic, sessionId, onClose]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (generating) return <LoadingCard subject={subject} />;
 
@@ -682,6 +727,15 @@ const year = rawYear;
     }
     return true;
   })();
+
+  // Derive layout hint for the quiz shell.
+  // 'wide'  → visual stacks ABOVE the question (number lines, charts, bar models — need horizontal room)
+  // 'tall'  → visual sits BESIDE the question (circles, triangles, geometry — portrait-friendly)
+  // Only resolve when there is a genuine maths/science visual (not image_url, not a passage).
+  const visualData = (hasVisual && !q.image_url && !hasPassage)
+    ? resolveVisual(q, subject, yearLvl)
+    : null;
+  const visualLayout = visualData?.layout ?? 'wide';
 
   // ── Passage persistence: keep passage in left panel across all linked questions
   // When current question has a _passageId, use the session passage.
@@ -777,7 +831,15 @@ const year = rawYear;
           <p className="text-sm text-slate-600 leading-relaxed">💡 {q.hints[0]}</p>
         </div>
       </div>
-    ) : null
+    ) : (
+      <QuestionVisualEnhancer
+        question={q}
+        subject={subject}
+        yearLevel={yearLvl}
+        curriculum={student?.curriculum || 'uk_national'}
+        supabase={supabase}
+      />
+    )
   );
   // ── Band-specific quiz shell (KS1-KS4 split-screen layouts) ──────────────
   if (BandQuizShell && !finished) {
@@ -835,7 +897,7 @@ const year = rawYear;
         onSelect={(i) => { if (selected === null && !timerExpired) handlePick(i); }}
         onSubmit={() => { if (canProceed || timerExpired) { clearTimeout(advanceTimerRef.current); next(); } }}
         onSkip={() => next()}
-        onClose={onClose}
+        onClose={handleClose}
         subjectLabel={friendlySubject || labels.header}
         xp={student?.total_xp || 0}
         streak={student?.streak || 0}
@@ -850,6 +912,7 @@ const year = rawYear;
         gradeImpact={student?.predicted_grade || ""}
         markSchemeNote={q.mark_scheme_note}
         leftPanelContent={leftPanelContent}
+        visualLayout={visualLayout}
         taraEIBWidget={taraEIBWidget}
         canProceed={canProceed}
         correctIndex={q.a}

@@ -245,7 +245,7 @@ export default function KS1QuizShell({
   selectedAnswer, onSelect, onSubmit, onSkip, onClose,
   subjectLabel = "Science", xp = 0, timeLeft, streak = 0,
   taraHint, isCorrect, showResult, explanation, missionTitle,
-  leftPanelContent, taraEIBWidget, canProceed, correctIndex,
+  leftPanelContent, visualLayout = 'wide', taraEIBWidget, canProceed, correctIndex,
   onSpeak,   // useReadAloud.speak — OpenAI TTS, passed from QuestOrchestrator
 }) {
   const [showTaraHelp, setShowTaraHelp] = useState(false);
@@ -372,11 +372,14 @@ export default function KS1QuizShell({
       </header>
 
       {/* ═══ MAIN CONTENT ═══════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ position: "relative", zIndex: 3 }}>
+      {/* visualLayout='tall' → side-by-side (lg:flex-row) for portrait geometry/triangles
+           visualLayout='wide' → always stacked (flex-col) for number lines, bar charts, etc. */}
+      <div className={`flex-1 flex flex-col${visualLayout === 'tall' ? ' lg:flex-row' : ''} overflow-hidden`} style={{ position: "relative", zIndex: 3 }}>
 
         {/* ─── LEFT: Story Panel ────────────────────────────── */}
-        <div className="lg:w-[45%] overflow-y-auto p-3 sm:p-5 md:p-7 max-h-[32vh] sm:max-h-[38vh] lg:max-h-none"
-          style={{ borderRight: `1px solid ${GOLD}06` }}>
+        {/* tall→half-width beside question; wide→full-width above with generous height cap */}
+        <div className={`${visualLayout === 'tall' ? 'lg:w-[45%]' : 'w-full'} overflow-y-auto p-3 sm:p-5 md:p-7 ${visualLayout === 'tall' ? 'max-h-[32vh] sm:max-h-[38vh] lg:max-h-none' : 'max-h-[44vh]'}`}
+          style={{ borderRight: visualLayout === 'tall' ? `1px solid ${GOLD}06` : 'none', borderBottom: visualLayout === 'wide' ? `1px solid ${GOLD}06` : 'none' }}>
 
           {leftPanelContent ? (
             <div className="h-full">{leftPanelContent}</div>
@@ -472,7 +475,7 @@ export default function KS1QuizShell({
         </div>
 
         {/* ─── RIGHT: Answer Buttons ────────────────────────── */}
-        <div className="lg:w-[55%] overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col"
+        <div className={`${visualLayout === 'tall' ? 'lg:w-[55%]' : 'w-full'} overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col flex-1`}
           style={{ background: "rgba(30,18,96,0.4)" }}>
 
           {/* Question badge */}

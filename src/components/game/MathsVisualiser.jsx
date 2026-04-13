@@ -586,137 +586,354 @@ function SubtractionVis({ from, remove, objectIcon }) {
   );
 }
 
-// PLACE VALUE — Dienes blocks, light background ───────────────────────────────
-function PlaceValueVis({ tens, ones }) {
+// PLACE VALUE — Dienes blocks (hundreds / tens / ones), accurate proportions ──
+function PlaceValueVis({ hundreds = 0, tens = 0, ones = 0 }) {
+  // clamp to realistic display limits
+  const h = Math.min(hundreds, 9);
+  const t = Math.min(tens, 9);
+  const o = Math.min(ones, 9);
+  const total = h * 100 + t * 10 + o;
+
+  // Hundreds block: 56×56px square grid (10×10 cells inside)
+  function HundredsBlock({ idx }) {
+    const CELL = 4.6; // each unit cell inside the block
+    const GAP  = 0.4;
+    const OFF  = 3;   // inner padding
+    return (
+      <svg key={idx} width={56} height={56} viewBox="0 0 56 56" style={{ display: "block" }}>
+        {/* outer border */}
+        <rect x={1} y={1} width={54} height={54} rx={3}
+          fill="#eef2ff" stroke={T.indigo} strokeWidth={2} />
+        {/* 10×10 grid of unit cells */}
+        {Array.from({ length: 10 }).map((_, row) =>
+          Array.from({ length: 10 }).map((_, col) => (
+            <rect key={`${row}-${col}`}
+              x={OFF + col * (CELL + GAP)}
+              y={OFF + row * (CELL + GAP)}
+              width={CELL} height={CELL} rx={0.5}
+              fill={T.indigo} opacity={0.72} />
+          ))
+        )}
+      </svg>
+    );
+  }
+
+  // Tens rod: 20×76px with 10 stacked unit squares inside
+  function TensRod({ idx }) {
+    return (
+      <svg key={idx} width={20} height={76} viewBox="0 0 20 76" style={{ display: "block" }}>
+        <rect x={1} y={1} width={18} height={74} rx={3}
+          fill="#eef2ff" stroke={T.indigo} strokeWidth={2} />
+        {Array.from({ length: 10 }).map((_, j) => (
+          <rect key={j} x={3.5} y={3.5 + j * 6.8} width={13} height={5.8} rx={1}
+            fill={T.indigo} opacity={0.72} />
+        ))}
+      </svg>
+    );
+  }
+
+  // Ones unit: 22×22px square
+  function OnesUnit({ idx }) {
+    return (
+      <div key={idx} style={{
+        width: 22, height: 22,
+        background: "#fffbeb",
+        border: `2px solid ${T.amber}`,
+        borderRadius: 4,
+      }} />
+    );
+  }
+
+  const hasHundreds = h > 0;
+  const hasTens     = t > 0;
+  const hasOnes     = o > 0;
+
   return (
-    <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap", justifyContent: "center" }}>
-        {tens > 0 && (
+    <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}
+      ariaLabel={`Place value: ${h} hundreds, ${t} tens, ${o} ones = ${total}`}>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-end", flexWrap: "wrap", justifyContent: "center" }}>
+
+        {/* HUNDREDS */}
+        {hasHundreds && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {Array.from({ length: Math.min(tens, 9) }).map((_, i) => (
-                <div key={i} style={{
-                  width: 16, height: 60,
-                  background: T.indigoBg,
-                  border: `2px solid ${T.indigo}`,
-                  borderRadius: 4,
-                  display: "flex", flexDirection: "column", gap: 2, padding: 2,
-                }}>
-                  {Array.from({ length: 10 }).map((_, j) => (
-                    <div key={j} style={{ flex: 1, background: T.indigo, borderRadius: 1, opacity: 0.7 }} />
-                  ))}
-                </div>
-              ))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center", maxWidth: 180 }}>
+              {Array.from({ length: h }).map((_, i) => <HundredsBlock key={i} idx={i} />)}
             </div>
-            <Chip color={T.indigo} bg={T.indigoBg}>TENS</Chip>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Chip color={T.indigo} bg={T.indigoBg}>{h} × 100</Chip>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.indigo }}>=&nbsp;{h * 100}</span>
+            </div>
           </div>
         )}
-        {ones > 0 && (
+
+        {/* Divider between groups */}
+        {hasHundreds && (hasTens || hasOnes) && (
+          <div style={{ width: 1, height: 76, background: "#cbd5e1", alignSelf: "flex-end", marginBottom: 22 }} />
+        )}
+
+        {/* TENS */}
+        {hasTens && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
-              {Array.from({ length: Math.min(ones, 9) }).map((_, i) => (
-                <div key={i} style={{
-                  width: 16, height: 16,
-                  background: T.amberBg,
-                  border: `2px solid ${T.amber}`,
-                  borderRadius: 3,
-                }} />
-              ))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center", maxWidth: 180 }}>
+              {Array.from({ length: t }).map((_, i) => <TensRod key={i} idx={i} />)}
             </div>
-            <Chip color={T.amber} bg={T.amberBg}>ONES</Chip>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Chip color={T.indigo} bg={T.indigoBg}>{t} × 10</Chip>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.indigo }}>=&nbsp;{t * 10}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Divider between tens and ones */}
+        {hasTens && hasOnes && (
+          <div style={{ width: 1, height: 40, background: "#cbd5e1", alignSelf: "flex-end", marginBottom: 22 }} />
+        )}
+
+        {/* ONES */}
+        {hasOnes && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 22px)", gap: 4 }}>
+              {Array.from({ length: o }).map((_, i) => <OnesUnit key={i} idx={i} />)}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Chip color={T.amber} bg={T.amberBg}>{o} × 1</Chip>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.amber }}>=&nbsp;{o}</span>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Total banner */}
+      {total > 0 && (
+        <div style={{
+          marginTop: 10,
+          background: "white",
+          border: `1.5px solid ${T.amberBd}`,
+          borderRadius: 8,
+          padding: "5px 12px",
+          textAlign: "center",
+          fontSize: 14,
+          fontWeight: 800,
+          color: "#1e293b",
+          letterSpacing: "-0.2px",
+        }}>
+          {hasHundreds && <span style={{ color: T.indigo }}>{h}&nbsp;hundred{h > 1 ? "s" : ""}</span>}
+          {hasHundreds && hasTens && <span style={{ color: T.slate }}> + </span>}
+          {hasTens && <span style={{ color: T.indigo }}>{t}&nbsp;ten{t > 1 ? "s" : ""}</span>}
+          {(hasHundreds || hasTens) && hasOnes && <span style={{ color: T.slate }}> + </span>}
+          {hasOnes && <span style={{ color: T.amber }}>{o}&nbsp;one{o > 1 ? "s" : ""}</span>}
+          <span style={{ color: T.slate }}> = </span>
+          <span style={{ color: "#0f172a" }}>{total}</span>
+        </div>
+      )}
     </Panel>
   );
 }
 
-// MULTIPLICATION — clean array with row/col separators ────────────────────────
+// MULTIPLICATION — SVG dot-grid with bracket annotations ──────────────────────
 function MultiplicationVis({ rows, cols }) {
-  const total = rows * cols;
-  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#e11d48", "#0891b2", "#7c3aed",
-                  "#ea580c", "#06b6d4", "#84cc16", "#ec4899", "#64748b", "#0d9488"];
-  const BG =     ["#eef2ff", "#ecfdf5", "#fefce8", "#fff1f2", "#ecfeff", "#f5f3ff",
-                  "#fff7ed", "#ecfeff", "#f7fee7", "#fdf2f8", "#f1f5f9", "#f0fdfa"];
-
   const dispR = Math.min(rows, 10);
   const dispC = Math.min(cols, 10);
   const truncR = rows > dispR;
   const truncC = cols > dispC;
   const maxDim = Math.max(dispR, dispC);
-  const blockSize = maxDim > 8 ? 12 : maxDim > 6 ? 14 : maxDim > 4 ? 16 : 20;
-  const gap = blockSize > 14 ? 2 : 3;
-  const groupGap = blockSize > 14 ? 4 : 6;
+  const cell  = maxDim > 8 ? 11 : maxDim > 6 ? 13 : maxDim > 4 ? 16 : 20;
+  const gap   = 3;
+  const r     = cell / 2;
+  // Padding: left for row-bracket+label, top for col-bracket+label
+  const PL = 34, PT = 28, PR = 10, PB = 10;
+  const gridW = dispC * (cell + gap) - gap;
+  const gridH = dispR * (cell + gap) - gap;
+  const W = PL + gridW + PR + (truncC ? 14 : 0);
+  const H = PT + gridH + PB + (truncR ? 12 : 0);
+
+  // Bracket helpers: draws a [ shape
+  const BK = 4; // bracket arm length
+  const colBracketY  = PT - 14;
+  const colBracketX1 = PL;
+  const colBracketX2 = PL + gridW;
+  const rowBracketX  = PL - 16;
+  const rowBracketY1 = PT;
+  const rowBracketY2 = PT + gridH;
 
   return (
     <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}
-      ariaLabel={`${rows} groups of ${cols}`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: groupGap, alignItems: "center" }}>
-        {Array.from({ length: dispR }).map((_, ri) => {
-          const c = COLORS[ri % COLORS.length];
-          const bg = BG[ri % BG.length];
-          return (
-            <div key={ri} style={{
-              display: "flex", gap, alignItems: "center",
-              background: bg, borderRadius: 6, padding: "3px 5px",
-              border: `1.5px solid ${c}30`,
-            }}>
-              {Array.from({ length: dispC }).map((_, ci) => (
-                <div key={ci} style={{
-                  width: blockSize, height: blockSize, borderRadius: 3,
-                  background: c, opacity: 0.85,
-                }} />
-              ))}
-              {truncC && <span style={{ fontSize: 8, color: c, fontWeight: 700 }}>…</span>}
-            </div>
-          );
-        })}
-        {truncR && (
-          <span style={{ fontSize: 9, color: T.emerald, fontWeight: 700 }}>⋮ ({rows} rows total)</span>
+      ariaLabel={`${rows} rows of ${cols}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        style={{ display: "block", overflow: "visible" }}>
+        <defs>
+          <radialGradient id="mv_cg" cx="35%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#6ee7b7" />
+            <stop offset="100%" stopColor="#059669" />
+          </radialGradient>
+        </defs>
+
+        {/* Column bracket (top) */}
+        <line x1={colBracketX1} y1={colBracketY + BK} x2={colBracketX1} y2={colBracketY}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <line x1={colBracketX1} y1={colBracketY} x2={colBracketX2} y2={colBracketY}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <line x1={colBracketX2} y1={colBracketY} x2={colBracketX2} y2={colBracketY + BK}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <text x={(colBracketX1 + colBracketX2) / 2} y={colBracketY - 3}
+          textAnchor="middle" fontSize={9} fontWeight="700" fill={T.emerald}>
+          {cols}{truncC ? "+" : ""} in each row
+        </text>
+
+        {/* Row bracket (left) */}
+        <line x1={rowBracketX - BK} y1={rowBracketY1} x2={rowBracketX} y2={rowBracketY1}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <line x1={rowBracketX} y1={rowBracketY1} x2={rowBracketX} y2={rowBracketY2}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <line x1={rowBracketX} y1={rowBracketY2} x2={rowBracketX - BK} y2={rowBracketY2}
+          stroke={T.emerald} strokeWidth={1.5} />
+        <text
+          x={rowBracketX - BK - 3}
+          y={(rowBracketY1 + rowBracketY2) / 2}
+          textAnchor="middle"
+          fontSize={9} fontWeight="700" fill={T.emerald}
+          transform={`rotate(-90, ${rowBracketX - BK - 3}, ${(rowBracketY1 + rowBracketY2) / 2})`}>
+          {rows}{truncR ? "+" : ""} rows
+        </text>
+
+        {/* Dot grid */}
+        {Array.from({ length: dispR }).map((_, ri) =>
+          Array.from({ length: dispC }).map((_, ci) => {
+            const cx = PL + ci * (cell + gap) + r;
+            const cy = PT + ri * (cell + gap) + r;
+            return (
+              <circle key={`${ri}-${ci}`} cx={cx} cy={cy} r={r}
+                fill="url(#mv_cg)" />
+            );
+          })
         )}
-      </div>
-      <Chip color={T.emerald} bg={T.emeraldBg}>
-        {rows} × {cols} = ?
-      </Chip>
+
+        {/* Truncation indicators */}
+        {truncC && (
+          <text x={PL + gridW + 6} y={PT + r + 3}
+            fontSize={10} fontWeight="800" fill={T.emerald}>…</text>
+        )}
+        {truncR && (
+          <text x={PL + r} y={PT + gridH + 11}
+            fontSize={9} fontWeight="700" fill={T.emerald}>⋮ ({rows} rows total)</text>
+        )}
+      </svg>
+      <Chip color={T.emerald} bg={T.emeraldBg}>{rows} × {cols} = ?</Chip>
     </Panel>
   );
 }
 
 // FRACTION — bar segments, labelled ──────────────────────────────────────────
 function FractionVis({ numerator, denominator }) {
-  const den = Math.min(denominator, 10), num = Math.min(numerator, den);
-  const segW = Math.max(26, Math.min(42, 240 / den));
-  return (
-    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}>
-      <div style={{ display: "flex", gap: 3 }}>
+  const den = Math.min(denominator, 16), num = Math.min(numerator, den);
+  // Decide which representation to lead with
+  const usePie = den <= 12; // pie works well up to 12 slices
+
+  // ── Pie/circle helper ────────────────────────────────────────────────────────
+  const PieFraction = () => {
+    const R = 54, cx = 70, cy = 62, SIZE = 140;
+    const slices = Array.from({ length: den }, (_, i) => {
+      const a0 = (i / den) * 2 * Math.PI - Math.PI / 2;
+      const a1 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+      const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
+      const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+      const large = den === 1 ? 1 : 0;
+      const filled = i < num;
+      return { x0, y0, x1, y1, large, filled, a0, a1 };
+    });
+    // For den===1 use a full circle
+    const fullCircle = den === 1;
+    return (
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+        <defs>
+          <radialGradient id="fracFill" cx="40%" cy="35%">
+            <stop offset="0%" stopColor="#a78bfa"/>
+            <stop offset="100%" stopColor="#6d28d9"/>
+          </radialGradient>
+          <radialGradient id="fracEmpty" cx="40%" cy="35%">
+            <stop offset="0%" stopColor="#ede9fe"/>
+            <stop offset="100%" stopColor="#ddd6fe"/>
+          </radialGradient>
+        </defs>
+        {/* outer ring */}
+        <circle cx={cx} cy={cy} r={R + 3} fill="none" stroke="#c4b5fd" strokeWidth={1.5}/>
+        {fullCircle && num === 1
+          ? <circle cx={cx} cy={cy} r={R} fill="url(#fracFill)" stroke="#6d28d9" strokeWidth={1.5}/>
+          : fullCircle
+            ? <circle cx={cx} cy={cy} r={R} fill="url(#fracEmpty)" stroke="#c4b5fd" strokeWidth={1.5}/>
+            : slices.map((s, i) => (
+                <path key={i}
+                  d={`M${cx},${cy} L${s.x0},${s.y0} A${R},${R} 0 ${s.large},1 ${s.x1},${s.y1} Z`}
+                  fill={s.filled ? "url(#fracFill)" : "url(#fracEmpty)"}
+                  stroke={s.filled ? "#6d28d9" : "#c4b5fd"} strokeWidth={1.2}/>
+              ))
+        }
+        {/* spoke lines */}
+        {!fullCircle && slices.map((s, i) => (
+          <line key={i} x1={cx} y1={cy} x2={s.x0} y2={s.y0}
+            stroke={i < num ? "#6d28d9" : "#c4b5fd"} strokeWidth={1}/>
+        ))}
+        {/* centre dot */}
+        <circle cx={cx} cy={cy} r={4} fill="#6d28d9"/>
+        {/* fraction label inside or beside */}
+        <text x={cx} y={cy + R + 16} textAnchor="middle" fontSize={10} fontWeight="800" fill="#6d28d9">
+          {num}/{den} shaded
+        </text>
+      </svg>
+    );
+  };
+
+  // ── Bar segments helper ──────────────────────────────────────────────────────
+  const BarFraction = () => {
+    const segW = Math.max(18, Math.min(34, 240 / den));
+    return (
+      <div style={{ display:"flex", gap:3, flexWrap:"wrap", justifyContent:"center" }}>
         {Array.from({ length: den }).map((_, i) => (
-          <div key={i} className="vis-segment" style={{
-            width: segW, height: 48, borderRadius: 7,
+          <div key={i} style={{
+            width: segW, height: 40, borderRadius: 6,
             background: i < num ? "#7c3aed" : "#ede9fe",
             border: `2px solid ${i < num ? "#6d28d9" : "#c4b5fd"}`,
             backgroundImage: i < num
-              ? "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 5px)"
+              ? "repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.18) 4px,rgba(255,255,255,0.18) 5px)"
               : "none",
-          }} />
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            {den <= 8 && (
+              <span style={{ fontSize:9, fontWeight:800, color: i < num ? "white" : "#8b5cf6" }}>{i+1}</span>
+            )}
+          </div>
         ))}
       </div>
-      {/* Fraction notation */}
-      <div className="vis-notation" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-          <span style={{ fontSize: 28, fontWeight: 900, color: T.nebula, lineHeight: 1 }}>{num}</span>
-          <div style={{ width: 18, height: 2.5, background: T.nebula, borderRadius: 2 }} />
-          <span style={{ fontSize: 20, fontWeight: 900, color: T.nebula, lineHeight: 1 }}>{den}</span>
+    );
+  };
+
+  return (
+    <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}>
+      <div style={{ display:"flex", gap:12, alignItems:"center", justifyContent:"center", flexWrap:"wrap" }}>
+        {/* Primary representation */}
+        {usePie ? <PieFraction /> : <BarFraction />}
+
+        {/* Secondary (bar always shown, pie shown for large denominators) */}
+        {usePie && den > 1 && <BarFraction />}
+        {!usePie && <PieFraction />}
+      </div>
+
+      {/* Fraction notation row */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, justifyContent:"center" }}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:0, lineHeight:1 }}>
+          <span style={{ fontSize:30, fontWeight:900, color:T.nebula }}>{num}</span>
+          <div style={{ width:22, height:3, background:T.nebula, borderRadius:2 }}/>
+          <span style={{ fontSize:22, fontWeight:900, color:T.nebula }}>{den}</span>
         </div>
-        <span style={{ fontSize: 12, color: T.textMid, fontWeight: 600 }}>shaded</span>
-        <div style={{ display: "flex", gap: 5, marginLeft: 4 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 3, background: "#7c3aed", border: "2px solid #6d28d9",
-              backgroundImage: "repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(255,255,255,0.2) 3px,rgba(255,255,255,0.2) 4px)" }} />
-            <span style={{ fontSize: 9, color: T.textMid }}>shaded</span>
+        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <div style={{ width:14, height:14, borderRadius:3, background:"#7c3aed", border:"2px solid #6d28d9",
+              backgroundImage:"repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(255,255,255,0.2) 3px,rgba(255,255,255,0.2) 4px)" }}/>
+            <span style={{ fontSize:10, color:T.textMid, fontWeight:600 }}>{num} shaded</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 3, background: "#ede9fe", border: "2px solid #c4b5fd" }} />
-            <span style={{ fontSize: 9, color: T.textMid }}>unshaded</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <div style={{ width:14, height:14, borderRadius:3, background:"#ede9fe", border:"2px solid #c4b5fd" }}/>
+            <span style={{ fontSize:10, color:T.textMid, fontWeight:600 }}>{den - num} unshaded</span>
           </div>
         </div>
       </div>
@@ -726,34 +943,64 @@ function FractionVis({ numerator, denominator }) {
 
 // NUMBER BONDS — part-part-whole ─────────────────────────────────────────────
 function NumberBondVis({ whole, partA, partB }) {
-  const BondBox = ({ n, color, bg, bd, label }) => (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <span style={{ fontSize: 9, fontWeight: 700, color: T.textMid, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
-      <div style={{
-        width: 52, height: 52, borderRadius: 12,
-        background: bg, border: `2.5px solid ${bd}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: `0 2px 8px ${color}22`,
-      }}>
-        {n != null
-          ? <span style={{ fontSize: 26, fontWeight: 900, color, lineHeight: 1 }}>{n}</span>
-          : <span style={{ fontSize: 20, fontWeight: 900, color: T.amber }}>?</span>
-        }
-      </div>
-    </div>
-  );
+  const W = 240, H = 178;
   return (
-    <Panel accent={T.emerald} bg={T.emeraldBg} bd={T.emeraldBd}>
-      <BondBox n={whole} color={T.text} bg="#f1f5f9" bd="#94a3b8" label="whole" />
-      <svg width={80} height={22} style={{ overflow: "visible" }}>
-        <line x1={40} y1={0} x2={14} y2={22} stroke={T.slateBd} strokeWidth={2} strokeDasharray="4,3" />
-        <line x1={40} y1={0} x2={66} y2={22} stroke={T.slateBd} strokeWidth={2} strokeDasharray="4,3" />
-      </svg>
-      <div style={{ display: "flex", gap: 20 }}>
-        <BondBox n={partA} color={T.indigo} bg={T.indigoBg} bd={T.indigoBd} label="part" />
-        <BondBox n={partB} color={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd} label="part" />
-      </div>
-    </Panel>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: 280, display: "block", margin: "0 auto" }}>
+      <defs>
+        <linearGradient id="nb_whole" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f8fafc" />
+          <stop offset="100%" stopColor="#e2e8f0" />
+        </linearGradient>
+        <linearGradient id="nb_parta" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#eef2ff" />
+          <stop offset="100%" stopColor="#c7d2fe" />
+        </linearGradient>
+        <linearGradient id="nb_partb" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f5f3ff" />
+          <stop offset="100%" stopColor="#ddd6fe" />
+        </linearGradient>
+        <filter id="nb_sh" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1e293b" floodOpacity="0.13" />
+        </filter>
+      </defs>
+      {/* WHOLE label */}
+      <text x={120} y={11} textAnchor="middle" dominantBaseline="central"
+        fontSize={8} fontWeight={700} fill="#64748b" letterSpacing={1}>WHOLE</text>
+      {/* Bezier branch connectors */}
+      <path d="M 120 68 C 120 90 54 94 54 112" fill="none" stroke="#94a3b8" strokeWidth={2.5} strokeDasharray="5,3" />
+      <path d="M 120 68 C 120 90 186 94 186 112" fill="none" stroke="#94a3b8" strokeWidth={2.5} strokeDasharray="5,3" />
+      {/* WHOLE box */}
+      <g filter="url(#nb_sh)">
+        <rect x={93} y={18} width={54} height={50} rx={12} fill="url(#nb_whole)" stroke="#94a3b8" strokeWidth={2.5} />
+        <rect x={98} y={22} width={22} height={9} rx={4.5} fill="white" opacity={0.65} />
+      </g>
+      <text x={120} y={43} textAnchor="middle" dominantBaseline="central"
+        fontSize={24} fontWeight={900} fill={whole != null ? "#334155" : "#f59e0b"}>
+        {whole != null ? whole : "?"}
+      </text>
+      {/* PART A box */}
+      <g filter="url(#nb_sh)">
+        <rect x={27} y={112} width={54} height={50} rx={12} fill="url(#nb_parta)" stroke={T.indigoBd} strokeWidth={2.5} />
+        <rect x={32} y={116} width={22} height={9} rx={4.5} fill="white" opacity={0.6} />
+      </g>
+      <text x={54} y={137} textAnchor="middle" dominantBaseline="central"
+        fontSize={24} fontWeight={900} fill={partA != null ? T.indigo : "#f59e0b"}>
+        {partA != null ? partA : "?"}
+      </text>
+      <text x={54} y={170} textAnchor="middle" dominantBaseline="central"
+        fontSize={8} fontWeight={700} fill={T.indigo} letterSpacing={1}>PART</text>
+      {/* PART B box */}
+      <g filter="url(#nb_sh)">
+        <rect x={159} y={112} width={54} height={50} rx={12} fill="url(#nb_partb)" stroke={T.nebulaBd} strokeWidth={2.5} />
+        <rect x={164} y={116} width={22} height={9} rx={4.5} fill="white" opacity={0.6} />
+      </g>
+      <text x={186} y={137} textAnchor="middle" dominantBaseline="central"
+        fontSize={24} fontWeight={900} fill={partB != null ? T.nebula : "#f59e0b"}>
+        {partB != null ? partB : "?"}
+      </text>
+      <text x={186} y={170} textAnchor="middle" dominantBaseline="central"
+        fontSize={8} fontWeight={700} fill={T.nebula} letterSpacing={1}>PART</text>
+    </svg>
   );
 }
 
@@ -1448,14 +1695,34 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   const isChartDisplayQ = /(?:chart|list|table|sequence|pattern)\s+(?:displays?|shows?|contains?|has)/i.test(questionStr);
   if ((isSequenceQ || isChartDisplayQ) && nums.length >= 3) {
     const sorted = [...nums].sort((a, b) => a - b);
-    const min = sorted[0], max = sorted[sorted.length - 1];
-    const step = sorted.length >= 2 ? sorted[1] - sorted[0] : 1;
-    // Use number_line to show the sequence context
+    const lo = sorted[0], hi = sorted[sorted.length - 1];
+    // Detect uniform step from the most common difference
+    const diffs = sorted.slice(1).map((v, i) => v - sorted[i]);
+    const step = diffs.length > 0 ? Math.min(...diffs.filter(d => d > 0)) || 1 : 1;
+    // Detect missing gap value if question asks for "next" or has a "?" marker
+    let missingSeq = null;
+    const hasMissingMarker = /\?|___|blank|missing|next|before|after/i.test(questionStr);
+    if (hasMissingMarker) {
+      // Look for the biggest gap — the missing value sits in the middle
+      let maxGapIdx = 0, maxGap = 0;
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const gap = sorted[i + 1] - sorted[i];
+        if (gap > maxGap) { maxGap = gap; maxGapIdx = i; }
+      }
+      if (maxGap > step) {
+        missingSeq = (sorted[maxGapIdx] + sorted[maxGapIdx + 1]) / 2;
+      } else if (/next|after/i.test(questionStr)) {
+        missingSeq = hi + step;
+      } else if (/before/i.test(questionStr)) {
+        missingSeq = lo - step;
+      }
+    }
     return {
       type: "number_line",
-      min: Math.max(0, min - step),
-      max: max + step,
-      marked: nums,
+      min: lo - step,
+      max: (missingSeq != null ? Math.max(hi, missingSeq) : hi) + step,
+      known: nums,
+      missing: missingSeq ?? undefined,
       label: isSequenceQ ? "Number sequence" : "Numbers shown",
     };
   }
@@ -1628,148 +1895,413 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
 
 // ── Clock / Telling Time ──────────────────────────────────────────────────────
 function ClockVis({ hours, minutes, label }) {
-  const cx = 60, cy = 60, r = 50;
-  const minAngle = (minutes / 60) * 360 - 90;
-  const hrAngle  = ((hours % 12) / 12 + minutes / 720) * 360 - 90;
+  const SIZE = 180;
+  const cx = SIZE / 2, cy = SIZE / 2;
+  const R = 82;          // face radius
   const toXY = (angleDeg, len) => ({
     x: cx + len * Math.cos((angleDeg * Math.PI) / 180),
     y: cy + len * Math.sin((angleDeg * Math.PI) / 180),
   });
-  const minHand = toXY(minAngle, 38);
-  const hrHand  = toXY(hrAngle, 26);
-  const ticks = Array.from({ length: 12 }, (_, i) => {
-    const a = (i / 12) * 360 - 90;
-    const inner = toXY(a, 42);
-    const outer = toXY(a, 48);
-    return { inner, outer, num: i === 0 ? 12 : i };
+
+  const minAngle = (minutes / 60) * 360 - 90;
+  const hrAngle  = ((hours % 12) / 12 + minutes / 720) * 360 - 90;
+
+  // 60 minute ticks + 12 hour ticks
+  const minuteTicks = Array.from({ length: 60 }, (_, i) => {
+    const a = (i / 60) * 360 - 90;
+    const isHour  = i % 5 === 0;
+    const isQtr   = i % 15 === 0;
+    const inner = toXY(a, isQtr ? R - 14 : isHour ? R - 10 : R - 5);
+    const outer = toXY(a, R - 1);
+    return { inner, outer, isHour, isQtr, idx: i };
   });
+
+  // Hour number positions
+  const hourNums = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 360 - 90;
+    const pos = toXY(a, R - 22);
+    return { x: pos.x, y: pos.y, num: i === 0 ? 12 : i };
+  });
+
+  // Hand end points
+  const minTip  = toXY(minAngle, R - 10);
+  const hrTip   = toXY(hrAngle,  R - 28);
+
+  // Minute hand tail (slightly past centre for balance)
+  const minTail = toXY(minAngle + 180, 10);
+  const hrTail  = toXY(hrAngle  + 180, 8);
+
+  // 5-minute labels ring
+  const fiveLabels = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 360 - 90;
+    const pos = toXY(a, R + 12);
+    return { x: pos.x, y: pos.y, num: i * 5 };
+  });
+
+  const minLabel  = String(minutes).padStart(2, "0");
+  const hrDisplay = hours % 12 === 0 ? 12 : hours % 12;
+  const ampm      = hours < 12 ? "am" : "pm";
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <svg width={120} height={120} viewBox="0 0 120 120">
-        <circle cx={cx} cy={cy} r={r} fill="white" stroke={T.indigo} strokeWidth={3} />
-        {ticks.map((tk, i) => (
-          <g key={i}>
-            <line x1={tk.inner.x} y1={tk.inner.y} x2={tk.outer.x} y2={tk.outer.y}
-              stroke={T.slate} strokeWidth={i % 3 === 0 ? 2.5 : 1} />
-            <text x={toXY((i / 12) * 360 - 90, 33).x} y={toXY((i / 12) * 360 - 90, 33).y}
-              textAnchor="middle" dominantBaseline="central"
-              fontSize={9} fill={T.slate} fontWeight="600">{tk.num}</text>
-          </g>
-        ))}
-        {/* Minute hand */}
-        <line x1={cx} y1={cy} x2={minHand.x} y2={minHand.y}
-          stroke={T.indigo} strokeWidth={2.5} strokeLinecap="round" />
-        {/* Hour hand */}
-        <line x1={cx} y1={cy} x2={hrHand.x} y2={hrHand.y}
-          stroke={T.nebula} strokeWidth={4} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={4} fill={T.indigo} />
-      </svg>
-      {label && <span style={{ fontSize:12, color:T.slate, fontWeight:600 }}>{label}</span>}
-    </div>
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
+      ariaLabel={`Clock showing ${hrDisplay}:${minLabel} ${ampm}`}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <svg width={SIZE + 32} height={SIZE + 32}
+          viewBox={`${-16} ${-16} ${SIZE + 32} ${SIZE + 32}`}
+          style={{ width: "min(220px, 90vw)", height: "auto" }}>
+
+          {/* Outer ring for minute labels */}
+          <circle cx={cx} cy={cy} r={R + 18} fill="#f8fafc" stroke="#e2e8f0" strokeWidth={1.5} />
+
+          {/* 5-minute labels outside the face */}
+          {fiveLabels.map((fl, i) => (
+            <text key={i} x={fl.x} y={fl.y} textAnchor="middle" dominantBaseline="central"
+              fontSize={9} fill="#94a3b8" fontWeight="600">{fl.num}</text>
+          ))}
+
+          {/* Clock face */}
+          <circle cx={cx} cy={cy} r={R} fill="white" stroke={T.indigo} strokeWidth={3} />
+
+          {/* Minute ticks */}
+          {minuteTicks.map((tk) => (
+            <line key={tk.idx}
+              x1={tk.inner.x} y1={tk.inner.y} x2={tk.outer.x} y2={tk.outer.y}
+              stroke={tk.isQtr ? T.indigo : tk.isHour ? "#475569" : "#cbd5e1"}
+              strokeWidth={tk.isQtr ? 2.5 : tk.isHour ? 2 : 1}
+              strokeLinecap="round" />
+          ))}
+
+          {/* Hour numerals */}
+          {hourNums.map((hn, i) => (
+            <text key={i} x={hn.x} y={hn.y} textAnchor="middle" dominantBaseline="central"
+              fontSize={12} fontWeight="700"
+              fill={hn.num === hrDisplay ? T.indigo : "#334155"}>{hn.num}</text>
+          ))}
+
+          {/* Hour hand — thick, dark, short */}
+          <line x1={hrTail.x} y1={hrTail.y} x2={hrTip.x} y2={hrTip.y}
+            stroke="#1e293b" strokeWidth={6} strokeLinecap="round" />
+
+          {/* Minute hand — thinner, longer, indigo */}
+          <line x1={minTail.x} y1={minTail.y} x2={minTip.x} y2={minTip.y}
+            stroke={T.indigo} strokeWidth={3.5} strokeLinecap="round" />
+
+          {/* Centre boss */}
+          <circle cx={cx} cy={cy} r={6} fill={T.indigo} />
+          <circle cx={cx} cy={cy} r={2.5} fill="white" />
+        </svg>
+
+        {/* Digital readout */}
+        <div style={{
+          display: "flex", alignItems: "baseline", gap: 6,
+          background: "white", border: `1.5px solid ${T.indigoBd}`,
+          borderRadius: 8, padding: "4px 14px",
+        }}>
+          <span style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "0.05em" }}>
+            {hrDisplay}:{minLabel}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.indigo, textTransform: "uppercase" }}>{ampm}</span>
+        </div>
+
+        {label && (
+          <span style={{ fontSize: 12, color: T.slate, fontWeight: 600, textAlign: "center" }}>{label}</span>
+        )}
+      </div>
+    </Panel>
   );
 }
 
 // ── Money / Coins ─────────────────────────────────────────────────────────────
 function MoneyVis({ coins, total }) {
-  const COIN_STYLES = {
-    "£2":  { bg:"#b8a040", border:"#8a7030", text:"white", size:34 },
-    "£1":  { bg:"#c8a820", border:"#a08010", text:"white", size:30 },
-    "50p": { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:28 },
-    "20p": { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:26 },
-    "10p": { bg:"#c8a820", border:"#a08010", text:"white", size:24 },
-    "5p":  { bg:"#b0b8c8", border:"#8898a8", text:"#333",  size:22 },
-    "2p":  { bg:"#c87050", border:"#a05030", text:"white", size:20 },
-    "1p":  { bg:"#c87050", border:"#a05030", text:"white", size:18 },
+  // metal: "gold" | "silver" | "copper"
+  const COIN_DATA = {
+    "£2":  { metal:"gold",   size:44, label:"£2",  pence:200 },
+    "£1":  { metal:"gold",   size:40, label:"£1",  pence:100 },
+    "50p": { metal:"silver", size:36, label:"50p", pence:50  },
+    "20p": { metal:"silver", size:32, label:"20p", pence:20  },
+    "10p": { metal:"gold",   size:30, label:"10p", pence:10  },
+    "5p":  { metal:"silver", size:27, label:"5p",  pence:5   },
+    "2p":  { metal:"copper", size:25, label:"2p",  pence:2   },
+    "1p":  { metal:"copper", size:22, label:"1p",  pence:1   },
   };
+
+  // Metallic gradient stops per metal type
+  const METAL_STOPS = {
+    gold:   { hi:"#ffe680", mid:"#d4a017", lo:"#8a6000", edge:"#b8860b", text:"#3d2700" },
+    silver: { hi:"#f0f0f0", mid:"#a8b0b8", lo:"#606870", edge:"#7a8490", text:"#1a2030" },
+    copper: { hi:"#f0b080", mid:"#c06830", lo:"#7a3810", edge:"#a05020", text:"#3a1000" },
+  };
+
+  // SVG coin component
+  function CoinSVG({ label, metal, size }) {
+    const R = size / 2;
+    const cx = R, cy = R;
+    const gidFill = `cmFill_${label.replace(/[^a-z0-9]/gi, "_")}`;
+    const gidRim  = `cmRim_${label.replace(/[^a-z0-9]/gi, "_")}`;
+    const s = METAL_STOPS[metal];
+    // font sizing: large labels (£2, £1) get bigger text
+    const fSize = size >= 40 ? 11 : size >= 34 ? 10 : size >= 28 ? 9 : 8;
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+        style={{ display:"block", filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}>
+        <defs>
+          {/* Radial gradient: bright highlight top-left → dark bottom-right */}
+          <radialGradient id={gidFill} cx="35%" cy="30%" r="65%">
+            <stop offset="0%"   stopColor={s.hi}  />
+            <stop offset="45%"  stopColor={s.mid} />
+            <stop offset="100%" stopColor={s.lo}  />
+          </radialGradient>
+          {/* Rim ring gradient (slightly darker than face) */}
+          <radialGradient id={gidRim} cx="35%" cy="30%" r="65%">
+            <stop offset="0%"   stopColor={s.mid}  />
+            <stop offset="100%" stopColor={s.edge} />
+          </radialGradient>
+        </defs>
+
+        {/* Outer rim (slightly larger circle = 1.5px rim) */}
+        <circle cx={cx} cy={cy} r={R - 0.5} fill={`url(#${gidRim})`} />
+
+        {/* Inner face */}
+        <circle cx={cx} cy={cy} r={R - 2.5} fill={`url(#${gidFill})`} />
+
+        {/* Milled edge — thin concentric ring */}
+        <circle cx={cx} cy={cy} r={R - 1.5} fill="none"
+          stroke={s.edge} strokeWidth={1} strokeOpacity={0.6}
+          strokeDasharray="2,2" />
+
+        {/* Denomination text */}
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+          fontSize={fSize} fontWeight="800" fill={s.text}
+          style={{ letterSpacing: label.length > 2 ? "-0.4px" : "0px" }}>
+          {label}
+        </text>
+
+        {/* Specular highlight arc — top-left */}
+        <ellipse cx={cx - R * 0.18} cy={cy - R * 0.28}
+          rx={R * 0.28} ry={R * 0.15}
+          fill="white" fillOpacity={0.28}
+          transform={`rotate(-30, ${cx - R * 0.18}, ${cy - R * 0.28})`} />
+      </svg>
+    );
+  }
+
+  const totalPence = total !== undefined
+    ? total
+    : coins.reduce((sum, c) => sum + (COIN_DATA[c]?.pence ?? 0), 0);
+
+  const totalLabel = totalPence >= 100
+    ? `£${(totalPence / 100).toFixed(2)}`
+    : `${totalPence}p`;
+
+  // Group identical coins together with a count badge for tidiness
+  const groups = coins.reduce((acc, c) => {
+    const last = acc[acc.length - 1];
+    if (last && last.coin === c) { last.count++; }
+    else acc.push({ coin: c, count: 1 });
+    return acc;
+  }, []);
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", maxWidth:200 }}>
-        {coins.map((coin, i) => {
-          const s = COIN_STYLES[coin] || COIN_STYLES["1p"];
+    <Panel accent={T.amber} bg="#fffbeb" bd="#fde68a"
+      ariaLabel={`Coins totalling ${totalLabel}`}>
+      {/* coin row */}
+      <div style={{
+        display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center",
+        alignItems:"flex-end", padding:"4px 0",
+      }}>
+        {groups.map(({ coin, count }, i) => {
+          const d = COIN_DATA[coin] || COIN_DATA["1p"];
           return (
-            <div key={i} style={{
-              width:s.size, height:s.size, borderRadius:"50%",
-              background:s.bg, border:`3px solid ${s.border}`,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              color:s.text, fontSize:s.size > 25 ? 9 : 7.5, fontWeight:"800",
-              boxShadow:"0 2px 4px rgba(0,0,0,0.25)", letterSpacing:"-0.5px",
-            }}>{coin}</div>
+            <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <CoinSVG label={d.label} metal={d.metal} size={d.size} />
+              {count > 1 && (
+                <span style={{
+                  fontSize:10, fontWeight:700,
+                  background:T.amber, color:"#78350f",
+                  borderRadius:8, padding:"1px 5px",
+                  lineHeight:1.4,
+                }}>×{count}</span>
+              )}
+            </div>
           );
         })}
       </div>
-      {total !== undefined && (
-        <div style={{
-          padding:"4px 14px", background:T.indigoBg, borderRadius:20,
-          fontSize:13, fontWeight:700, color:T.indigo,
-        }}>Total: {total >= 100 ? `£${(total/100).toFixed(2)}` : `${total}p`}</div>
-      )}
-    </div>
-  );
-}
 
-// ── Division Grouping ─────────────────────────────────────────────────────────
-function DivisionVis({ total, groups }) {
-  const perGroup = Math.ceil(total / groups);
-  const groupArr = Array.from({ length: groups }, (_, g) => {
-    const count = g < groups - 1 ? perGroup : total - perGroup * (groups - 1);
-    return Math.max(0, count);
-  });
-  const COLORS = [T.indigo, T.nebula, T.emerald, "#f59e0b", "#ef4444", "#06b6d4"];
-  const dotSize = total > 40 ? 7 : total > 20 ? 9 : 10;
-  const dotGap = total > 40 ? 2 : 3;
-  const groupPad = total > 40 ? "4px 5px" : "6px 8px";
-  return (
-    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
-      ariaLabel={`Division: ${total} shared into ${groups} groups`}>
-      <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
-        {groupArr.map((count, g) => (
-          <div key={g} style={{
-            border:`2px dashed ${COLORS[g % COLORS.length]}`,
-            borderRadius:8, padding:groupPad,
-            display:"flex", flexWrap:"wrap", gap:dotGap,
-            minWidth:32, maxWidth:90, justifyContent:"center",
-          }}>
-            {Array.from({ length: count }, (_, i) => (
-              <div key={i} style={{
-                width:dotSize, height:dotSize, borderRadius:"50%",
-                background:COLORS[g % COLORS.length],
-              }} />
-            ))}
-          </div>
-        ))}
+      {/* total readout */}
+      <div style={{
+        display:"flex", alignItems:"center", gap:6,
+        background:"white", border:`1.5px solid #fde68a`,
+        borderRadius:8, padding:"4px 14px", alignSelf:"center",
+        boxShadow:"inset 0 1px 3px rgba(0,0,0,0.06)",
+      }}>
+        <span style={{ fontSize:11, fontWeight:600, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.05em" }}>Total</span>
+        <span style={{ fontFamily:"monospace", fontSize:20, fontWeight:800, color:"#78350f" }}>{totalLabel}</span>
       </div>
-      <Chip color={T.indigo} bg={T.indigoBg}>
-        {total} ÷ {groups} = ?
-      </Chip>
     </Panel>
   );
 }
 
-// ── Division Equation (large numbers — no answer revealed) ────────────────────
-function DivisionEquationVis({ total, groups }) {
-  const W = 190, H = 100;
-  const maxBlocks = Math.min(groups, 8);
-  const blockW = Math.min(18, Math.floor((W - 40) / maxBlocks) - 4);
+// ── Division Grouping — SVG plates with gradient dots ─────────────────────────
+function DivisionVis({ total, groups }) {
+  const perGroup = Math.floor(total / groups);
+  const remainder = total % groups;
+  const maxGroupsShown = Math.min(groups, 5);
+  const truncGroups = groups > maxGroupsShown;
+
+  // Each group i gets perGroup+1 if i < remainder, else perGroup
+  const groupCounts = Array.from({ length: maxGroupsShown }, (_, g) =>
+    g < remainder ? perGroup + 1 : perGroup
+  );
+
+  const PLATE_COLORS = [T.indigo, T.nebula, T.emerald, "#d97706", "#0891b2"];
+  const dotR = 4, dotGap = 3, COLS = 3, padX = 9, padY = 8;
+  const maxCount = Math.max(...groupCounts, 1);
+  const dotsInPlate = Math.min(maxCount, 10);
+  const numRows = Math.ceil(dotsInPlate / COLS);
+  const innerH = numRows * (dotR * 2) + Math.max(0, numRows - 1) * dotGap;
+  const plateH = padY * 2 + innerH;
+  const plateW = padX * 2 + COLS * (dotR * 2) + (COLS - 1) * dotGap; // = 48
+  const plateSep = 10;
+
+  const BADGE_H = 16;
+  const usedW = maxGroupsShown * (plateW + plateSep) - plateSep;
+  const W = usedW + 8 + (truncGroups ? 20 : 0);
+  const H = plateH + BADGE_H + 6;
 
   return (
     <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
-      ariaLabel={`Division: ${total} divided by ${groups}`}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <text x={W/2} y={32} textAnchor="middle" fontSize={22} fontWeight="900" fill={T.indigo}>{total}</text>
-        <text x={W/2} y={50} textAnchor="middle" fontSize={12} fontWeight="700" fill={T.textMid}>÷ {groups} = ?</text>
-        <g transform={`translate(${(W - maxBlocks * (blockW + 4)) / 2}, 60)`}>
-          {Array.from({ length: maxBlocks }, (_, i) => (
-            <g key={i}>
-              <rect x={i * (blockW + 4)} y={0} width={blockW} height={blockW}
-                rx={3} fill={T.indigoBg} stroke={T.indigo} strokeWidth={1.5} strokeDasharray="3,2"/>
-              <text x={i * (blockW + 4) + blockW/2} y={blockW/2 + 4}
-                textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>?</text>
+      ariaLabel={`Division: ${total} shared into ${groups} groups`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        style={{ display: "block", overflow: "visible" }}>
+        <defs>
+          <radialGradient id="dv_dg" cx="35%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#a5b4fc" />
+            <stop offset="100%" stopColor="#4338ca" />
+          </radialGradient>
+          <filter id="dv_sh" x="-25%" y="-25%" width="150%" height="160%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodOpacity="0.13" />
+          </filter>
+        </defs>
+
+        {groupCounts.map((count, g) => {
+          const x0 = 4 + g * (plateW + plateSep);
+          const col = PLATE_COLORS[g % PLATE_COLORS.length];
+          const dotsToShow = Math.min(count, 10);
+          const truncDots = count > 10;
+
+          return (
+            <g key={g}>
+              {/* Plate shadow + fill */}
+              <rect x={x0} y={0} width={plateW} height={plateH}
+                rx={8} fill="white" stroke={col} strokeWidth={2}
+                filter="url(#dv_sh)" />
+
+              {/* Dots */}
+              {Array.from({ length: dotsToShow }).map((_, d) => {
+                const dc = d % COLS;
+                const dr = Math.floor(d / COLS);
+                const cx = x0 + padX + dc * (dotR * 2 + dotGap) + dotR;
+                const cy = padY + dr * (dotR * 2 + dotGap) + dotR;
+                return (
+                  <circle key={d} cx={cx} cy={cy} r={dotR}
+                    fill="url(#dv_dg)" />
+                );
+              })}
+
+              {/* Over-limit indicator */}
+              {truncDots && (
+                <text x={x0 + plateW / 2} y={plateH - 3}
+                  textAnchor="middle" fontSize={8} fontWeight="700" fill={col}>
+                  +{count - 10}
+                </text>
+              )}
+
+              {/* "? each" badge */}
+              <rect x={x0 + 5} y={plateH + 3} width={plateW - 10} height={BADGE_H - 3}
+                rx={6} fill={col} opacity={0.18} />
+              <text x={x0 + plateW / 2} y={plateH + BADGE_H - 2}
+                textAnchor="middle" fontSize={9} fontWeight="800" fill={col}>
+                ? ea.
+              </text>
             </g>
-          ))}
-          {groups > maxBlocks && (
-            <text x={maxBlocks * (blockW + 4) + 4} y={blockW/2 + 4} fontSize={10} fontWeight="700" fill={T.textMid}>…</text>
-          )}
-        </g>
+          );
+        })}
+
+        {/* More groups indicator */}
+        {truncGroups && (
+          <text x={4 + maxGroupsShown * (plateW + plateSep)} y={plateH / 2 + 4}
+            fontSize={12} fontWeight="800" fill={T.textMid}>…</text>
+        )}
+      </svg>
+      <Chip color={T.indigo} bg={T.indigoBg}>{total} ÷ {groups} = ?</Chip>
+    </Panel>
+  );
+}
+
+// ── Division Equation (large numbers — bar model, no answer revealed) ──────────
+function DivisionEquationVis({ total, groups }) {
+  const PAD_L = 12, PAD_R = 12, PAD_T = 36, PAD_B = 24;
+  const barH = 32;
+  const showSeg = Math.min(groups, 10);
+  const trunc = groups > showSeg;
+  const barW = 216;
+  const W = PAD_L + barW + PAD_R + (trunc ? 26 : 0);
+  const H = PAD_T + barH + PAD_B;
+  const BK = 5;
+  const bx = PAD_L, by = PAD_T;
+  const segW = barW / showSeg;
+
+  return (
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}
+      ariaLabel={`Division: ${total} divided into ${groups} equal groups`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        style={{ display: "block", overflow: "visible" }}>
+        <defs>
+          <linearGradient id="dev_bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#c7d2fe" />
+            <stop offset="100%" stopColor="#818cf8" />
+          </linearGradient>
+        </defs>
+
+        {/* Total bracket above bar */}
+        <line x1={bx} y1={by - BK} x2={bx} y2={by - 1}
+          stroke={T.indigo} strokeWidth={1.5} />
+        <line x1={bx} y1={by - BK} x2={bx + barW} y2={by - BK}
+          stroke={T.indigo} strokeWidth={1.5} />
+        <line x1={bx + barW} y1={by - BK} x2={bx + barW} y2={by - 1}
+          stroke={T.indigo} strokeWidth={1.5} />
+        <text x={bx + barW / 2} y={by - BK - 5}
+          textAnchor="middle" fontSize={11} fontWeight="800" fill={T.indigo}>{total}</text>
+
+        {/* Full bar */}
+        <rect x={bx} y={by} width={barW} height={barH} rx={6} fill="url(#dev_bg)" />
+
+        {/* Segment dividers + "?" labels */}
+        {Array.from({ length: showSeg }, (_, i) => {
+          const sx = bx + i * segW;
+          return (
+            <g key={i}>
+              {i > 0 && (
+                <line x1={sx} y1={by + 3} x2={sx} y2={by + barH - 3}
+                  stroke="white" strokeWidth={1.5} opacity={0.75} />
+              )}
+              <text x={sx + segW / 2} y={by + barH / 2 + 4}
+                textAnchor="middle" fontSize={11} fontWeight="800" fill="white">?</text>
+            </g>
+          );
+        })}
+
+        {/* Truncation */}
+        {trunc && (
+          <text x={bx + barW + 7} y={by + barH / 2 + 4}
+            fontSize={13} fontWeight="800" fill={T.textMid}>…</text>
+        )}
+
+        {/* "N equal groups" label below bar */}
+        <text x={bx + barW / 2} y={by + barH + 17}
+          textAnchor="middle" fontSize={10} fontWeight="600" fill={T.textMid}>
+          {groups} equal group{groups !== 1 ? "s" : ""}
+        </text>
       </svg>
       <Chip color={T.indigo} bg={T.indigoBg}>Share {total} equally into {groups} groups</Chip>
     </Panel>
@@ -1778,32 +2310,115 @@ function DivisionEquationVis({ total, groups }) {
 
 function RatioVis({ partA, partB, labelA, labelB }) {
   const total = partA + partB;
-  const pctA  = (partA / total) * 100;
+  // Cap display at 20 units per side to keep blocks legible; show scale note if exceeded
+  const MAX_UNITS = 20;
+  const scale = Math.max(1, Math.ceil(Math.max(partA, partB) / MAX_UNITS));
+  const dispA = Math.round(partA / scale);
+  const dispB = Math.round(partB / scale);
+  const BLOCK = 22; // px per unit block
+  const GAP   = 3;
+  const totalW = (dispA + dispB) * (BLOCK + GAP) - GAP;
+  const svgW   = Math.min(totalW + 24, 300);
+  const svgH   = 68;
+  const offsetX = (svgW - totalW) / 2;
+
+  const lA = labelA || "A";
+  const lB = labelB || "B";
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
-      <div style={{
-        display:"flex", height:28, borderRadius:8, overflow:"hidden",
-        border:`2px solid ${T.indigo}22`,
-      }}>
-        <div style={{
-          width:`${pctA}%`, background:T.indigo, display:"flex",
-          alignItems:"center", justifyContent:"center",
-          color:"white", fontSize:11, fontWeight:700,
-        }}>{partA}</div>
-        <div style={{
-          width:`${100 - pctA}%`, background:T.nebula, display:"flex",
-          alignItems:"center", justifyContent:"center",
-          color:"white", fontSize:11, fontWeight:700,
-        }}>{partB}</div>
+    <Panel accent={T.indigo} bg={T.indigoBg} bd={T.indigoBd}>
+      {/* unit-block bar */}
+      <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
+        <defs>
+          <linearGradient id="ratioA" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#818cf8"/>
+            <stop offset="100%" stopColor="#4f46e5"/>
+          </linearGradient>
+          <linearGradient id="ratioB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#c084fc"/>
+            <stop offset="100%" stopColor="#9333ea"/>
+          </linearGradient>
+        </defs>
+
+        {/* Part A blocks */}
+        {Array.from({ length: dispA }).map((_, i) => {
+          const x = offsetX + i * (BLOCK + GAP);
+          return (
+            <g key={`a${i}`}>
+              <rect x={x} y={8} width={BLOCK} height={BLOCK} rx={5}
+                fill="url(#ratioA)" stroke="#4338ca" strokeWidth={1.2}/>
+              <text x={x + BLOCK/2} y={8 + BLOCK/2 + 4} textAnchor="middle"
+                fontSize={9} fontWeight="800" fill="white">{scale > 1 ? scale : i + 1}</text>
+            </g>
+          );
+        })}
+
+        {/* Part B blocks */}
+        {Array.from({ length: dispB }).map((_, i) => {
+          const x = offsetX + (dispA + i) * (BLOCK + GAP);
+          return (
+            <g key={`b${i}`}>
+              <rect x={x} y={8} width={BLOCK} height={BLOCK} rx={5}
+                fill="url(#ratioB)" stroke="#7e22ce" strokeWidth={1.2}/>
+              <text x={x + BLOCK/2} y={8 + BLOCK/2 + 4} textAnchor="middle"
+                fontSize={9} fontWeight="800" fill="white">{scale > 1 ? scale : i + 1}</text>
+            </g>
+          );
+        })}
+
+        {/* brace labels below */}
+        {/* Part A brace */}
+        {dispA > 0 && (() => {
+          const x1 = offsetX;
+          const x2 = offsetX + dispA * (BLOCK + GAP) - GAP;
+          const mid = (x1 + x2) / 2;
+          const y = 36;
+          return (
+            <g>
+              <line x1={x1} y1={y} x2={x2} y2={y} stroke={T.indigo} strokeWidth={1.5}/>
+              <line x1={x1} y1={y} x2={x1} y2={y+5} stroke={T.indigo} strokeWidth={1.5}/>
+              <line x1={x2} y1={y} x2={x2} y2={y+5} stroke={T.indigo} strokeWidth={1.5}/>
+              <text x={mid} y={y+14} textAnchor="middle" fontSize={9} fontWeight="700" fill={T.indigo}>
+                {lA} ({partA})
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* Part B brace */}
+        {dispB > 0 && (() => {
+          const x1 = offsetX + dispA * (BLOCK + GAP);
+          const x2 = offsetX + (dispA + dispB) * (BLOCK + GAP) - GAP;
+          const mid = (x1 + x2) / 2;
+          const y = 36;
+          return (
+            <g>
+              <line x1={x1} y1={y} x2={x2} y2={y} stroke="#9333ea" strokeWidth={1.5}/>
+              <line x1={x1} y1={y} x2={x1} y2={y+5} stroke="#9333ea" strokeWidth={1.5}/>
+              <line x1={x2} y1={y} x2={x2} y2={y+5} stroke="#9333ea" strokeWidth={1.5}/>
+              <text x={mid} y={y+14} textAnchor="middle" fontSize={9} fontWeight="700" fill="#9333ea">
+                {lB} ({partB})
+              </text>
+            </g>
+          );
+        })()}
+      </svg>
+
+      <div style={{ display:"flex", gap:6, alignItems:"center", justifyContent:"center", flexWrap:"wrap" }}>
+        {/* colour key + ratio statement */}
+        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+          <div style={{ width:10, height:10, borderRadius:2, background:"#4f46e5" }}/>
+          <span style={{ fontSize:10, fontWeight:700, color:T.indigo }}>{lA}</span>
+        </div>
+        <span style={{ fontSize:10, color:T.textMid }}>:</span>
+        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+          <div style={{ width:10, height:10, borderRadius:2, background:"#9333ea" }}/>
+          <span style={{ fontSize:10, fontWeight:700, color:"#9333ea" }}>{lB}</span>
+        </div>
+        <Chip color={T.indigo} bg="white">{partA}:{partB} &nbsp;·&nbsp; Total: {total}</Chip>
+        {scale > 1 && <span style={{ fontSize:9, color:T.textMid }}>each block = {scale}</span>}
       </div>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.slate }}>
-        <span style={{ color:T.indigo, fontWeight:700 }}>{labelA || "Part A"}: {partA}</span>
-        <span style={{ color:T.nebula, fontWeight:700 }}>{labelB || "Part B"}: {partB}</span>
-      </div>
-      <div style={{ fontSize:11, color:T.slate, textAlign:"center" }}>
-        Ratio {partA}:{partB} &nbsp;•&nbsp; Total: {total}
-      </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -2031,29 +2646,66 @@ function AnalogyVis({ wordA, wordB, wordC, relationship }) {
 
 // ── VR Number Sequence ────────────────────────────────────────────────────────
 function NumberSequenceVis({ sequence, gapIndex, rule }) {
+  const BOX = 44, ARROW = 22, PAD = 12;
+  const n = sequence.length;
+  const W = 2 * PAD + n * BOX + (n - 1) * ARROW;
+  const H = 20 + BOX + (rule ? 26 : 10);
+  const midY = 20 + BOX / 2;
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap", justifyContent:"center" }}>
-        {sequence.map((val, i) => {
-          const isGap = i === gapIndex;
-          return (
-            <React.Fragment key={i}>
-              <div style={{
-                width:40, height:40, borderRadius:8,
-                background: isGap ? T.nebulaBg : T.indigoBg,
-                border: `2px ${isGap ? "dashed" : "solid"} ${isGap ? T.nebula : T.indigo}`,
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:15, fontWeight:800, color: isGap ? T.nebula : T.indigo,
-              }}>{isGap ? "?" : val}</div>
-              {i < sequence.length - 1 && (
-                <span style={{ fontSize:16, color:T.slate, opacity:0.5 }}>→</span>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: 380, display: "block", margin: "0 auto" }}>
+      <defs>
+        <linearGradient id="nsq_normal" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#eef2ff" />
+          <stop offset="100%" stopColor="#c7d2fe" />
+        </linearGradient>
+        <linearGradient id="nsq_gap" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fdf4ff" />
+          <stop offset="100%" stopColor="#e9d5ff" />
+        </linearGradient>
+        <filter id="nsq_sh" x="-25%" y="-25%" width="150%" height="150%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#1e293b" floodOpacity="0.11" />
+        </filter>
+        <marker id="nsq_arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+          <polygon points="0 1.5, 6 3.5, 0 5.5" fill="#94a3b8" />
+        </marker>
+      </defs>
+      {sequence.map((val, i) => {
+        const isGap = i === gapIndex;
+        const bx = PAD + i * (BOX + ARROW);
+        return (
+          <g key={i}>
+            {i < n - 1 && (
+              <line
+                x1={bx + BOX + 4} y1={midY}
+                x2={bx + BOX + ARROW - 6} y2={midY}
+                stroke="#94a3b8" strokeWidth={1.8}
+                markerEnd="url(#nsq_arr)"
+              />
+            )}
+            <g filter="url(#nsq_sh)">
+              <rect x={bx} y={20} width={BOX} height={BOX} rx={9}
+                fill={isGap ? "url(#nsq_gap)" : "url(#nsq_normal)"}
+                stroke={isGap ? "#a855f7" : T.indigo} strokeWidth={2.2}
+                strokeDasharray={isGap ? "5,3" : undefined} />
+              {!isGap && (
+                <rect x={bx + 5} y={25} width={18} height={8} rx={4} fill="white" opacity={0.55} />
               )}
-            </React.Fragment>
-          );
-        })}
-      </div>
-      {rule && <div style={{ fontSize:11, color:T.slate, fontWeight:600, fontStyle:"italic" }}>Rule: {rule}</div>}
-    </div>
+            </g>
+            <text x={bx + BOX / 2} y={midY} textAnchor="middle" dominantBaseline="central"
+              fontSize={isGap ? 20 : 17} fontWeight={900}
+              fill={isGap ? "#7c3aed" : T.indigo}>
+              {isGap ? "?" : val}
+            </text>
+          </g>
+        );
+      })}
+      {rule && (
+        <text x={W / 2} y={20 + BOX + 17} textAnchor="middle" dominantBaseline="central"
+          fontSize={10} fontWeight={600} fill="#64748b" fontStyle="italic">
+          Rule: {rule}
+        </text>
+      )}
+    </svg>
   );
 }
 
@@ -2094,58 +2746,170 @@ function GrammarVis({ sentence, labels }) {
 // ── Synonym Strength Ladder ───────────────────────────────────────────────────
 function SynonymLadderVis({ words, concept }) {
   const sorted = [...words].sort((a, b) => a.strength - b.strength);
+  const W = 270, ROW_H = 30, BAR_X = 88, BAR_MAX_W = 116, BAR_H = 14;
+  const DOT_START_X = 212, DOT_R = 3.5, DOT_GAP = 9;
+  const TOP_PAD = concept ? 24 : 6;
+  const n = sorted.length;
+  const H = TOP_PAD + n * ROW_H + 18;
+  const tierGrad = s => s <= 2 ? "url(#sl_mild)" : s === 3 ? "url(#sl_med)" : "url(#sl_str)";
+  const tierCol  = s => s <= 2 ? T.indigo : s === 3 ? "#f59e0b" : "#7c3aed";
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", width:"100%" }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth:300, display:"block", margin:"0 auto" }}>
+      <defs>
+        <linearGradient id="sl_mild" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c7d2fe" /><stop offset="100%" stopColor="#6366f1" />
+        </linearGradient>
+        <linearGradient id="sl_med" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#fde68a" /><stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+        <linearGradient id="sl_str" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ddd6fe" /><stop offset="100%" stopColor="#7c3aed" />
+        </linearGradient>
+        <filter id="sl_sh" x="-20%" y="-100%" width="140%" height="300%">
+          <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#1e293b" floodOpacity="0.10" />
+        </filter>
+      </defs>
       {concept && (
-        <div style={{ fontSize:11, color:T.slate, textAlign:"center", fontWeight:600, marginBottom:2 }}>
-          Meaning strength: {concept}
-        </div>
+        <text x={W / 2} y={13} textAnchor="middle" dominantBaseline="central"
+          fontSize={9} fontWeight={700} fill="#64748b" letterSpacing={0.5}>
+          MEANING STRENGTH: {concept.toUpperCase()}
+        </text>
       )}
+      {/* track background line */}
+      <line x1={BAR_X} y1={TOP_PAD + n * ROW_H - ROW_H / 2}
+            x2={BAR_X} y2={TOP_PAD + ROW_H / 2}
+            stroke="#e2e8f0" strokeWidth={1} />
       {sorted.map((item, i) => {
-        const pct = (item.strength / 5) * 100;
-        const color = item.strength <= 2 ? T.indigo : item.strength === 3 ? "#f59e0b" : T.nebula;
+        const midY = TOP_PAD + i * ROW_H + ROW_H / 2;
+        const barW  = Math.max(BAR_H, (item.strength / 5) * BAR_MAX_W);
+        const grad  = tierGrad(item.strength);
+        const col   = tierCol(item.strength);
         return (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <span style={{ fontSize:12, fontWeight:700, width:72, textAlign:"right", color }}>{item.word}</span>
-            <div style={{ flex:1, height:14, background:"#f1f5f9", borderRadius:7, overflow:"hidden" }}>
-              <div style={{ width:`${pct}%`, height:"100%", background:color, borderRadius:7 }} />
-            </div>
-          </div>
+          <g key={i}>
+            {/* word label */}
+            <text x={84} y={midY} textAnchor="end" dominantBaseline="central"
+              fontSize={11} fontWeight={700} fill={col}>{item.word}</text>
+            {/* bar track */}
+            <rect x={BAR_X} y={midY - BAR_H / 2} width={BAR_MAX_W} height={BAR_H}
+              rx={BAR_H / 2} fill="#e2e8f0" />
+            {/* filled bar */}
+            <g filter="url(#sl_sh)">
+              <rect x={BAR_X} y={midY - BAR_H / 2} width={barW} height={BAR_H}
+                rx={BAR_H / 2} fill={grad} />
+            </g>
+            {/* strength dots */}
+            {[0,1,2,3,4].map(j => (
+              <circle key={j}
+                cx={DOT_START_X + j * DOT_GAP} cy={midY} r={DOT_R}
+                fill={j < item.strength ? col : "none"}
+                stroke={col} strokeWidth={1.4}
+                opacity={j < item.strength ? 1 : 0.3} />
+            ))}
+          </g>
         );
       })}
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:T.slate, paddingLeft:78 }}>
-        <span>mild</span><span>strong</span>
-      </div>
-    </div>
+      {/* axis labels */}
+      <text x={BAR_X} y={H - 4} textAnchor="start" fontSize={8} fontWeight={600} fill="#94a3b8">mild</text>
+      <text x={BAR_X + BAR_MAX_W} y={H - 4} textAnchor="end" fontSize={8} fontWeight={600} fill="#94a3b8">strong</text>
+    </svg>
   );
 }
 
 // ── Prefix / Suffix Word Builder ──────────────────────────────────────────────
 function WordBuilderVis({ prefix, root, suffix }) {
-  const Block = ({ text, label, color }) => text ? (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-      <div style={{
-        padding:"6px 12px", background:color + "22", border:`2px solid ${color}`,
-        borderRadius:6, fontSize:14, fontWeight:800, color,
-        minWidth:40, textAlign:"center", fontFamily:"monospace",
-      }}>{text}</div>
-      <span style={{ fontSize:9, color, fontWeight:600, textTransform:"uppercase" }}>{label}</span>
-    </div>
-  ) : null;
+  const BOX_W = 76, BOX_H = 52, CONN_W = 30, PAD = 14, PILL_H = 28, LABEL_H = 14;
+  const parts = [
+    prefix ? { text: prefix, label: "prefix", grad: "url(#wb_pre)", col: "#7c3aed", border: "#a78bfa" } : null,
+    { text: root, label: "root word", grad: "url(#wb_root)", col: T.indigo, border: "#818cf8" },
+    suffix ? { text: suffix, label: "suffix", grad: "url(#wb_suf)", col: "#059669", border: "#34d399" } : null,
+  ].filter(Boolean);
+  const n = parts.length;
+  const blocksW = n * BOX_W + (n - 1) * CONN_W;
+  const W = blocksW + 2 * PAD;
+  const combined = (prefix || "") + root + (suffix || "");
+  const pillW = Math.max(80, combined.length * 8.5 + 28);
+  const FULL_W = Math.max(W, pillW + 2 * PAD);
+  const H = BOX_H + LABEL_H + 10 + PILL_H + 10;
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      <div style={{ display:"flex", alignItems:"flex-start", gap:0 }}>
-        {prefix && <Block text={prefix} label="prefix" color={T.nebula} />}
-        <Block text={root} label="root word" color={T.indigo} />
-        {suffix && <Block text={suffix} label="suffix" color={T.emerald} />}
-      </div>
-      <div style={{
-        padding:"4px 14px", background:T.indigoBg, borderRadius:20,
-        fontSize:13, fontWeight:700, color:T.indigo,
-      }}>
-        {(prefix || "") + root + (suffix || "")}
-      </div>
-    </div>
+    <svg viewBox={`0 0 ${FULL_W} ${H}`} width="100%"
+      style={{ maxWidth: 340, display:"block", margin:"0 auto" }}>
+      <defs>
+        {/* box gradients */}
+        <linearGradient id="wb_pre" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f5f3ff" /><stop offset="100%" stopColor="#ede9fe" />
+        </linearGradient>
+        <linearGradient id="wb_root" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#eef2ff" /><stop offset="100%" stopColor="#e0e7ff" />
+        </linearGradient>
+        <linearGradient id="wb_suf" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ecfdf5" /><stop offset="100%" stopColor="#d1fae5" />
+        </linearGradient>
+        {/* connector gradient */}
+        <linearGradient id="wb_conn" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c7d2fe" /><stop offset="100%" stopColor="#a5f3d0" />
+        </linearGradient>
+        {/* pill gradient */}
+        <linearGradient id="wb_pill" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#6366f1" /><stop offset="100%" stopColor="#8b5cf6" />
+        </linearGradient>
+        <filter id="wb_sh" x="-15%" y="-30%" width="130%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1e293b" floodOpacity="0.12" />
+        </filter>
+      </defs>
+
+      {/* blocks + connectors */}
+      {parts.map((p, i) => {
+        const offsetX = PAD + (FULL_W - W) / 2 + i * (BOX_W + CONN_W);
+        const cx = offsetX + BOX_W / 2;
+        return (
+          <g key={i}>
+            {/* connector line + plus circle between boxes */}
+            {i > 0 && (() => {
+              const lineX1 = offsetX - CONN_W;
+              const lineX2 = offsetX;
+              const midX   = (lineX1 + lineX2) / 2;
+              const midY   = BOX_H / 2;
+              return (
+                <g>
+                  <line x1={lineX1} y1={midY} x2={lineX2} y2={midY}
+                    stroke="#c7d2fe" strokeWidth={2} strokeDasharray="3 2" />
+                  <circle cx={midX} cy={midY} r={9} fill="url(#wb_conn)" filter="url(#wb_sh)" />
+                  <text x={midX} y={midY} textAnchor="middle" dominantBaseline="central"
+                    fontSize={11} fontWeight={900} fill="#fff">+</text>
+                </g>
+              );
+            })()}
+            {/* box */}
+            <g filter="url(#wb_sh)">
+              <rect x={offsetX} y={0} width={BOX_W} height={BOX_H}
+                rx={8} fill={p.grad} stroke={p.border} strokeWidth={2} />
+            </g>
+            {/* word text */}
+            <text x={cx} y={BOX_H / 2} textAnchor="middle" dominantBaseline="central"
+              fontSize={14} fontWeight={800} fill={p.col} fontFamily="monospace">{p.text}</text>
+            {/* label below box */}
+            <text x={cx} y={BOX_H + 10} textAnchor="middle" dominantBaseline="hanging"
+              fontSize={8} fontWeight={700} fill={p.col} letterSpacing={0.6}>
+              {p.label.toUpperCase()}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* combined word pill */}
+      {(() => {
+        const pillX = (FULL_W - pillW) / 2;
+        const pillY = BOX_H + LABEL_H + 14;
+        return (
+          <g filter="url(#wb_sh)">
+            <rect x={pillX} y={pillY} width={pillW} height={PILL_H}
+              rx={PILL_H / 2} fill="url(#wb_pill)" />
+            <text x={FULL_W / 2} y={pillY + PILL_H / 2} textAnchor="middle" dominantBaseline="central"
+              fontSize={13} fontWeight={800} fill="#fff" letterSpacing={0.5}>{combined}</text>
+          </g>
+        );
+      })()}
+    </svg>
   );
 }
 
@@ -2155,49 +2919,140 @@ function ComparisonVis({ a, b }) {
   const isAGreater = a > b;
   const isEqual    = a === b;
   const symbol     = isEqual ? "=" : isAGreater ? ">" : "<";
-  const DOT_COLORS = [T.indigo, T.nebula];
-  const maxDots    = Math.max(a, b);
-  const renderDots = (n, color) => Array.from({ length: maxDots }, (_, i) => (
-    <div key={i} style={{
-      width:12, height:12, borderRadius:"50%",
-      background: i < n ? color : "transparent",
-      border: `2px solid ${i < n ? color : "#e2e8f0"}`,
-      transition:"background 0.2s",
-    }} />
-  ));
+  const symCol     = isEqual ? "#64748b" : isAGreater ? "#059669" : "#7c3aed";
+  const desc       = isEqual ? "Both are equal" : `${a} is ${isAGreater ? "greater" : "less"} than ${b}`;
+
+  const useDots = a <= 12 && b <= 12;
+
+  if (useDots) {
+    // ── Dot mode ────────────────────────────────────────────────────────────
+    const W = 300, COLS = 4, STEP = 16, DR = 5.5;
+    const maxDots = Math.max(a, b);
+    const rows = Math.ceil(maxDots / COLS);
+    const gridW = COLS * STEP;
+    const gridH = rows * STEP;
+    const SIDE_X_A = 18, SIDE_X_B = 178, SYM_X = 150;
+    const BADGE_Y = gridH + 14, BADGE_R = 14;
+    const DESC_Y  = BADGE_Y + BADGE_R + 16;
+    const H = DESC_Y + 16;
+
+    const dotGrid = (count, colFill, colEmpty, ox) =>
+      Array.from({ length: maxDots }, (_, idx) => {
+        const col = idx % COLS, row = Math.floor(idx / COLS);
+        const cx = ox + col * STEP + STEP / 2;
+        const cy = row * STEP + STEP / 2;
+        const filled = idx < count;
+        return (
+          <g key={idx}>
+            <circle cx={cx} cy={cy} r={DR}
+              fill={filled ? `url(#cmp_d${colFill})` : "none"}
+              stroke={filled ? colFill : "#cbd5e1"} strokeWidth={1.5}
+              opacity={filled ? 1 : 0.4} />
+          </g>
+        );
+      });
+
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%"
+        style={{ maxWidth:320, display:"block", margin:"0 auto" }}>
+        <defs>
+          <radialGradient id="cmp_d#6366f1" cx="35%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#a5b4fc" /><stop offset="100%" stopColor="#4f46e5" />
+          </radialGradient>
+          <radialGradient id="cmp_d#7c3aed" cx="35%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#c4b5fd" /><stop offset="100%" stopColor="#6d28d9" />
+          </radialGradient>
+          <filter id="cmp_sh" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1e293b" floodOpacity="0.14" />
+          </filter>
+        </defs>
+
+        {/* A dots */}
+        {dotGrid(a, "#6366f1", "#e0e7ff", SIDE_X_A)}
+        {/* B dots */}
+        {dotGrid(b, "#7c3aed", "#ede9fe", SIDE_X_B)}
+
+        {/* A badge */}
+        <g filter="url(#cmp_sh)">
+          <rect x={SIDE_X_A + gridW / 2 - BADGE_R - 2} y={BADGE_Y - BADGE_R}
+            width={BADGE_R * 2 + 4} height={BADGE_R * 2}
+            rx={7} fill="#6366f1" />
+        </g>
+        <text x={SIDE_X_A + gridW / 2} y={BADGE_Y} textAnchor="middle" dominantBaseline="central"
+          fontSize={14} fontWeight={900} fill="#fff">{a}</text>
+
+        {/* B badge */}
+        <g filter="url(#cmp_sh)">
+          <rect x={SIDE_X_B + gridW / 2 - BADGE_R - 2} y={BADGE_Y - BADGE_R}
+            width={BADGE_R * 2 + 4} height={BADGE_R * 2}
+            rx={7} fill="#7c3aed" />
+        </g>
+        <text x={SIDE_X_B + gridW / 2} y={BADGE_Y} textAnchor="middle" dominantBaseline="central"
+          fontSize={14} fontWeight={900} fill="#fff">{b}</text>
+
+        {/* symbol */}
+        <text x={SYM_X} y={gridH / 2} textAnchor="middle" dominantBaseline="central"
+          fontSize={30} fontWeight={900} fill={symCol}>{symbol}</text>
+
+        {/* description */}
+        <text x={W / 2} y={DESC_Y} textAnchor="middle" dominantBaseline="central"
+          fontSize={10} fontWeight={700} fill="#64748b">{desc}</text>
+      </svg>
+    );
+  }
+
+  // ── Bar mode (either value > 12) ──────────────────────────────────────────
+  const W = 300, SIDE_W = 108, BAR_H = 34, MID_X = 150;
+  const maxVal  = Math.max(a, b);
+  const BAR_A_W = Math.round((a / maxVal) * SIDE_W);
+  const BAR_B_W = Math.round((b / maxVal) * SIDE_W);
+  const BAR_A_X = 20, BAR_B_X = MID_X + 22;
+  const NUM_Y = 12, BAR_Y = NUM_Y + 8, SYM_Y = BAR_Y + BAR_H / 2, DESC_Y = BAR_Y + BAR_H + 18;
+  const H = DESC_Y + 14;
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
-            {renderDots(a, DOT_COLORS[0])}
-          </div>
-          <div style={{
-            fontSize:22, fontWeight:900, color:DOT_COLORS[0],
-            padding:"2px 10px", background: DOT_COLORS[0]+"22",
-            borderRadius:8, border:`2px solid ${DOT_COLORS[0]}`,
-          }}>{a}</div>
-        </div>
-        <div style={{
-          fontSize:28, fontWeight:900,
-          color: isEqual ? T.slate : isAGreater ? T.emerald : T.nebula,
-          width:32, textAlign:"center",
-        }}>{symbol}</div>
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:80, justifyContent:"center" }}>
-            {renderDots(b, DOT_COLORS[1])}
-          </div>
-          <div style={{
-            fontSize:22, fontWeight:900, color:DOT_COLORS[1],
-            padding:"2px 10px", background: DOT_COLORS[1]+"22",
-            borderRadius:8, border:`2px solid ${DOT_COLORS[1]}`,
-          }}>{b}</div>
-        </div>
-      </div>
-      <div style={{ fontSize:11, color:T.slate, fontWeight:600 }}>
-        {isEqual ? "Both are equal" : `${a} is ${isAGreater ? "greater" : "less"} than ${b}`}
-      </div>
-    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%"
+      style={{ maxWidth:320, display:"block", margin:"0 auto" }}>
+      <defs>
+        <linearGradient id="cmp_ba" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#a5b4fc" /><stop offset="100%" stopColor="#4f46e5" />
+        </linearGradient>
+        <linearGradient id="cmp_bb" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c4b5fd" /><stop offset="100%" stopColor="#6d28d9" />
+        </linearGradient>
+        <filter id="cmp_bsh" x="-10%" y="-30%" width="120%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1e293b" floodOpacity="0.13" />
+        </filter>
+      </defs>
+
+      {/* A label */}
+      <text x={BAR_A_X + SIDE_W / 2} y={NUM_Y} textAnchor="middle" dominantBaseline="auto"
+        fontSize={18} fontWeight={900} fill="#4f46e5">{a}</text>
+      {/* A bar track */}
+      <rect x={BAR_A_X} y={BAR_Y} width={SIDE_W} height={BAR_H} rx={BAR_H / 2} fill="#e0e7ff" />
+      {/* A bar fill */}
+      <g filter="url(#cmp_bsh)">
+        <rect x={BAR_A_X} y={BAR_Y} width={BAR_A_W} height={BAR_H} rx={BAR_H / 2} fill="url(#cmp_ba)" />
+      </g>
+
+      {/* B label */}
+      <text x={BAR_B_X + SIDE_W / 2} y={NUM_Y} textAnchor="middle" dominantBaseline="auto"
+        fontSize={18} fontWeight={900} fill="#6d28d9">{b}</text>
+      {/* B bar track */}
+      <rect x={BAR_B_X} y={BAR_Y} width={SIDE_W} height={BAR_H} rx={BAR_H / 2} fill="#ede9fe" />
+      {/* B bar fill */}
+      <g filter="url(#cmp_bsh)">
+        <rect x={BAR_B_X} y={BAR_Y} width={BAR_B_W} height={BAR_H} rx={BAR_H / 2} fill="url(#cmp_bb)" />
+      </g>
+
+      {/* symbol centered */}
+      <text x={MID_X} y={SYM_Y} textAnchor="middle" dominantBaseline="central"
+        fontSize={26} fontWeight={900} fill={symCol}>{symbol}</text>
+
+      {/* description */}
+      <text x={W / 2} y={DESC_Y} textAnchor="middle" dominantBaseline="central"
+        fontSize={10} fontWeight={700} fill="#64748b">{desc}</text>
+    </svg>
   );
 }
 
@@ -3155,9 +4010,52 @@ function parseHumanities(subjectKey, topicStr, qLower) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Layout hint map — tells quiz shells whether the visual needs width ('wide')
+// or height ('tall').  'wide' → visual stacks on top of question.
+//                     'tall' → visual sits beside the question (lg:flex-row).
+// ═══════════════════════════════════════════════════════════════════════════════
+const VISUAL_LAYOUT_MAP = {
+  // ── Wide visuals (need horizontal space) → top/bottom stacked ───────────
+  number_line:      'wide',
+  bar_chart:        'wide',
+  venn:             'wide',
+  coordinate:       'wide',
+  interactive_plot: 'wide',
+  area_perimeter:   'wide',
+  place_value:      'wide',
+  array:            'wide',
+  money:            'wide',
+  table:            'wide',
+  sequence:         'wide',
+  pictogram:        'wide',
+  tally_chart:      'wide',
+  number_bond:      'wide',
+  addition:         'wide',
+  subtraction:      'wide',
+  multiplication:   'wide',
+  division:         'wide',
+  division_equation:'wide',
+  counting:         'wide',
+  // ── Tall visuals (need vertical space) → left/right side-by-side ─────────
+  right_triangle:   'tall',
+  angle:            'tall',
+  circle:           'tall',
+  fraction_bar:     'tall',
+  probability:      'tall',
+  symmetry:         'tall',
+  clock:            'tall',
+  triangle:         'tall',
+  shape:            'tall',
+  geometry:         'tall',
+  '3d_shape':       'tall',
+  quadrilateral:    'tall',
+  polygon:          'tall',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN EXPORT — resolveVisual
 // ═══════════════════════════════════════════════════════════════════════════════
-export function resolveVisual(question, subject, yearLevel) {
+function _resolveVisualInner(question, subject, yearLevel) {
   if (!question) return null;
   const subj = (subject || "").toLowerCase();
   const year = parseInt(yearLevel ?? question?.year_level ?? 99, 10);
@@ -3478,6 +4376,16 @@ function enrichWithObjectIcon(visual, questionStr) {
     if (icon) visual.objectIcon = icon;
   }
   return visual;
+}
+
+// Public resolveVisual — wraps inner resolver and annotates result with layout hint.
+// layout: 'wide'  → visual stacks ABOVE the question (number lines, charts, sequences)
+// layout: 'tall'  → visual sits BESIDE the question (circles, triangles, geometry)
+export function resolveVisual(question, subject, yearLevel) {
+  const result = _resolveVisualInner(question, subject, yearLevel);
+  if (!result) return null;
+  const layout = VISUAL_LAYOUT_MAP[result.type] ?? 'wide';
+  return { ...result, layout };
 }
 
 export function canVisualise(question, subject, yearLevel) {
@@ -4103,43 +5011,189 @@ function ParallelLinesVis({ knownAngle, angleType, label }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TIER 1 & 2 — NEW VISUALS (placeholders for now; actual implementations imported)
+// TIER 1 & 2 — NEW VISUALS
 // ═══════════════════════════════════════════════════════════════════════════════
-function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps, jumpSize, fractionDenom }) {
-  const W = 210, H = fractionDenom ? 82 : 72, PAD = 16, ARR = 10;
-  const range = (max - min) || 1;
-  const toX = n => PAD + ((n - min) / range) * (W - PAD*2 - ARR);
 
+/**
+ * NumberLineVis — Century Tech-style clean number line
+ *
+ * Props:
+ *   min, max          — range endpoints
+ *   missing           — the "?" position (arrow indicator pointing up from below axis)
+ *   known             — array of highlighted positions (indigo dots)
+ *   marked            — legacy: array or single number to highlight (falls back when no known/missing)
+ *   label             — caption text
+ *   start, steps, direction — for directed-jump variant
+ *   jumps, jumpSize   — for repeated-jump variant
+ *   fractionDenom     — for fraction number line
+ */
+function NumberLineVis({ min, max, missing, known, marked, label, start, steps, direction, jumps, jumpSize, fractionDenom }) {
+  // Responsive viewBox: 320 wide, heights vary by variant
+  const VW = 320;
+  const AXIS_Y = 62;    // y-position of the axis — moved down to leave room for arcs above
+  const PAD = 28;       // left/right padding
+  const ARR = 12;       // arrowhead overhang
+  const MAJOR_H = 11;   // tick half-height (was 6 — taller ticks for visibility)
+  const AXIS_COL = "#1e293b";
+
+  const range = (max - min) || 1;
+  const toX = n => PAD + ((n - min) / range) * (VW - PAD * 2 - ARR);
+
+  // ── Determine tick step for clean labels ────────────────────────────────────
+  const calcStep = (lo, hi) => {
+    const span = hi - lo;
+    if (span === 0) return 1;
+    const raw = span / 8;
+    if (raw <= 1) return 1;
+    if (raw <= 2) return 2;
+    if (raw <= 5) return 5;
+    if (raw <= 10) return 10;
+    if (raw <= 20) return 20;
+    if (raw <= 25) return 25;
+    if (raw <= 50) return 50;
+    return 100;
+  };
+
+  // ── Axis line with prominent double arrowheads ───────────────────────────────
+  const axisLine = () => (
+    <g>
+      <line x1={PAD - 8} y1={AXIS_Y} x2={VW - ARR + 4} y2={AXIS_Y}
+        stroke={AXIS_COL} strokeWidth={3} strokeLinecap="round"/>
+      <polygon points={`${PAD - 15},${AXIS_Y} ${PAD - 5},${AXIS_Y - 5} ${PAD - 5},${AXIS_Y + 5}`} fill={AXIS_COL}/>
+      <polygon points={`${VW - ARR + 10},${AXIS_Y} ${VW - ARR + 2},${AXIS_Y - 5} ${VW - ARR + 2},${AXIS_Y + 5}`} fill={AXIS_COL}/>
+    </g>
+  );
+
+  // ── Pill-style label (indigo bg + white "?" text; light slate bg + dark text for known) ──
+  const numLabel = (x, y, value, isMissing = false) => {
+    const txt = isMissing ? "?" : String(value);
+    const w = Math.max(24, txt.length * 8 + 12);
+    const h = 20;
+    return (
+      <g>
+        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={5} ry={5}
+          fill={isMissing ? T.indigo : "#f1f5f9"}
+          stroke={isMissing ? T.indigo : "#cbd5e1"} strokeWidth={1}/>
+        <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle"
+          fontSize={11} fontWeight="700" fill={isMissing ? "#ffffff" : "#334155"}>
+          {txt}
+        </text>
+      </g>
+    );
+  };
+
+  // ── Pill label above an arc midpoint ("+N" jump label) ───────────────────────
+  const arcPill = (mx, arcTop, txt, color, bgColor = "#ede9fe") => {
+    const w = Math.max(28, txt.length * 7 + 14);
+    const h = 18;
+    const py = arcTop - h - 4;
+    return (
+      <g>
+        <rect x={mx - w / 2} y={py} width={w} height={h} rx={5} ry={5}
+          fill={bgColor} stroke={color} strokeWidth={1.5}/>
+        <text x={mx} y={py + h / 2 + 1} textAnchor="middle" dominantBaseline="middle"
+          fontSize={10} fontWeight="700" fill={color}>
+          {txt}
+        </text>
+      </g>
+    );
+  };
+
+  // ── Tick + label renderer — missing position gets dashed ring (no pill; STANDARD adds pill separately) ──
+  const renderAxis = (step) => {
+    const tickSet = new Set();
+    tickSet.add(min);
+    tickSet.add(max);
+    const first = Math.ceil(min / step) * step;
+    for (let v = first; v <= max; v += step) tickSet.add(v);
+
+    return [...tickSet].sort((a, b) => a - b).map(v => {
+      const tx = toX(v);
+      const isMissing = missing != null && Math.abs(v - missing) < 0.0001;
+      return (
+        <g key={v}>
+          <line x1={tx} y1={AXIS_Y - MAJOR_H} x2={tx} y2={AXIS_Y + MAJOR_H}
+            stroke={isMissing ? "#94a3b8" : AXIS_COL}
+            strokeWidth={isMissing ? 1.5 : 2}
+            strokeDasharray={isMissing ? "3 2" : undefined}/>
+          {isMissing
+            ? (
+              /* Dashed highlight ring centred on axis — draws attention to the gap */
+              <circle cx={tx} cy={AXIS_Y} r={13}
+                fill="#ede9fe" stroke={T.indigo} strokeWidth={1.5} strokeDasharray="3 2"/>
+            )
+            : numLabel(tx, AXIS_Y + MAJOR_H + 14, v)
+          }
+        </g>
+      );
+    });
+  };
+
+  // ── Tick renderer that skips tick+label at skipPos (JUMP/DIRECTION destination) ──
+  const renderAxisCustom = (step, skipPos) => {
+    const tickSet = new Set();
+    tickSet.add(min);
+    tickSet.add(max);
+    const first = Math.ceil(min / step) * step;
+    for (let v = first; v <= max; v += step) tickSet.add(v);
+
+    return [...tickSet].sort((a, b) => a - b).map(v => {
+      if (skipPos != null && Math.abs(v - skipPos) < 0.0001) return null;
+      const tx = toX(v);
+      return (
+        <g key={v}>
+          <line x1={tx} y1={AXIS_Y - MAJOR_H} x2={tx} y2={AXIS_Y + MAJOR_H}
+            stroke={AXIS_COL} strokeWidth={2}/>
+          {numLabel(tx, AXIS_Y + MAJOR_H + 14, v)}
+        </g>
+      );
+    });
+  };
+
+  // ── FRACTION variant ─────────────────────────────────────────────────────────
   if (fractionDenom && fractionDenom > 0) {
     const den = fractionDenom;
+    const VH = 108;
     const fracTicks = [];
-    for (let i = 0; i <= max * den; i++) {
+    for (let i = 0; i <= Math.round(max * den); i++) {
       const val = i / den;
-      if (val > max) break;
+      if (val > max + 0.001) break;
       const fx = toX(val);
       const isMajor = i % den === 0;
+      const mh = isMajor ? MAJOR_H : 6;
       fracTicks.push(
-        <g key={i} className="vis-tick">
-          <line x1={fx} y1={34} x2={fx} y2={isMajor ? 42 : 38} stroke={isMajor ? T.indigo : "#cbd5e1"} strokeWidth={isMajor ? 2 : 1}/>
-          <text x={fx} y={54} textAnchor="middle" fontSize={isMajor ? 9 : 7} fontWeight={isMajor ? "800" : "600"} fill={isMajor ? T.indigo : T.textMid}>
-            {isMajor ? Math.round(val) : `${i % den}/${den}`}
-          </text>
+        <g key={i}>
+          <line x1={fx} y1={AXIS_Y - mh} x2={fx} y2={AXIS_Y + mh}
+            stroke={isMajor ? AXIS_COL : "#94a3b8"} strokeWidth={isMajor ? 2 : 1}/>
+          {isMajor
+            ? numLabel(fx, AXIS_Y + MAJOR_H + 14, Math.round(val))
+            : (
+              <text x={fx} y={AXIS_Y + mh + 12} textAnchor="middle"
+                fontSize={9} fontWeight="600" fill="#64748b">
+                {`${i % den}/${den}`}
+              </text>
+            )
+          }
         </g>
       );
     }
     const jumpArcs = [];
     if (jumps && jumpSize) {
-      let pos = start || 0;
+      let pos = start != null ? start : 0;
       for (let j = 0; j < jumps; j++) {
         const from = pos;
         const to = pos + jumpSize;
         const fx = toX(from);
-        const tx = toX(to);
-        const mx = (fx + tx) / 2;
+        const tx2 = toX(to);
+        const mx2 = (fx + tx2) / 2;
+        const arcH = Math.min(30, Math.max(18, (tx2 - fx) * 0.5));
+        const arcTop = AXIS_Y - arcH;
         jumpArcs.push(
-          <g key={`arc-${j}`} className="vis-arc">
-            <path d={`M ${fx} 34 Q ${mx} ${10} ${tx} 34`} fill="none" stroke={T.nebula} strokeWidth={1.5}/>
-            <polygon points={`${tx},34 ${tx-4},28 ${tx-4},34`} fill={T.nebula}/>
+          <g key={`arc-${j}`}>
+            <path d={`M ${fx} ${AXIS_Y} Q ${mx2} ${arcTop} ${tx2} ${AXIS_Y}`}
+              fill="none" stroke={T.indigo} strokeWidth={2.5} strokeLinecap="round"/>
+            <polygon points={`${tx2},${AXIS_Y} ${tx2 - 5},${AXIS_Y - 8} ${tx2 - 5},${AXIS_Y}`} fill={T.indigo}/>
+            {arcPill(mx2, arcTop, `+${jumpSize}`, T.indigo)}
           </g>
         );
         pos = to;
@@ -4147,17 +5201,18 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
       const destX = toX(pos);
       jumpArcs.push(
         <g key="dest">
-          <rect x={destX-8} y={55} width={16} height={14} rx={3} fill={T.nebulaBg} stroke={T.nebula} strokeWidth={1.5}/>
-          <text x={destX} y={65} textAnchor="middle" fontSize={8} fontWeight="900" fill={T.nebula}>{Math.round(pos * den)}/{den}</text>
+          {/* Large solid circle at destination — unmissable "?" indicator */}
+          <circle cx={destX} cy={AXIS_Y} r={14} fill={T.indigo} stroke="white" strokeWidth={2}/>
+          <text x={destX} y={AXIS_Y + 1} textAnchor="middle" dominantBaseline="middle"
+            fontSize={13} fontWeight="900" fill="white">?</text>
         </g>
       );
     }
     return (
-      <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2} className="vis-axis"/>
-          <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.indigo}/>
-          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
+      <Panel accent={T.indigo} bg="white" bd={T.slateBd}>
+        <svg width="100%" height={VH} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet">
+          <rect x={0} y={0} width={VW} height={VH} fill="white"/>
+          {axisLine()}
           {fracTicks}
           {jumpArcs}
         </svg>
@@ -4166,190 +5221,288 @@ function NumberLineVis({ min, max, marked, label, start, steps, direction, jumps
     );
   }
 
+  // ── JUMP variant (repeated equal jumps) ─────────────────────────────────────
   if (jumps && jumpSize) {
+    const VH = 108;
+    const step = calcStep(min, max);
     const jumpArcs = [];
-    let pos = start || min;
+    let pos = start != null ? start : min;
     for (let j = 0; j < jumps; j++) {
       const from = pos;
       const to = pos + jumpSize;
-      if (to > max) break;
+      if (to > max + 0.001) break;
       const fx = toX(from);
-      const tx = toX(to);
-      const mx = (fx + tx) / 2;
-      const arcH = Math.min(22, Math.max(12, (tx - fx) * 0.4));
+      const tx2 = toX(to);
+      const mx2 = (fx + tx2) / 2;
+      const arcH = Math.min(30, Math.max(18, (tx2 - fx) * 0.5));
+      const arcTop = AXIS_Y - arcH;
       jumpArcs.push(
-        <g key={`j${j}`} className="vis-arc">
-          <path d={`M ${fx} 34 Q ${mx} ${34 - arcH} ${tx} 34`}
-            fill="none" stroke={T.nebula} strokeWidth={1.5} strokeLinecap="round"/>
-          <polygon points={`${tx},34 ${tx-3},29 ${tx-3},34`} fill={T.nebula}/>
-          <text x={mx} y={34 - arcH - 3} textAnchor="middle" fontSize={7} fontWeight="700" fill={T.nebula}>+{jumpSize}</text>
+        <g key={`j${j}`}>
+          <path d={`M ${fx} ${AXIS_Y} Q ${mx2} ${arcTop} ${tx2} ${AXIS_Y}`}
+            fill="none" stroke={T.indigo} strokeWidth={2.5} strokeLinecap="round"/>
+          <polygon points={`${tx2},${AXIS_Y} ${tx2 - 5},${AXIS_Y - 8} ${tx2 - 5},${AXIS_Y}`} fill={T.indigo}/>
+          {arcPill(mx2, arcTop, `+${jumpSize}`, T.indigo)}
         </g>
       );
       pos = to;
     }
-    const ticks = [];
-    const rawStep = range / 10;
-    const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
-    const first = Math.ceil(min / step) * step;
-    for (let v = first; v <= max; v += step) {
-      const sx = toX(v);
-      ticks.push(
-        <g key={v} className="vis-tick">
-          <line x1={sx} y1={37} x2={sx} y2={43} stroke="#94a3b8" strokeWidth={1.5}/>
-          <text x={sx} y={53} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
-        </g>
-      );
-    }
+    const startX = toX(start != null ? start : min);
     const endX = toX(pos);
     return (
-      <Panel accent={T.nebula} bg={T.nebulaBg} bd={T.nebulaBd}
-        ariaLabel={`Number line: ${jumps} jumps of ${jumpSize}`}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD-4} y1={37} x2={W-ARR} y2={37} stroke={T.slate} strokeWidth={2} className="vis-axis"/>
-          <polygon points={`${PAD-6},37 ${PAD},34 ${PAD},40`} fill={T.slate}/>
-          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.slate}/>
-          {ticks}
+      <Panel accent={T.indigo} bg="white" bd={T.slateBd}>
+        <svg width="100%" height={VH} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet">
+          <rect x={0} y={0} width={VW} height={VH} fill="white"/>
+          {axisLine()}
+          {/* Skip label at destination — the solid circle below covers that position */}
+          {renderAxisCustom(step, pos)}
           {jumpArcs}
-          <circle cx={toX(start || min)} cy={37} r={4} fill={T.indigo} className="vis-mark"/>
-          <circle cx={endX} cy={37} r={5} fill="white" stroke={T.nebula} strokeWidth={2} className="vis-mark"/>
-          <text x={endX} y={40} textAnchor="middle" fontSize={8} fontWeight="900" fill={T.nebula}>?</text>
-        </svg>
-        {label && <Chip color={T.nebula} bg={T.nebulaBg}>{label}</Chip>}
-      </Panel>
-    );
-  }
-
-  const ticks = [];
-  const rawStep = range / 10;
-  const step = rawStep <= 1 ? 1 : rawStep <= 2 ? 2 : rawStep <= 5 ? 5 : 10;
-  const first = Math.ceil(min / step) * step;
-  for (let v = first; v <= max; v += step) {
-    const sx = toX(v);
-    ticks.push(
-      <g key={v}>
-        <line x1={sx} y1={34} x2={sx} y2={40} stroke="#94a3b8" strokeWidth={1.5}/>
-        <text x={sx} y={51} textAnchor="middle" fontSize={8} fill={T.textMid}>{v}</text>
-      </g>
-    );
-  }
-
-  if (start != null && steps != null && direction != null) {
-    const dest = direction === "right" ? start + steps : start - steps;
-    const sx = toX(start);
-    const dx = toX(dest);
-    const midX = (sx + dx) / 2;
-    const arcY = 14;
-    const arcPath = `M ${sx} 37 Q ${midX} ${arcY} ${dx} 37`;
-    const arrowDir = direction === "right" ? 1 : -1;
-    return (
-      <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.indigo} strokeWidth={2.5} className="vis-axis"/>
-          <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.indigo}/>
-          {ticks}
-          <path d={arcPath} fill="none" stroke={T.amber} strokeWidth={2} strokeDasharray="3 2" className="vis-arc"/>
-          <polygon points={`${dx},37 ${dx - arrowDir*5},31 ${dx - arrowDir*5},37`} fill={T.amber}/>
-          <circle cx={sx} cy={37} r={5.5} fill={T.indigo} className="vis-mark"/>
-          <text x={sx} y={24} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{start}</text>
-          <line x1={sx} y1={25} x2={sx} y2={31} stroke={T.indigo} strokeWidth={1.5}/>
-          <circle cx={dx} cy={37} r={5.5} fill="white" stroke={T.amber} strokeWidth={2} className="vis-mark"/>
-          <text x={dx} y={40.5} textAnchor="middle" fontSize={9} fontWeight="900" fill={T.amber}>?</text>
-          <text x={midX} y={arcY - 3} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.amber}>
-            {direction === "right" ? `+${steps}` : `−${steps}`}
-          </text>
+          {/* Start dot — solid indigo with white ring */}
+          <circle cx={startX} cy={AXIS_Y} r={7} fill={T.indigo} stroke="white" strokeWidth={2}/>
+          {/* Destination: large solid indigo circle ON axis — unmissable "?" indicator */}
+          <circle cx={endX} cy={AXIS_Y} r={14} fill={T.indigo} stroke="white" strokeWidth={2}/>
+          <text x={endX} y={AXIS_Y + 1} textAnchor="middle" dominantBaseline="middle"
+            fontSize={13} fontWeight="900" fill="white">?</text>
         </svg>
         {label && <Chip color={T.indigo} bg="white">{label}</Chip>}
       </Panel>
     );
   }
 
-  // Support marked as single number OR array of numbers (for sequences)
-  const markedArr = Array.isArray(marked) ? marked : (marked != null ? [marked] : []);
-  const MARK_COLOURS = [T.amber, T.indigo, T.nebula, T.emerald, "#f43f5e", "#a78bfa"];
+  // ── DIRECTION variant (start + N steps right/left) ───────────────────────────
+  if (start != null && steps != null && direction != null) {
+    const VH = 108;
+    const step = calcStep(min, max);
+    const dest = direction === "right" ? start + steps : start - steps;
+    const sx = toX(start);
+    const dx = toX(dest);
+    const midX = (sx + dx) / 2;
+    const arcH = Math.min(34, Math.max(20, Math.abs(dx - sx) * 0.45));
+    const arcTop = AXIS_Y - arcH;
+    const arrowDir = direction === "right" ? 1 : -1;
+    const stepLabel = direction === "right" ? `+${steps}` : `\u2212${steps}`;
+    return (
+      <Panel accent={T.indigo} bg="white" bd={T.slateBd}>
+        <svg width="100%" height={VH} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet">
+          <rect x={0} y={0} width={VW} height={VH} fill="white"/>
+          {axisLine()}
+          {/* Skip label at destination — the solid amber circle covers that position */}
+          {renderAxisCustom(step, dest)}
+          {/* Jump arc — amber dashed curve */}
+          <path d={`M ${sx} ${AXIS_Y} Q ${midX} ${arcTop} ${dx} ${AXIS_Y}`}
+            fill="none" stroke={T.amber} strokeWidth={2.5} strokeDasharray="5 3" strokeLinecap="round"/>
+          <polygon points={`${dx},${AXIS_Y} ${dx - arrowDir * 6},${AXIS_Y - 8} ${dx - arrowDir * 6},${AXIS_Y}`} fill={T.amber}/>
+          {arcPill(midX, arcTop, stepLabel, T.amber, "#fef3c7")}
+          {/* Start dot — solid indigo with white ring */}
+          <circle cx={sx} cy={AXIS_Y} r={7} fill={T.indigo} stroke="white" strokeWidth={2}/>
+          {/* Destination: large solid amber circle ON axis — unmissable "?" indicator */}
+          <circle cx={dx} cy={AXIS_Y} r={14} fill={T.amber} stroke="white" strokeWidth={2}/>
+          <text x={dx} y={AXIS_Y + 1} textAnchor="middle" dominantBaseline="middle"
+            fontSize={13} fontWeight="900" fill="white">?</text>
+        </svg>
+        {label && <Chip color={T.indigo} bg="white">{label}</Chip>}
+      </Panel>
+    );
+  }
+
+  // ── STANDARD variant — handles missing/known/marked ──────────────────────────
+  const VH = 100;
+  const step = calcStep(min, max);
+
+  // Resolve known/marked highlighted positions
+  const knownArr = known
+    ? (Array.isArray(known) ? known : [known])
+    : (Array.isArray(marked) ? marked : (marked != null ? [marked] : []));
+
   return (
-    <Panel accent={T.amber} bg={T.amberBg} bd={T.amberBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <line x1={PAD} y1={37} x2={W-ARR} y2={37} stroke={T.amber} strokeWidth={2.5} className="vis-axis"/>
-        <polygon points={`${W-ARR+4},37 ${W-ARR-2},34 ${W-ARR-2},40`} fill={T.amber}/>
-        {ticks}
-        {markedArr.map((val, i) => {
-          const mx = toX(val);
-          const col = MARK_COLOURS[i % MARK_COLOURS.length];
+    <Panel accent={T.indigo} bg="white" bd={T.slateBd}>
+      <svg width="100%" height={VH} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet">
+        <rect x={0} y={0} width={VW} height={VH} fill="white"/>
+        {axisLine()}
+        {/* Tick marks — missing position renders dashed ring instead of label */}
+        {renderAxis(step)}
+        {/* Known/marked positions — indigo dot with outer glow ring */}
+        {knownArr.map((val, i) => {
+          const kx = toX(val);
           return (
-            <g key={i} className="vis-mark">
-              <circle cx={mx} cy={37} r={markedArr.length > 1 ? 5 : 6} fill={col}/>
-              <text x={mx} y={24} textAnchor="middle" fontSize={markedArr.length > 3 ? 8 : 9} fontWeight="800" fill={col}>{val}</text>
-              <line x1={mx} y1={25} x2={mx} y2={31} stroke={col} strokeWidth={1.5}/>
+            <g key={`k${i}`}>
+              <circle cx={kx} cy={AXIS_Y} r={10} fill="#e0e7ff" stroke={T.indigo} strokeWidth={1.5}/>
+              <circle cx={kx} cy={AXIS_Y} r={5} fill={T.indigo}/>
             </g>
           );
         })}
+        {/* Missing position — indigo "?" pill directly below the dashed ring */}
+        {missing != null && (() => {
+          const mx = toX(missing);
+          return numLabel(mx, AXIS_Y + MAJOR_H + 14, missing, true);
+        })()}
       </svg>
-      {label && <Chip color={T.amber} bg="white">{label}</Chip>}
+      {label && <Chip color={T.indigo} bg="white">{label}</Chip>}
     </Panel>
   );
 }
 
 function VennVis({ labelA, labelB, itemsA, itemsB, itemsBoth }) {
-  const W = 220, H = 148;
-  const r = 52, cx1 = 82, cx2 = 138, cy = 82;
-  const col = (items, x, maxY = 4) => items.slice(0,maxY).map((it,i) => (
-    <text key={i} x={x} y={68 + i*14} textAnchor="middle" fontSize={10} fontWeight="700" fill={T.text}>{it}</text>
-  ));
+  const W = 280, H = 162;
+  // r=56, d=84 → intersection x=140, y=46 (top) and y=120 (bottom)
+  const r = 56, cx1 = 98, cx2 = 182, cy = 83;
+  const ix = 140, iy1 = 46, iy2 = 120;
+  const countA    = (itemsA    || []).length;
+  const countB    = (itemsB    || []).length;
+  const countBoth = (itemsBoth || []).length;
+
+  const renderItems = (items, x) =>
+    (items || []).slice(0, 3).map((it, i) => (
+      <text key={i} x={x} y={68 + i * 14}
+        textAnchor="middle" fontSize={9} fontWeight="600" fill={T.text}>
+        {String(it).length > 7 ? String(it).slice(0, 6) + "…" : it}
+      </text>
+    ));
+
   return (
-    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <circle className="vis-circle" cx={cx1} cy={cy} r={r} fill={T.indigoBg} fillOpacity={0.7} stroke={T.indigo} strokeWidth={2}/>
-        <circle className="vis-circle" cx={cx2} cy={cy} r={r} fill={T.emeraldBg} fillOpacity={0.7} stroke={T.emerald} strokeWidth={2}/>
-        <text className="vis-label" x={cx1-18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{labelA}</text>
-        <text className="vis-label" x={cx2+18} y={13} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.emerald}>{labelB}</text>
-        {col(itemsA, cx1 - 22)}
-        {col(itemsB, cx2 + 22)}
-        {col(itemsBoth, (cx1+cx2)/2)}
+    <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}
+      ariaLabel={`Venn diagram: ${labelA} and ${labelB}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        style={{ display: "block", overflow: "visible" }}>
+        <defs>
+          <linearGradient id="vv_both_g" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.38" />
+          </linearGradient>
+        </defs>
+
+        {/* Circle fills */}
+        <circle cx={cx1} cy={cy} r={r} fill={T.indigoBg} fillOpacity={0.78}
+          stroke={T.indigo} strokeWidth={2} />
+        <circle cx={cx2} cy={cy} r={r} fill={T.emeraldBg} fillOpacity={0.78}
+          stroke={T.emerald} strokeWidth={2} />
+
+        {/* Analytic lens — two arcs forming the intersection region */}
+        <path
+          d={`M ${ix} ${iy1} A ${r} ${r} 0 0 1 ${ix} ${iy2} A ${r} ${r} 0 0 0 ${ix} ${iy1} Z`}
+          fill="url(#vv_both_g)" />
+
+        {/* Labels inside circles near top (safely inside each non-overlapping region) */}
+        <text x={cx1 - 10} y={32} textAnchor="middle" fontSize={9} fontWeight="800"
+          fill={T.indigo}>{labelA}</text>
+        <text x={cx2 + 10} y={32} textAnchor="middle" fontSize={9} fontWeight="800"
+          fill={T.emerald}>{labelB}</text>
+
+        {/* Items in each region */}
+        {renderItems(itemsA,    66)}
+        {renderItems(itemsBoth, ix)}
+        {renderItems(itemsB,   214)}
+
+        {/* Count badges at bottom of each region */}
+        <rect x={54}      y={H - 19} width={24} height={14} rx={7} fill={T.indigo}  opacity={0.15} />
+        <text x={66}      y={H -  8} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.indigo}>{countA}</text>
+
+        <rect x={ix - 14} y={H - 19} width={28} height={14} rx={7} fill="#6366f1" opacity={0.22} />
+        <text x={ix}      y={H -  8} textAnchor="middle" fontSize={9} fontWeight="800" fill="#4338ca">{countBoth}</text>
+
+        <rect x={202}     y={H - 19} width={24} height={14} rx={7} fill={T.emerald} opacity={0.15} />
+        <text x={214}     y={H -  8} textAnchor="middle" fontSize={9} fontWeight="800" fill={T.emerald}>{countB}</text>
       </svg>
     </Panel>
   );
 }
 
 function BarChartVis({ bars, yLabel = "Frequency", title }) {
-  const W = 210, H = 130, PAD_L = 28, PAD_B = 36, PAD_T = 14, PAD_R = 8;
+  // Palette: cycle through 5 harmonious colours
+  const BAR_FILLS = [
+    ["#6366f1","#4338ca"],  // indigo
+    ["#8b5cf6","#6d28d9"],  // violet
+    ["#10b981","#047857"],  // emerald
+    ["#f59e0b","#b45309"],  // amber
+    ["#ec4899","#be185d"],  // pink
+  ];
+
+  const W = 240, H = 150, PAD_L = 32, PAD_B = 38, PAD_T = 18, PAD_R = 10;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
+  const n = bars.length;
   const maxVal = Math.max(...bars.map(b => b.value), 1);
-  const barW = Math.min(28, (chartW / bars.length) - 6);
-  const gap = (chartW - barW * bars.length) / (bars.length + 1);
-  const toY = v => PAD_T + chartH - (v / maxVal) * chartH;
-  const yTicks = [0, Math.round(maxVal/2), maxVal];
+  // Nice round y-axis ceiling
+  const niceMax = (() => {
+    const mag = Math.pow(10, Math.floor(Math.log10(maxVal)));
+    const steps = [1,2,4,5,10];
+    for (const s of steps) { if (s * mag >= maxVal) return s * mag; }
+    return maxVal;
+  })();
+  const numTicks = Math.min(niceMax, 5);
+  const tickStep = niceMax / numTicks;
+  const yTicks = Array.from({ length: numTicks + 1 }, (_, i) => Math.round(i * tickStep));
+
+  const barW = Math.min(32, Math.max(14, (chartW / n) - 8));
+  const totalBarWidth = n * barW;
+  const spacing = (chartW - totalBarWidth) / (n + 1);
+  const toY = v => PAD_T + chartH - (v / niceMax) * chartH;
 
   return (
     <Panel accent={T.indigo} bg={T.slateBg} bd={T.slateBd}>
       {title && <Chip color={T.indigo} bg={T.indigoBg}>{title}</Chip>}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <defs>
+          {bars.map((_, i) => {
+            const [top, bot] = BAR_FILLS[i % BAR_FILLS.length];
+            return (
+              <linearGradient key={i} id={`bar${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={top}/>
+                <stop offset="100%" stopColor={bot}/>
+              </linearGradient>
+            );
+          })}
+        </defs>
+
+        {/* horizontal grid lines */}
         {yTicks.map(v => {
           const sy = toY(v);
           return (
             <g key={v}>
-              <line className="vis-grid" x1={PAD_L-3} y1={sy} x2={W-PAD_R} y2={sy} stroke={T.slateBd} strokeWidth={1}/>
-              <text x={PAD_L-5} y={sy+3} textAnchor="end" fontSize={7} fill={T.textMid}>{v}</text>
+              <line x1={PAD_L} y1={sy} x2={W - PAD_R} y2={sy}
+                stroke={v === 0 ? T.slate : "#e2e8f0"} strokeWidth={v === 0 ? 1.5 : 1}
+                strokeDasharray={v === 0 ? "none" : "3,3"}/>
+              <text x={PAD_L - 4} y={sy + 3.5} textAnchor="end" fontSize={7.5} fill={T.textMid} fontWeight="600">{v}</text>
             </g>
           );
         })}
-        <line className="vis-axis" x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
-        <line className="vis-axis" x1={PAD_L} y1={H-PAD_B} x2={W-PAD_R} y2={H-PAD_B} stroke={T.slate} strokeWidth={1.5}/>
+
+        {/* y-axis spine */}
+        <line x1={PAD_L} y1={PAD_T - 4} x2={PAD_L} y2={H - PAD_B} stroke={T.slate} strokeWidth={1.5}/>
+        {/* x-axis */}
+        <line x1={PAD_L} y1={H - PAD_B} x2={W - PAD_R} y2={H - PAD_B} stroke={T.slate} strokeWidth={1.5}/>
+
+        {/* bars */}
         {bars.map((b, i) => {
-          const bx = PAD_L + gap + i * (barW + gap);
+          const bx = PAD_L + spacing + i * (barW + spacing);
           const by = toY(b.value);
           const bh = H - PAD_B - by;
+          const [topC] = BAR_FILLS[i % BAR_FILLS.length];
+          const label = String(b.label || "");
+          // break long labels at spaces
+          const words = label.split(" ");
           return (
-            <g key={i} className="vis-bar">
-              <rect x={bx} y={by} width={barW} height={bh} rx={3}
-                fill={T.indigoBg} stroke={T.indigo} strokeWidth={1.5}/>
-              <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8} fontWeight="700" fill={T.indigo}>{b.value}</text>
-              <text x={bx + barW/2} y={H-PAD_B+11} textAnchor="middle" fontSize={7} fill={T.textMid}>{b.label}</text>
+            <g key={i}>
+              {/* bar body with rounded top corners */}
+              <path
+                d={`M${bx},${H-PAD_B} L${bx},${by+4} Q${bx},${by} ${bx+4},${by} L${bx+barW-4},${by} Q${bx+barW},${by} ${bx+barW},${by+4} L${bx+barW},${H-PAD_B} Z`}
+                fill={`url(#bar${i})`} stroke={topC} strokeWidth={1}/>
+              {/* value label above bar */}
+              <text x={bx + barW/2} y={by - 4} textAnchor="middle"
+                fontSize={8.5} fontWeight="800" fill={topC}>{b.value}</text>
+              {/* x-axis label — wrap if two words */}
+              {words.length === 1
+                ? <text x={bx + barW/2} y={H-PAD_B+12} textAnchor="middle" fontSize={7.5} fill={T.text} fontWeight="600">{label}</text>
+                : words.map((w, wi) => (
+                    <text key={wi} x={bx + barW/2} y={H-PAD_B+11+(wi*9)} textAnchor="middle" fontSize={7} fill={T.text} fontWeight="600">{w}</text>
+                  ))
+              }
             </g>
           );
         })}
-        <text x={7} y={H/2} textAnchor="middle" fontSize={7} fill={T.textMid}
-          transform={`rotate(-90, 7, ${H/2})`}>{yLabel}</text>
+
+        {/* y-axis label */}
+        <text x={8} y={PAD_T + chartH/2} textAnchor="middle" fontSize={7.5} fill={T.textMid}
+          transform={`rotate(-90, 8, ${PAD_T + chartH/2})`}>{yLabel}</text>
       </svg>
     </Panel>
   );
@@ -4498,32 +5651,101 @@ function parseVisualExtended(topic, questionStr, subject, yearLevel, question) {
   // ── NUMBER LINE ────────────────────────────────────────────────────────────
   if (t.includes("number_line") || t.includes("rounding") || t.includes("round") ||
       /round.*nearest|nearest.*\d+|number line/i.test(questionStr)) {
-    // "number line from X to Y" or "number line 1 to 10"
-    const rangeMatch = (questionStr || "").match(/number line.*?(\d+)\s*to\s*(\d+)/i)
-                    || (questionStr || "").match(/from\s+(\d+)\s+to\s+(\d+)/i);
+
+    // Helper: detect the "missing" query value from question text
+    // Returns the missing number if a gap can be inferred, otherwise null
+    const detectMissingNL = (str, knownNums) => {
+      // Explicit ? or blank in question text near a number pattern like "__, 6, 9"
+      if (/\?\s*,|\?$|___|\[.*\?.*\]|blank/i.test(str)) {
+        // Try to find an arithmetic gap in knownNums sorted order
+        if (knownNums.length >= 2) {
+          const sorted = [...knownNums].sort((a, b) => a - b);
+          // Detect uniform step from first two known values
+          const diffs = sorted.slice(1).map((v, i) => v - sorted[i]);
+          const step = diffs[0];
+          if (step > 0 && diffs.every(d => d === step)) {
+            // All gaps uniform — infer missing = sorted[last] + step (after the sequence)
+            return sorted[sorted.length - 1] + step;
+          }
+          // Find the biggest gap — the missing value is in the middle of that gap
+          let maxGapIdx = 0, maxGap = 0;
+          for (let i = 0; i < sorted.length - 1; i++) {
+            if (sorted[i + 1] - sorted[i] > maxGap) {
+              maxGap = sorted[i + 1] - sorted[i];
+              maxGapIdx = i;
+            }
+          }
+          if (maxGap > 1) {
+            return (sorted[maxGapIdx] + sorted[maxGapIdx + 1]) / 2;
+          }
+        }
+      }
+      return null;
+    };
+
+    // "number line from X to Y" — explicit range in question text
+    const rangeMatch = (questionStr || "").match(/number line.*?(-?\d+)\s*to\s*(-?\d+)/i)
+                    || (questionStr || "").match(/from\s+(-?\d+)\s+to\s+(-?\d+)/i);
     if (rangeMatch) {
       const lo = parseInt(rangeMatch[1]), hi = parseInt(rangeMatch[2]);
-      const marked = nums.filter(n => n >= lo && n <= hi);
-      return { type: "number_line", min: lo, max: hi, marked: marked.length ? marked : [lo, hi],
-        label: `${lo} to ${hi}` };
+      const inRange = nums.filter(n => n >= lo && n <= hi);
+      const missing = detectMissingNL(questionStr || "", inRange);
+      const known = inRange.filter(n => n !== missing);
+      return {
+        type: "number_line",
+        min: lo, max: hi,
+        known: known.length ? known : undefined,
+        missing: missing ?? undefined,
+        label: `${lo} to ${hi}`,
+      };
     }
-    const pos = nums.filter(n => n >= 0);
-    if (pos.length >= 2 && !(/round|nearest/i.test(questionStr))) {
-      // Two numbers mentioned — use them as range bounds
-      const lo = Math.min(...pos), hi = Math.max(...pos);
-      if (hi - lo <= 100 && hi - lo >= 2) {
-        return { type: "number_line", min: lo, max: hi, marked: pos,
-          label: `${lo} to ${hi}` };
+
+    // Rounding — show value on number line between its two rounding bounds
+    if (/round|nearest/i.test(questionStr)) {
+      if (nums.length >= 1) {
+        const val  = nums[0];
+        const step = Math.abs(val) >= 1000 ? 1000 : Math.abs(val) >= 100 ? 100 :
+                     Math.abs(val) >= 50   ? 10   : Math.abs(val) >= 10  ? 10  : 1;
+        const mn   = Math.floor(val / step) * step;
+        const mx   = mn + step;
+        return {
+          type: "number_line",
+          min: mn - step, max: mx + step,
+          known: [mn, mx],   // the two nearest round numbers
+          missing: val,       // triangle indicator at the value being rounded
+          label: `nearest ${step}`,
+        };
       }
     }
-    if (pos.length >= 1) {
-      const val  = pos[0];
-      // round to nearest 10 or 100
-      const step = val >= 100 ? 100 : val >= 50 ? 10 : val >= 10 ? 10 : 1;
-      const mn   = Math.floor(val/step)*step - step;
-      const mx   = Math.ceil(val/step)*step  + step;
-      return { type: "number_line", min: mn, max: mx, marked: val,
-        label: `nearest ${step}` };
+
+    // Two or more numbers mentioned — use span as range, detect missing
+    if (nums.length >= 2) {
+      const lo = Math.min(...nums), hi = Math.max(...nums);
+      if (hi - lo <= 200 && hi - lo >= 2) {
+        const missing = detectMissingNL(questionStr || "", nums);
+        const known = nums.filter(n => n !== missing);
+        return {
+          type: "number_line",
+          min: lo, max: hi,
+          known: known.length ? known : undefined,
+          missing: missing ?? undefined,
+          label: `${lo} to ${hi}`,
+        };
+      }
+    }
+
+    // Single number — show its context neighbourhood
+    if (nums.length >= 1) {
+      const val  = nums[0];
+      const step = Math.abs(val) >= 100 ? 100 : Math.abs(val) >= 10 ? 10 : 1;
+      const mn   = Math.floor(val / step) * step - step;
+      const mx   = Math.ceil(val / step) * step  + step;
+      return {
+        type: "number_line",
+        min: mn, max: mx,
+        missing: val,
+        label: `Find the position`,
+      };
     }
   }
 
