@@ -289,14 +289,18 @@ export default function QuestionVisualEnhancer({
 
   // Fetch concept card whenever topic changes
   useEffect(() => {
+    // Track the last topic to avoid unnecessary re-fetches
+    const previousTopic = lastTopicRef.current
+    lastTopicRef.current = topicSlug
+
     if (!topicSlug) {
       setConceptCard(null)
       setFetchState('done')
       return
     }
+
     // Same topic as last render — no re-fetch
-    if (lastTopicRef.current === topicSlug) return
-    lastTopicRef.current = topicSlug
+    if (previousTopic === topicSlug) return
 
     setFetchState('loading')
     setConceptCard(null)

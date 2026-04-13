@@ -66,6 +66,7 @@ const CSRF_EXEMPT  = [
   '/api/batch-generate',
   '/api/validate-questions',
   '/api/scholar',         // scholar login by access code (no session yet)
+  '/api/tts',             // text-to-speech — called by useReadAloud without CSRF token
 ];
 
 function needsCsrf(pathname: string, method: string): boolean {
