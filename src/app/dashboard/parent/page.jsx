@@ -1734,7 +1734,11 @@ export default function ParentDashboard() {
                     />
                     <select value={newCurriculum} onChange={e => handleCurriculumChange(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">
-                      {Object.entries(CURRICULA).map(([key, c]) => <option key={key} value={key}>{c.country} {c.name}</option>)}
+                      {/* NG parents only see Nigerian curricula — prevents currency arbitrage
+                          and avoids confusing Nigerian families with UK/US/Canadian options. */}
+                      {Object.entries(CURRICULA)
+                        .filter(([key]) => parent?.region !== 'NG' || ['ng_primary','ng_jss','ng_sss'].includes(key))
+                        .map(([key, c]) => <option key={key} value={key}>{c.country} {c.name}</option>)}
                     </select>
                     <select value={newGrade} onChange={e => handleGradeChange(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 dark:border-white/10 rounded-lg font-bold text-sm outline-none focus:border-amber-400 cursor-pointer transition-colors">

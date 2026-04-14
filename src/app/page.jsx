@@ -108,7 +108,7 @@ const STARS = Array.from({ length: 80 }, (_, i) => ({
   size: pseudoRandom(i, 5) > 0.85 ? 2 : 1,
 }));
 
-const FEATURES = [
+const FEATURES_GB = [
   { icon: '📈', title: 'Questions That Get Harder as They Get Smarter', desc: "Start easy, stay engaged. As your child masters each concept, the AI automatically raises the bar. No boredom. No frustration.", light: 'bg-slate-800/40 border-indigo-500/30' },
   { icon: '🎯', title: 'A Tutor Who Knows When to Push and When to Pause', desc: "Tara learns your child's pace. When they need encouragement, a hint, or another try, it adjusts. One AI tutor per child, not one lesson for everyone.", light: 'bg-slate-800/40 border-indigo-500/30' },
   { icon: '📊', title: 'Finally See What They Actually Know', desc: "No guessing. Mastery by topic. Time spent. Weak areas flagged. Weekly reports to your inbox so you're never in the dark.", light: 'bg-slate-800/40 border-indigo-500/30' },
@@ -117,7 +117,18 @@ const FEATURES = [
   { icon: '🌍', title: 'Your Country. Your Curriculum. Fully Covered.', desc: "12 curricula built from scratch for the UK, Nigeria, Canada, Australia, IB, and US. Not a one-size-fits-all US platform pretending to fit.", light: 'bg-slate-800/40 border-indigo-500/30' },
 ];
 
-const AGE_BANDS = [
+// Nigerian-specific features — WAEC/NECO/JAMB as primary, no 11+/GCSE mentions.
+const FEATURES_NG = [
+  { icon: '📈', title: 'Questions That Get Harder as They Get Smarter', desc: "Start easy, stay engaged. As your child masters each concept, Tara automatically raises the bar — foundation topics to WAEC-level in one flow.", light: 'bg-slate-800/40 border-emerald-500/30' },
+  { icon: '🎯', title: 'An AI Tutor Built for Nigerian Scholars', desc: "Tara knows when to push and when to pause. Aligned to NERDC, WAEC, and NECO syllabuses — not a generic tutor retrofitted for Nigeria.", light: 'bg-slate-800/40 border-emerald-500/30' },
+  { icon: '📊', title: 'Know Exactly Where They Stand for WAEC', desc: "Mastery maps by subject and topic. WAEC grade predictions. Weekly guardian reports — so exam day has no surprises.", light: 'bg-slate-800/40 border-emerald-500/30' },
+  { icon: '🏆', title: 'WAEC · NECO · BECE · JAMB · Common Entrance', desc: "Full mock papers under timed exam conditions. A1 to F9 grade tracking. Predicted grades before the real sitting.", light: 'bg-slate-800/40 border-emerald-500/30' },
+  { icon: '💪', title: "They'll Ask to Study", desc: "Stardust rewards, digital pets, boss battles, and leaderboards. Gamification designed around Nigerian classrooms — not American ones.", light: 'bg-slate-800/40 border-emerald-500/30' },
+  { icon: '🇳🇬', title: 'Built for Nigeria. Not Retrofitted.', desc: "Nigerian names, naira examples, Lagos traffic, cassava farms, Aso Rock — concept cards and questions grounded in real Nigerian life.", light: 'bg-slate-800/40 border-emerald-500/30' },
+];
+
+// UK age bands — KS1/KS2/KS3/KS4 terminology
+const AGE_BANDS_GB = [
   { band: 'KS1', ages: '5–7', title: 'Magical Adventure', icon: '🦄', color: 'from-amber-400 to-orange-500', bgLight: 'bg-slate-800/40', border: 'border-indigo-500/30',
     features: ['Treasure map skill explorer', 'Story-mode daily adventures', 'Digital pet that evolves with learning', 'Friendly caterpillar timer (no stress)', 'Stars instead of scores'],
     taraVoice: '"Wow, you got it right! The unicorn is so happy! 🦄"' },
@@ -132,6 +143,19 @@ const AGE_BANDS = [
     taraVoice: '"Correct. Mark scheme note: show working for full marks."' },
 ];
 
+// Nigerian age bands — Primary / JSS / SSS terminology, WAEC focus
+const AGE_BANDS_NG = [
+  { band: 'Primary', ages: '5–11', title: 'Star Explorer', icon: '⭐', color: 'from-amber-400 to-orange-500', bgLight: 'bg-slate-800/40', border: 'border-emerald-500/30',
+    features: ['Treasure map across all Primary subjects', 'Story-mode missions aligned to NERDC', 'Digital pet that grows with learning', 'Common Entrance early prep built in', 'Stars and Stardust instead of raw scores'],
+    taraVoice: '"Oya, you got it! Tara is very proud of you today! ⭐"' },
+  { band: 'JSS', ages: '12–14', title: 'BECE Command', icon: '🚀', color: 'from-emerald-500 to-teal-600', bgLight: 'bg-slate-800/40', border: 'border-emerald-500/30',
+    features: ['Subject mastery maps for all JSS topics', 'BECE mock papers with grade predictions', 'Tara explains every wrong answer in Yoruba, Igbo, or Hausa context', 'Weekly progress reports for parents', 'Leaderboard by subject and class'],
+    taraVoice: '"Sharp! That is exactly the BECE method. Keep going, Commander! 🚀"' },
+  { band: 'SSS', ages: '15–17', title: 'WAEC Studio', icon: '🎯', color: 'from-violet-500 to-purple-700', bgLight: 'bg-slate-800/40', border: 'border-violet-500/30',
+    features: ['WAEC SSCE + NECO full mock papers', 'A1–F9 grade tracking and prediction', 'AI flashcards generated from weak topics', 'WAEC countdown with SSS1/2/3 urgency', 'Unlimited practice by subject'],
+    taraVoice: '"Correct. Mark scheme note: show working in full for WAEC marks."' },
+];
+
 const CURRICULA_GB = [
   { flag: '🇬🇧', name: 'UK National', desc: 'KS1–KS4 · Y1–Y13', tag: '11+ & GCSE Prep', tagColor: 'bg-indigo-900/40 text-indigo-300', featured: true },
   { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS · SSS', tag: 'WAEC/NECO Prep', tagColor: 'bg-emerald-900/40 text-emerald-300' },
@@ -141,17 +165,19 @@ const CURRICULA_GB = [
   { flag: '🇺🇸', name: 'US Common Core', desc: 'Grade 1–8', tag: null },
 ];
 
+// Nigerian exam boards — shown as cards instead of foreign curricula flags.
+// Every card is Nigerian-relevant. No UK/IB/US cards on the NG landing page.
 const CURRICULA_NG = [
-  { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS1–3 · SSS1–3', tag: 'WAEC · NECO · BECE', tagColor: 'bg-emerald-900/40 text-emerald-300', featured: true },
-  { flag: '🇳🇬', name: 'Common Entrance', desc: 'Federal Unity Colleges prep', tag: 'JSS1 Entry', tagColor: 'bg-emerald-900/40 text-emerald-300' },
-  { flag: '🇬🇧', name: 'UK National (IGCSE)', desc: 'For Nigerian schools offering Cambridge', tag: null },
-  { flag: '🇬🇧', name: 'UK 11+', desc: 'For families considering UK grammar schools', tag: null },
-  { flag: '🌐', name: 'IB PYP / MYP', desc: 'International Baccalaureate', tag: null },
-  { flag: '🇺🇸', name: 'US Common Core', desc: 'For families with US-bound scholars', tag: null },
+  { icon: '📝', name: 'WAEC SSCE', desc: 'West African Senior School Certificate — the gateway exam for Nigerian universities', tag: 'May/June & Nov/Dec sittings', tagColor: 'bg-emerald-900/40 text-emerald-300', featured: true },
+  { icon: '📋', name: 'NECO', desc: 'National Examinations Council — SSS3 alternative and supplement to WAEC', tag: 'June/July & Nov sittings', tagColor: 'bg-emerald-900/40 text-emerald-300' },
+  { icon: '🎓', name: 'JAMB UTME', desc: 'Joint Admissions and Matriculation Board — required for university entry across Nigeria', tag: 'University Entrance', tagColor: 'bg-blue-900/40 text-blue-300' },
+  { icon: '📖', name: 'BECE', desc: 'Basic Education Certificate Examination — JSS3 exit exam covering all Junior Secondary subjects', tag: 'JSS3 Exit', tagColor: 'bg-amber-900/40 text-amber-300' },
+  { icon: '🏫', name: 'Common Entrance', desc: 'Federal Unity Colleges admission exam — start preparing as early as Primary 4', tag: 'JSS1 Entry', tagColor: 'bg-purple-900/40 text-purple-300' },
+  { icon: '🌍', name: 'State Scholarship', desc: 'State-level scholarship examinations — SUBEB assessments and state-specific exams', tag: 'All States', tagColor: 'bg-slate-700/40 text-slate-300' },
 ];
 
 const FAQS_BASE = [
-  { q: "What curricula does LaunchPard support?", a: "12 curricula: UK National (KS1–KS4), UK 11+, Nigerian Primary, JSS and SSS (with Science/Humanities/Business streams), Canadian Primary and Secondary, US Common Core, IB PYP and MYP, and Australian ACARA." },
+  { q: "What curricula does LaunchPard support?", a: "Multiple curricula including UK National (KS1–KS4), UK 11+, Nigerian Primary, JSS and SSS (WAEC/NECO aligned), Canadian, US Common Core, IB, and Australian ACARA." },
   { q: "What ages is it suitable for?", a: "Scholars aged 5–17. The platform adapts visuals, language, difficulty, and even the AI tutor's personality based on your child's age." },
   { q: "How does the age-adaptive system work?", a: "A 6-year-old sees a magical treasure map with friendly characters. An 11-year-old explores a space galaxy. A 14-year-old gets a clean, data-rich dashboard with career links. A 16-year-old gets an exam-focused command centre with predicted grades. Same engine, different experience." },
   { q: "Is there a free version?", a: "Yes. The free plan gives your scholar 10 questions per day across all subjects. No card needed. Free plan stays free." },
@@ -168,11 +194,16 @@ const FAQS_GB = [
 ];
 
 const FAQS_NG = [
-  ...FAQS_BASE.slice(0, 4),
-  { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE prep, Common Entrance papers for JSS1 entry, and tutor-fallback sessions. Scholar tier (₦2,500/mo) already covers the full JSS–SSS curriculum with AI feedback." },
+  { q: "What exams does LaunchPard cover?", a: "LaunchPard is built around WAEC SSCE, NECO, BECE, JAMB UTME, and Common Entrance. The Scholar plan includes 20 past papers per subject with grade predictions. Every question is aligned to the NERDC curriculum and official exam syllabuses." },
+  { q: "What ages is it suitable for?", a: "Scholars aged 5–17 — Primary 1 through SSS3. The platform adapts to Nigerian grade levels automatically: Primary scholars get story-mode adventures, JSS scholars get BECE prep, SSS scholars get full WAEC studio mode." },
+  { q: "How does it know what my child is studying?", a: "You choose their level (Primary, JSS, or SSS) at setup. Tara then maps every question to the NERDC syllabus and focuses on topics flagged as weak — exactly what WAEC and NECO examiners test." },
+  { q: "Is there a free version?", a: "Yes. The free plan gives your scholar 10 questions per day across all subjects. No card needed. Free plan stays free forever." },
+  { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. The Scholar plan includes 20 full past papers per subject with WAEC-style marking. Add the WAEC Intensive Boost (₦1,000/mo) for live Q&A sessions 2× per week, unlimited Tara AI feedback, and mock exams with A1–F9 grade predictions." },
   { q: "How do I pay?", a: "You can pay with any Nigerian bank card, bank transfer, or USSD. All Scholar payments are in naira (₦). No international card required." },
-  { q: "Will this work on mobile data?", a: "Yes. LaunchPard is built mobile-first and works on 3G and 4G. We use aggressive caching so a full day's learning typically uses under 15 MB of data. An offline mode is on the way." },
-  ...FAQS_BASE.slice(4),
+  { q: "Will this work on mobile data?", a: "Yes. LaunchPard is built mobile-first and works on 3G and 4G. Aggressive caching means a full day's learning uses under 15 MB of data. An offline mode is coming." },
+  { q: "Can I add more than one child?", a: "Yes. The Scholar plan covers 1 scholar. Add siblings for ₦1,000/month each — every child gets their own progress tracking, age-adapted experience, and exam countdown." },
+  { q: "Is my child's data safe?", a: "We are NDPR compliant (Nigeria Data Protection Regulation). No ads, no data selling, no third-party tracking. Your scholar's data is used only to personalise their learning." },
+  { q: "Can I cancel anytime?", a: "Yes. No contracts, no cancellation fees. Cancel at any time from your dashboard." },
 ];
 
 function FaqItem({ q, a }) {
@@ -200,7 +231,9 @@ export default function LandingPage() {
   const cfg = REGION_CONFIG[region] || REGION_CONFIG.GB;
   const isNG = region === 'NG';
   const CURRICULA = isNG ? CURRICULA_NG : CURRICULA_GB;
-  const FAQS = isNG ? FAQS_NG : FAQS_GB;
+  const FAQS     = isNG ? FAQS_NG : FAQS_GB;
+  const FEATURES  = isNG ? FEATURES_NG : FEATURES_GB;
+  const AGE_BANDS = isNG ? AGE_BANDS_NG : AGE_BANDS_GB;
   const signupHref = `/signup?region=${region}&curriculum=${cfg.defaultCurriculum}`;
 
   useEffect(() => {
@@ -210,12 +243,12 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setActiveFeature(f => (f + 1) % FEATURES.length), 3500);
+    const t = setInterval(() => setActiveFeature(f => (f + 1) % FEATURES_GB.length), 3500);
     return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setActiveBand(b => (b + 1) % AGE_BANDS.length), 5000);
+    const t = setInterval(() => setActiveBand(b => (b + 1) % AGE_BANDS_GB.length), 5000);
     return () => clearInterval(t);
   }, []);
 
@@ -424,28 +457,28 @@ export default function LandingPage() {
       <section className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 bg-slate-100 dark:bg-slate-800/20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">{isNG ? 'Built Around the Nigerian Curriculum' : 'One Platform. Twelve Curricula.'}</h2>
-            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">{isNG ? 'NERDC-aligned. WAEC, NECO, BECE, and Common Entrance ready.' : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}</p>
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">
+              {isNG ? 'Every Nigerian Exam. One Platform.' : 'One Platform. Twelve Curricula.'}
+            </h2>
+            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">
+              {isNG
+                ? 'WAEC · NECO · JAMB UTME · BECE · Common Entrance — built on the NERDC syllabus from the ground up.'
+                : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}
+            </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {CURRICULA.map((c, i) => {
-              // Non-Nigerian curricula shown on the NG landing page → international billing
-              const isIntlBilling = isNG && !c.featured && i > 1;
-              return (
-                <div key={i} className={`group backdrop-blur-xl rounded-2xl p-6 transition-all hover:shadow-lg shadow-slate-900/30 ${c.featured ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500/60 dark:border-emerald-400/50' : 'bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40'}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="text-4xl">{c.flag}</div>
-                    <div className="flex flex-col items-end gap-1">
-                      {c.featured && <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded-full">Your curriculum</span>}
-                      {isIntlBilling && <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/10">Billed in GBP</span>}
-                    </div>
-                  </div>
-                  <h3 className={`text-lg font-black mb-1 text-slate-900 dark:text-slate-50 transition-colors ${c.featured ? '' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>{c.name}</h3>
-                  <p className="text-slate-700 dark:text-slate-400 text-sm mb-3">{c.desc}</p>
-                  {c.tag && <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${c.tagColor}`}>{c.tag}</span>}
+            {CURRICULA.map((c, i) => (
+              <div key={i} className={`group backdrop-blur-xl rounded-2xl p-6 transition-all hover:shadow-lg shadow-slate-900/30 ${c.featured ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500/60 dark:border-emerald-400/50' : 'bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40'}`}>
+                <div className="flex items-start justify-between mb-3">
+                  {/* NG variant uses emoji icons; GB variant uses flag emojis */}
+                  <div className="text-4xl">{c.icon || c.flag}</div>
+                  {c.featured && <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded-full">{isNG ? 'NERDC aligned' : 'Your curriculum'}</span>}
                 </div>
-              );
-            })}
+                <h3 className={`text-lg font-black mb-1 text-slate-900 dark:text-slate-50 transition-colors ${c.featured ? '' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>{c.name}</h3>
+                <p className="text-slate-700 dark:text-slate-400 text-sm mb-3">{c.desc}</p>
+                {c.tag && <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${c.tagColor}`}>{c.tag}</span>}
+              </div>
+            ))}
           </div>
         </div>
       </section>

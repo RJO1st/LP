@@ -277,27 +277,37 @@ function SignupForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Region selector */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Your Region</label>
-            <div className="grid grid-cols-4 gap-2">
-              {REGIONS.map((r) => (
-                <button
-                  key={r.code}
-                  type="button"
-                  onClick={() => setRegion(r.code)}
-                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
-                    region === r.code
-                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-white"
-                      : "border-slate-300 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/20"
-                  }`}
-                >
-                  <span className="text-xl">{r.flag}</span>
-                  <span className="text-[10px] font-bold leading-tight text-center">{r.label}</span>
-                </button>
-              ))}
+          {/* Region selector — hidden for NG parents; locked to Nigeria */}
+          {region === 'ng' ? (
+            <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-500/40 rounded-xl px-4 py-3">
+              <span className="text-2xl">🇳🇬</span>
+              <div>
+                <p className="text-sm font-black text-emerald-800 dark:text-emerald-300">Nigeria</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">Your account is set up for the Nigerian market — billed in naira (₦)</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Your Region</label>
+              <div className="grid grid-cols-4 gap-2">
+                {REGIONS.map((r) => (
+                  <button
+                    key={r.code}
+                    type="button"
+                    onClick={() => setRegion(r.code)}
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
+                      region === r.code
+                        ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-white"
+                        : "border-slate-300 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/20"
+                    }`}
+                  >
+                    <span className="text-xl">{r.flag}</span>
+                    <span className="text-[10px] font-bold leading-tight text-center">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
