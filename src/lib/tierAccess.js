@@ -1,34 +1,70 @@
 /**
  * LaunchPard Tier Access Control — src/lib/tierAccess.js
  *
- * Single source of truth for every tier × region × feature combination.
- * Used by:
- *   - UI components to conditionally render upgrade prompts
- *   - API route handlers to return 402 on quota/feature gate failures
- *   - Proxy.ts to redirect tier-locked routes
+ * ─── Nigerian model (April 2026 simplification) ───────────────────────────────
+ * ONE core paid plan — ng_scholar (₦2,500/mo or ₦25,000/yr) — plus optional
+ * add-ons stored in parent.ng_addons TEXT[]:
  *
- * Adding a new tier: add the key to TIER_DEFS below AND to the CHECK
- * constraint in supabase/migrations/20260414_tier_gating.sql.
+ *   'family_child'      ₦1,000/mo per additional scholar
+ *   'waec_boost'        ₦1,000/mo — live Q&A 2×/week, unlimited AI, mock exams
+ *   'ai_unlimited'      ₦500/mo  — removes 50-feedback/mo cap
+ *   'tutor_connect'     pay-per-session; flag signals entitlement, not billing
+ *
+ * ─── Currency-by-curriculum rule ─────────────────────────────────────────────
+ * Billing currency is determined by the SCHOLAR's curriculum, not the parent's
+ * geo-IP. A parent who geo-detects as NG but enrols their child in uk_11plus,
+ * ib_pyp, or us_common_core is billed in GBP — not NGN.
+ * Non-Nigerian curricula set parent.region='GB' at subscription creation.
+ * This prevents VPN-based arbitrage even if geo-detection is fooled.
+ *
+ * ─── Curricula that trigger NGN billing ──────────────────────────────────────
+ *   ng_primary, ng_jss, ng_sss
+ *
+ * ─── All others (including 'Common Entrance' which is ng_jss feeder) ─────────
+ *   uk_national, uk_11plus, ca_primary, ca_secondary, us_common_core,
+ *   ib_pyp, ib_myp, australian_acara → GB region → GBP billing
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature flags — numeric = daily/monthly quota, boolean = binary access.
-// Matches the feature matrix in NIGERIAN_PRICING_ANALYSIS.md §4.2.
-// ─────────────────────────────────────────────────────────────────────────────
 const INF = Infinity;
 
+// ─── Nigerian add-ons ────────────────────────────────────────────────────────
+// Each add-on key matches entries in parent.ng_addons TEXT[].
+// Feature resolution: getTierDef() returns the base tier definition; then
+// getEffectiveDef() overlays any active add-ons.
+const NG_ADDON_DEFS = {
+  // +₦1,000/mo per extra child — purchased once per additional scholar
+  family_child: {
+    scholars_max_increment: 1,   // each purchased adds +1 to scholars_max
+  },
+  // +₦1,000/mo — WAEC exam cram pack
+  waec_boost: {
+    live_qa: true,
+    feedback_monthly: INF,       // overrides base 50/mo cap
+    dashboard_analytics: 'full_paper_level',
+    support: 'whatsapp',
+  },
+  // +₦500/mo — removes feedback cap without the full WAEC pack
+  ai_unlimited: {
+    feedback_monthly: INF,
+  },
+  // pay-per-session (₦2,000/session) — flag marks entitlement
+  tutor_connect: {
+    tutor_sessions: true,
+  },
+};
+
+// ─── Core tier definitions ───────────────────────────────────────────────────
 export const TIER_DEFS = {
   // ═══════ GB / CA / US / AU / IE / IB / OTHER ═══════
-  // All non-Nigerian regions use UK-style tiering for now. Future work:
-  // add CA-specific, US-specific tiers as those markets localise.
   GB: {
     free: {
       scholars_max: 1,
       daily_questions: 10,
-      feedback_monthly: 0,       // 0 = basic-only (no Tara full feedback)
+      feedback_monthly: 0,
       boss_battles: false,
       simulations_3d: false,
-      exam_papers: 0,            // number of papers accessible
+      exam_papers: 0,
       live_qa: false,
       offline_mode: false,
       dashboard_analytics: 'none',
@@ -40,7 +76,7 @@ export const TIER_DEFS = {
       feedback_monthly: INF,
       boss_battles: true,
       simulations_3d: true,
-      exam_papers: 0,            // Exam Mode is separate add-on (uk_pro_exam)
+      exam_papers: 0,
       live_qa: false,
       offline_mode: true,
       dashboard_analytics: 'full',
@@ -60,8 +96,9 @@ export const TIER_DEFS = {
     },
   },
 
-  // ═══════ NG — analysis-backed tiers ═══════
-  // See NIGERIAN_PRICING_ANALYSIS.md for prices and rationale.
+  // ═══════ NG — single core plan + add-ons ═══════
+  // Simplified April 2026: Free → Scholar (₦2,500/mo) + optional add-ons.
+  // Replaces the previous 6-tier structure (ng_explorer, ng_waec, ng_family_*).
   NG: {
     free: {
       scholars_max: 1,
@@ -74,125 +111,139 @@ export const TIER_DEFS = {
       offline_mode: false,
       dashboard_analytics: 'none',
       support: 'community',
+      tutor_sessions: false,
     },
-    ng_explorer: {                // ₦1,200/mo
-      scholars_max: 1,
+    ng_scholar: {                 // ₦2,500/mo — the only paid NG tier
+      scholars_max: 1,           // base: 1 scholar; add family_child add-on per extra
       daily_questions: INF,
-      feedback_monthly: 10,
-      boss_battles: false,
-      simulations_3d: false,
-      exam_papers: 0,
-      live_qa: false,
-      offline_mode: true,
-      dashboard_analytics: '30day',
-      support: 'email',
-    },
-    ng_scholar: {                 // ₦2,500/mo (most popular)
-      scholars_max: 1,
-      daily_questions: INF,
-      feedback_monthly: 50,
+      feedback_monthly: 50,      // waec_boost or ai_unlimited add-on raises this to INF
       boss_battles: true,
       simulations_3d: true,
       exam_papers: 20,
-      live_qa: false,
+      live_qa: false,            // waec_boost add-on unlocks this
       offline_mode: true,
       dashboard_analytics: 'full',
       support: 'email',
+      tutor_sessions: false,     // tutor_connect add-on unlocks this
     },
-    ng_waec: {                    // ₦4,000/mo (3-month min)
-      scholars_max: 1,
-      daily_questions: INF,
-      feedback_monthly: INF,
-      boss_battles: true,
-      simulations_3d: true,
-      exam_papers: 20,
-      live_qa: true,
-      offline_mode: true,
-      dashboard_analytics: 'full_paper_level',
-      support: 'whatsapp',
-    },
-    ng_family_2: {                // ₦3,500/mo (2 scholars)
-      scholars_max: 2,
-      daily_questions: INF,
-      feedback_monthly: 50,
-      boss_battles: true,
-      simulations_3d: true,
-      exam_papers: 20,
-      live_qa: false,
-      offline_mode: true,
-      dashboard_analytics: 'full',
-      support: 'email',
-    },
-    ng_family_3: {                // ₦4,800/mo (3 scholars)
-      scholars_max: 3,
-      daily_questions: INF,
-      feedback_monthly: 50,
-      boss_battles: true,
-      simulations_3d: true,
-      exam_papers: 20,
-      live_qa: false,
-      offline_mode: true,
-      dashboard_analytics: 'full',
-      support: 'email',
-    },
-    ng_family_4plus: {            // ₦6,000/mo (4+ scholars)
-      scholars_max: 6,
-      daily_questions: INF,
-      feedback_monthly: 50,
-      boss_battles: true,
-      simulations_3d: true,
-      exam_papers: 20,
-      live_qa: false,
-      offline_mode: true,
-      dashboard_analytics: 'full',
-      support: 'email',
-    },
+    // Legacy aliases — map old tier names to ng_scholar so existing
+    // parent records with the old values don't break after migration.
+    // These are READ-ONLY fallbacks; no new parents should be assigned them.
+    ng_explorer:    null,  // → resolved to ng_scholar in getTierDef
+    ng_waec:        null,  // → resolved to ng_scholar + waec_boost in getTierDef
+    ng_family_2:    null,  // → resolved to ng_scholar + family_child (×1)
+    ng_family_3:    null,  // → resolved to ng_scholar + family_child (×2)
+    ng_family_4plus: null, // → resolved to ng_scholar + family_child (×5)
   },
 };
 
+// Maps legacy tier names to their equivalent in the new model
+const LEGACY_TIER_MAP = {
+  ng_explorer:     { tier: 'ng_scholar', addons: [] },
+  ng_waec:         { tier: 'ng_scholar', addons: ['waec_boost'] },
+  ng_family_2:     { tier: 'ng_scholar', addons: ['family_child'] },
+  ng_family_3:     { tier: 'ng_scholar', addons: ['family_child', 'family_child'] },
+  ng_family_4plus: { tier: 'ng_scholar', addons: ['family_child', 'family_child', 'family_child', 'family_child', 'family_child'] },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Region resolution — regions that don't have their own tier set fall back to GB.
+// Nigerian curricula — determines NGN billing; everything else → GBP
+// ─────────────────────────────────────────────────────────────────────────────
+export const NG_CURRICULA = new Set(['ng_primary', 'ng_jss', 'ng_sss']);
+
+/**
+ * Given a curriculum string, return whether it should be billed in NGN.
+ * Used at signup to set parent.region and parent.currency.
+ */
+export function curriculumIsNigerian(curriculum) {
+  return NG_CURRICULA.has((curriculum || '').toLowerCase());
+}
+
+/**
+ * Determine the billing region from a curriculum.
+ * Non-Nigerian curricula always return 'GB' (GBP billing), even if the
+ * parent geo-detected as NG. This closes the VPN arbitrage gap.
+ */
+export function regionFromCurriculum(curriculum) {
+  return curriculumIsNigerian(curriculum) ? 'NG' : 'GB';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Region resolution
 // ─────────────────────────────────────────────────────────────────────────────
 const REGION_ALIASES = {
-  GB: 'GB',
-  NG: 'NG',
-  CA: 'GB',   // Canada uses UK tiers for now
-  US: 'GB',
-  AU: 'GB',
-  IE: 'GB',
-  IB: 'GB',
-  OTHER: 'GB',
+  GB: 'GB', NG: 'NG',
+  CA: 'GB', US: 'GB', AU: 'GB', IE: 'GB', IB: 'GB', OTHER: 'GB',
 };
 
 function resolveRegion(region) {
   if (!region) return 'GB';
-  const upper = String(region).toUpperCase();
-  return REGION_ALIASES[upper] || 'GB';
+  return REGION_ALIASES[String(region).toUpperCase()] || 'GB';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public API
+// Core: resolve a parent's effective feature set
+// Handles legacy tier names and applies add-ons on top of the base tier.
 // ─────────────────────────────────────────────────────────────────────────────
+function resolveBaseTierAndAddons(parent) {
+  const region = resolveRegion(parent?.region);
+  let tier     = parent?.subscription_tier || 'free';
+  let addons   = Array.isArray(parent?.ng_addons) ? [...parent.ng_addons] : [];
+
+  // Translate legacy NG tier names to ng_scholar + equivalent add-ons
+  if (region === 'NG' && LEGACY_TIER_MAP[tier]) {
+    const mapped = LEGACY_TIER_MAP[tier];
+    tier   = mapped.tier;
+    addons = [...addons, ...mapped.addons];
+  }
+
+  const regionTiers = TIER_DEFS[region] || TIER_DEFS.GB;
+  // If tier still maps to null (shouldn't happen post-migration), fall back to free
+  const base = (regionTiers[tier] && regionTiers[tier] !== null)
+    ? regionTiers[tier]
+    : regionTiers.free || TIER_DEFS.GB.free;
+
+  return { base, addons, region };
+}
 
 /**
- * Get the full feature definition object for a parent's current tier.
- * Returns TIER_DEFS.GB.free as a defensive fallback for unknown combinations.
+ * Get the full effective feature definition for a parent, with all active
+ * add-ons overlaid on the base tier.
  */
 export function getTierDef(parent) {
-  const region = resolveRegion(parent?.region);
-  const tier   = parent?.subscription_tier || 'free';
-  const regionTiers = TIER_DEFS[region] || TIER_DEFS.GB;
-  return regionTiers[tier] || regionTiers.free || TIER_DEFS.GB.free;
+  const { base, addons } = resolveBaseTierAndAddons(parent);
+  if (!addons.length) return base;
+
+  // Start from base, then layer add-on overrides
+  const merged = { ...base };
+
+  for (const addonKey of addons) {
+    const addon = NG_ADDON_DEFS[addonKey];
+    if (!addon) continue;
+    for (const [k, v] of Object.entries(addon)) {
+      if (k === 'scholars_max_increment') {
+        // Each family_child addon adds +1 slot
+        merged.scholars_max = (merged.scholars_max || 1) + 1;
+      } else if (v === true || v === INF) {
+        // Addons can only upgrade, never downgrade
+        merged[k] = v;
+      } else if (typeof v === 'number' && v > (merged[k] ?? 0)) {
+        merged[k] = v;
+      } else if (typeof v === 'string' && v !== 'none') {
+        merged[k] = v;
+      }
+    }
+  }
+
+  return merged;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API — unchanged surface area for all callers
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Check whether a parent's tier has a given feature enabled.
- *   - Boolean features: returns the boolean directly.
- *   - Numeric features (quotas): returns true if the limit is > 0.
- *   - String features (e.g., dashboard_analytics='full'): returns true for
- *     any non-empty, non-'none' string.
- *
- * For quota consumption checks use `hasQuotaRemaining()` instead.
+ * Check whether a parent's effective tier (base + add-ons) has a feature.
  */
 export function hasFeature(parent, feature) {
   const def = getTierDef(parent);
@@ -205,12 +256,7 @@ export function hasFeature(parent, feature) {
 }
 
 /**
- * Get the raw numeric/string limit for a feature. Returns 0 for unknown
- * features, Infinity for unlimited tiers.
- *
- * Use for:
- *   - scholars_max check: `currentCount < getLimit(parent, 'scholars_max')`
- *   - quota display:      `getLimit(parent, 'feedback_monthly')`
+ * Get the raw numeric/string limit for a feature.
  */
 export function getLimit(parent, feature) {
   const def = getTierDef(parent);
@@ -222,86 +268,117 @@ export function getLimit(parent, feature) {
 }
 
 /**
- * Can this parent add another scholar? Pure function — caller supplies the
- * current scholar count.
+ * Can this parent add another scholar?
+ * scholars_max is the effective max including family_child add-ons.
  */
 export function canAddScholar(parent, currentScholarCount) {
-  const max = getLimit(parent, 'scholars_max');
-  return currentScholarCount < max;
+  return currentScholarCount < getLimit(parent, 'scholars_max');
 }
 
 /**
- * Check daily/monthly quota consumption. Caller supplies how many have been
- * used this period. Returns:
- *   { allowed, used, limit, remaining, unlimited }
+ * Quota check — how many of a limited feature have been used this period.
  */
 export function checkQuota(parent, feature, usedThisPeriod) {
-  const limit = getLimit(parent, feature);
+  const limit     = getLimit(parent, feature);
   const unlimited = limit === INF;
-  if (unlimited) {
-    return { allowed: true, used: usedThisPeriod, limit: INF, remaining: INF, unlimited: true };
-  }
-  const used = Math.max(0, Number(usedThisPeriod) || 0);
+  if (unlimited) return { allowed: true, used: usedThisPeriod, limit: INF, remaining: INF, unlimited: true };
+  const used      = Math.max(0, Number(usedThisPeriod) || 0);
   const remaining = Math.max(0, limit - used);
   return { allowed: remaining > 0, used, limit, remaining, unlimited: false };
 }
 
 /**
- * Return the reason a feature is gated, suitable for showing the user.
- * Used by upgrade prompts so we can say "Upgrade to Scholar to unlock
- * boss battles" rather than a generic message.
+ * Return upgrade context: cheapest tier/add-on that unlocks a feature.
  */
 export function getUpgradeReason(parent, feature) {
-  const region = resolveRegion(parent?.region);
-  const def    = getTierDef(parent);
-  const v      = def[feature];
-  if (typeof v === 'boolean' && v)  return null;
-  if (typeof v === 'number' && v > 0) return null;
+  const { region } = resolveBaseTierAndAddons(parent);
+  const def = getTierDef(parent);
+  const v = def[feature];
+  if ((typeof v === 'boolean' && v) || (typeof v === 'number' && v > 0)) return null;
 
-  // Find the cheapest tier in this region that DOES have the feature
-  const regionTiers = TIER_DEFS[region] || TIER_DEFS.GB;
-  const tierOrder = region === 'NG'
-    ? ['free', 'ng_explorer', 'ng_scholar', 'ng_family_2', 'ng_family_3', 'ng_family_4plus', 'ng_waec']
-    : ['free', 'uk_pro', 'uk_pro_exam'];
-  for (const tierKey of tierOrder) {
-    const tier = regionTiers[tierKey];
-    if (!tier) continue;
-    const val = tier[feature];
-    if ((typeof val === 'boolean' && val) ||
-        (typeof val === 'number'  && val > 0) ||
-        (typeof val === 'string'  && val.length > 0 && val !== 'none')) {
-      return { requiredTier: tierKey, region };
+  // Check which add-on unlocks the feature (for NG)
+  if (region === 'NG') {
+    for (const [addonKey, addonDef] of Object.entries(NG_ADDON_DEFS)) {
+      const val = addonDef[feature];
+      if (val === true || val === INF || (typeof val === 'number' && val > 0)) {
+        return { requiredTier: 'ng_scholar', requiredAddon: addonKey, region };
+      }
+    }
+    // Feature is in the base scholar tier
+    if (TIER_DEFS.NG.ng_scholar?.[feature]) {
+      return { requiredTier: 'ng_scholar', requiredAddon: null, region };
     }
   }
-  return { requiredTier: null, region };
+
+  // GB tier ladder
+  const gbOrder = ['free', 'uk_pro', 'uk_pro_exam'];
+  for (const tierKey of gbOrder) {
+    const tier = TIER_DEFS.GB[tierKey];
+    if (!tier) continue;
+    const val = tier[feature];
+    if ((typeof val === 'boolean' && val) || (typeof val === 'number' && val > 0) ||
+        (typeof val === 'string' && val.length > 0 && val !== 'none')) {
+      return { requiredTier: tierKey, requiredAddon: null, region };
+    }
+  }
+  return { requiredTier: null, requiredAddon: null, region };
 }
 
 /**
- * Pretty-print a tier key for UI display.
+ * Pretty labels for tier keys.
  */
 export const TIER_LABELS = {
-  free: 'Free',
-  uk_pro: 'Pro',
-  uk_pro_exam: 'Pro + Exam Mode',
-  ng_explorer: 'Explorer',
-  ng_scholar: 'Scholar',
-  ng_waec: 'WAEC Intensive',
-  ng_family_2: 'Family (2 scholars)',
-  ng_family_3: 'Family (3 scholars)',
-  ng_family_4plus: 'Family (4+ scholars)',
+  free:         'Free',
+  uk_pro:       'Pro',
+  uk_pro_exam:  'Pro + Exam Mode',
+  ng_scholar:   'Scholar',
+  // Legacy labels — keep for any UI that might still reference old keys
+  ng_explorer:    'Scholar',
+  ng_waec:        'Scholar + WAEC Boost',
+  ng_family_2:    'Scholar + Family',
+  ng_family_3:    'Scholar + Family',
+  ng_family_4plus:'Scholar + Family',
 };
 
 export function getTierLabel(tierKey) {
   return TIER_LABELS[tierKey] || 'Free';
 }
 
+export const ADDON_LABELS = {
+  family_child:   'Family Add-on (₦1,000/mo per child)',
+  waec_boost:     'WAEC Intensive Boost (₦1,000/mo)',
+  ai_unlimited:   'Unlimited AI Feedback (₦500/mo)',
+  tutor_connect:  'Tutor Connect (₦2,000/session)',
+};
+
+export function getAddonLabel(addonKey) {
+  return ADDON_LABELS[addonKey] || addonKey;
+}
+
 /**
- * Validate a region + tier combination. Used by the subscribe flow to
- * reject Nigerian tiers for GB parents and vice versa.
+ * Validate that a tier is allowed for a given region.
+ * Nigerian tiers (ng_scholar) require region='NG'.
  */
 export function isTierAllowedInRegion(region, tier) {
   if (tier === 'free') return true;
   const resolved = resolveRegion(region);
-  const tiers = TIER_DEFS[resolved] || TIER_DEFS.GB;
-  return Object.prototype.hasOwnProperty.call(tiers, tier);
+  const tiers    = TIER_DEFS[resolved] || TIER_DEFS.GB;
+  return Object.prototype.hasOwnProperty.call(tiers, tier) && tiers[tier] !== null;
+}
+
+/**
+ * How many family_child add-ons does a parent have active?
+ * Each one gives +1 scholar slot beyond the base.
+ */
+export function getFamilyChildAddonCount(parent) {
+  const addons = Array.isArray(parent?.ng_addons) ? parent.ng_addons : [];
+  return addons.filter(a => a === 'family_child').length;
+}
+
+/**
+ * Does the parent have a specific add-on active?
+ */
+export function hasAddon(parent, addonKey) {
+  const addons = Array.isArray(parent?.ng_addons) ? parent.ng_addons : [];
+  return addons.includes(addonKey);
 }

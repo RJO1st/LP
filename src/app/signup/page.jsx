@@ -12,6 +12,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { applyReferralCode } from "../../lib/referralSystem";
 import { passwordError } from "../../lib/passwordValidation";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
+import { regionFromCurriculum, curriculumIsNigerian } from "@/lib/tierAccess";
 
 const REGIONS = [
   { code: "uk", flag: "🇬🇧", label: "United Kingdom" },
@@ -123,19 +124,35 @@ function SignupForm() {
     setLoading(true);
 
     try {
+      // ── Resolve billing region + currency from the scholar's curriculum ──────
+      // This is the anti-arbitrage gate: a parent geo-detected as NG who selects
+      // a non-Nigerian curriculum (UK 11+, IB, US Common Core) is billed in GBP,
+      // not NGN. The curriculum drives the billing region, overriding geo-IP.
+      // `region` state (from detectRegion()) is used only as a display hint;
+      // `billingRegion` determines the parent record's region and currency.
+      let curriculumHint = null;
+      try { curriculumHint = localStorage.getItem('lp_curriculum_hint') || null; } catch {}
+      const urlCurriculum = new URLSearchParams(window.location.search).get('curriculum');
+      const resolvedCurriculum = urlCurriculum || curriculumHint || null;
+
+      const billingRegion   = resolvedCurriculum ? regionFromCurriculum(resolvedCurriculum) : (region === 'ng' ? 'NG' : 'GB');
+      const billingCurrency = billingRegion === 'NG' ? 'NGN' : 'GBP';
+
       // 1. Create auth user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        options: { data: { full_name: formData.fullName, region }, emailRedirectTo: undefined },
+        options: { data: { full_name: formData.fullName, region: billingRegion }, emailRedirectTo: undefined },
       });
 
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("Failed to create user account");
 
-      // 2. Create parent record — 30-day Pro trial
-      const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 30);
+      // 2. Create parent record
+      // Trial length: 7 days for NG (sense of urgency), 30 days for GB (standard).
+      const trialDays = billingRegion === 'NG' ? 7 : 30;
+      const trialEnd  = new Date();
+      trialEnd.setDate(trialEnd.getDate() + trialDays);
 
       const { error: parentError } = await supabase
         .from("parents")
@@ -147,7 +164,12 @@ function SignupForm() {
           trial_end: trialEnd.toISOString(),
           max_children: 3,
           billing_cycle: "monthly",
-          region: region,
+          // Billing region is curriculum-derived, NOT geo-IP-derived.
+          // This is the write-once field that locks the billing currency.
+          region:            billingRegion,
+          currency:          billingCurrency,
+          subscription_tier: 'free',
+          ng_addons:         [],
         })
         .select()
         .single();

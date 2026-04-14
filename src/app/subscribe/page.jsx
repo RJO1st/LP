@@ -188,7 +188,7 @@ export default function SubscribePage() {
                       {region === 'NG' ? 'LaunchPard Scholar' : 'LaunchPard Pro'}
                     </h3>
                     <p className="text-slate-600 dark:text-slate-400 text-sm">
-                      {region === 'NG' ? 'WAEC-ready learning, priced for Nigerian families' : 'Everything included'}
+                      {region === 'NG' ? 'Everything a WAEC scholar needs — one plan' : 'Everything included'}
                     </p>
                   </div>
                 </div>
@@ -202,7 +202,7 @@ export default function SubscribePage() {
                           </span>
                           <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/month</span>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400">Billed monthly via Paystack • Cancel anytime</p>
+                        <p className="text-slate-600 dark:text-slate-400">Billed monthly • Cancel anytime</p>
                       </>
                     ) : (
                       <>
@@ -255,13 +255,39 @@ export default function SubscribePage() {
                   className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg py-5 rounded-2xl shadow-2xl shadow-indigo-500/40 transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group mb-4"
                 >
                   <span className="relative z-10">
-                    {loading ? "Processing..." : "🚀 Start 30-Day Pro Trial"}
+                    {loading ? "Processing..." : region === 'NG' ? "🚀 Start Free Trial" : "🚀 Start 30-Day Pro Trial"}
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
                 </button>
                 <p className="text-center text-xs text-slate-600 dark:text-slate-400 mb-4">
-                  No credit card required • Cancel anytime
+                  No credit card required • Cancel anytime{region === 'NG' ? ' • 7-day free trial' : ' • 30-day free trial'}
                 </p>
+
+                {/* Nigerian add-ons panel */}
+                {region === 'NG' && (
+                  <div className="mb-6 border border-emerald-500/30 dark:border-emerald-400/30 rounded-2xl p-5 bg-emerald-50/50 dark:bg-emerald-900/10">
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-4">Optional Add-ons — buy only what you need</p>
+                    <div className="space-y-3">
+                      {[
+                        { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Full Scholar access.' },
+                        { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Live Q&A 2×/week · unlimited Tara · mock exams' },
+                        { icon:'🤖', title:'Unlimited AI Feedback', price:'₦500/mo', desc:'Remove the 50/month Tara cap' },
+                        { icon:'👨‍🏫', title:'Tutor Connect', price:'₦2,000/session', desc:'Live subject specialist — no monthly commit' },
+                      ].map(a => (
+                        <div key={a.title} className="flex items-start justify-between gap-3 bg-white dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-white/10">
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-xl flex-shrink-0 mt-0.5">{a.icon}</span>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">{a.title}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">{a.desc}</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{a.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-center gap-4 mb-8">
                   <button
                     onClick={() => router.push("/dashboard/parent")}

@@ -60,8 +60,8 @@ const REGION_CONFIG = {
     statsQuestionsSub: 'WAEC · NECO · NERDC-aligned',
     pricingHeadline: 'Pricing That Fits Your Family',
     pricingSub: 'Less than one private lesson a week.',
-    pricingFootnote: "After your trial, keep free access. 10 questions per day. No contracts. Cancel anytime. Pay with Paystack or Flutterwave.",
-    payment: 'Paystack · Flutterwave · Bank transfer',
+    pricingFootnote: 'After your trial, keep free access. 10 questions per day. No contracts. Cancel anytime.',
+    payment: null,
     trustLabel: 'NDPR compliant',
     faqExamAnswer: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE and Common Entrance prep, with predicted grades and tutor fallback sessions.",
     defaultCurriculum: 'ng_sss',
@@ -170,7 +170,7 @@ const FAQS_GB = [
 const FAQS_NG = [
   ...FAQS_BASE.slice(0, 4),
   { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE prep, Common Entrance papers for JSS1 entry, and tutor-fallback sessions. Scholar tier (₦2,500/mo) already covers the full JSS–SSS curriculum with AI feedback." },
-  { q: "How do I pay? Do you accept Paystack?", a: "Yes. We accept Paystack and Flutterwave — you can pay with any Nigerian bank card, bank transfer, or USSD. All payments are in naira. No international card required." },
+  { q: "How do I pay?", a: "You can pay with any Nigerian bank card, bank transfer, or USSD. All Scholar payments are in naira (₦). No international card required." },
   { q: "Will this work on mobile data?", a: "Yes. LaunchPard is built mobile-first and works on 3G and 4G. We use aggressive caching so a full day's learning typically uses under 15 MB of data. An offline mode is on the way." },
   ...FAQS_BASE.slice(4),
 ];
@@ -425,20 +425,32 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">{isNG ? 'Built Around the Nigerian Curriculum' : 'One Platform. Twelve Curricula.'}</h2>
-            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">{isNG ? 'NERDC-aligned. WAEC, NECO, BECE, and Common Entrance ready. Plus international options if you need them.' : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}</p>
+            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">{isNG ? 'NERDC-aligned. WAEC, NECO, BECE, and Common Entrance ready.' : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}</p>
+            {isNG && (
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 max-w-lg mx-auto">
+                Curriculum is chosen at signup and sets your pricing. Nigerian curricula are billed in naira. International curricula (UK, IB, US) are billed in their home currency.
+              </p>
+            )}
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {CURRICULA.map((c, i) => (
-              <div key={i} className={`group backdrop-blur-xl rounded-2xl p-6 transition-all hover:shadow-lg shadow-slate-900/30 ${c.featured ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500/60 dark:border-emerald-400/50' : 'bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40'}`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="text-4xl">{c.flag}</div>
-                  {c.featured && <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded-full">Your curriculum</span>}
+            {CURRICULA.map((c, i) => {
+              // Non-Nigerian curricula shown on the NG landing page → international billing
+              const isIntlBilling = isNG && !c.featured && i > 1;
+              return (
+                <div key={i} className={`group backdrop-blur-xl rounded-2xl p-6 transition-all hover:shadow-lg shadow-slate-900/30 ${c.featured ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500/60 dark:border-emerald-400/50' : 'bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40'}`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="text-4xl">{c.flag}</div>
+                    <div className="flex flex-col items-end gap-1">
+                      {c.featured && <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded-full">Your curriculum</span>}
+                      {isIntlBilling && <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/10">Billed in GBP</span>}
+                    </div>
+                  </div>
+                  <h3 className={`text-lg font-black mb-1 text-slate-900 dark:text-slate-50 transition-colors ${c.featured ? '' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>{c.name}</h3>
+                  <p className="text-slate-700 dark:text-slate-400 text-sm mb-3">{c.desc}</p>
+                  {c.tag && <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${c.tagColor}`}>{c.tag}</span>}
                 </div>
-                <h3 className={`text-lg font-black mb-1 text-slate-900 dark:text-slate-50 transition-colors ${c.featured ? '' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>{c.name}</h3>
-                <p className="text-slate-700 dark:text-slate-400 text-sm mb-3">{c.desc}</p>
-                {c.tag && <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${c.tagColor}`}>{c.tag}</span>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -487,65 +499,61 @@ export default function LandingPage() {
           </div>
 
           {isNG ? (
-            // ─── Nigerian tiers (research-backed; see NIGERIAN_PRICING_ANALYSIS.md) ───
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {/* Constellation — Free */}
-              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-6 flex flex-col">
-                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Constellation</h3>
-                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Free forever. No card.</p>
-                <div className="mb-5"><span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">₦0</span></div>
-                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
-                  {["1 scholar","NERDC curriculum","10 questions per day","Age-adaptive experience","Basic Tara feedback"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
-                </ul>
-                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-2.5 rounded-xl text-sm transition-all">Start Free</Link>
+            // ─── Nigerian simplified model: Free + Scholar + Add-ons ───────────────
+            <div className="max-w-4xl mx-auto space-y-5">
+              {/* Two core plans */}
+              <div className="grid sm:grid-cols-2 gap-5">
+                {/* Free */}
+                <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+                  <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Free</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">No card needed. Always free.</p>
+                  <div className="mb-5"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">₦0</span></div>
+                  <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                    {["1 scholar","NERDC curriculum","10 questions per day","Age-adaptive experience","Basic AI hints"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                  </ul>
+                  <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-emerald-400 dark:hover:border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-xl text-sm transition-all">Start Free</Link>
+                </div>
+
+                {/* Scholar — core paid plan */}
+                <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-emerald-500 dark:border-emerald-400/60 rounded-3xl p-7 flex flex-col shadow-lg shadow-emerald-500/20">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">Everything included</div>
+                  <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Scholar</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready · NECO · BECE · Common Entrance</p>
+                  <div className="mb-1">
+                    <span className="text-4xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,083" : "2,500"}</span>
+                    <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+                  </div>
+                  {annual
+                    ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦25,000/yr · Save ₦5,000 (same as uLesson)</p>
+                    : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦25,000/yr — save ₦5,000</p>}
+                  <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                    {["1 scholar (add siblings below)","Unlimited questions · all subjects","Tara AI feedback (50/month)","20 WAEC/NECO exam papers","3D science simulations","Boss battles & gamification","Revision planner & grade tracker","WAEC countdown & mastery map","Offline mode","Full guardian dashboard"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-emerald-600 dark:text-emerald-400 mt-0.5">✓</span>{f}</li>)}
+                  </ul>
+                  <Link href={signupHref} className="block text-center bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20">Start Free Trial</Link>
+                </div>
               </div>
 
-              {/* Explorer */}
-              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-6 flex flex-col">
-                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Explorer</h3>
-                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">One scholar. Unlimited learning.</p>
-                <div className="mb-1">
-                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">₦{annual ? "1,000" : "1,200"}</span>
-                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+              {/* Add-ons */}
+              <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">Optional Add-ons — buy only what you need</p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Each gets full Scholar access.' },
+                    { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Live Q&A 2×/week · mock exams · unlimited Tara' },
+                    { icon:'🤖', title:'Unlimited AI', price:'₦500/mo', desc:'Remove the 50 Tara feedback/month cap' },
+                    { icon:'👨‍🏫', title:'Tutor Connect', price:'₦2,000/session', desc:'Live subject specialist — no monthly commit' },
+                  ].map(a => (
+                    <div key={a.title} className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-xl p-4">
+                      <div className="text-2xl mb-2">{a.icon}</div>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-50 mb-0.5">{a.title}</p>
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2">{a.price}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-snug">{a.desc}</p>
+                    </div>
+                  ))}
                 </div>
-                {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦12,000/yr · Save ₦2,400</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦12,000/yr (save ₦2,400)</p>}
-                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
-                  {["1 scholar","Unlimited questions","Full Tara AI feedback","Guardian dashboard","Digital pets & rewards","Weekly progress emails"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
-                </ul>
-                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-2.5 rounded-xl text-sm transition-all">Choose Explorer</Link>
-              </div>
-
-              {/* Scholar — Most Popular */}
-              <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-emerald-500 dark:border-emerald-400/60 rounded-3xl p-6 flex flex-col shadow-lg shadow-emerald-500/20">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">Most popular</div>
-                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Scholar</h3>
-                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready. One scholar.</p>
-                <div className="mb-1">
-                  <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,083" : "2,500"}</span>
-                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
-                </div>
-                {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦25,000/yr · Save ₦5,000</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦25,000/yr (17% off)</p>}
-                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
-                  {["Everything in Explorer","WAEC & NECO practice bank","BECE & Common Entrance","Predicted grades","Revision planner","AI flashcards"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-emerald-600 dark:text-emerald-400 mt-0.5">✓</span>{f}</li>)}
-                </ul>
-                <Link href={signupHref} className="block text-center bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20">Start 7-Day Trial</Link>
-              </div>
-
-              {/* WAEC Intensive */}
-              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-amber-300 dark:border-amber-500/40 rounded-3xl p-6 flex flex-col">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">WAEC Intensive</h3>
-                </div>
-                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">SSS3 exam cram. 3-month minimum.</p>
-                <div className="mb-1">
-                  <span className="text-3xl font-black text-amber-600 dark:text-amber-400">₦4,000</span>
-                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
-                </div>
-                <p className="text-amber-600 dark:text-amber-400 text-xs font-bold mb-5">₦12,000 for 3 months</p>
-                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
-                  {["Everything in Scholar","Full WAEC SSCE mock papers","Live weekly Q&A sessions","1 tutor session free / month","Unlimited Tara feedback","Priority marking turnaround"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-amber-600 dark:text-amber-400 mt-0.5">✓</span>{f}</li>)}
-                </ul>
-                <Link href={signupHref} className="block text-center bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all">Prep for WAEC</Link>
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-4 text-center">
+                  Max spend for 3 scholars + WAEC Boost + Unlimited AI: <strong className="text-slate-700 dark:text-slate-300">₦6,000/month</strong>
+                </p>
               </div>
             </div>
           ) : (
@@ -591,14 +599,7 @@ export default function LandingPage() {
             </div>
           )}
 
-          {isNG && (
-            <div className="mt-6 max-w-3xl mx-auto bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-500/30 rounded-2xl p-5 text-center">
-              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">Multi-child family? We have a plan for you.</p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-300/80">Family plans start at <strong>₦3,500/mo for 2 children</strong> · ₦4,800/mo for 3 · ₦6,000/mo for 4+. <Link href={signupHref} className="underline font-bold">Get started →</Link></p>
-            </div>
-          )}
-
-          <p className="text-center text-slate-700 dark:text-slate-400 text-xs mt-6">{cfg.pricingFootnote}{cfg.payment ? ` · ${cfg.payment}` : ''}</p>
+          <p className="text-center text-slate-700 dark:text-slate-400 text-xs mt-6">{cfg.pricingFootnote}</p>
         </div>
       </section>
 
