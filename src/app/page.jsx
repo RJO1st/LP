@@ -49,7 +49,7 @@ const REGION_CONFIG = {
     flag: '🇳🇬',
     currency: 'NGN',
     currencySymbol: '₦',
-    heroBadge: 'WAEC · NECO · JSS · SSS · Ages 5–17',
+    heroBadge: 'Ages 5–17 · Primary · JSS · SSS · WAEC · NECO',
     heroCta: 'Start Free WAEC Prep',
     finalCtaHeadline: 'Ace WAEC and NECO. Start Free Today.',
     finalCtaBody: 'Built for Nigerian scholars. JSS, SSS, and WAEC-aligned — with pricing that makes sense for Nigerian families. Over 70,000 curriculum-aligned questions.',
