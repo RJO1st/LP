@@ -672,6 +672,32 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
   // ── Render ────────────────────────────────────────────────────────────────
   if (generating) return <LoadingCard subject={subject} />;
 
+  // Empty questions guard — when DB and procedural fallbacks both return nothing,
+  // render a friendly in-band error screen instead of silently returning null
+  // (which would leave a blank white void where the quiz should be) or crashing
+  // downstream code that expects sessionQuestions[0] to exist.
+  if (!generating && sessionQuestions.length === 0) {
+    const errTheme = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12 text-center">
+        <div className="text-5xl mb-4">🔭</div>
+        <h2 className="text-xl font-black mb-2" style={{ color: errTheme.accentHex || '#6366f1' }}>
+          No Questions Found
+        </h2>
+        <p className="text-slate-600 dark:text-slate-400 text-sm max-w-xs mb-6">
+          We&apos;re still building questions for this topic. Try another subject while we catch up!
+        </p>
+        <button
+          onClick={onClose}
+          className="px-6 py-3 rounded-2xl text-white font-bold text-sm transition-all active:scale-95"
+          style={{ background: errTheme.accentHex || '#6366f1' }}
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   const q = sessionQuestions[qIdx];
   if (!q) return null;
 
@@ -1436,9 +1462,21 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     if (!student?.id || !curriculum) return;
     (async () => {
       try {
-        const sequence = await getTopicSequence(subj, curriculum, supabase);
+        // Inline curriculum resolution mirrors resolveDbCurriculum in smartQuestionSelection.
+        // NVR and Verbal Reasoning always live under uk_11plus, not uk_national.
+        // Year 3-6 core subjects are also under uk_11plus when curriculum is uk_national.
+        const yr  = parseInt(student?.year_level || student?.year || 4, 10);
+        const cur = (curriculum || 'uk_national').toLowerCase();
+        const NVR_VR = ['verbal_reasoning', 'verbal', 'nvr', 'non_verbal_reasoning'];
+        const ELEVEN_PLUS_SUBS = ['mathematics', 'maths', 'math', 'english', 'science', ...NVR_VR];
+        const resolvedCur =
+          NVR_VR.includes(subj) ? 'uk_11plus'
+          : (cur === 'uk_national' && yr >= 3 && yr <= 6 && ELEVEN_PLUS_SUBS.includes(subj)) ? 'uk_11plus'
+          : cur;
+
+        const sequence = await getTopicSequence(subj, resolvedCur, supabase);
         // Load scholar context for anchor resolution
-        const { masteryRows, currentTopic } = await loadScholarContext(supabase, student.id, curriculum, subj, null);
+        const { masteryRows, currentTopic } = await loadScholarContext(supabase, student.id, resolvedCur, subj, null);
         const { topic, reason } = resolveAnchorTopic(masteryRows, currentTopic, subj, sequence, yearLevel);
         if (topic) {
           setAlgorithmTopic(topic);

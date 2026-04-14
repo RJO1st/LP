@@ -1394,8 +1394,13 @@ export async function getSmartQuestions(
     const examTag = (VALID_EXAM_MODES.has(examMode) && !usesCurriculumAsFilter) ? examMode : null;
 
     const [sequence, { masteryRows, currentTopic }, topicStandardCounts] = await Promise.all([
-      getTopicSequence(activeSubject, curriculum, supabase),
-      loadScholarContext(supabase, scholarId, curriculum, activeSubject, cache),
+      // ── IMPORTANT: pass resolvedCurriculum, not the raw curriculum ────────
+      // NVR and Verbal Reasoning always live under uk_11plus in the DB, not
+      // uk_national. Passing the raw curriculum would look for progression
+      // rows under uk_national and find nothing, forcing a stale fallback.
+      // mastery records are also stored under resolvedCurriculum.
+      getTopicSequence(activeSubject, resolvedCurriculum, supabase),
+      loadScholarContext(supabase, scholarId, resolvedCurriculum, activeSubject, cache),
       // Fetch topic→standards count map for breadth-aware mastery sorting.
       // Uses resolved curriculum/subject to match the DB question records.
       // Non-blocking: returns empty Map on error so selection is never degraded.
