@@ -20,14 +20,40 @@ const REGIONS = [
   { code: "other", flag: "🌍", label: "Other" },
 ];
 
+function readGeoCookie() {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(/(?:^|;\s*)__geo=([^;]+)/);
+  return m && m[1] ? m[1] : null;
+}
+
 function detectRegion() {
+  // Priority: URL ?region param > __geo cookie (set by proxy.ts from Vercel IP
+  // country) > timezone fallback. Keeps Nigerian visitors from having to
+  // re-select their region at signup.
   try {
+    if (typeof window !== 'undefined') {
+      const urlRegion = new URLSearchParams(window.location.search).get('region');
+      if (urlRegion === 'NG') return 'ng';
+      if (urlRegion === 'GB') return 'uk';
+    }
+    const geo = readGeoCookie();
+    if (geo === 'NG') return 'ng';
+    if (geo === 'GB') return 'uk';
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
     if (tz.startsWith("Africa/Lagos") || tz.startsWith("Africa/")) return "ng";
     if (tz.startsWith("America/Toronto") || tz.startsWith("America/Vancouver") || tz.startsWith("America/Edmonton") || tz.startsWith("America/Winnipeg") || tz.startsWith("America/Halifax") || tz.startsWith("America/St_Johns")) return "ca";
     if (tz.startsWith("Europe/London") || tz === "Europe/Belfast") return "uk";
     return "other";
   } catch { return "other"; }
+}
+
+// Read the curriculum hint from the ?curriculum= query param — set by the
+// landing page CTAs so Nigerian visitors skip the curriculum picker later.
+function readCurriculumHint() {
+  try {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('curriculum');
+  } catch { return null; }
 }
 
 // Pseudo-random star generator for consistent background
@@ -74,7 +100,15 @@ function SignupForm() {
     confirmPassword: "",
   });
 
-  useEffect(() => { setRegion(detectRegion()); }, []);
+  useEffect(() => {
+    setRegion(detectRegion());
+    // Stash curriculum hint from landing-page CTA so the scholar-add step
+    // can pre-select the right curriculum without asking again.
+    try {
+      const hint = readCurriculumHint();
+      if (hint) localStorage.setItem('lp_curriculum_hint', hint);
+    } catch {}
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

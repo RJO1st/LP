@@ -1,20 +1,100 @@
 "use client";
 /**
- * LaunchPard Landing Page — Dark Space Revamp (March 2026)
+ * LaunchPard Landing Page — Dark Space Revamp + Geo-Regional (April 2026)
  * Deploy to: src/app/page.jsx
  *
- * Changes:
- *   - Dark space theme: bg-[#080c15] with gradient to #0f1629
- *   - Parent-centred copy (outcome-focused, honest pricing)
- *   - Amber accent (#fbbf24) for primary CTAs
- *   - Indigo (#6366f1) for secondary
- *   - NO RAINBOW anywhere
- *   - Mobile-first responsive
+ * Changes from March 2026 revision:
+ *   - Region-aware rendering driven by __geo cookie (set in proxy.ts from
+ *     Vercel's x-vercel-ip-country header). Supported regions: GB (default), NG.
+ *   - Nigerian variant uses analysis-backed ₦ pricing (see NIGERIAN_PRICING_ANALYSIS.md):
+ *     Explorer ₦1,200 / Scholar ₦2,500 / WAEC Intensive ₦4,000 / Family from ₦3,500
+ *   - Manual region switcher in footer — sets __geo_override cookie.
+ *   - Hero, curricula grid, pricing, final CTA all swap based on region.
  */
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import DarkModeToggle from '@/components/theme/DarkModeToggle';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REGION CONFIG — controls everything that changes between UK and NG experiences.
+// ═══════════════════════════════════════════════════════════════════════════════
+const REGION_CONFIG = {
+  GB: {
+    code: 'GB',
+    label: 'United Kingdom',
+    flag: '🇬🇧',
+    currency: 'GBP',
+    currencySymbol: '£',
+    heroBadge: '12 curricula · Ages 5–17 · 6 countries',
+    heroCta: "Start Your Child's Free Path",
+    finalCtaHeadline: 'Try It Free. See the Difference in a Week.',
+    finalCtaBody: 'Families in Australia, Canada, England, and Nigeria already use LaunchPard. Your child can start today.',
+    finalCtaButton: "Start Your Child's Free Path",
+    examsHowItWorks: '11+ Grammar School preparation · GCSE mock tests with grade predictions · WAEC / BECE practice papers · AI flashcards generated from weak topics',
+    statsHeadline: 'LaunchPard in numbers',
+    statsQuestions: '100K+',
+    statsQuestionsSub: 'Quality-validated & curriculum-aligned',
+    pricingHeadline: 'Simple, Honest Pricing',
+    pricingSub: 'One price for every UK family.',
+    pricingFootnote: 'After your trial, keep free access. 10 questions per day. 30-day money-back guarantee. Cancel anytime.',
+    payment: null,
+    trustLabel: 'GDPR compliant',
+    faqExamAnswer: "Yes. Our Exam Mode add-on (+£3.99/mo) includes timed mock tests for 11+ grammar school entry, GCSE practice, and WAEC/BECE papers under real exam conditions with predicted grades.",
+    defaultCurriculum: 'uk_national',
+  },
+  NG: {
+    code: 'NG',
+    label: 'Nigeria',
+    flag: '🇳🇬',
+    currency: 'NGN',
+    currencySymbol: '₦',
+    heroBadge: 'WAEC · NECO · JSS · SSS · Ages 5–17',
+    heroCta: 'Start Free WAEC Prep',
+    finalCtaHeadline: 'Ace WAEC and NECO. Start Free Today.',
+    finalCtaBody: 'Built for Nigerian scholars. JSS, SSS, and WAEC-aligned — with pricing that makes sense for Nigerian families. Over 70,000 curriculum-aligned questions.',
+    finalCtaButton: 'Start Free',
+    examsHowItWorks: 'WAEC SSCE mock papers · NECO practice tests · BECE prep · Common Entrance · AI flashcards from your weakest topics',
+    statsHeadline: 'Built for Nigerian scholars',
+    statsQuestions: '70K+',
+    statsQuestionsSub: 'WAEC · NECO · NERDC-aligned',
+    pricingHeadline: 'Pricing That Fits Your Family',
+    pricingSub: 'Less than one private lesson a week.',
+    pricingFootnote: "After your trial, keep free access. 10 questions per day. No contracts. Cancel anytime. Pay with Paystack or Flutterwave.",
+    payment: 'Paystack · Flutterwave · Bank transfer',
+    trustLabel: 'NDPR compliant',
+    faqExamAnswer: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE and Common Entrance prep, with predicted grades and tutor fallback sessions.",
+    defaultCurriculum: 'ng_sss',
+  },
+};
+
+function readRegionCookie() {
+  if (typeof document === 'undefined') return 'GB';
+  const match = document.cookie.match(/(?:^|;\s*)__geo=([^;]+)/);
+  const value = match && match[1];
+  return value === 'NG' || value === 'GB' ? value : 'GB';
+}
+
+function useRegion() {
+  // Start with 'GB' on first paint to match the SSR default and avoid hydration
+  // mismatches, then swap to the cookie value after mount. The cookie is set
+  // by proxy.ts on the first request so returning visitors hydrate correctly
+  // on their second page load.
+  const [region, setRegion] = useState('GB');
+  useEffect(() => {
+    setRegion(readRegionCookie());
+  }, []);
+  const setRegionOverride = (next) => {
+    if (next !== 'NG' && next !== 'GB') return;
+    const year = 60 * 60 * 24 * 365;
+    document.cookie = `__geo_override=${next}; path=/; max-age=${year}; samesite=lax; secure`;
+    document.cookie = `__geo=${next}; path=/; max-age=${year}; samesite=lax; secure`;
+    setRegion(next);
+    // Persist curriculum hint for signup
+    try { localStorage.setItem('lp_region', next); } catch {}
+  };
+  return [region, setRegionOverride];
+}
 
 const pseudoRandom = (seed, salt = 0) => {
   const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
@@ -52,8 +132,8 @@ const AGE_BANDS = [
     taraVoice: '"Correct. Mark scheme note: show working for full marks."' },
 ];
 
-const CURRICULA = [
-  { flag: '🇬🇧', name: 'UK National', desc: 'KS1–KS4 · Y1–Y13', tag: '11+ & GCSE Prep', tagColor: 'bg-indigo-900/40 text-indigo-300' },
+const CURRICULA_GB = [
+  { flag: '🇬🇧', name: 'UK National', desc: 'KS1–KS4 · Y1–Y13', tag: '11+ & GCSE Prep', tagColor: 'bg-indigo-900/40 text-indigo-300', featured: true },
   { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS · SSS', tag: 'WAEC/NECO Prep', tagColor: 'bg-emerald-900/40 text-emerald-300' },
   { flag: '🇦🇺', name: 'Australian ACARA', desc: 'Foundation–Year 9', tag: null },
   { flag: '🇨🇦', name: 'Canadian', desc: 'Grade 1–12', tag: 'Primary & Secondary' , tagColor: 'bg-red-900/40 text-red-300' },
@@ -61,15 +141,38 @@ const CURRICULA = [
   { flag: '🇺🇸', name: 'US Common Core', desc: 'Grade 1–8', tag: null },
 ];
 
-const FAQS = [
+const CURRICULA_NG = [
+  { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS1–3 · SSS1–3', tag: 'WAEC · NECO · BECE', tagColor: 'bg-emerald-900/40 text-emerald-300', featured: true },
+  { flag: '🇳🇬', name: 'Common Entrance', desc: 'Federal Unity Colleges prep', tag: 'JSS1 Entry', tagColor: 'bg-emerald-900/40 text-emerald-300' },
+  { flag: '🇬🇧', name: 'UK National (IGCSE)', desc: 'For Nigerian schools offering Cambridge', tag: null },
+  { flag: '🇬🇧', name: 'UK 11+', desc: 'For families considering UK grammar schools', tag: null },
+  { flag: '🌐', name: 'IB PYP / MYP', desc: 'International Baccalaureate', tag: null },
+  { flag: '🇺🇸', name: 'US Common Core', desc: 'For families with US-bound scholars', tag: null },
+];
+
+const FAQS_BASE = [
   { q: "What curricula does LaunchPard support?", a: "12 curricula: UK National (KS1–KS4), UK 11+, Nigerian Primary, JSS and SSS (with Science/Humanities/Business streams), Canadian Primary and Secondary, US Common Core, IB PYP and MYP, and Australian ACARA." },
   { q: "What ages is it suitable for?", a: "Scholars aged 5–17. The platform adapts visuals, language, difficulty, and even the AI tutor's personality based on your child's age." },
   { q: "How does the age-adaptive system work?", a: "A 6-year-old sees a magical treasure map with friendly characters. An 11-year-old explores a space galaxy. A 14-year-old gets a clean, data-rich dashboard with career links. A 16-year-old gets an exam-focused command centre with predicted grades. Same engine, different experience." },
   { q: "Is there a free version?", a: "Yes. The free plan gives your scholar 10 questions per day across all subjects. No card needed. Free plan stays free." },
-  { q: "Does it help with 11+, GCSE, or WAEC?", a: "Yes. Our Exam Mode add-on (+£3.99/mo) includes timed mock tests for 11+ grammar school entry, GCSE practice, and WAEC/BECE papers under real exam conditions with predicted grades." },
-  { q: "Can I have multiple children on one account?", a: "On Pro, you can add up to 3 scholars. Each gets their own curriculum, progress tracking, and age-adapted experience." },
+  { q: "Can I have multiple children on one account?", a: "Yes. On a family plan you can add multiple scholars to one account. Each gets their own curriculum, progress tracking, and age-adapted experience." },
   { q: "Is my child's data safe?", a: "We are GDPR and NDPR compliant. No ads, no data selling, no third-party tracking. Your scholar's data is used only to personalise their learning." },
   { q: "Can I cancel anytime?", a: "Yes. No contracts, no cancellation fees. 30-day money-back guarantee on all paid plans." },
+];
+
+// Exam-prep FAQ varies by region; payment FAQ only appears for NG.
+const FAQS_GB = [
+  ...FAQS_BASE.slice(0, 4),
+  { q: "Does it help with 11+, GCSE, or WAEC?", a: "Yes. Our Exam Mode add-on (+£3.99/mo) includes timed mock tests for 11+ grammar school entry, GCSE practice, and WAEC/BECE papers under real exam conditions with predicted grades." },
+  ...FAQS_BASE.slice(4),
+];
+
+const FAQS_NG = [
+  ...FAQS_BASE.slice(0, 4),
+  { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE prep, Common Entrance papers for JSS1 entry, and tutor-fallback sessions. Scholar tier (₦2,500/mo) already covers the full JSS–SSS curriculum with AI feedback." },
+  { q: "How do I pay? Do you accept Paystack?", a: "Yes. We accept Paystack and Flutterwave — you can pay with any Nigerian bank card, bank transfer, or USSD. All payments are in naira. No international card required." },
+  { q: "Will this work on mobile data?", a: "Yes. LaunchPard is built mobile-first and works on 3G and 4G. We use aggressive caching so a full day's learning typically uses under 15 MB of data. An offline mode is on the way." },
+  ...FAQS_BASE.slice(4),
 ];
 
 function FaqItem({ q, a }) {
@@ -93,6 +196,12 @@ export default function LandingPage() {
   const [activeBand, setActiveBand] = useState(0);
   const [annual, setAnnual] = useState(true);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [region, setRegion] = useRegion();
+  const cfg = REGION_CONFIG[region] || REGION_CONFIG.GB;
+  const isNG = region === 'NG';
+  const CURRICULA = isNG ? CURRICULA_NG : CURRICULA_GB;
+  const FAQS = isNG ? FAQS_NG : FAQS_GB;
+  const signupHref = `/signup?region=${region}&curriculum=${cfg.defaultCurriculum}`;
 
   useEffect(() => {
     const onScroll = () => { setScrollY(window.scrollY); setNavScrolled(window.scrollY > 20); };
@@ -134,8 +243,8 @@ export default function LandingPage() {
           <div className="flex items-center gap-3 flex-shrink-0">
             <DarkModeToggle />
             <Link href="/login" className="text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold text-sm px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors whitespace-nowrap">Sign In</Link>
-            <Link href="/signup" className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all whitespace-nowrap rounded-full px-4 py-2 text-sm sm:px-5 sm:py-2.5">
-              Start Free
+            <Link href={signupHref} className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all whitespace-nowrap rounded-full px-4 py-2 text-sm sm:px-5 sm:py-2.5">
+              {isNG ? 'Start Free' : 'Start Free'}
             </Link>
           </div>
         </div>
@@ -145,8 +254,8 @@ export default function LandingPage() {
       <section className="relative z-10 px-4 sm:px-6 pt-28 pb-20">
         <div className="text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-300 dark:border-indigo-500/30 rounded-full px-4 py-2 mb-8 animate-fade-in">
-            <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-indigo-500 opacity-75" /><span className="relative rounded-full h-2 w-2 bg-indigo-500" /></span>
-            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-300">12 curricula · Ages 5–17 · 6 countries</span>
+            <span className="relative flex h-2 w-2"><span className={`animate-ping absolute h-full w-full rounded-full ${isNG ? 'bg-emerald-500' : 'bg-indigo-500'} opacity-75`} /><span className={`relative rounded-full h-2 w-2 ${isNG ? 'bg-emerald-500' : 'bg-indigo-500'}`} /></span>
+            <span className={`text-sm font-bold ${isNG ? 'text-emerald-700 dark:text-emerald-300' : 'text-indigo-600 dark:text-indigo-300'}`}>{cfg.heroBadge}</span>
           </div>
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black mb-6 leading-[0.95] animate-fade-in-up text-slate-900 dark:text-slate-50">
             <span className="block mb-3">Their Learning.</span>
@@ -157,8 +266,8 @@ export default function LandingPage() {
             You stop guessing. They start progressing. AI that adapts to your child's age, curriculum, and level. Every question is pitched at the right difficulty, every time.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 animate-fade-in-up animation-delay-400">
-            <Link href="/signup" className="group bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/30 hover:scale-105 transition-all inline-flex items-center justify-center gap-2">
-              Start Your Child's Free Path <span className="group-hover:translate-x-1 transition-transform">→</span>
+            <Link href={signupHref} className="group bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/30 hover:scale-105 transition-all inline-flex items-center justify-center gap-2">
+              {cfg.heroCta} <span className="group-hover:translate-x-1 transition-transform">→</span>
             </Link>
             <button onClick={() => document.getElementById('age-bands')?.scrollIntoView({ behavior: 'smooth' })}
               className="bg-slate-200 dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 text-slate-900 dark:text-slate-100 font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all">
@@ -166,7 +275,7 @@ export default function LandingPage() {
             </button>
           </div>
           <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-600 dark:text-slate-400 animate-fade-in-up animation-delay-600">
-            {[["✓","Free plan available"],["🛡️","GDPR compliant"],["⚡","Cancel anytime"],["🔒","No data selling"]].map(([icon,text],i) => (
+            {[["✓","Free plan available"],["🛡️",cfg.trustLabel],["⚡","Cancel anytime"],["🔒","No data selling"]].map(([icon,text],i) => (
               <span key={i} className="flex items-center gap-1.5"><span className="text-indigo-600 dark:text-indigo-400">{icon}</span>{text}</span>
             ))}
           </div>
@@ -274,7 +383,9 @@ export default function LandingPage() {
             {[
               { icon:'✏️', title:'Learn', desc:'Adaptive missions that match exactly where your scholar is. The AI identifies gaps and focuses there.', color:'violet', items:['AI adapts difficulty in real time','Age-appropriate themes and language','Digital pets, missions, and Stardust rewards','Spaced repetition for long-term memory'] },
               { icon:'📊', title:'Track', desc:'A guardian dashboard that shows mastery building in real time, across every topic and subject.', color:'cyan', items:['Mastery per topic: Building → On Track → Stellar','Time spent by subject, so you see where effort goes','Career links show real-world relevance','Revision planner suggests what to study next'] },
-              { icon:'📝', title:'Test', desc:'Timed mock tests under real exam conditions. Instant marking with predicted grades.', color:'orange', items:['11+ Grammar School preparation','GCSE mock tests with grade predictions','WAEC / BECE practice papers','AI flashcards generated from weak topics'] },
+              { icon:'📝', title:'Test', desc:'Timed mock tests under real exam conditions. Instant marking with predicted grades.', color:'orange', items: isNG
+                ? ['WAEC SSCE mock papers','NECO practice tests','BECE prep · Common Entrance','AI flashcards from your weakest topics']
+                : ['11+ Grammar School preparation','GCSE mock tests with grade predictions','WAEC / BECE practice papers','AI flashcards generated from weak topics'] },
             ].map((card,i) => (
               <div key={i} className="group bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 rounded-3xl p-8 hover:border-indigo-400 dark:hover:border-indigo-500/40 backdrop-blur-xl transition-all hover:shadow-lg shadow-slate-900/30">
                 <div className="text-4xl mb-6">{card.icon}</div>
@@ -313,14 +424,17 @@ export default function LandingPage() {
       <section className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 bg-slate-100 dark:bg-slate-800/20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">One Platform. Twelve Curricula.</h2>
-            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">Your scholar is enrolled in their curriculum. We make sure every topic is covered.</p>
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">{isNG ? 'Built Around the Nigerian Curriculum' : 'One Platform. Twelve Curricula.'}</h2>
+            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">{isNG ? 'NERDC-aligned. WAEC, NECO, BECE, and Common Entrance ready. Plus international options if you need them.' : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {CURRICULA.map((c, i) => (
-              <div key={i} className="group bg-white dark:bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-300 dark:border-white/10 p-6 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all hover:shadow-lg shadow-slate-900/30">
-                <div className="text-4xl mb-3">{c.flag}</div>
-                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{c.name}</h3>
+              <div key={i} className={`group backdrop-blur-xl rounded-2xl p-6 transition-all hover:shadow-lg shadow-slate-900/30 ${c.featured ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500/60 dark:border-emerald-400/50' : 'bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40'}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-4xl">{c.flag}</div>
+                  {c.featured && <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded-full">Your curriculum</span>}
+                </div>
+                <h3 className={`text-lg font-black mb-1 text-slate-900 dark:text-slate-50 transition-colors ${c.featured ? '' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>{c.name}</h3>
                 <p className="text-slate-700 dark:text-slate-400 text-sm mb-3">{c.desc}</p>
                 {c.tag && <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${c.tagColor}`}>{c.tag}</span>}
               </div>
@@ -332,14 +446,22 @@ export default function LandingPage() {
       {/* ═══ SOCIAL PROOF ═══ */}
       <section className="relative z-10 px-4 sm:px-6 py-16 bg-slate-100 dark:bg-slate-800/20">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-black mb-10 text-slate-900 dark:text-slate-50">LaunchPard in numbers</h2>
+          <h2 className="text-3xl sm:text-4xl font-black mb-10 text-slate-900 dark:text-slate-50">{cfg.statsHeadline}</h2>
           <div className="grid sm:grid-cols-4 gap-5 mb-8">
-            {[
-              { stat:"12", label:"Curricula", sub:"UK · Nigeria · Canada · Australia · IB · US" },
-              { stat:"100K+", label:"Questions", sub:"Quality-validated & curriculum-aligned" },
-              { stat:"5–17", label:"Ages", sub:"Year 1 through GCSE & WAEC" },
-              { stat:"4", label:"Age Bands", sub:"Each with their own themed world" },
-            ].map((s,i) => (
+            {(isNG
+              ? [
+                { stat:"NERDC", label:"Aligned", sub:"JSS · SSS · WAEC · NECO · BECE" },
+                { stat: cfg.statsQuestions, label:"Questions", sub: cfg.statsQuestionsSub },
+                { stat:"5–17", label:"Ages", sub:"Primary 1 through SSS3" },
+                { stat:"4", label:"Age Bands", sub:"Each with their own themed world" },
+              ]
+              : [
+                { stat:"12", label:"Curricula", sub:"UK · Nigeria · Canada · Australia · IB · US" },
+                { stat: cfg.statsQuestions, label:"Questions", sub: cfg.statsQuestionsSub },
+                { stat:"5–17", label:"Ages", sub:"Year 1 through GCSE & WAEC" },
+                { stat:"4", label:"Age Bands", sub:"Each with their own themed world" },
+              ]
+            ).map((s,i) => (
               <div key={i} className="bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 rounded-2xl p-5 backdrop-blur-xl">
                 <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mb-1">{s.stat}</div>
                 <div className="text-slate-900 dark:text-slate-50 font-bold text-sm mb-1">{s.label}</div>
@@ -352,58 +474,131 @@ export default function LandingPage() {
 
       {/* ═══ PRICING ═══ */}
       <section id="pricing" className="relative z-10 px-4 sm:px-6 py-20 sm:py-28">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">Simple, Honest Pricing</h2>
-            <p className="text-lg text-slate-700 dark:text-slate-300 mb-8">One price for every family, everywhere.</p>
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">{cfg.pricingHeadline}</h2>
+            <p className="text-lg text-slate-700 dark:text-slate-300 mb-8">{cfg.pricingSub}</p>
             <div className="flex justify-center">
               <div className="flex bg-slate-200 dark:bg-slate-800/40 rounded-lg p-0.5 gap-0.5 border border-slate-300 dark:border-white/10">
                 <button onClick={() => setAnnual(false)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${!annual ? "bg-white dark:bg-slate-700/60 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-600 dark:text-slate-400"}`}>Monthly</button>
-                <button onClick={() => setAnnual(true)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${annual ? "bg-white dark:bg-slate-700/60 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-600 dark:text-slate-400"}`}>Annual <span className="text-emerald-600 dark:text-emerald-400 ml-1 text-[10px]">2 months free</span></button>
+                <button onClick={() => setAnnual(true)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${annual ? "bg-white dark:bg-slate-700/60 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-600 dark:text-slate-400"}`}>Annual <span className="text-emerald-600 dark:text-emerald-400 ml-1 text-[10px]">{isNG ? 'Save up to 17%' : '2 months free'}</span></button>
               </div>
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-5 max-w-3xl mx-auto">
-            {/* Free */}
-            <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
-              <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Free Plan</h3>
-              <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">No card needed. Free plan stays free.</p>
-              <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">£0</span></div>
-              <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
-                {["1 scholar","Your enrolled curriculum","All subjects","10 questions per day","Age-adaptive experience"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
-              </ul>
-              <Link href="/signup" className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-xl text-sm transition-all">Create Free Account</Link>
-            </div>
-
-            {/* Pro */}
-            <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-indigo-400 dark:border-indigo-500/40 rounded-3xl p-7 flex flex-col shadow-lg shadow-indigo-500/20">
-              {annual && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-600 text-slate-900 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider">Most popular</div>}
-              <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Pro</h3>
-              <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Unlimited questions, 3 scholars, weekly reports</p>
-              <div className="mb-1">
-                <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">£{annual ? "9.17" : "12.99"}</span>
-                <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+          {isNG ? (
+            // ─── Nigerian tiers (research-backed; see NIGERIAN_PRICING_ANALYSIS.md) ───
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Constellation — Free */}
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-6 flex flex-col">
+                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Constellation</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Free forever. No card.</p>
+                <div className="mb-5"><span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">₦0</span></div>
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
+                  {["1 scholar","NERDC curriculum","10 questions per day","Age-adaptive experience","Basic Tara feedback"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-2.5 rounded-xl text-sm transition-all">Start Free</Link>
               </div>
-              {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">Billed £109.99/yr · Save £46</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or £109.99/yr with annual</p>}
-              <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
-                {["Up to 3 scholars","Unlimited questions","Tara AI tutor (age-adaptive)","Full guardian dashboard","Weekly missions & reports","Digital pets & leaderboards","Revision planner (KS3/KS4)","Certificates & achievements"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
-              </ul>
-              <Link href="/signup" className="block text-center bg-indigo-500 hover:bg-indigo-600 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20">30-Day Pro Trial. No Card Needed.</Link>
-            </div>
 
-            {/* Exam Mode */}
-            <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
-              <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Exam Mode</h3>
-              <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Add-on for Pro subscribers</p>
-              <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">+£3.99</span><span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span></div>
-              <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
-                {["Everything in Pro","Timed 11+ mock tests","GCSE practice papers","WAEC/BECE practice papers","Predicted grades","Exam countdowns","AI flashcards"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
-              </ul>
-              <Link href="/signup" className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-xl text-sm transition-all">Start with Pro First</Link>
+              {/* Explorer */}
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-6 flex flex-col">
+                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Explorer</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">One scholar. Unlimited learning.</p>
+                <div className="mb-1">
+                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">₦{annual ? "1,000" : "1,200"}</span>
+                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+                </div>
+                {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦12,000/yr · Save ₦2,400</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦12,000/yr (save ₦2,400)</p>}
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
+                  {["1 scholar","Unlimited questions","Full Tara AI feedback","Guardian dashboard","Digital pets & rewards","Weekly progress emails"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-2.5 rounded-xl text-sm transition-all">Choose Explorer</Link>
+              </div>
+
+              {/* Scholar — Most Popular */}
+              <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-emerald-500 dark:border-emerald-400/60 rounded-3xl p-6 flex flex-col shadow-lg shadow-emerald-500/20">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">Most popular</div>
+                <h3 className="text-lg font-black mb-1 text-slate-900 dark:text-slate-50">Scholar</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready. One scholar.</p>
+                <div className="mb-1">
+                  <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,083" : "2,500"}</span>
+                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+                </div>
+                {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦25,000/yr · Save ₦5,000</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦25,000/yr (17% off)</p>}
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
+                  {["Everything in Explorer","WAEC & NECO practice bank","BECE & Common Entrance","Predicted grades","Revision planner","AI flashcards"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-emerald-600 dark:text-emerald-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20">Start 7-Day Trial</Link>
+              </div>
+
+              {/* WAEC Intensive */}
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-amber-300 dark:border-amber-500/40 rounded-3xl p-6 flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">WAEC Intensive</h3>
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">SSS3 exam cram. 3-month minimum.</p>
+                <div className="mb-1">
+                  <span className="text-3xl font-black text-amber-600 dark:text-amber-400">₦4,000</span>
+                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+                </div>
+                <p className="text-amber-600 dark:text-amber-400 text-xs font-bold mb-5">₦12,000 for 3 months</p>
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-6 flex-1">
+                  {["Everything in Scholar","Full WAEC SSCE mock papers","Live weekly Q&A sessions","1 tutor session free / month","Unlimited Tara feedback","Priority marking turnaround"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-amber-600 dark:text-amber-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all">Prep for WAEC</Link>
+              </div>
             </div>
-          </div>
-          <p className="text-center text-slate-700 dark:text-slate-400 text-xs mt-6">After your trial, keep free access. 10 questions per day. 30-day money-back guarantee. Cancel anytime. Same price worldwide.</p>
+          ) : (
+            // ─── UK / rest-of-world tiers ───
+            <div className="grid sm:grid-cols-3 gap-5 max-w-3xl mx-auto">
+              {/* Free */}
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+                <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Free Plan</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">No card needed. Free plan stays free.</p>
+                <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">£0</span></div>
+                <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                  {["1 scholar","Your enrolled curriculum","All subjects","10 questions per day","Age-adaptive experience"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-xl text-sm transition-all">Create Free Account</Link>
+              </div>
+
+              {/* Pro */}
+              <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-indigo-400 dark:border-indigo-500/40 rounded-3xl p-7 flex flex-col shadow-lg shadow-indigo-500/20">
+                {annual && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-600 text-slate-900 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider">Most popular</div>}
+                <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Pro</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Unlimited questions, 3 scholars, weekly reports</p>
+                <div className="mb-1">
+                  <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">£{annual ? "9.17" : "12.99"}</span>
+                  <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
+                </div>
+                {annual ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">Billed £109.99/yr · Save £46</p> : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or £109.99/yr with annual</p>}
+                <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                  {["Up to 3 scholars","Unlimited questions","Tara AI tutor (age-adaptive)","Full guardian dashboard","Weekly missions & reports","Digital pets & leaderboards","Revision planner (KS3/KS4)","Certificates & achievements"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center bg-indigo-500 hover:bg-indigo-600 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20">30-Day Pro Trial. No Card Needed.</Link>
+              </div>
+
+              {/* Exam Mode */}
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+                <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Exam Mode</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Add-on for Pro subscribers</p>
+                <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">+£3.99</span><span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span></div>
+                <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                  {["Everything in Pro","Timed 11+ mock tests","GCSE practice papers","WAEC/BECE practice papers","Predicted grades","Exam countdowns","AI flashcards"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5">✓</span>{f}</li>)}
+                </ul>
+                <Link href={signupHref} className="block text-center border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-xl text-sm transition-all">Start with Pro First</Link>
+              </div>
+            </div>
+          )}
+
+          {isNG && (
+            <div className="mt-6 max-w-3xl mx-auto bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-500/30 rounded-2xl p-5 text-center">
+              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">Multi-child family? We have a plan for you.</p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300/80">Family plans start at <strong>₦3,500/mo for 2 children</strong> · ₦4,800/mo for 3 · ₦6,000/mo for 4+. <Link href={signupHref} className="underline font-bold">Get started →</Link></p>
+            </div>
+          )}
+
+          <p className="text-center text-slate-700 dark:text-slate-400 text-xs mt-6">{cfg.pricingFootnote}{cfg.payment ? ` · ${cfg.payment}` : ''}</p>
         </div>
       </section>
 
@@ -418,9 +613,9 @@ export default function LandingPage() {
       {/* ═══ FINAL CTA ═══ */}
       <section className="relative z-10 px-4 sm:px-6 py-24 bg-gradient-to-r from-slate-200 dark:from-slate-800/40 to-slate-100 dark:to-slate-900/40 border-y border-slate-300 dark:border-white/10">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-black mb-6 text-slate-900 dark:text-slate-50">Try It Free. See the Difference in a Week.</h2>
-          <p className="text-xl text-slate-700 dark:text-slate-300 mb-10">Families in Australia, Canada, England, and Nigeria already use LaunchPard. Your child can start today.</p>
-          <Link href="/signup" className="inline-block bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xl px-12 py-5 rounded-2xl shadow-2xl shadow-indigo-500/30 hover:scale-105 transition-all">Start Your Child's Free Path</Link>
+          <h2 className="text-4xl sm:text-5xl font-black mb-6 text-slate-900 dark:text-slate-50">{cfg.finalCtaHeadline}</h2>
+          <p className="text-xl text-slate-700 dark:text-slate-300 mb-10">{cfg.finalCtaBody}</p>
+          <Link href={signupHref} className={`inline-block ${isNG ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/30'} text-white font-black text-xl px-12 py-5 rounded-2xl shadow-2xl hover:scale-105 transition-all`}>{cfg.finalCtaButton}</Link>
           <p className="text-slate-700 dark:text-slate-400 text-sm mt-5">No credit card required · Set up in 60 seconds</p>
         </div>
       </section>
@@ -444,12 +639,26 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 dark:text-slate-400">
             <div className="flex items-center gap-2"><Image src="/logo.svg" alt="LaunchPard" width={24} height={24} style={{ objectFit:"contain" }} /><span className="font-bold text-slate-900 dark:text-slate-100">LaunchPard</span></div>
             <p className="text-xs text-center">© {new Date().getFullYear()} LaunchPard Technologies. All rights reserved.</p>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-4 text-xs flex-wrap justify-center">
               <Link href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms</Link>
               <Link href="/privacy-policy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy</Link>
               <Link href="/cookie-policy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Cookies</Link>
               <Link href="/blog" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Blog</Link>
               <a href="mailto:hello@launchpard.com" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact</a>
+              {/* Region switcher — users can override geo-detection */}
+              <span className="inline-flex items-center gap-1 border-l border-slate-300 dark:border-white/10 pl-4">
+                <span className="text-slate-500 dark:text-slate-500">Region:</span>
+                <button
+                  onClick={() => setRegion(isNG ? 'GB' : 'NG')}
+                  className="inline-flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  aria-label="Switch region"
+                >
+                  <span>{cfg.flag}</span>
+                  <span>{cfg.label}</span>
+                  <span className="text-slate-500">({cfg.currency})</span>
+                  <span className="text-indigo-600 dark:text-indigo-400">Change →</span>
+                </button>
+              </span>
             </div>
           </div>
         </div>

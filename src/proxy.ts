@@ -49,6 +49,33 @@ function getClientIp(req: NextRequest): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GEO DETECTION — Vercel injects x-vercel-ip-country at the edge (zero cost).
+// We set a __geo cookie (non-HttpOnly so page.jsx can read it) mapping to a
+// supported region. Manual overrides via __geo_override cookie take priority.
+// ═══════════════════════════════════════════════════════════════════════════════
+const GEO_COOKIE          = '__geo';           // client-readable region code
+const GEO_OVERRIDE_COOKIE  = '__geo_override'; // user-chosen region, wins over IP
+const GEO_COOKIE_MAX_AGE   = 60 * 60 * 24 * 30; // 30 days
+
+// Mapping: ISO country code → LaunchPard region key
+// NG = Nigerian experience (NGN pricing, WAEC messaging)
+// GB = UK experience (GBP pricing, 11+/GCSE messaging) — default for everyone else
+function countryToRegion(country: string | null): 'NG' | 'GB' {
+  if (!country) return 'GB';
+  const c = country.toUpperCase();
+  return c === 'NG' ? 'NG' : 'GB';
+}
+
+function getDetectedCountry(req: NextRequest): string | null {
+  // Vercel Edge injects this automatically on every request. No cost, no extra lookup.
+  return (
+    req.headers.get('x-vercel-ip-country') ??
+    req.headers.get('cf-ipcountry') ?? // Cloudflare fallback
+    null
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CSRF — double-submit cookie pattern
 // Front-end must read __Host-csrf cookie and send as x-csrf-token header.
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -90,6 +117,30 @@ export async function proxy(req: NextRequest) {
 
   let response = NextResponse.next({ request: { headers: newHeaders } });
   response.headers.set('x-request-id', requestId);
+
+  // ── 1b. Geo cookie (Vercel edge country → region) ──────────────────────────
+  // Skip for static assets and API calls — only page visits need the cookie.
+  if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+    const override = req.cookies.get(GEO_OVERRIDE_COOKIE)?.value;
+    const existing = req.cookies.get(GEO_COOKIE)?.value;
+    // If user manually picked a region, respect it and mirror into __geo.
+    // Otherwise derive from Vercel's IP country header.
+    const detected = countryToRegion(getDetectedCountry(req));
+    const target   = override === 'NG' || override === 'GB' ? override : detected;
+    if (existing !== target) {
+      response.cookies.set({
+        name: GEO_COOKIE,
+        value: target,
+        path: '/',
+        maxAge: GEO_COOKIE_MAX_AGE,
+        sameSite: 'lax',
+        httpOnly: false,   // page.jsx must read this client-side
+        secure: true,
+      });
+    }
+    // Expose to downstream handlers via header for server components if ever needed.
+    response.headers.set('x-launchpard-region', target);
+  }
 
   // ── 2. Rate limiting ────────────────────────────────────────────────────────
   const limiter = getRateLimiter(pathname);
