@@ -1164,25 +1164,64 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
       }
     }
 
-    // Number line: "count on", "between", "order numbers"
+    // Number line: "count on", "between X and Y", "order numbers",
+    // "immediately next to X on the right/left", "number to the right/left of"
     if (
-      /number line|count on|count back|between.*and|order.*number/i.test(
+      /number line|count on|count back|between.*and|order.*number|immediately\s+next\s+to|(?:number|value)\s+(?:immediately\s+)?(?:to\s+the\s+)?(?:right|left)(?:\s+side)?(?:\s+of)?|next\s+to\s+\d+\s+on\s+the/i.test(
         fullText,
       )
     ) {
+      // Try to build a range from explicit "between X and Y" or "from X to Y" wording
       const rangeMatch = fullText.match(
         /(?:between|from|0?)\s*(\d+)\s*(?:and|to)\s*(\d+)/i,
       );
       if (rangeMatch) {
         const start = parseInt(rangeMatch[1]);
-        const end = parseInt(rangeMatch[2]);
-
+        const end   = parseInt(rangeMatch[2]);
         return {
           ariaLabel: `Number line from ${start} to ${end}`,
           component: "number_line",
           start,
           end,
           markers: [],
+          markerSprite: "ballGreen",
+          size: 30,
+        };
+      }
+      // "immediately next to 8 on the right" — build a short range around the anchor
+      const anchorMatch = fullText.match(
+        /immediately\s+next\s+to\s+(\d+)|next\s+to\s+(\d+)\s+on\s+the/i,
+      );
+      if (anchorMatch) {
+        const anchor = parseInt(anchorMatch[1] ?? anchorMatch[2]);
+        // Build a 0-to-(anchor+step) range using the smallest option gap as step
+        const nums = (q.match(/\d+/g) || []).map(Number);
+        const opts = (question.opts || []).map(Number).filter(Boolean).sort((a, b) => a - b);
+        const step = opts.length >= 2
+          ? Math.min(...opts.slice(1).map((v, i) => v - opts[i]).filter(d => d > 0))
+          : 2;
+        const start = Math.max(0, anchor - step * 2);
+        const end   = anchor + step * 3;
+        return {
+          ariaLabel: `Number line — which comes after ${anchor}?`,
+          component: "number_line",
+          start,
+          end,
+          markers: [anchor],
+          markerSprite: "ballGreen",
+          size: 30,
+        };
+      }
+      // "number line" in topic with no range parseable — return a generic short line
+      if (/number.?line/i.test(topic)) {
+        const nums = (q.match(/\d+/g) || []).map(Number).filter(Boolean);
+        const anchor = nums[0] || 5;
+        return {
+          ariaLabel: `Number line`,
+          component: "number_line",
+          start: 0,
+          end: Math.max(anchor + 4, 10),
+          markers: nums.slice(0, 3),
           markerSprite: "ballGreen",
           size: 30,
         };
@@ -1210,9 +1249,11 @@ export function resolveKenneyVisual(question, subject, yearLevel) {
     }
 
     // Pattern: "sequence", "what comes next", "pattern"
+    // NOTE: "next.*number" removed — it was too broad and matched "next to 8 ... number_line"
+    // across the topic slug. Only fire on clear pattern/sequence language in the question itself.
     if (
-      /pattern|sequence|next.*number|what comes next|continues|following/i.test(
-        fullText,
+      /\bpattern\b|(?:what|which)(?:\s+number|\s+item|\s+shape)?\s+comes\s+next|what\s+comes\s+after|continues\s+the\s+(?:sequence|pattern)|following\s+sequence/i.test(
+        q  // match on q (question text only), NOT fullText, to avoid topic-slug bleed-through
       )
     ) {
       return {

@@ -1667,17 +1667,35 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
   }
 
   // ── COUNTING (only when NOT a word problem with 2+ numbers) ─────────────
-  if ((/\bcount/.test(t) || t.includes("number_recog") || /how many|count the/i.test(questionStr)) && yearLevel <= 4) {
+  // Triggers on:
+  //   • topic contains "count" or "number_recog"
+  //   • "how many", "count the", "count the dots"  — classic KS1/KS2 counting stems
+  //   • "total number of dots/objects shown" — visual counting without count keyword
+  //   • "number of dots/objects/items shown/displayed/in the picture/image"
+  const isCountingQ = (
+    /\bcount/.test(t) ||
+    t.includes("number_recog") ||
+    /how many|count the/i.test(questionStr) ||
+    // "What is the total number of dots shown?" — dots visible in image, no number in text
+    /total\s+(?:number\s+of\s+)?dots?|number\s+of\s+(?:dots?|objects?|items?|shapes?|balls?|circles?)\s+(?:shown|displayed|visible|in\s+the\s+(?:picture|image|diagram))/i.test(questionStr) ||
+    // "How many dots are there?" / "Count the dots"
+    /how\s+many\s+(?:dots?|objects?|items?|shapes?|balls?|circles?)|dots?\s+(?:are\s+there|shown|visible|can\s+you\s+see)/i.test(questionStr)
+  );
+  if (isCountingQ && yearLevel <= 4) {
     // Skip counting if this looks like an addition/subtraction word problem
     const hasMultipleNums = nums.length >= 2;
     const isWordProblem = /altogether|total|in all|more|left|take away|add|join/i.test(questionStr);
     if (!hasMultipleNums || !isWordProblem) {
       const n = nums[0];
       if (n && n <= 25) return { type: "counting", count: n };
+      // No number in question text (dots are in the image) — derive count from correct answer
       if (!n && question?.opts?.length) {
         const correctIdx = question?.a ?? 0;
         const ansNum = parseInt(question.opts[correctIdx], 10);
         if (ansNum && ansNum <= 25) return { type: "counting", count: ansNum };
+        // Last resort: use the largest option as an upper-bound guide
+        const maxOpt = Math.max(...question.opts.map(o => parseInt(o, 10)).filter(Boolean));
+        if (maxOpt && maxOpt <= 25) return { type: "counting", count: maxOpt };
       }
     }
   }
@@ -1690,18 +1708,43 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
     return { type: "number_bond", whole, partA: null, partB: null };
   }
 
-  // ── SEQUENCE / ORDERING — "which number comes after/before", "what comes next", "order these" ─
-  const isSequenceQ = /(?:comes?\s+(?:immediately\s+)?(?:after|before|next|between))|(?:what\s+(?:comes?|is)\s+(?:next|after|before))|(?:order|arrange|sort|sequence|ascending|descending|(?:smallest|largest|biggest)\s+to\s+(?:smallest|largest|biggest))/i.test(questionStr);
+  // ── SEQUENCE / ORDERING — "which number comes after/before", "what comes next", "order these",
+  // "immediately next to X on the right/left side", "number line" topic with adjacency question
+  const isSequenceQ = (
+    // Classic "comes after/before/next" phrasing
+    /(?:comes?\s+(?:immediately\s+)?(?:after|before|next|between))/i.test(questionStr) ||
+    /(?:what\s+(?:comes?|is)\s+(?:next|after|before))/i.test(questionStr) ||
+    /(?:order|arrange|sort|sequence|ascending|descending|(?:smallest|largest|biggest)\s+to\s+(?:smallest|largest|biggest))/i.test(questionStr) ||
+    // "immediately next to X on the right/left side" — adjacency on a number line
+    /immediately\s+next\s+to|(?:number|value)\s+(?:immediately\s+)?(?:to\s+the\s+)?(?:right|left)(?:\s+side)?(?:\s+of)?/i.test(questionStr) ||
+    // "on the number line" in question text — always a sequence/line visual
+    /on\s+the\s+number\s+line/i.test(questionStr) ||
+    // topic slug is number_line
+    t.includes("number_line")
+  );
   const isChartDisplayQ = /(?:chart|list|table|sequence|pattern)\s+(?:displays?|shows?|contains?|has)/i.test(questionStr);
-  if ((isSequenceQ || isChartDisplayQ) && nums.length >= 3) {
+  // For number_line topic / adjacency questions we can work with fewer numbers
+  const minNums = (t.includes("number_line") || /number\s+line|immediately\s+next\s+to/i.test(questionStr)) ? 1 : 3;
+  if ((isSequenceQ || isChartDisplayQ) && nums.length >= minNums) {
     const sorted = [...nums].sort((a, b) => a - b);
     const lo = sorted[0], hi = sorted[sorted.length - 1];
-    // Detect uniform step from the most common difference
+
+    // Detect uniform step from the most common difference between question numbers.
+    // When the question only has 1 number (e.g. "next to 8 on the right side"),
+    // fall back to the smallest gap between sorted answer options to find the step.
     const diffs = sorted.slice(1).map((v, i) => v - sorted[i]);
-    const step = diffs.length > 0 ? Math.min(...diffs.filter(d => d > 0)) || 1 : 1;
-    // Detect missing gap value if question asks for "next" or has a "?" marker
+    let step = diffs.length > 0 ? Math.min(...diffs.filter(d => d > 0)) || 1 : 1;
+
+    if (sorted.length <= 1 && question?.opts?.length) {
+      // Infer step from option values — e.g. options [4, 12, 16, 20] → smallest gap = 4
+      const optNums = (question.opts || []).map(o => parseInt(o, 10)).filter(Boolean).sort((a, b) => a - b);
+      const optDiffs = optNums.slice(1).map((v, i) => v - optNums[i]).filter(d => d > 0);
+      if (optDiffs.length > 0) step = Math.min(...optDiffs);
+    }
+
+    // Detect missing gap value if question asks for "next"/"before"/"after"/"right"/"left"
     let missingSeq = null;
-    const hasMissingMarker = /\?|___|blank|missing|next|before|after/i.test(questionStr);
+    const hasMissingMarker = /\?|___|blank|missing|next|before|after|right\s+side|left\s+side/i.test(questionStr);
     if (hasMissingMarker) {
       // Look for the biggest gap — the missing value sits in the middle
       let maxGapIdx = 0, maxGap = 0;
@@ -1711,16 +1754,17 @@ function parseVisual(topicStr, questionStr, subject, yearLevel, question) {
       }
       if (maxGap > step) {
         missingSeq = (sorted[maxGapIdx] + sorted[maxGapIdx + 1]) / 2;
-      } else if (/next|after/i.test(questionStr)) {
+      } else if (/next|after|right\s+side/i.test(questionStr)) {
         missingSeq = hi + step;
-      } else if (/before/i.test(questionStr)) {
+      } else if (/before|left\s+side/i.test(questionStr)) {
         missingSeq = lo - step;
       }
     }
+
     return {
       type: "number_line",
-      min: lo - step,
-      max: (missingSeq != null ? Math.max(hi, missingSeq) : hi) + step,
+      min: Math.max(0, lo - step * 2),
+      max: (missingSeq != null ? Math.max(hi, missingSeq) : hi) + step * 2,
       known: nums,
       missing: missingSeq ?? undefined,
       label: isSequenceQ ? "Number sequence" : "Numbers shown",
