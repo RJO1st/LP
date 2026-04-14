@@ -242,7 +242,7 @@ function LoadingCard({ subject }) {
 
 // ─── MAIN QUIZ ENGINE ─────────────────────────────────────────────────────────
 
-function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic, BandQuizShell, band, friendlySubject, assessmentType = "quest" }) {
+function MainQuizEngine({ student, subject, curriculum, questionCount, previousQuestionIds, onComplete, onClose, taraEnabled, focusedTopic, preloadedQuestions = null, BandQuizShell, band, friendlySubject, assessmentType = "quest" }) {
   const perQTimer   = useMemo(() => getPerQuestionTimer(student), [student]);
   const subj        = subject?.toLowerCase() || "mathematics";
   const theme       = MAIN_THEMES[subj] || DEFAULT_MAIN_THEME;
@@ -333,17 +333,36 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
     let qs = [];
     const rawYear = parseInt(student?.year_level || student?.year || 4, 10);
     function getEffectiveYear(yr, cur) {
-  const c = (cur || "").toLowerCase();
-  if (c === "ng_jss") return yr + 6;
-  if (c === "ng_sss") return yr + 9;
-  return yr;
-}
-const year = rawYear;
+      const c = (cur || "").toLowerCase();
+      if (c === "ng_jss") return yr + 6;
+      if (c === "ng_sss") return yr + 9;
+      return yr;
+    }
+    const year = rawYear;
     try {
-      const dbRows = await getSmartQuestions(
-        supabase, student?.id, subject, curriculum, year, questionCount, previousQuestionIds,
-        null, student?.exam_mode ?? null, focusedTopic
-      );
+      let dbRows;
+
+      if (preloadedQuestions) {
+        // ── Fast path: questions were pre-fetched while the concept card
+        // was on screen. Await the in-flight promise — if it's already
+        // resolved this is instant; otherwise the scholar tapped "Start Quiz"
+        // faster than the DB query finished (still faster than a cold fetch).
+        try {
+          dbRows = await preloadedQuestions;
+          console.log(`[MainQuizEngine] ✅ Pre-fetched ${dbRows?.length ?? 0} questions for "${focusedTopic}"`);
+        } catch (prefetchErr) {
+          console.warn('[MainQuizEngine] Pre-fetch failed, falling back to live fetch:', prefetchErr?.message);
+          dbRows = null;
+        }
+      }
+
+      if (!dbRows?.length) {
+        // ── Standard path: no prefetch available or prefetch came back empty
+        dbRows = await getSmartQuestions(
+          supabase, student?.id, subject, curriculum, year, questionCount, previousQuestionIds,
+          null, student?.exam_mode ?? null, focusedTopic
+        );
+      }
       if (dbRows?.length > 0) qs = dbRows.map((r) => {
         const q = dbRowToQuestion(r, subject);
         if (q.year_level == null) q.year_level = year;
@@ -450,7 +469,7 @@ const year = rawYear;
         }).then(() => {}).catch(() => {});
       } catch (_) {}
     }
-  }, [student, subject, curriculum, questionCount, previousQuestionIds]);
+  }, [student, subject, curriculum, questionCount, previousQuestionIds, focusedTopic, preloadedQuestions]);
 
   // Only fetch on initial mount — do NOT re-fetch when student prop updates mid-quiz
   // (e.g. when handleQuestComplete refreshes scholar data after quest ends).
@@ -1323,13 +1342,20 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
     return band; // "ks1" | "ks2" | "ks3" | "ks4"
   }, [band, curriculum]);
 
-  // Three-stage flow: "journey" (read-only path display) → "briefing" → "intro" → "quiz"
-  // Journey shows the scholar their personalised path and auto-advances after 3 seconds
+  // Three-stage flow: "journey" (read-only path display) → "concept" → "quiz"
   // NOTE: these MUST be declared before handleLaunchQuest — rawTopic is in its dep array
-  const [stage,          setStage]          = useState("journey");
-  const [masteryRecords, setMasteryRecords] = useState([]);
-  const [algorithmTopic, setAlgorithmTopic] = useState(null);
-  const [topicReason,    setTopicReason]    = useState(null);
+  const [stage,             setStage]             = useState("journey");
+  const [masteryRecords,    setMasteryRecords]    = useState([]);
+  const [algorithmTopic,    setAlgorithmTopic]    = useState(null);
+  const [topicReason,       setTopicReason]       = useState(null);
+  // Concept-card ↔ quiz alignment:
+  // conceptCardTopic stores the slug of the card currently on screen so that
+  // MainQuizEngine uses exactly that topic — never a different algorithmTopic.
+  const [conceptCardTopic,  setConceptCardTopic]  = useState(null);
+  // prefetchedQuestionsRef holds the in-flight Promise started while the
+  // scholar reads the card. MainQuizEngine awaits it so questions are ready
+  // the instant the scholar taps "Start Quiz" — zero loading gap.
+  const prefetchedQuestionsRef = useRef(null);
 
   const rawTopic   = focusedTopicProp || algorithmTopic || questData?.topic || subj;
   const topicLabel = formatTopicLabel(rawTopic, questData?.questions || []);
@@ -1354,6 +1380,29 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
           shownConceptCardsRef.current.add(slug);
           setConceptCard(json.card);
           setConceptCardLoading(false);
+
+          // ── Pin topic for upcoming quiz ──────────────────────────────────
+          // Store the card's slug so MainQuizEngine ignores algorithmTopic and
+          // uses this exact topic — the scholar just read a card about it.
+          setConceptCardTopic(slug);
+
+          // ── Prefetch questions in the background ─────────────────────────
+          // Scholar typically reads the card for 15–60 seconds. We fire the
+          // DB query now so questions are ready the instant they tap "Start Quiz".
+          const prefetchYear = parseInt(student?.year_level || student?.year || 4, 10);
+          prefetchedQuestionsRef.current = getSmartQuestions(
+            supabase,
+            student?.id,
+            subj,
+            curriculum,
+            prefetchYear,
+            questionCount || 10,
+            previousQuestionIds || [],
+            null,
+            student?.exam_mode ?? null,
+            slug  // ← locked to the card's topic
+          );
+
           setStage("concept");
           return;
         }
@@ -1532,6 +1581,9 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
         onSpeak={conceptSpeak}
         onDismiss={() => {
           setConceptCard(null);
+          // conceptCardTopic stays set — MainQuizEngine reads it as focusedTopic.
+          // prefetchedQuestionsRef.current is the in-flight Promise we started
+          // while the card was on screen; MainQuizEngine will await it.
           setStage("quiz");
         }}
       />
@@ -1619,7 +1671,8 @@ const questionCount = questionCountProp || (isNigerianSecondary ? 20 : yearLevel
         questionCount={questionCount} previousQuestionIds={previousQuestionIds}
         onClose={onClose} onComplete={handleComplete}
         taraEnabled={taraEnabled}
-        focusedTopic={focusedTopicProp || algorithmTopic}
+        focusedTopic={conceptCardTopic || focusedTopicProp || algorithmTopic}
+        preloadedQuestions={prefetchedQuestionsRef.current}
         BandQuizShell={BandQuizShell}
         band={band}
         friendlySubject={friendlySubject}

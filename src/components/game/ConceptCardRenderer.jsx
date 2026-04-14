@@ -431,6 +431,20 @@ export default function ConceptCardRenderer({
 
         {/* CTA button — always visible, sticky footer */}
         <div className="px-5 pt-3 pb-5 shrink-0 border-t" style={{ borderColor: `${theme.colour}20` }}>
+          {/* Topic-alignment badge — shows scholar exactly what the questions will cover */}
+          {topicLabel && (
+            <div
+              className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3 text-xs font-bold"
+              style={{ background: `${theme.colour}15`, border: `1px solid ${theme.colour}40` }}
+            >
+              <span style={{ color: theme.colour }}>✓</span>
+              <span className="text-slate-700 dark:text-slate-200">
+                {isKS1
+                  ? `You'll answer questions about ${topicLabel}!`
+                  : `Questions coming up: ${topicLabel}`}
+              </span>
+            </div>
+          )}
           <button
             onClick={handleDismiss}
             className="w-full py-4 rounded-2xl font-black text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl"
@@ -443,9 +457,6 @@ export default function ConceptCardRenderer({
             {labels.cta}
             <ChevronRight size={16} />
           </button>
-          <p className="text-center text-slate-600 text-[10px] mt-2">
-            This card will not appear again for this topic today
-          </p>
         </div>
       </div>
     </div>
