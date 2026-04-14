@@ -63,7 +63,7 @@ const REGION_CONFIG = {
     pricingFootnote: 'After your trial, keep free access. 10 questions per day. No contracts. Cancel anytime.',
     payment: null,
     trustLabel: 'NDPR compliant',
-    faqExamAnswer: "Yes. Our WAEC Intensive tier (₦4,000/mo) includes timed WAEC SSCE mock papers, NECO practice tests, BECE and Common Entrance prep, with predicted grades and tutor fallback sessions.",
+    faqExamAnswer: "Yes. Our WAEC Intensive tier includes timed WAEC SSCE mock papers, NECO practice tests, BECE and Common Entrance prep, with predicted grades and tutor fallback sessions.",
     defaultCurriculum: 'ng_sss',
   },
 };
