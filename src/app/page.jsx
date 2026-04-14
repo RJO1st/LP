@@ -426,11 +426,6 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">{isNG ? 'Built Around the Nigerian Curriculum' : 'One Platform. Twelve Curricula.'}</h2>
             <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">{isNG ? 'NERDC-aligned. WAEC, NECO, BECE, and Common Entrance ready.' : 'Your scholar is enrolled in their curriculum. We make sure every topic is covered.'}</p>
-            {isNG && (
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 max-w-lg mx-auto">
-                Curriculum is chosen at signup and sets your pricing. Nigerian curricula are billed in naira. International curricula (UK, IB, US) are billed in their home currency.
-              </p>
-            )}
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {CURRICULA.map((c, i) => {
