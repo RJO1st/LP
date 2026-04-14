@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAgeBand, getBandConfig, getTaraSystemPrompt } from '@/lib/ageBandConfig';
 import { taraRequestSchema, parseBody } from '@/lib/validation';
+import { checkAndIncrementTaraQuota } from '@/lib/taraQuotaCheck';
 
 // ─── Deploy to: src/app/api/tara/route.js ────────────────────────────────────
 // Updated to use ageBandConfig for age-adaptive Tara personality.
@@ -154,6 +155,7 @@ export async function POST(req) {
     scholarName: body.scholarName,
     scholarYear: body.scholarYear,
     mode: body.mode,
+    scholarId: body.scholarId,
   })
   if (!parsed.success) return parsed.error
 
@@ -161,7 +163,28 @@ export async function POST(req) {
     text, subject = "mathematics", correctAnswer = "", scholarAnswer = "",
     scholarName = "Scholar", scholarYear = 4, question = null,
     explanation = "", mode = "eib", context = "", curriculum = "",
+    scholarId = null,
   } = { ...body, ...parsed.data };
+
+  // ── 0. Tier quota enforcement ─────────────────────────────────────────────
+  // Free tier → degraded='local_only' — we skip the AI call and return the
+  // local fallback below. Explorer/Scholar → quota-limited (429 if exhausted).
+  // Pro / WAEC Intensive → unlimited (quota check is a no-op).
+  const band0 = getAgeBand(scholarYear, curriculum);
+  const config0 = getBandConfig(band0);
+  const quota = await checkAndIncrementTaraQuota(scholarId);
+  if (!quota.ok && quota.reason === 'quota_exhausted') {
+    return NextResponse.json(
+      {
+        feedback: `${config0.tara.name}: You've used all ${quota.usage.limit} of your Tara feedback messages this month. Upgrade your plan to keep learning with me! 🌟`,
+        error: 'quota_exhausted',
+        usage: quota.usage,
+        upgrade_url: '/subscribe',
+      },
+      { status: 429 }
+    );
+  }
+  const degradeToLocalOnly = quota.degraded === 'local_only';
 
   // ── Resolve age band ─────────────────────────────────────────────────────
   const band   = getAgeBand(scholarYear, curriculum);
@@ -193,13 +216,17 @@ export async function POST(req) {
     });
   }
 
-  // ── 3. Local fallback if no API key ─────────────────────────────────────────
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.warn('[Tara] OPENROUTER_API_KEY not set — using local fallback');
+  // ── 3. Local fallback if no API key OR free tier (no paid AI feedback) ─────
+  if (!process.env.OPENROUTER_API_KEY || degradeToLocalOnly) {
+    if (degradeToLocalOnly) {
+      // Free tier — deterministic local response only, no AI spend
+    } else {
+      console.warn('[Tara] OPENROUTER_API_KEY not set — using local fallback');
+    }
     const fallback = mode === "followup"
       ? localFallbackFollowup(scholarName, scholarYear)
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
-    return NextResponse.json({ feedback: fallback });
+    return NextResponse.json({ feedback: fallback, tier_note: degradeToLocalOnly ? 'free_tier_local_only' : undefined });
   }
 
   // ── 4. Build system prompt with age-band personality ────────────────────────

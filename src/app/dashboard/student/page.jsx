@@ -1469,6 +1469,7 @@ const UK_NATIONAL_SUBJECTS = {
         <DashboardErrorBoundary band={getAgeBand(scholar?.year_level, scholar?.curriculum)}>
         <ThemeProvider yearLevel={scholar?.year_level} curriculum={scholar?.curriculum}>
           <AdaptiveDashboardLayout
+            parent={parentInfo}
             scholar={{
               ...scholar,
               name: scholar.name || scholar.codename || "Scholar",

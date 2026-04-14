@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { getCurriculumInfo, formatGradeLabel, getLevelInfo } from "@/lib/gamificationEngine";
 import { getProgressionState } from "@/lib/progressionEngine";
+import { getLimit, getTierLabel } from "@/lib/tierAccess";
 import { EXAM_MODES } from "@/lib/examModes";
 import GraduationModal from "@/components/GraduationModal";
 import { ensureReferralCode, getReferralStats } from "@/lib/referralSystem";
@@ -679,7 +680,20 @@ export default function ParentDashboard() {
 
   // Form state
   const [newName,     setNewName]     = useState("");
-  const [newCurriculum, setNewCurriculum] = useState("uk_national");
+  // Default curriculum picks up the hint dropped during landing-page → signup
+  // flow. Nigerian parents land here with ng_sss pre-selected.
+  const getInitialCurriculum = () => {
+    try {
+      if (typeof window === 'undefined') return 'uk_national';
+      const hint = localStorage.getItem('lp_curriculum_hint');
+      if (hint === 'ng_sss' || hint === 'ng_jss' || hint === 'ng_primary') return hint;
+      // Fallback: if the __geo cookie says NG, pre-select ng_sss
+      const m = document.cookie.match(/(?:^|;\s*)__geo=([^;]+)/);
+      if (m && m[1] === 'NG') return 'ng_sss';
+      return 'uk_national';
+    } catch { return 'uk_national'; }
+  };
+  const [newCurriculum, setNewCurriculum] = useState(getInitialCurriculum);
   const [newGrade,    setNewGrade]    = useState(1);
   const [newProvince, setNewProvince] = useState("");
   const [newStream,   setNewStream]   = useState("");
@@ -921,7 +935,11 @@ export default function ParentDashboard() {
   // ═══════════════════════════════════════════════════════════════
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push("/"); };
 
-  const MAX_SCHOLARS = 3;
+  // MAX_SCHOLARS is now tier-driven: free=1, uk_pro=3, ng_explorer=1, ng_scholar=1,
+  // ng_family_2=2, ng_family_3=3, ng_family_4plus=6, etc. See src/lib/tierAccess.js.
+  // Fall back to 3 if parent record not yet loaded.
+  const rawMax = parent ? getLimit(parent, 'scholars_max') : 3;
+  const MAX_SCHOLARS = Number.isFinite(rawMax) ? rawMax : 3;
 
   const handleArchiveScholar = async () => {
     if (!deletingScholar) return;
@@ -1682,6 +1700,20 @@ export default function ParentDashboard() {
                     </div>
                   );
                 })
+              )}
+
+              {/* Scholar-limit reached — show upgrade prompt */}
+              {scholars.length >= MAX_SCHOLARS && (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border-2 border-dashed border-amber-400 dark:border-amber-500/50 p-6 flex flex-col justify-center items-center text-center">
+                  <div className="text-4xl mb-3">🎓</div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1">Want to add another scholar?</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    You&apos;re on the <strong>{getTierLabel(parent?.subscription_tier || 'free')}</strong> plan ({MAX_SCHOLARS} scholar{MAX_SCHOLARS === 1 ? '' : 's'} max). Upgrade to add more.
+                  </p>
+                  <Link href="/subscribe" className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-amber-500/20">
+                    View plans <span>→</span>
+                  </Link>
+                </div>
               )}
 
               {/* Add Scholar Card */}

@@ -19,6 +19,10 @@ export default function SubscribePage() {
   const [billingCycle, setBillingCycle] = useState("annual");
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  // Region is fetched from the parents table — the authoritative source
+  // (NOT from __geo cookie, which is client-overridable). Defaults to 'GB'
+  // until the async fetch lands, which matches the current UK-only mock.
+  const [region, setRegion] = useState('GB');
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -35,9 +39,18 @@ export default function SubscribePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push("/login?redirectTo=/subscribe");
-      } else {
-        setCheckingAuth(false);
+        return;
       }
+      // Fetch the parent's authoritative region. We only show pricing tiers
+      // for the parent's region — Nigerian parents never see UK tiers and
+      // vice versa. This is the anti-arbitrage gate.
+      const { data: parent } = await supabase
+        .from('parents')
+        .select('region')
+        .eq('id', user.id)
+        .single();
+      if (parent?.region) setRegion(parent.region);
+      setCheckingAuth(false);
     };
     checkAuth();
   }, [router, supabase]);
@@ -171,36 +184,69 @@ export default function SubscribePage() {
                 <div className="flex items-center gap-3 mb-4 sm:mb-6">
                   <LogoIcon className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
                   <div>
-                    <h3 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">LaunchPard Pro</h3>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm">Everything included</p>
+                    <h3 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                      {region === 'NG' ? 'LaunchPard Scholar' : 'LaunchPard Pro'}
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">
+                      {region === 'NG' ? 'WAEC-ready learning, priced for Nigerian families' : 'Everything included'}
+                    </p>
                   </div>
                 </div>
                 <div className="mb-6 sm:mb-8">
-                  {billingCycle === "monthly" ? (
-                    <>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
-                          £12.99
-                        </span>
-                        <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/month</span>
-                      </div>
-                      <p className="text-slate-600 dark:text-slate-400">Billed monthly • Cancel anytime</p>
-                    </>
+                  {region === 'NG' ? (
+                    billingCycle === "monthly" ? (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
+                            ₦2,500
+                          </span>
+                          <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/month</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400">Billed monthly via Paystack • Cancel anytime</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
+                            ₦25,000
+                          </span>
+                          <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/year</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-600 dark:text-slate-400">₦2,083/month</span>
+                          <span className="bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full">
+                            Save ₦5,000 (17%)
+                          </span>
+                        </div>
+                      </>
+                    )
                   ) : (
-                    <>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
-                          £120
-                        </span>
-                        <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/year</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-600 dark:text-slate-400">£10/month</span>
-                        <span className="bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full">
-                          Save £35.88
-                        </span>
-                      </div>
-                    </>
+                    billingCycle === "monthly" ? (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
+                            £12.99
+                          </span>
+                          <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/month</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400">Billed monthly • Cancel anytime</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">
+                            £120
+                          </span>
+                          <span className="text-lg sm:text-2xl text-slate-600 dark:text-slate-400 font-medium">/year</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-600 dark:text-slate-400">£10/month</span>
+                          <span className="bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full">
+                            Save £35.88
+                          </span>
+                        </div>
+                      </>
+                    )
                   )}
                 </div>
                 <button

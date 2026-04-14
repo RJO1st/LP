@@ -149,6 +149,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f8fafc;p
 }
 import StickerCollection from "./StickerCollection";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
+import FeatureGate from "@/components/gates/FeatureGate";
+import { hasFeature, canAddScholar } from "@/lib/tierAccess";
 const NebulaTrials = lazy(() => import("@/components/game/NebulaTrials"));
 import { formatGradeLabel } from "@/lib/gamificationEngine";
 
@@ -985,8 +987,10 @@ export default function AdaptiveDashboardLayout({
   activityCalendar = [],
   scholarId, supabase, coins = 0, todayQCount = 0, effectiveTier = "pro",
   earnedBadgeIds = [], isFirstLogin = false,
+  parent = null,  // parent record with region + subscription_tier — drives feature gates
   onSignOut, onAvatar, onStartQuest, onTopicClick, onDismissEncourage,
   onDismissCareer, onStartAdventure, onStartMock, onExamModeSwitch, onStartRevisionTopic, onOpenExams,
+  onLaunch3DSimulation,
 }) {
   const { band, theme: t, isDark } = useTheme();
   const [activeSubject, setActiveSubject] = useState(subject || subjects[0] || "mathematics");
@@ -996,10 +1000,32 @@ export default function AdaptiveDashboardLayout({
   const [showNebulaTrials, setShowNebulaTrials] = useState(false);
   const [mockDebriefResult, setMockDebriefResult] = useState(null);
 
+  // ── Tier-gating shim ─────────────────────────────────────────────────────
+  // Every feature-gated callback is wrapped so that an under-privileged tier
+  // is routed to /subscribe instead of silently failing. UI cards remain
+  // visible (driven by `canUse*` flags below) so users see what they're
+  // missing.
+  const canUseExamPapers    = hasFeature(parent, 'exam_papers');
+  const canUse3DSimulations = hasFeature(parent, 'simulations_3d');
+  const canUseBossBattles   = hasFeature(parent, 'boss_battles');
+  const canUseLiveQA        = hasFeature(parent, 'live_qa');
+
+  const gatedOpenExams = () => {
+    if (!canUseExamPapers) { window.location.href = '/subscribe?feature=exam_papers'; return; }
+    if (onOpenExams) onOpenExams();
+  };
+  const gatedLaunch3DSim = (simId) => {
+    if (!canUse3DSimulations) { window.location.href = '/subscribe?feature=simulations_3d'; return; }
+    if (onLaunch3DSimulation) onLaunch3DSimulation(simId);
+  };
+
   // Handle nav actions (e.g. opening modals from nav buttons)
   const handleNavAction = (action) => {
-    if (action === "nebula-trials") setShowNebulaTrials(true);
-    if (action === "exam-papers" && onOpenExams) onOpenExams();
+    if (action === "nebula-trials") {
+      if (!canUseBossBattles) { window.location.href = '/subscribe?feature=boss_battles'; return; }
+      setShowNebulaTrials(true);
+    }
+    if (action === "exam-papers") gatedOpenExams();
   };
 
   const subjectMastery = useMemo(() => {
@@ -1469,7 +1495,7 @@ export default function AdaptiveDashboardLayout({
                   Sharpen your skills with practice exam papers
                 </p>
                 <button
-                  onClick={onOpenExams}
+                  onClick={gatedOpenExams}
                   style={{
                     padding: "6px 12px",
                     borderRadius: 6,
@@ -1869,7 +1895,7 @@ export default function AdaptiveDashboardLayout({
                   <div style={{ fontSize: 16, fontWeight: 900, color: "#ede9fe" }}>Exam Papers</div>
                 </div>
                 <button
-                  onClick={onOpenExams}
+                  onClick={gatedOpenExams}
                   style={{
                     padding: "10px 16px",
                     borderRadius: 8,

@@ -23,6 +23,9 @@ export const taraRequestSchema = z.object({
   scholarName: z.string().max(100).optional(),
   scholarYear: yearLevelSchema.optional(),
   mode: z.enum(['eib', 'followup']).optional(),
+  // Optional — enables server-side monthly quota enforcement. If absent,
+  // quota check is skipped (fail-open) so existing clients don't break.
+  scholarId: scholarIdSchema.optional(),
 })
 
 // Mastery update
