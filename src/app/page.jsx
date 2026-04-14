@@ -367,7 +367,7 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="mt-8 text-center text-indigo-600 dark:text-indigo-400 font-black text-xl">LaunchPard adapts to every child. One subscription.</p>
+          <p className="mt-8 text-center text-indigo-600 dark:text-indigo-400 font-black text-xl">LaunchPard adapts to every child.</p>
         </div>
       </section>
 
@@ -515,7 +515,7 @@ export default function LandingPage() {
                   <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Scholar</h3>
                   <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready · NECO · BECE · Common Entrance</p>
                   <div className="mb-1">
-                    <span className="text-4xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,500" : "2,500"}</span>
+                    <span className="text-4xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,000" : "2,500"}</span>
                     <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
                   </div>
                   {annual
