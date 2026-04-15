@@ -407,3 +407,230 @@ export function buildActivityCalendar(sessionAnswers) {
 
   return calendar;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCHOOL DASHBOARD — Class & School-Level Readiness
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { EXAM_CONFIGS } from './examReadiness.js';
+import { aggregateClassMastery, getGroupRecommendations } from './learningPathEngine.js';
+
+const ENTRANCE_SUBJECTS = ['mathematics', 'english', 'verbal_reasoning', 'nvr'];
+const ENTRANCE_CONFIG   = EXAM_CONFIGS.secondary_entrance;
+
+/**
+ * Compute a single scholar's secondary entrance readiness score (0-100)
+ * from their mastery records. Uses the four entrance subjects with
+ * their configured weights from EXAM_CONFIGS.secondary_entrance.
+ */
+function _scholarEntranceScore(masteryRows) {
+  const subjectScores = {};
+  for (const row of masteryRows) {
+    const subj = row.subject;
+    if (!ENTRANCE_CONFIG.subjects[subj]) continue;
+    if (!subjectScores[subj]) subjectScores[subj] = [];
+    subjectScores[subj].push(row.mastery_score ?? 0);
+  }
+
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (const [subj, cfg] of Object.entries(ENTRANCE_CONFIG.subjects)) {
+    const scores = subjectScores[subj];
+    if (scores?.length) {
+      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+      weightedSum += avg * cfg.weight;
+      totalWeight  += cfg.weight;
+    }
+  }
+  // If fewer than 4 subjects have data, normalise by covered weight
+  return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
+}
+
+/**
+ * Map a readiness score (0-100) to a grade band string.
+ */
+function _readinessGrade(score) {
+  const thresholds = ENTRANCE_CONFIG.gradeThresholds;
+  if (score >= thresholds.Exceptional)     return 'Exceptional';
+  if (score >= thresholds.Ready)           return 'Ready';
+  if (score >= thresholds.Developing)      return 'Developing';
+  return 'Needs Support';
+}
+
+/**
+ * Interpolate the admission probability from the placement curve.
+ */
+function getPlacementPrediction(averageReadiness) {
+  const curve = ENTRANCE_CONFIG.placementCurve;
+  for (let i = 0; i < curve.length - 1; i++) {
+    const upper = curve[i];
+    const lower = curve[i + 1];
+    if (averageReadiness >= lower.readiness) {
+      const t = (averageReadiness - lower.readiness) / (upper.readiness - lower.readiness);
+      return Math.round(lower.admissionPct + t * (upper.admissionPct - lower.admissionPct));
+    }
+  }
+  return curve[curve.length - 1].admissionPct;
+}
+
+/**
+ * Compute secondary-entrance readiness for every scholar in a class.
+ *
+ * @param {string}   classId   - UUID of the class
+ * @param {object}   supabase  - Supabase client (service role recommended)
+ * @returns {Promise<{
+ *   classAverage:      number,
+ *   students:          Array<{scholarId,name,overallReadiness,grade,subjectScores}>,
+ *   gradeDistribution: {Exceptional,Ready,Developing,"Needs Support"},
+ *   strugglingList:    Array<…>,
+ *   readyList:         Array<…>,
+ *   topicWeaknesses:   Array<{subject,topic,avgMastery,displayName}>,
+ * }>}
+ */
+export async function computeClassReadiness(classId, supabase) {
+  // 1. All scholars enrolled in this class
+  const { data: enrolments, error: enrErr } = await supabase
+    .from('enrolments')
+    .select('scholar_id, scholar:scholars(id, name, year_level, curriculum)')
+    .eq('class_id', classId);
+  if (enrErr) throw new Error(`enrolments fetch: ${enrErr.message}`);
+
+  const scholars = (enrolments ?? []).map(e => e.scholar).filter(Boolean);
+  if (!scholars.length) {
+    return {
+      classAverage: 0, students: [], gradeDistribution: {
+        Exceptional: 0, Ready: 0, Developing: 0, 'Needs Support': 0,
+      },
+      strugglingList: [], readyList: [], topicWeaknesses: [],
+    };
+  }
+
+  const scholarIds = scholars.map(s => s.id);
+
+  // 2. Mastery records for all scholars × entrance subjects in one query
+  const { data: mastery, error: mErr } = await supabase
+    .from('scholar_topic_mastery')
+    .select('scholar_id, subject, topic, mastery_score, stability, updated_at')
+    .in('scholar_id', scholarIds)
+    .in('subject', ENTRANCE_SUBJECTS);
+  if (mErr) throw new Error(`mastery fetch: ${mErr.message}`);
+
+  const masteryByScholar = {};
+  for (const row of mastery ?? []) {
+    if (!masteryByScholar[row.scholar_id]) masteryByScholar[row.scholar_id] = [];
+    masteryByScholar[row.scholar_id].push(row);
+  }
+
+  // 3. Per-scholar readiness
+  const students = scholars.map(s => {
+    const rows    = masteryByScholar[s.id] ?? [];
+    const overall = _scholarEntranceScore(rows);
+    const grade   = _readinessGrade(overall);
+
+    // Per-subject scores for the expanded student row
+    const subjectScores = {};
+    for (const subj of ENTRANCE_SUBJECTS) {
+      const subjRows = rows.filter(r => r.subject === subj);
+      subjectScores[subj] = subjRows.length
+        ? Math.round((subjRows.reduce((a, b) => a + (b.mastery_score ?? 0), 0) / subjRows.length) * 100)
+        : null;
+    }
+
+    return { scholarId: s.id, name: s.name, overallReadiness: overall, grade, subjectScores };
+  });
+
+  const classAverage = students.length
+    ? Math.round(students.reduce((s, r) => s + r.overallReadiness, 0) / students.length)
+    : 0;
+
+  const gradeDistribution = { Exceptional: 0, Ready: 0, Developing: 0, 'Needs Support': 0 };
+  students.forEach(s => { gradeDistribution[s.grade] = (gradeDistribution[s.grade] ?? 0) + 1; });
+
+  // 4. Topic weaknesses — aggregate across all mastery rows for this class
+  const allMastery = Object.values(masteryByScholar).flat();
+  const topicWeaknesses = [];
+  for (const subj of ENTRANCE_SUBJECTS) {
+    const recs = aggregateClassMastery(allMastery.filter(r => r.subject === subj), subj);
+    const weakest = recs
+      .filter(r => r.scholar_count > 0 && r.avg_mastery < 0.65)
+      .slice(0, 2)
+      .map(r => ({
+        subject:     subj,
+        topic:       r.topic,
+        displayName: r.display_name,
+        avgMastery:  Math.round(r.avg_mastery * 100),
+        pctStruggling: r.pct_struggling,
+      }));
+    topicWeaknesses.push(...weakest);
+  }
+  topicWeaknesses.sort((a, b) => a.avgMastery - b.avgMastery);
+
+  return {
+    classAverage,
+    students,
+    gradeDistribution,
+    strugglingList: students.filter(s => s.overallReadiness < 50),
+    readyList:      students.filter(s => s.overallReadiness >= 70),
+    topicWeaknesses: topicWeaknesses.slice(0, 5),
+    placementPrediction: getPlacementPrediction(classAverage),
+  };
+}
+
+/**
+ * Aggregate readiness across all classes in a school for the proprietor view.
+ *
+ * @param {string}   schoolId  - UUID of the school
+ * @param {object}   supabase  - Supabase client
+ * @returns {Promise<{
+ *   schoolAverage:    number,
+ *   totalScholars:    number,
+ *   classes:          Array<{id,name,year_level,avgReadiness,percentReady,scholarCount}>,
+ *   placementPrediction: number,
+ *   subjectAverages:  Record<string, number>,
+ * }>}
+ */
+export async function computeSchoolReadiness(schoolId, supabase) {
+  // Fetch all classes in the school
+  const { data: classes, error: clErr } = await supabase
+    .from('classes')
+    .select('id, name, year_level')
+    .eq('school_id', schoolId)
+    .order('year_level', { ascending: true });
+  if (clErr) throw new Error(`classes fetch: ${clErr.message}`);
+  if (!classes?.length) return {
+    schoolAverage: 0, totalScholars: 0, classes: [], placementPrediction: 0, subjectAverages: {},
+  };
+
+  // Compute readiness for each class (parallelised)
+  const classResults = await Promise.all(
+    classes.map(async c => {
+      const r = await computeClassReadiness(c.id, supabase);
+      return {
+        id:             c.id,
+        name:           c.name,
+        year_level:     c.year_level,
+        avgReadiness:   r.classAverage,
+        percentReady:   r.students.length
+          ? Math.round((r.readyList.length / r.students.length) * 100) : 0,
+        scholarCount:   r.students.length,
+        gradeDistribution: r.gradeDistribution,
+        topicWeaknesses:   r.topicWeaknesses.slice(0, 3),
+        placementPrediction: r.placementPrediction,
+      };
+    })
+  );
+
+  const totalScholars = classResults.reduce((s, c) => s + c.scholarCount, 0);
+  const schoolAverage = totalScholars > 0
+    ? Math.round(
+        classResults.reduce((s, c) => s + c.avgReadiness * c.scholarCount, 0) / totalScholars
+      )
+    : 0;
+
+  return {
+    schoolAverage,
+    totalScholars,
+    classes: classResults,
+    placementPrediction: getPlacementPrediction(schoolAverage),
+  };
+}

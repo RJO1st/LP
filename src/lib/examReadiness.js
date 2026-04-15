@@ -84,6 +84,40 @@ export const EXAM_CONFIGS = {
     grades: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
     passGrade: "6",
   },
+
+  // ─── Nigerian Primary — Secondary School Entrance ───────────────────────
+  // Used for the school proprietor & teacher dashboards.
+  // Tests the four subjects sat in Nigerian private secondary school entrance
+  // exams and Common Entrance. Weights mirror typical exam score distributions.
+  secondary_entrance: {
+    label: "Secondary School Entrance",
+    subjects: {
+      mathematics: { label: "Maths",              weight: 0.30, icon: "🔢" },
+      english:     { label: "English",             weight: 0.30, icon: "📖" },
+      verbal_reasoning: { label: "Verbal Reasoning", weight: 0.25, icon: "🧩" },
+      nvr:         { label: "Non-Verbal Reasoning", weight: 0.15, icon: "🔷" },
+    },
+    gradingSystem: "secondary_entrance",
+    // Readiness bands shown in the school dashboard
+    grades: ["Exceptional", "Ready", "Developing", "Needs Support"],
+    passGrade: "Ready",
+    // Score thresholds for each band
+    gradeThresholds: {
+      Exceptional:      85,   // ≥85 → Exceptional
+      Ready:            70,   // 70–84 → Ready
+      Developing:       50,   // 50–69 → Developing
+      "Needs Support":   0,   // <50 → Needs Support
+    },
+    // Placement prediction: % chance of gaining admission at a given readiness score
+    placementCurve: [
+      { readiness: 90, admissionPct: 97 },
+      { readiness: 80, admissionPct: 90 },
+      { readiness: 70, admissionPct: 78 },
+      { readiness: 60, admissionPct: 58 },
+      { readiness: 50, admissionPct: 38 },
+      { readiness:  0, admissionPct: 15 },
+    ],
+  },
 };
 
 /**
