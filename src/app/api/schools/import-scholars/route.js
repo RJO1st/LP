@@ -1,10 +1,16 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-import { parse } from 'csv-parse/sync'
-import { sendEmail } from '@/lib/email'
-import { generateCodename } from '@/lib/codename'
-import crypto from 'crypto'
+// Force Node.js runtime — csv-parse/sync uses Node stream internals not
+// available in the edge runtime. CSV upload is an admin-only infrequent
+// operation so the cold-start penalty is acceptable.
+export const runtime = 'nodejs';
+
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { parse } from 'csv-parse/sync';
+import { sendEmail } from '@/lib/email';
+import { generateCodename } from '@/lib/codename';
+import crypto from 'crypto';
 
 /**
  * POST /api/schools/import-scholars

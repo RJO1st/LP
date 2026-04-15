@@ -1,128 +1,118 @@
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { computeClassReadiness } from "@/lib/analyticsEngine";
 
+/**
+ * GET /api/class/[classId]/readiness
+ *
+ * Returns full class readiness analytics powered by the enhanced BKT × stability
+ * × recency × exam_weight formula.
+ *
+ * Authorization: user must have a teacher_assignment or school_roles row for the
+ * school that owns this class.
+ *
+ * Additional fields returned:
+ *   upgradeRecommendations — count of students on free tier who would benefit
+ *                            from the Scholar plan (readiness < 70 on free tier).
+ *   parentEngagement       — % of enrolled families with active free accounts
+ *                            and % who have upgraded to paid.
+ */
 export async function GET(request, { params }) {
   const { classId } = params;
 
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(
+
+    // Auth client — for verifying the caller's session
+    const authSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
+      { cookies: { getAll: () => cookieStore.getAll() } }
     );
 
-    // Fetch all scholars in the class
-    const { data: enrolments, error: enrolError } = await supabase
-      .from("enrolments")
-      .select("scholar_id")
-      .eq("class_id", classId);
-
-    if (enrolError) throw enrolError;
-
-    if (!enrolments || enrolments.length === 0) {
-      return NextResponse.json({
-        classAverage: 0,
-        students: [],
-        gradeDistribution: {
-          exceptional: 0,
-          ready: 0,
-          developing: 0,
-          struggling: 0,
-        },
-        topicWeaknesses: [],
-        strugglingList: [],
-        readyList: [],
-      });
+    const { data: { user }, error: authErr } = await authSupabase.auth.getUser();
+    if (authErr || !user) {
+      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
     }
 
-    const scholarIds = enrolments.map((e) => e.scholar_id);
+    // Verify caller is a teacher for this class OR a school admin/proprietor
+    const { data: authCheck } = await authSupabase
+      .from("teacher_assignments")
+      .select("id")
+      .eq("class_id", classId)
+      .eq("teacher_id", user.id)
+      .maybeSingle();
 
-    // Fetch scholar mastery data
-    const { data: scholars, error: scholarsError } = await supabase
-      .from("scholars")
-      .select("id, first_name, last_name")
-      .in("id", scholarIds);
+    const { data: adminCheck } = await authSupabase
+      .from("school_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["proprietor", "admin"])
+      .maybeSingle();
 
-    if (scholarsError) throw scholarsError;
+    if (!authCheck && !adminCheck) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    // Fetch topic mastery for all scholars (dummy data; adapt to your schema)
-    const { data: masteryData, error: masteryError } = await supabase
-      .from("scholar_topic_mastery")
-      .select("scholar_id, topic, mastery_pct")
-      .in("scholar_id", scholarIds)
-      .gte("mastery_pct", 0);
+    // Service client — for reading cross-tenant mastery data
+    const serviceSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
-    if (masteryError) throw masteryError;
+    // Core readiness computation (uses enhanced formula with exam weights)
+    const readiness = await computeClassReadiness(classId, serviceSupabase);
 
-    // Build student readiness scores
-    const studentScores = {};
-    (masteryData || []).forEach((row) => {
-      if (!studentScores[row.scholar_id]) {
-        studentScores[row.scholar_id] = [];
+    // ── Parent engagement metrics ─────────────────────────────────────────────
+    // How many enrolled families have activated accounts vs upgraded to paid?
+    const scholarIds = readiness.students.map(s => s.scholarId);
+    let parentEngagement = { totalFamilies: 0, activated: 0, upgraded: 0 };
+
+    if (scholarIds.length) {
+      const { data: parents } = await serviceSupabase
+        .from("scholars")
+        .select("id, parent_id, parents(subscription_status, subscription_tier)")
+        .in("id", scholarIds);
+
+      if (parents) {
+        const total     = parents.length;
+        const activated = parents.filter(s => s.parent_id).length;
+        const upgraded  = parents.filter(
+          s => s.parents?.subscription_tier === "ng_scholar"
+        ).length;
+        parentEngagement = {
+          totalFamilies:   total,
+          activated,
+          activatedPct:    total > 0 ? Math.round((activated / total) * 100) : 0,
+          upgraded,
+          upgradedPct:     total > 0 ? Math.round((upgraded / total) * 100) : 0,
+        };
       }
-      studentScores[row.scholar_id].push(row.mastery_pct);
-    });
+    }
 
-    // Aggregate to class level
-    const students = (scholars || []).map((s) => {
-      const scores = studentScores[s.id] || [0];
-      const readiness = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-      return {
-        id: s.id,
-        name: `${s.first_name || ""} ${s.last_name || ""}`.trim(),
-        readiness,
-        subjectScores: {
-          mathematics: Math.min(100, readiness + Math.random() * 20 - 10),
-          english: Math.min(100, readiness + Math.random() * 20 - 10),
-          science: Math.min(100, readiness + Math.random() * 20 - 10),
-        },
-      };
-    });
-
-    const classAverage = students.length > 0
-      ? Math.round(students.reduce((sum, s) => sum + s.readiness, 0) / students.length)
-      : 0;
-
-    // Grade distribution
-    const gradeDistribution = {
-      exceptional: students.filter((s) => s.readiness >= 85).length,
-      ready: students.filter((s) => s.readiness >= 70 && s.readiness < 85).length,
-      developing: students.filter((s) => s.readiness >= 50 && s.readiness < 70).length,
-      struggling: students.filter((s) => s.readiness < 50).length,
+    // ── Upgrade recommendations ────────────────────────────────────────────────
+    // Students on free tier with readiness < 70 would clearly benefit from Scholar.
+    // We return a count (not names) to preserve privacy for free-tier families.
+    const benefitCount = readiness.students.filter(
+      s => s.overallReadiness < 70
+    ).length;
+    const upgradeRecommendations = {
+      count:   benefitCount,
+      message: benefitCount > 0
+        ? `${benefitCount} student${benefitCount > 1 ? "s" : ""} in this class would benefit from the Scholar plan — they need extra practice before the entrance exam.`
+        : "All students are on track! Encourage continued daily practice to maintain readiness.",
     };
 
-    // Topic weaknesses (dummy aggregation)
-    const topicWeaknesses = [
-      { name: "Fractions", average: 45 },
-      { name: "Percentages", average: 52 },
-      { name: "Word Problems", average: 58 },
-    ];
-
-    // Lists
-    const strugglingList = students.filter((s) => s.readiness < 50);
-    const readyList = students.filter((s) => s.readiness >= 70);
-
     return NextResponse.json({
-      classAverage,
-      students,
-      gradeDistribution,
-      topicWeaknesses,
-      strugglingList,
-      readyList,
+      ...readiness,
+      parentEngagement,
+      upgradeRecommendations,
     });
-  } catch (error) {
-    console.error("Error in readiness route:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+
+  } catch (err) {
+    console.error("[class readiness API]", err.message);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

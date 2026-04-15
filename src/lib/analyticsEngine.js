@@ -418,32 +418,147 @@ import { aggregateClassMastery, getGroupRecommendations } from './learningPathEn
 const ENTRANCE_SUBJECTS = ['mathematics', 'english', 'verbal_reasoning', 'nvr'];
 const ENTRANCE_CONFIG   = EXAM_CONFIGS.secondary_entrance;
 
+// In-process cache for exam importance weights (filled on first DB fetch per session)
+const _examWeightCache = new Map(); // key: `${subject}::${examType}` → Map<topic, weight>
+
+/**
+ * Load topic exam importance weights from DB. Cached in-process.
+ * Falls back to uniform weight (0.7) if table not yet populated.
+ */
+async function _loadExamWeights(supabase, examType = 'secondary_entrance') {
+  const cacheKey = `weights::${examType}`;
+  if (_examWeightCache.has(cacheKey)) return _examWeightCache.get(cacheKey);
+
+  try {
+    const { data, error } = await supabase
+      .from('topic_exam_importance')
+      .select('topic_slug, subject, weight')
+      .eq('exam_type', examType);
+
+    if (error || !data?.length) {
+      _examWeightCache.set(cacheKey, null); // signal: use fallback
+      return null;
+    }
+
+    const weightMap = {};
+    for (const row of data) {
+      const key = `${row.subject}::${row.topic_slug}`;
+      weightMap[key] = row.weight;
+    }
+    _examWeightCache.set(cacheKey, weightMap);
+    return weightMap;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get exam weight for a topic+subject combination.
+ * Falls back gracefully to 0.7 (moderately important) if weights not loaded.
+ */
+function _topicWeight(weightMap, subject, topic) {
+  if (!weightMap) return 0.7;
+  return weightMap[`${subject}::${topic}`] ?? 0.7;
+}
+
 /**
  * Compute a single scholar's secondary entrance readiness score (0-100)
- * from their mastery records. Uses the four entrance subjects with
- * their configured weights from EXAM_CONFIGS.secondary_entrance.
+ * using the full formula:
+ *   topic_readiness = p_mastery × stability × recency_factor × exam_weight
+ *
+ * - p_mastery:     BKT probability of knowing the topic (mastery_score)
+ * - stability:     retention strength from spaced repetition (0-1)
+ * - recency:       decay factor based on days since last practice
+ * - exam_weight:   importance of topic for entrance exam (from topic_exam_importance)
+ *
+ * Falls back to simpler mastery-only calculation if stability/recency data absent.
  */
-function _scholarEntranceScore(masteryRows) {
-  const subjectScores = {};
+function _scholarEntranceScore(masteryRows, weightMap) {
+  // Group rows by subject
+  const bySubject = {};
   for (const row of masteryRows) {
     const subj = row.subject;
     if (!ENTRANCE_CONFIG.subjects[subj]) continue;
-    if (!subjectScores[subj]) subjectScores[subj] = [];
-    subjectScores[subj].push(row.mastery_score ?? 0);
+    if (!bySubject[subj]) bySubject[subj] = [];
+    bySubject[subj].push(row);
   }
 
+  const NOW_MS = Date.now();
+
+  const subjectScores = {};
+  for (const [subj, rows] of Object.entries(bySubject)) {
+    if (!rows.length) continue;
+
+    let topicWeightedSum = 0;
+    let topicTotalWeight = 0;
+
+    for (const row of rows) {
+      const pMastery  = row.mastery_score ?? 0;
+      const stability = row.stability ?? 0.5;      // default if no spaced repetition yet
+
+      // Recency decay: 0.97 per day since last practice, floor at 0.3
+      let recency = 1.0;
+      if (row.updated_at) {
+        const daysSince = (NOW_MS - new Date(row.updated_at).getTime()) / (1000 * 60 * 60 * 24);
+        recency = Math.max(0.3, Math.pow(0.97, Math.max(0, daysSince - 1)));
+      }
+
+      const examWeight = _topicWeight(weightMap, subj, row.topic);
+      const topicReadiness = pMastery * stability * recency * examWeight;
+
+      // Weight the contribution by exam_weight so critical topics dominate the average
+      topicWeightedSum += topicReadiness * examWeight;
+      topicTotalWeight += examWeight;
+    }
+
+    subjectScores[subj] = topicTotalWeight > 0
+      ? Math.min(1, topicWeightedSum / topicTotalWeight)
+      : 0;
+  }
+
+  // Subject-level weighted sum using entrance exam subject weights (Maths 30%, etc.)
   let weightedSum = 0;
   let totalWeight = 0;
   for (const [subj, cfg] of Object.entries(ENTRANCE_CONFIG.subjects)) {
-    const scores = subjectScores[subj];
-    if (scores?.length) {
-      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-      weightedSum += avg * cfg.weight;
+    const subjectScore = subjectScores[subj];
+    if (subjectScore !== undefined) {
+      weightedSum += subjectScore * cfg.weight;
       totalWeight  += cfg.weight;
     }
   }
-  // If fewer than 4 subjects have data, normalise by covered weight
   return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
+}
+
+/**
+ * Per-subject scores for a scholar (for the expanded student row in teacher dashboard).
+ * Returns { mathematics: 72, english: 58, verbal_reasoning: 65, nvr: 80 } or null per subject.
+ */
+function _scholarSubjectScores(masteryRows, weightMap) {
+  const bySubject = {};
+  for (const row of masteryRows) {
+    if (!ENTRANCE_CONFIG.subjects[row.subject]) continue;
+    if (!bySubject[row.subject]) bySubject[row.subject] = [];
+    bySubject[row.subject].push(row);
+  }
+  const result = {};
+  const NOW_MS = Date.now();
+  for (const subj of ENTRANCE_SUBJECTS) {
+    const rows = bySubject[subj];
+    if (!rows?.length) { result[subj] = null; continue; }
+    let wSum = 0, wTotal = 0;
+    for (const row of rows) {
+      const p = row.mastery_score ?? 0;
+      const s = row.stability ?? 0.5;
+      const daysSince = row.updated_at
+        ? (NOW_MS - new Date(row.updated_at).getTime()) / (1000 * 60 * 60 * 24) : 0;
+      const r = Math.max(0.3, Math.pow(0.97, Math.max(0, daysSince - 1)));
+      const ew = _topicWeight(weightMap, subj, row.topic);
+      wSum   += p * s * r * ew * ew;  // weight contribution squared → exam-important topics dominate
+      wTotal += ew;
+    }
+    result[subj] = wTotal > 0 ? Math.round(Math.min(1, wSum / wTotal) * 100) : 0;
+  }
+  return result;
 }
 
 /**
@@ -488,6 +603,9 @@ function getPlacementPrediction(averageReadiness) {
  * }>}
  */
 export async function computeClassReadiness(classId, supabase) {
+  // 0. Load exam weights (cached; falls back to uniform if table not ready)
+  const weightMap = await _loadExamWeights(supabase);
+
   // 1. All scholars enrolled in this class
   const { data: enrolments, error: enrErr } = await supabase
     .from('enrolments')
@@ -507,10 +625,10 @@ export async function computeClassReadiness(classId, supabase) {
 
   const scholarIds = scholars.map(s => s.id);
 
-  // 2. Mastery records for all scholars × entrance subjects in one query
+  // 2. Mastery records — include stability + updated_at for full formula
   const { data: mastery, error: mErr } = await supabase
     .from('scholar_topic_mastery')
-    .select('scholar_id, subject, topic, mastery_score, stability, updated_at')
+    .select('scholar_id, subject, topic, mastery_score, stability, updated_at, spaced_review_count')
     .in('scholar_id', scholarIds)
     .in('subject', ENTRANCE_SUBJECTS);
   if (mErr) throw new Error(`mastery fetch: ${mErr.message}`);
@@ -521,21 +639,12 @@ export async function computeClassReadiness(classId, supabase) {
     masteryByScholar[row.scholar_id].push(row);
   }
 
-  // 3. Per-scholar readiness
+  // 3. Per-scholar readiness using enhanced formula (BKT × stability × recency × exam_weight)
   const students = scholars.map(s => {
-    const rows    = masteryByScholar[s.id] ?? [];
-    const overall = _scholarEntranceScore(rows);
-    const grade   = _readinessGrade(overall);
-
-    // Per-subject scores for the expanded student row
-    const subjectScores = {};
-    for (const subj of ENTRANCE_SUBJECTS) {
-      const subjRows = rows.filter(r => r.subject === subj);
-      subjectScores[subj] = subjRows.length
-        ? Math.round((subjRows.reduce((a, b) => a + (b.mastery_score ?? 0), 0) / subjRows.length) * 100)
-        : null;
-    }
-
+    const rows         = masteryByScholar[s.id] ?? [];
+    const overall      = _scholarEntranceScore(rows, weightMap);
+    const grade        = _readinessGrade(overall);
+    const subjectScores = _scholarSubjectScores(rows, weightMap);
     return { scholarId: s.id, name: s.name, overallReadiness: overall, grade, subjectScores };
   });
 
@@ -633,4 +742,115 @@ export async function computeSchoolReadiness(schoolId, supabase) {
     classes: classResults,
     placementPrediction: getPlacementPrediction(schoolAverage),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SNAPSHOT WRITER — Persists daily readiness scores for trend charts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Write today's readiness snapshot for a single scholar.
+ * Called after each quiz session (from processAnswer hook) and by nightly batch.
+ * Upserts: one row per scholar per day per exam_type.
+ *
+ * @param {string}   scholarId
+ * @param {object[]} masteryRows  — from scholar_topic_mastery
+ * @param {object}   supabase     — service role client
+ * @param {string}   examType     — default 'secondary_entrance'
+ */
+export async function writeReadinessSnapshot(scholarId, masteryRows, supabase, examType = 'secondary_entrance') {
+  try {
+    const weightMap = await _loadExamWeights(supabase, examType);
+    const overall   = _scholarEntranceScore(masteryRows, weightMap);
+    const scores    = _scholarSubjectScores(masteryRows, weightMap);
+    const grade     = _readinessGrade(overall);
+
+    const { error } = await supabase
+      .from('scholar_readiness_snapshot')
+      .upsert({
+        scholar_id:    scholarId,
+        snapshot_date: new Date().toISOString().slice(0, 10),
+        exam_type:     examType,
+        overall_score: overall,
+        maths_score:   scores.mathematics ?? null,
+        english_score: scores.english     ?? null,
+        vr_score:      scores.verbal_reasoning ?? null,
+        nvr_score:     scores.nvr         ?? null,
+        grade_band:    grade,
+      }, { onConflict: 'scholar_id,snapshot_date,exam_type' });
+
+    if (error) console.warn('[writeReadinessSnapshot] upsert error:', error.message);
+  } catch (err) {
+    console.warn('[writeReadinessSnapshot] failed (non-fatal):', err.message);
+    // Never throw — snapshot failure must not break the quiz flow
+  }
+}
+
+/**
+ * Fetch the last N days of readiness snapshots for a scholar.
+ * Used by parent dashboard progress chart.
+ *
+ * @param {string}  scholarId
+ * @param {object}  supabase
+ * @param {number}  days       — history depth (default 90)
+ * @returns {Promise<Array<{date, overall_score, grade_band}>>}
+ */
+export async function getReadinessTrend(scholarId, supabase, days = 90) {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const { data, error } = await supabase
+    .from('scholar_readiness_snapshot')
+    .select('snapshot_date, overall_score, maths_score, english_score, vr_score, nvr_score, grade_band')
+    .eq('scholar_id', scholarId)
+    .eq('exam_type', 'secondary_entrance')
+    .gte('snapshot_date', since.toISOString().slice(0, 10))
+    .order('snapshot_date', { ascending: true });
+
+  if (error) {
+    console.warn('[getReadinessTrend] fetch error:', error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Fetch class-level trend (average readiness per week) for the proprietor chart.
+ *
+ * @param {string[]} scholarIds  — all scholars in the school/class
+ * @param {object}   supabase
+ * @param {number}   weeks       — weeks of history (default 12)
+ * @returns {Promise<Array<{week, avgReadiness}>>}
+ */
+export async function getClassReadinessTrend(scholarIds, supabase, weeks = 12) {
+  if (!scholarIds.length) return [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - weeks * 7);
+
+  const { data, error } = await supabase
+    .from('scholar_readiness_snapshot')
+    .select('snapshot_date, overall_score')
+    .in('scholar_id', scholarIds)
+    .eq('exam_type', 'secondary_entrance')
+    .gte('snapshot_date', since.toISOString().slice(0, 10))
+    .order('snapshot_date', { ascending: true });
+
+  if (error || !data?.length) return [];
+
+  // Group into ISO weeks and average
+  const byWeek = {};
+  for (const row of data) {
+    const d    = new Date(row.snapshot_date);
+    const week = `${d.getFullYear()}-W${String(Math.ceil(d.getDate() / 7)).padStart(2, '0')}`;
+    if (!byWeek[week]) byWeek[week] = [];
+    byWeek[week].push(row.overall_score ?? 0);
+  }
+
+  return Object.entries(byWeek)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, scores]) => ({
+      week,
+      avgReadiness: Math.round(scores.reduce((s, v) => s + v, 0) / scores.length),
+    }));
 }

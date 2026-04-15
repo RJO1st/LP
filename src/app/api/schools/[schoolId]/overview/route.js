@@ -1,144 +1,107 @@
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { computeSchoolReadiness } from "@/lib/analyticsEngine";
 
+/**
+ * GET /api/schools/[schoolId]/overview
+ *
+ * Returns school-wide readiness analytics for the proprietor dashboard.
+ * Uses computeSchoolReadiness (BKT × stability × recency × exam_weight).
+ *
+ * Authorization: caller must have school_roles row with role in
+ * ('proprietor', 'admin') for the given schoolId.
+ */
 export async function GET(request, { params }) {
   const { schoolId } = params;
 
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(
+
+    // Auth client — verify session + role
+    const authSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
+      { cookies: { getAll: () => cookieStore.getAll() } }
     );
 
-    // Fetch all classes in the school
-    const { data: classes, error: classesError } = await supabase
-      .from("classes")
-      .select("id, name, year_level, school_id")
-      .eq("school_id", schoolId);
-
-    if (classesError) throw classesError;
-
-    if (!classes || classes.length === 0) {
-      return NextResponse.json({
-        classes: [],
-        schoolAverage: 0,
-        totalScholars: 0,
-        placementPrediction: null,
-        trend: [],
-        referralEarnings: 0,
-      });
+    const { data: { user }, error: authErr } = await authSupabase.auth.getUser();
+    if (authErr || !user) {
+      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
     }
 
-    const classIds = classes.map((c) => c.id);
+    // Verify caller has proprietor or admin role for this school
+    const { data: roleCheck } = await authSupabase
+      .from("school_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("school_id", schoolId)
+      .in("role", ["proprietor", "admin"])
+      .maybeSingle();
 
-    // Fetch all scholars across classes
-    const { data: allEnrolments, error: enrolError } = await supabase
-      .from("enrolments")
-      .select("scholar_id, class_id")
-      .in("class_id", classIds);
+    if (!roleCheck) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    if (enrolError) throw enrolError;
+    // Service client — cross-tenant reads
+    const serviceSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
-    const scholarIds = [...new Set((allEnrolments || []).map((e) => e.scholar_id))];
+    // Fetch school name
+    const { data: school } = await serviceSupabase
+      .from("schools")
+      .select("id, name, curriculum, school_type")
+      .eq("id", schoolId)
+      .maybeSingle();
 
-    // Fetch scholar data
-    const { data: scholars, error: scholarsError } = await supabase
+    // Core readiness computation — parallelises across all classes
+    const readiness = await computeSchoolReadiness(schoolId, serviceSupabase);
+
+    // ── Parent engagement ────────────────────────────────────────────────────
+    // Count families: total scholars → how many have parent accounts → how many upgraded
+    const allScholarIds = readiness.classes.flatMap(c =>
+      // Gather scholar IDs from the class results (added in computeClassReadiness)
+      []  // populated below
+    );
+
+    // Direct scholar query for the school
+    const { data: schoolScholars } = await serviceSupabase
       .from("scholars")
-      .select("id, first_name, last_name")
-      .in("id", scholarIds);
+      .select("id, parent_id, parents(subscription_tier)")
+      .eq("school_id", schoolId);
 
-    if (scholarsError) throw scholarsError;
+    const totalScholars   = schoolScholars?.length ?? 0;
+    const activated       = schoolScholars?.filter(s => s.parent_id).length ?? 0;
+    const upgraded        = schoolScholars?.filter(
+      s => s.parents?.subscription_tier === "ng_scholar"
+    ).length ?? 0;
 
-    // Fetch mastery data for school-wide average
-    const { data: masteryData, error: masteryError } = await supabase
-      .from("scholar_topic_mastery")
-      .select("scholar_id, mastery_pct")
-      .in("scholar_id", scholarIds)
-      .gte("mastery_pct", 0);
-
-    if (masteryError) throw masteryError;
-
-    // Calculate per-scholar scores
-    const scholarScores = {};
-    (masteryData || []).forEach((row) => {
-      if (!scholarScores[row.scholar_id]) {
-        scholarScores[row.scholar_id] = [];
-      }
-      scholarScores[row.scholar_id].push(row.mastery_pct);
-    });
-
-    const studentReadinessByClass = {};
-    (allEnrolments || []).forEach((e) => {
-      if (!studentReadinessByClass[e.class_id]) {
-        studentReadinessByClass[e.class_id] = [];
-      }
-      const scores = scholarScores[e.scholar_id] || [0];
-      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-      studentReadinessByClass[e.class_id].push(avg);
-    });
-
-    // Build classes output with per-class stats
-    const classesWithStats = classes.map((cls) => {
-      const classReadiness = studentReadinessByClass[cls.id] || [];
-      const avgReadiness = classReadiness.length > 0
-        ? classReadiness.reduce((a, b) => a + b, 0) / classReadiness.length
-        : 0;
-      const percentReady = classReadiness.filter((r) => r >= 70).length / (classReadiness.length || 1) * 100;
-
-      return {
-        id: cls.id,
-        name: cls.name,
-        year_level: cls.year_level,
-        studentCount: classReadiness.length,
-        avgReadiness: Math.round(avgReadiness),
-        percentReady: Math.round(percentReady),
-        trend: (Math.random() * 6 - 3), // Dummy trend between -3 and +3
-        weakTopics: [
-          { name: "Fractions", average: Math.max(40, avgReadiness - 30) },
-          { name: "Decimals", average: Math.max(45, avgReadiness - 25) },
-          { name: "Word Problems", average: Math.max(50, avgReadiness - 20) },
-        ],
-      };
-    });
-
-    // School-wide average
-    const allReadiness = Object.values(studentReadinessByClass).flat();
-    const schoolAverage = allReadiness.length > 0
-      ? Math.round(allReadiness.reduce((a, b) => a + b, 0) / allReadiness.length)
-      : 0;
-
-    // Placement prediction & trend
-    const placementPrediction = Math.min(98, Math.round(schoolAverage * 1.08));
-    const trend = [
-      { month: "This Month", change: (Math.random() * 6 - 3) },
-    ];
-
-    // Referral earnings (count active parent subscriptions referred by school)
-    // For now, dummy calculation
-    const referralEarnings = (scholarIds.length || 0) * 1000;
+    const parentEngagement = {
+      totalFamilies:  totalScholars,
+      activated,
+      activatedPct:   totalScholars > 0 ? Math.round((activated / totalScholars) * 100) : 0,
+      upgraded,
+      upgradedPct:    totalScholars > 0 ? Math.round((upgraded  / totalScholars) * 100) : 0,
+      pendingClaims:  totalScholars - activated,
+    };
 
     return NextResponse.json({
-      classes: classesWithStats,
-      schoolAverage,
-      totalScholars: scholarIds.length,
-      placementPrediction,
-      trend,
-      referralEarnings,
+      school: {
+        id:         school?.id ?? schoolId,
+        name:       school?.name ?? "Your School",
+        curriculum: school?.curriculum ?? "ng_primary",
+        type:       school?.school_type ?? "primary",
+      },
+      ...readiness,
+      totalScholars,
+      parentEngagement,
     });
-  } catch (error) {
-    console.error("Error in school overview route:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+
+  } catch (err) {
+    console.error("[school overview API]", err.message);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

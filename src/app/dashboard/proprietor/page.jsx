@@ -485,19 +485,12 @@ export default function ProprietorDashboard() {
               </button>
             </div>
 
-            {/* Commission Info */}
-            <div className="bg-gradient-to-r from-slate-800/40 to-slate-700/20 border border-white/5 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg h-fit">
-                  <GiftIcon size={20} className="text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Referral Earnings This Month</p>
-                  <p className="text-2xl font-bold text-emerald-400">
-                    ₦{(schoolData.referralEarnings || 0).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+            {/* Partner programme placeholder — commission is configured per partnership agreement */}
+            <div className="bg-slate-800/30 border border-white/5 rounded-lg p-4">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Partner Programme</p>
+              <p className="text-sm text-slate-400">
+                Commission and partnership benefits are available for verified partner schools. Contact your LaunchPard account manager to set up a partnership agreement.
+              </p>
             </div>
           </>
         )}
