@@ -1,16 +1,74 @@
-// Force Node.js runtime — csv-parse/sync uses Node stream internals not
-// available in the edge runtime. CSV upload is an admin-only infrequent
-// operation so the cold-start penalty is acceptable.
-export const runtime = 'nodejs';
-
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { parse } from 'csv-parse/sync';
 import { sendEmail } from '@/lib/email';
 import { generateCodename } from '@/lib/codename';
 import crypto from 'crypto';
+
+/**
+ * Lightweight CSV parser — replaces csv-parse/sync to avoid Turbopack
+ * bundling issues with Node.js subpath exports.
+ *
+ * Handles:
+ *  - First row as headers (columns: true)
+ *  - Double-quoted fields (including quoted commas and escaped quotes "")
+ *  - Trimmed values
+ *  - Empty lines skipped
+ *
+ * Returns an array of objects keyed by header names.
+ */
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  let headers = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue; // skip_empty_lines
+
+    // Split respecting double-quoted fields
+    const fields = [];
+    let inQuotes = false;
+    let field = '';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          // Escaped quote? peek next char
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            field += '"';
+            i++; // skip second quote
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ',') {
+          fields.push(field.trim());
+          field = '';
+        } else {
+          field += ch;
+        }
+      }
+    }
+    fields.push(field.trim()); // last field
+
+    if (!headers) {
+      // First row → normalise header names to lowercase with underscores
+      headers = fields.map(h => h.toLowerCase().replace(/\s+/g, '_'));
+    } else {
+      const row = {};
+      headers.forEach((h, i) => { row[h] = fields[i] ?? ''; });
+      result.push(row);
+    }
+  }
+  return result;
+}
 
 /**
  * POST /api/schools/import-scholars
@@ -73,18 +131,14 @@ export async function POST(request) {
     const csvBuffer = await file.arrayBuffer()
     const csvText = new TextDecoder().decode(csvBuffer)
 
-    let records
+    let records;
     try {
-      records = parse(csvText, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-      })
+      records = parseCSV(csvText);
     } catch (parseErr) {
       return NextResponse.json(
         { error: `CSV parse error: ${parseErr.message}` },
         { status: 400 }
-      )
+      );
     }
 
     // Validate required columns
