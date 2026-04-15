@@ -546,14 +546,14 @@ export default function LandingPage() {
                 <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-emerald-500 dark:border-emerald-400/60 rounded-3xl p-7 flex flex-col shadow-lg shadow-emerald-500/20">
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">Everything included</div>
                   <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Scholar</h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready · NECO · BECE · Common Entrance</p>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">WAEC-ready · NECO · BECE · Common Entrance · No minimum commitment</p>
                   <div className="mb-1">
                     <span className="text-4xl font-black text-emerald-600 dark:text-emerald-400">₦{annual ? "2,000" : "2,500"}</span>
                     <span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span>
                   </div>
                   {annual
-                    ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦25,000/yr · Save ₦5,000</p>
-                    : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦25,000/yr — save ₦5,000</p>}
+                    ? <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5">₦25,000/yr · Save ₦5,000 · All WAEC papers included</p>
+                    : <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">or ₦25,000/yr — save ₦5,000, all WAEC papers included</p>}
                   <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
                     {["1 scholar (add siblings below)","Unlimited questions · all subjects","Tara AI feedback (50/month)","20 WAEC/NECO exam papers","3D science simulations","Boss battles & gamification","Revision planner & grade tracker","WAEC countdown & mastery map","Offline mode","Full guardian dashboard"].map(f => <li key={f} className="flex items-start gap-2"><span className="text-emerald-600 dark:text-emerald-400 mt-0.5">✓</span>{f}</li>)}
                   </ul>
