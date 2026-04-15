@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
@@ -11,7 +11,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-export default function ClaimScholarPage() {
+// Inner component uses useSearchParams — must be inside <Suspense>
+function ClaimScholarInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -681,5 +682,23 @@ export default function ClaimScholarPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Suspense boundary required by Next.js 16 when using useSearchParams()
+// in a static-generation context. The fallback matches the page background
+// so there is no layout shift while search params resolve.
+export default function ClaimScholarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center"
+             style={{ background: 'linear-gradient(135deg, #080c15 0%, #0f1629 100%)' }}>
+          <div className="w-10 h-10 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+        </div>
+      }
+    >
+      <ClaimScholarInner />
+    </Suspense>
   )
 }
