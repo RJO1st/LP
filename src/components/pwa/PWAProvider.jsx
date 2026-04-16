@@ -2,31 +2,28 @@
 
 /**
  * PWA Provider Component
- * Registers Service Worker and displays update notifications
- * Wraps the entire app to manage offline capabilities
+ * Registers Service Worker and displays update notifications.
+ * Wraps the entire app to manage offline capabilities.
  */
 
 import { useEffect, useState } from 'react';
-import { registerSW, hasWaitingSW, skipWaiting } from '@/lib/swRegister';
+import { registerSW, skipWaiting } from '@/lib/swRegister';
 import PWAUpdateBanner from './PWAUpdateBanner';
 
 export default function PWAProvider({ children }) {
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
 
   useEffect(() => {
-    // Register the Service Worker
-    const handleSWUpdate = () => {
-      if (hasWaitingSW()) {
-        setShowUpdateBanner(true);
-      }
-    };
+    if (typeof window === 'undefined') return;
 
-    // Only register in production/browser environment
-    if (typeof window !== 'undefined') {
-      registerSW(handleSWUpdate);
-    }
+    // Register the service worker. The callback fires when a new
+    // SW has installed and is in the "waiting" state.
+    registerSW(() => {
+      setShowUpdateBanner(true);
+    });
 
-    // Listen for SW messages about updates
+    // Also show the banner if the SW broadcasts SW_UPDATE_AVAILABLE
+    // (this fires from the SW's activate event — new SW already active).
     if ('serviceWorker' in navigator) {
       const handleSWMessage = (event) => {
         if (event.data?.type === 'SW_UPDATE_AVAILABLE') {
@@ -40,16 +37,21 @@ export default function PWAProvider({ children }) {
     }
   }, []);
 
-  const handleSkipWaiting = () => {
-    skipWaiting();
+  const handleRefresh = () => {
+    setShowUpdateBanner(false);
+    skipWaiting(); // handles both waiting-SW and already-active-SW cases
+  };
+
+  const handleDismiss = () => {
+    setShowUpdateBanner(false);
   };
 
   return (
     <>
-      {showUpdateBanner && (
-        <PWAUpdateBanner onRefresh={handleSkipWaiting} />
-      )}
       {children}
+      {showUpdateBanner && (
+        <PWAUpdateBanner onRefresh={handleRefresh} onDismiss={handleDismiss} />
+      )}
     </>
   );
 }

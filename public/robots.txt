@@ -1,3 +1,16 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+
+# Keep authenticated routes out of the index
+Disallow: /dashboard/
+Disallow: /dashboard/student/
+Disallow: /dashboard/teacher/
+Disallow: /dashboard/proprietor/
+Disallow: /dashboard/parent/
+Disallow: /learn/
+Disallow: /mastery/
+Disallow: /api/
+Disallow: /auth/
+
+Sitemap: https://launchpard.com/sitemap.xml
