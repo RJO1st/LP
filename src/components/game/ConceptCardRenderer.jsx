@@ -17,8 +17,24 @@
  *   onSpeak     — optional(text) → reads text aloud (KS1 auto-read)
  */
 
-import React, { useEffect, useRef, useState } from 'react'
-import { BookOpen, Lightbulb, Star, ChevronRight, Volume2 } from 'lucide-react'
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
+import { BookOpen, Lightbulb, Star, ChevronRight, Volume2, ExternalLink } from 'lucide-react'
+
+// ── Science visual components (KS3/KS4) ─────────────────────────────────────
+import {
+  ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis,
+  StateChangesVis, PHScaleVis, MoleculeVis, CellVis, PunnettVis,
+  EnergyStoresVis, WaveVis, EMSpectrumVis, FreeBodyVis
+} from './ScienceVisuals'
+
+// ── Science visual components (KS1/KS2) ─────────────────────────────────────
+import CONCEPT_VISUALS from './KS12ScienceVisuals'
+
+const SVG_SCIENCE_MAP = {
+  ForcesVis, VelocityVis, FoodChainVis, AtomVis, PeriodicTableVis,
+  StateChangesVis, PHScaleVis, MoleculeVis, CellVis, PunnettVis,
+  EnergyStoresVis, WaveVis, EMSpectrumVis, FreeBodyVis,
+}
 
 // ── Subject colour palette (mirrors REALM_THEMES in QuestOrchestrator) ─────
 const SUBJECT_THEMES = {
@@ -201,14 +217,64 @@ function BarModelSVG({ data }) {
   )
 }
 
+// ── NIH 3D Print Exchange panel ──────────────────────────────────────────────
+function NIH3DPanel({ data }) {
+  const { label = 'Interactive 3D Model', query, nih_url } = data || {}
+  const href = nih_url || `https://3d.nih.gov/search?query=${encodeURIComponent(query || label)}`
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 p-3 rounded-xl border transition-colors no-underline group"
+      style={{ background: '#0f172a', borderColor: '#334155' }}
+    >
+      <div className="w-10 h-10 rounded-lg bg-blue-950 flex items-center justify-center text-xl flex-shrink-0 border border-blue-800">
+        🔬
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-0.5">
+          NIH 3D Print Exchange
+        </div>
+        <div className="text-sm text-white font-semibold truncate">{label}</div>
+        <div className="text-xs text-slate-400">Explore the free 3D model →</div>
+      </div>
+      <ExternalLink size={14} className="text-slate-500 flex-shrink-0 group-hover:text-blue-400 transition-colors" />
+    </a>
+  )
+}
+
 function ConceptVisual({ type, data }) {
   if (!type || !data) return null
   switch (type) {
-    case 'number_line':      return <NumberLineSVG data={data} />
-    case 'fraction_circle':  return <FractionCircleSVG data={data} />
-    case 'array':            return <ArraySVG data={data} />
+    // ── Maths visuals ──────────────────────────────────────────────────────
+    case 'number_line':       return <NumberLineSVG data={data} />
+    case 'fraction_circle':   return <FractionCircleSVG data={data} />
+    case 'array':             return <ArraySVG data={data} />
     case 'place_value_chart': return <PlaceValueSVG data={data} />
-    case 'bar_model':        return <BarModelSVG data={data} />
+    case 'bar_model':         return <BarModelSVG data={data} />
+
+    // ── KS3/KS4 science (ScienceVisuals.jsx exports) ──────────────────────
+    case 'svg_science': {
+      const { component, props = {} } = data
+      const Comp = SVG_SCIENCE_MAP[component]
+      return Comp
+        ? <div className="py-2"><Comp {...props} /></div>
+        : null
+    }
+
+    // ── KS1/KS2 science (KS12ScienceVisuals CONCEPT_VISUALS dict) ─────────
+    case 'concept_visual': {
+      const Comp = CONCEPT_VISUALS[data.key]
+      return Comp
+        ? <div className="py-2"><Comp /></div>
+        : null
+    }
+
+    // ── NIH 3D Print Exchange linked model ────────────────────────────────
+    case 'nih_3d':
+      return <NIH3DPanel data={data} />
+
     default: return null
   }
 }
