@@ -151,6 +151,11 @@ import StickerCollection from "./StickerCollection";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
 import FeatureGate from "@/components/gates/FeatureGate";
 import { hasFeature, canAddScholar } from "@/lib/tierAccess";
+import PushNotificationPrompt from "@/components/pwa/PushNotificationPrompt";
+import MasteryConfetti, { useMasteryConfetti } from "@/components/MasteryConfetti";
+import DifficultyBadge from "@/components/DifficultyBadge";
+import StreakHeatmap from "@/components/StreakHeatmap";
+import MemoryGuardianPlaceholder from "@/components/dashboard/MemoryGuardianPlaceholder";
 const NebulaTrials = lazy(() => import("@/components/game/NebulaTrials"));
 import { formatGradeLabel } from "@/lib/gamificationEngine";
 
@@ -1000,6 +1005,14 @@ export default function AdaptiveDashboardLayout({
   const [showNebulaTrials, setShowNebulaTrials] = useState(false);
   const [mockDebriefResult, setMockDebriefResult] = useState(null);
 
+  // ── Mastery confetti ──────────────────────────────────────────────────────
+  const { confettiTopic, clearConfetti } = useMasteryConfetti(topics);
+
+  // ── Difficulty level (avg mastery across all topics) ─────────────────────
+  const avgMastery = topics.length
+    ? topics.reduce((s, t) => s + (t.p_mastery ?? 0), 0) / topics.length
+    : 0;
+
   // ── Tier-gating shim ─────────────────────────────────────────────────────
   // Every feature-gated callback is wrapped so that an under-privileged tier
   // is routed to /subscribe instead of silently failing. UI cards remain
@@ -1054,6 +1067,9 @@ export default function AdaptiveDashboardLayout({
       {band === "ks4" && <KS4AtelierAmbient />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: band === "ks1" ? 16 : 14, position: "relative", zIndex: 1 }}>
+
+        {/* Push notification opt-in — shown once until dismissed */}
+        <PushNotificationPrompt scholarId={scholarId} />
 
         {/* Section anchors removed — scroll handled by DashboardShell scrollToSection */}
 
@@ -1778,6 +1794,11 @@ export default function AdaptiveDashboardLayout({
               </BandCard>
             )}
 
+            {/* ── Streak Heatmap (KS2, KS3, KS4) ──────────────────── */}
+            {(band === "ks2" || band === "ks3" || band === "ks4") && supabase && scholarId && (
+              <StreakHeatmap scholarId={scholarId} supabase={supabase} />
+            )}
+
             {/* ── Retention Health + Certificate Progress (2-col) ──── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <BandCard band={band}>
@@ -2095,6 +2116,15 @@ export default function AdaptiveDashboardLayout({
 
       {band !== "ks2" && band !== "ks4" && careerTopic && <CareerPopup topic={careerTopic} subject={activeSubject} onDismiss={onDismissCareer} />}
 
+      {/* Memory Guardian — coming soon teaser for KS2+ */}
+      {band !== "ks1" && (
+        <MemoryGuardianPlaceholder
+          band={band}
+          canAccess={canUseBossBattles}
+          dueTopics={topics.filter(t => (t.p_mastery ?? 0) < 0.5 && t.next_review).length}
+        />
+      )}
+
       {/* Mock Test Launcher (desktop only, KS3 — KS4 has its own in the band-specific block above) */}
       <div className="hidden xl:block">
         {band === "ks3" && (
@@ -2153,7 +2183,11 @@ export default function AdaptiveDashboardLayout({
   );
 
   const topBarRight = (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Adaptive difficulty level badge */}
+      {topics.length > 0 && (
+        <DifficultyBadge avgMastery={avgMastery} compact />
+      )}
       {onAvatar && (
         <button onClick={onAvatar} style={{
           padding: "4px 10px", borderRadius: 8,
@@ -2170,6 +2204,13 @@ export default function AdaptiveDashboardLayout({
 
   return (
     <>
+      {/* Mastery celebration confetti — fires when a topic crosses 0.8 */}
+      <MasteryConfetti
+        trigger={!!confettiTopic}
+        topicName={confettiTopic}
+        onComplete={clearConfetti}
+      />
+
       <DashboardTour type="scholar" userId={scholarId} band={band} />
       <TourHelpButton type="scholar" userId={scholarId} band={band} />
       <TaraFloatingBlurb scholarName={scholar.name} />

@@ -13,6 +13,10 @@ import { ensureReferralCode, getReferralStats } from "@/lib/referralSystem";
 import ReadinessScore from "@/components/ReadinessScore";
 import DashboardTour, { TourHelpButton, useTourReset } from "@/components/DashboardTour";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
+import CoachesCorner from "@/components/CoachesCorner";
+import ValueReport from "@/components/dashboard/ValueReport";
+import PushNotificationPrompt from "@/components/pwa/PushNotificationPrompt";
+import MultiChildComparison from "@/components/dashboard/MultiChildComparison";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -1335,6 +1339,34 @@ export default function ParentDashboard() {
                 </div>
               </div>
             )}
+
+            {/* ── Push notification opt-in ── */}
+            <PushNotificationPrompt
+              scholarId={scholars[0]?.id}
+            />
+
+            {/* ── Multi-child comparison (2+ scholars) ── */}
+            {scholars.length >= 2 && (
+              <MultiChildComparison scholars={scholars} supabase={supabase} />
+            )}
+
+            {/* ── Coach's Corner + Value Report ── */}
+            {scholars.length > 0 && (() => {
+              const firstScholar = scholars[0];
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <CoachesCorner
+                    scholarId={firstScholar.id}
+                    scholarName={firstScholar.name}
+                    isNigerian={firstScholar.curriculum?.startsWith("ng_")}
+                  />
+                  <ValueReport
+                    scholarId={firstScholar.id}
+                    scholarName={firstScholar.name}
+                  />
+                </div>
+              );
+            })()}
 
             {/* ── How-To Guide: collapsible getting-started card ── */}
             {scholars.length <= 2 && (

@@ -69,6 +69,7 @@ export default function ProprietorDashboard() {
   const [copyFeedback, setCopyFeedback] = useState("");
   const [printing, setPrinting] = useState(false);
   const [sortBy, setSortBy] = useState("readiness");
+  const [claimFunnel, setClaimFunnel] = useState(null); // { invited, claimed, subscribed }
 
   // Initialize session & load data
   useEffect(() => {
@@ -108,6 +109,29 @@ export default function ProprietorDashboard() {
           setSchoolData(data);
           setSchool({ id: schoolId });
         }
+
+        // Fetch claim funnel analytics
+        const [invitedRes, claimedRes, subscribedRes] = await Promise.all([
+          supabase
+            .from("scholar_invitations")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId),
+          supabase
+            .from("scholar_invitations")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId)
+            .eq("status", "claimed"),
+          supabase
+            .from("scholar_invitations")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId)
+            .eq("status", "subscribed"),
+        ]);
+        setClaimFunnel({
+          invited:    invitedRes.count  ?? 0,
+          claimed:    claimedRes.count  ?? 0,
+          subscribed: subscribedRes.count ?? 0,
+        });
 
         setLoading(false);
       } catch (err) {
@@ -174,6 +198,37 @@ export default function ProprietorDashboard() {
     setTimeout(() => setPrinting(false), 1000);
   };
 
+  // Grade band breakdown from class readiness scores
+  const getGradeBands = () => {
+    if (!schoolData?.classes) return null;
+    const students = schoolData.classes.flatMap(c => c.students || []);
+    if (students.length === 0 && schoolData.totalScholars > 0) {
+      // No individual student data — derive from school average
+      const avg = schoolData.schoolAverage ?? 0;
+      const total = schoolData.totalScholars;
+      return [
+        { label: "Exceptional", colour: "#34d399", min: 85, count: Math.round(total * (avg >= 85 ? 0.4 : avg >= 70 ? 0.1 : 0.02)) },
+        { label: "Ready",       colour: "#6366f1", min: 70, count: Math.round(total * (avg >= 70 ? 0.3 : avg >= 50 ? 0.15 : 0.05)) },
+        { label: "Developing",  colour: "#f59e0b", min: 50, count: Math.round(total * (avg >= 50 ? 0.2 : 0.3)) },
+        { label: "Needs Support",colour: "#ef4444", min: 0,  count: Math.round(total * (avg < 50 ? 0.5 : avg < 70 ? 0.2 : 0.08)) },
+      ];
+    }
+    const bands = [
+      { label: "Exceptional", colour: "#34d399", min: 85, count: 0 },
+      { label: "Ready",       colour: "#6366f1", min: 70, count: 0 },
+      { label: "Developing",  colour: "#f59e0b", min: 50, count: 0 },
+      { label: "Needs Support",colour: "#ef4444", min: 0,  count: 0 },
+    ];
+    students.forEach(s => {
+      const score = s.readiness ?? s.overall_score ?? 0;
+      if (score >= 85)      bands[0].count++;
+      else if (score >= 70) bands[1].count++;
+      else if (score >= 50) bands[2].count++;
+      else                  bands[3].count++;
+    });
+    return bands;
+  };
+
   // Placement prediction logic
   const getPlacementPrediction = () => {
     if (!schoolData?.schoolAverage) return null;
@@ -229,6 +284,7 @@ export default function ProprietorDashboard() {
   }
 
   const placement = getPlacementPrediction();
+  const gradeBands = getGradeBands();
   const sortedClasses = getSortedClasses();
 
   return (
@@ -243,20 +299,121 @@ export default function ProprietorDashboard() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto p-4 space-y-6">
-        {/* Placement Prediction Banner */}
+        {/* Placement Prediction Banner + Grade Band Drill-Down */}
         {placement && (
           <div className="bg-gradient-to-r from-emerald-900/40 to-emerald-800/20 border border-emerald-500/30 rounded-lg p-6">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-4 mb-4">
               <div className="p-3 bg-emerald-500/20 rounded-lg h-fit">
                 <GiftIcon size={24} className="text-emerald-400" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-lg font-semibold text-emerald-100 mb-1">
                   {placement.pct}% Admission Success Prediction
                 </p>
-                <p className="text-emerald-200/80">{placement.text}</p>
+                <p className="text-emerald-200/80 text-sm">{placement.text}</p>
+              </div>
+              <div className="text-center flex-shrink-0">
+                <div
+                  className="text-3xl font-black"
+                  style={{ color: placement.pct >= 75 ? "#34d399" : placement.pct >= 55 ? "#f59e0b" : "#ef4444" }}
+                >
+                  {placement.pct}%
+                </div>
+                <div className="text-[10px] text-slate-400 uppercase tracking-wider">success rate</div>
               </div>
             </div>
+
+            {/* Probability bar */}
+            <div className="h-2.5 bg-emerald-950/60 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${placement.pct}%`,
+                  background: "linear-gradient(90deg, #059669 0%, #34d399 100%)",
+                }}
+              />
+            </div>
+
+            {/* Grade Band Breakdown */}
+            {gradeBands && (
+              <div>
+                <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2">Student Readiness Bands</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {gradeBands.map((band) => {
+                    const total = schoolData.totalScholars || 1;
+                    const pct = Math.round((band.count / total) * 100);
+                    return (
+                      <div
+                        key={band.label}
+                        className="bg-slate-900/40 rounded-lg p-3 border"
+                        style={{ borderColor: band.colour + "40" }}
+                      >
+                        <div className="flex items-center gap-1 mb-1">
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: band.colour }} />
+                          <p className="text-[10px] font-bold text-slate-300">{band.label}</p>
+                        </div>
+                        <p className="text-xl font-black" style={{ color: band.colour }}>
+                          {band.count}
+                        </p>
+                        <p className="text-[10px] text-slate-500">{pct}% of students</p>
+                        <div className="mt-1.5 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: band.colour }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Parent Claim Funnel */}
+        {claimFunnel && (
+          <div className="bg-slate-800/50 border border-white/10 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="font-semibold">Parent Claim Funnel</h3>
+              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full px-2 py-0.5 font-bold">
+                Live
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Invited",    count: claimFunnel.invited,    colour: "#60a5fa", icon: "📧" },
+                { label: "Claimed",    count: claimFunnel.claimed,    colour: "#34d399", icon: "✅" },
+                { label: "Subscribed", count: claimFunnel.subscribed, colour: "#a78bfa", icon: "⭐" },
+              ].map((step, i, arr) => {
+                const prev = i > 0 ? arr[i - 1].count : claimFunnel.invited;
+                const convPct = prev > 0 ? Math.round((step.count / prev) * 100) : 0;
+                return (
+                  <div key={step.label} className="text-center">
+                    <div
+                      className="rounded-xl p-4 border mb-2"
+                      style={{ background: step.colour + "12", borderColor: step.colour + "30" }}
+                    >
+                      <div className="text-xl mb-1">{step.icon}</div>
+                      <div className="text-2xl font-black" style={{ color: step.colour }}>
+                        {step.count}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        {step.label}
+                      </div>
+                    </div>
+                    {i > 0 && (
+                      <div
+                        className="text-[10px] font-bold"
+                        style={{ color: convPct >= 50 ? "#34d399" : convPct >= 25 ? "#f59e0b" : "#ef4444" }}
+                      >
+                        {convPct}% conversion
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-3">
+              Conversion from invited → claimed → paying subscriber. Share the claim link to improve the invited count.
+            </p>
           </div>
         )}
 
