@@ -65,9 +65,36 @@ export async function GET(request, { params }) {
     // Core readiness computation (uses enhanced formula with exam weights)
     const readiness = await computeClassReadiness(classId, serviceSupabase);
 
+    // ── Consent status per student ─────────────────────────────────────────────
+    // Query scholar_school_consent table to determine if parent has consented
+    const scholarIds = readiness.students.map(s => s.scholarId);
+    const { data: consentRecords } = await serviceSupabase
+      .from("scholar_school_consent")
+      .select("scholar_id, consent_given_at, revoked_at")
+      .in("scholar_id", scholarIds);
+
+    const consentStatusMap = {};
+    if (consentRecords) {
+      for (const record of consentRecords) {
+        // Consent is "granted" if given AND not revoked
+        if (record.consent_given_at && !record.revoked_at) {
+          consentStatusMap[record.scholar_id] = "granted";
+        }
+        // Consent is "revoked" if revoked_at is set
+        else if (record.revoked_at) {
+          consentStatusMap[record.scholar_id] = "revoked";
+        }
+      }
+    }
+
+    // Add consentStatus to each student (default "pending" if no record exists)
+    readiness.students = readiness.students.map(s => ({
+      ...s,
+      consentStatus: consentStatusMap[s.scholarId] || "pending",
+    }));
+
     // ── Parent engagement metrics ─────────────────────────────────────────────
     // How many enrolled families have activated accounts vs upgraded to paid?
-    const scholarIds = readiness.students.map(s => s.scholarId);
     let parentEngagement = { totalFamilies: 0, activated: 0, upgraded: 0 };
 
     if (scholarIds.length) {

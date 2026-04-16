@@ -736,11 +736,59 @@ export async function computeSchoolReadiness(schoolId, supabase) {
       )
     : 0;
 
+  // Aggregate subject averages across all classes
+  const subjectTotals = {};
+  const subjectCounts = {};
+
+  for (const classResult of classResults) {
+    // Re-compute subject scores for this class by re-fetching mastery data
+    const weightMap = await _loadExamWeights(supabase);
+    const { data: enrolments } = await supabase
+      .from('enrolments')
+      .select('scholar_id')
+      .eq('class_id', classResult.id);
+
+    const scholarIds = (enrolments ?? []).map(e => e.scholar_id);
+    if (scholarIds.length > 0) {
+      const { data: mastery } = await supabase
+        .from('scholar_topic_mastery')
+        .select('scholar_id, subject, mastery_score, stability, updated_at')
+        .in('scholar_id', scholarIds)
+        .in('subject', ENTRANCE_SUBJECTS);
+
+      if (mastery) {
+        const masteryByScholar = {};
+        for (const row of mastery) {
+          if (!masteryByScholar[row.scholar_id]) masteryByScholar[row.scholar_id] = [];
+          masteryByScholar[row.scholar_id].push(row);
+        }
+
+        for (const scholarId in masteryByScholar) {
+          const scores = _scholarSubjectScores(masteryByScholar[scholarId], weightMap);
+          for (const [subject, score] of Object.entries(scores)) {
+            if (!subjectTotals[subject]) subjectTotals[subject] = 0;
+            if (!subjectCounts[subject]) subjectCounts[subject] = 0;
+            subjectTotals[subject] += score;
+            subjectCounts[subject] += 1;
+          }
+        }
+      }
+    }
+  }
+
+  const subjectAverages = {};
+  for (const subject of ENTRANCE_SUBJECTS) {
+    subjectAverages[subject] = subjectCounts[subject] > 0
+      ? Math.round(subjectTotals[subject] / subjectCounts[subject])
+      : 0;
+  }
+
   return {
     schoolAverage,
     totalScholars,
     classes: classResults,
     placementPrediction: getPlacementPrediction(schoolAverage),
+    subjectAverages,
   };
 }
 

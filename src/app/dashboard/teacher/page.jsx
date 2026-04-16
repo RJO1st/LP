@@ -15,6 +15,9 @@ const Icon = ({ d, size = 20 }) => (
   </svg>
 );
 
+const ShieldIcon = ({ size = 20 }) => <Icon size={size} d={["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]} />;
+const InfoIcon = ({ size = 16 }) => <Icon size={size} d={["M12 16v-4m0-4v.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"]} />;
+
 const UsersIcon = ({ size = 20 }) => <Icon size={size} d={["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2","M16 3.13a4 4 0 0 1 0 7.75M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />;
 const ChartIcon = ({ size = 20 }) => <Icon size={size} d={["M3 3v18h18","M18 17V9M13 17v-4M8 17v-7"]} />;
 const TrendIcon = ({ size = 20 }) => <Icon size={size} d={["M21 21H3V3h5V1m5 2h5v12m-15 0h15m-5-12l5 5m-5-5l-5 5"]} />;
@@ -321,6 +324,30 @@ export default function TeacherDashboard() {
               </div>
             )}
 
+            {/* Consent Legend */}
+            <div className="bg-slate-800/30 border border-white/5 rounded-lg p-4">
+              <div className="flex items-start gap-4">
+                <ShieldIcon size={20} className="text-slate-400 mt-1 flex-shrink-0" />
+                <div className="text-sm text-slate-300">
+                  <p className="font-semibold mb-3">Parental Consent Status</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>Consent granted — you can view this student&apos;s detailed scores</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span>Pending — parent has not yet provided consent</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <span>Revoked — parent has withdrawn consent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Two-Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Student List */}
@@ -360,6 +387,19 @@ export default function TeacherDashboard() {
                             className="border-b border-white/5 py-3 px-2 cursor-pointer hover:bg-slate-700/30 transition-colors"
                           >
                             <div className="flex items-center gap-3 mb-2">
+                              {/* Consent indicator dot */}
+                              <div
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  student.consentStatus === "granted" ? "bg-emerald-500" :
+                                  student.consentStatus === "revoked" ? "bg-red-500" :
+                                  "bg-amber-500"
+                                }`}
+                                title={
+                                  student.consentStatus === "granted" ? "Consent granted" :
+                                  student.consentStatus === "revoked" ? "Consent revoked" :
+                                  "Pending consent"
+                                }
+                              />
                               <div className="flex-1">
                                 <p className="text-sm font-medium truncate">{student.name}</p>
                               </div>
@@ -381,16 +421,29 @@ export default function TeacherDashboard() {
                           </div>
 
                           {/* Expanded Subject Scores */}
-                          {isExpanded && student.subjectScores && (
+                          {isExpanded && (
                             <div className="bg-slate-700/20 px-4 py-3 border-b border-white/5">
-                              <div className="grid grid-cols-2 gap-2">
-                                {Object.entries(student.subjectScores).map(([subject, score]) => (
-                                  <div key={subject} className="bg-slate-700/50 p-2 rounded">
-                                    <p className="text-xs text-slate-300">{getSubjectLabel(subject)}</p>
-                                    <p className="text-sm font-bold text-emerald-400">{score}%</p>
-                                  </div>
-                                ))}
-                              </div>
+                              {student.consentStatus !== "granted" ? (
+                                <div className="flex items-center gap-3 text-amber-200/80">
+                                  <ShieldIcon size={18} className="flex-shrink-0" />
+                                  <span className="text-sm">
+                                    {student.consentStatus === "revoked"
+                                      ? "Parent has withdrawn consent. Detailed scores cannot be displayed."
+                                      : "Awaiting parental consent to display detailed scores."}
+                                  </span>
+                                </div>
+                              ) : student.subjectScores ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {Object.entries(student.subjectScores).map(([subject, score]) => (
+                                    <div key={subject} className="bg-slate-700/50 p-2 rounded">
+                                      <p className="text-xs text-slate-300">{getSubjectLabel(subject)}</p>
+                                      <p className="text-sm font-bold text-emerald-400">{score}%</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-400">No subject scores available yet.</p>
+                              )}
                             </div>
                           )}
                         </div>

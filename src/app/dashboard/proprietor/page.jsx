@@ -429,21 +429,20 @@ export default function ProprietorDashboard() {
               <h3 className="font-semibold mb-4">Subject Breakdown</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { subject: "Mathematics", emoji: "🔢", avg: schoolData.schoolAverage || 0 },
-                  { subject: "English", emoji: "📖", avg: (schoolData.schoolAverage || 0) - 3 },
-                  { subject: "Science", emoji: "🔬", avg: (schoolData.schoolAverage || 0) - 2 },
-                  { subject: "Verbal Reasoning", emoji: "🧠", avg: (schoolData.schoolAverage || 0) + 1 },
-                ].map((subj, idx) => {
-                  const trendVal = (idx % 2 === 0 ? 2 : -1);
+                  { key: "mathematics", subject: "Maths", emoji: "🔢" },
+                  { key: "english", subject: "English", emoji: "📖" },
+                  { key: "verbal_reasoning", subject: "Verbal Reasoning", emoji: "🧠" },
+                  { key: "nvr", subject: "Non-verbal Reasoning", emoji: "🔷" },
+                ].map((subj) => {
+                  const avg = schoolData?.subjectAverages?.[subj.key] ?? 0;
                   return (
-                    <div key={idx} className="bg-slate-700/30 p-3 rounded border border-white/5">
+                    <div key={subj.key} className="bg-slate-700/30 p-3 rounded border border-white/5">
                       <p className="text-xs text-slate-400">{subj.emoji} {subj.subject}</p>
                       <p className="text-lg font-bold text-emerald-400 my-1">
-                        {Math.max(0, subj.avg).toFixed(0)}%
+                        {Math.max(0, avg).toFixed(0)}%
                       </p>
-                      <p className={`text-xs ${trendVal >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {trendVal >= 0 ? "+" : ""}
-                        {trendVal}% this month
+                      <p className="text-xs text-slate-500">
+                        {avg > 0 ? "Based on class data" : "No data yet"}
                       </p>
                     </div>
                   );

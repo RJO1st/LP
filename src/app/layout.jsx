@@ -2,6 +2,7 @@
 import './globals.css'
 import Script from 'next/script';
 import DarkModeProvider from '@/components/theme/DarkModeProvider';
+import PWAProvider from '@/components/pwa/PWAProvider';
 
 
 
@@ -47,7 +48,11 @@ export default function RootLayout({ children }) {
             gtag('config', 'G-ZFZN7XZ36Y');
           `}
         </Script>
-        <DarkModeProvider>{children}</DarkModeProvider>
+        <DarkModeProvider>
+          <PWAProvider>
+            {children}
+          </PWAProvider>
+        </DarkModeProvider>
       </body>
     </html>
   )
