@@ -101,18 +101,20 @@ export default async function Image() {
         {/* Main headline */}
         <div
           style={{
-            fontSize: 52,
-            fontWeight: 800,
-            color: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             textAlign: 'center',
-            lineHeight: 1.15,
             maxWidth: 900,
             marginBottom: 20,
           }}
         >
-          AI-Powered Learning
-          <br />
-          <span style={{ color: '#6366f1' }}>for Every Scholar</span>
+          <span style={{ fontSize: 52, fontWeight: 800, color: '#ffffff', lineHeight: 1.15 }}>
+            AI-Powered Learning
+          </span>
+          <span style={{ fontSize: 52, fontWeight: 800, color: '#6366f1', lineHeight: 1.15 }}>
+            for Every Scholar
+          </span>
         </div>
 
         {/* Sub-headline */}
