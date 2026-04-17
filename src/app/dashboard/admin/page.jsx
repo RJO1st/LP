@@ -1,8 +1,8 @@
 "use client";
-// ─── Admin Growth Dashboard ─────────────────────────────────────────────────
+// ─── Admin Growth Dashboard ──────────────────────────────────────────────────
 // Comprehensive analytics dashboard for scaling LaunchPard.
 // Route: /dashboard/admin
-// Queries Supabase directly from the client (no API route dependency).
+// Tabs: Growth · Engagement · Retention · Revenue · Content · Scholars · Schools
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useEffect, useState, useCallback } from "react";
@@ -18,6 +18,9 @@ function sb() {
 }
 
 const ADMIN_EMAILS = ["ogunwede.r@gmail.com", "admin@launchpard.com"];
+
+// ── NG pricing constants ─────────────────────────────────────────────────────
+const NG_PRICE = { ng_scholar: 2500, waec_boost: 1000, ai_unlimited: 500, family_child: 1000 };
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const S = {
@@ -73,6 +76,11 @@ const S = {
     display: "inline-flex", alignItems: "center", gap: 5,
   },
   empty: { textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)", fontSize: 13 },
+  anomaly: {
+    margin: "12px 0", padding: "10px 14px", borderRadius: 10,
+    background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)",
+    color: "#fbbf24", fontSize: 12, display: "flex", alignItems: "center", gap: 8,
+  },
 };
 
 // ── Responsive grid helper ──────────────────────────────────────────────────
@@ -97,7 +105,7 @@ function KPICard({ label, value, sub, color = "#fbbf24", trend, small }) {
           ...S.sub,
           color: isNeutral ? "rgba(255,255,255,0.3)" : isPositive ? "#34d399" : "#f87171",
         }}>
-          {!isNeutral && (isPositive ? "+" : "")}{trend != null ? `${trend}% WoW` : ""}{trend != null && sub ? " \u00b7 " : ""}{sub}
+          {!isNeutral && (isPositive ? "+" : "")}{trend != null ? `${trend}% WoW` : ""}{trend != null && sub ? " · " : ""}{sub}
         </div>
       )}
     </div>
@@ -123,6 +131,179 @@ function BarChart({ data = [], label, color = "#fbbf24", height = 64 }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── SVG Line chart ──────────────────────────────────────────────────────────
+function LineChart({ data = [], label, color = "#34d399", height = 80, secondaryData, secondaryColor = "#60a5fa" }) {
+  const allVals = [...data.map(d => d.value), ...(secondaryData || []).map(d => d.value)];
+  const max = Math.max(...allVals, 1);
+  const W = 300, H = height;
+  const pts = (arr) => arr.map((d, i) => {
+    const x = arr.length > 1 ? (i / (arr.length - 1)) * W : W / 2;
+    const y = H - 4 - ((d.value / max) * (H - 10));
+    return `${x},${y}`;
+  }).join(" ");
+
+  return (
+    <div style={S.card}>
+      <div style={S.label}>{label}</div>
+      <svg width="100%" height={height} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ marginTop: 8 }}>
+        {data.length > 1 && (
+          <polyline points={pts(data)} fill="none" stroke={color} strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" />
+        )}
+        {secondaryData && secondaryData.length > 1 && (
+          <polyline points={pts(secondaryData)} fill="none" stroke={secondaryColor} strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 2" />
+        )}
+        {data.map((d, i) => {
+          const x = data.length > 1 ? (i / (data.length - 1)) * W : W / 2;
+          const y = H - 4 - ((d.value / max) * (H - 10));
+          return <circle key={i} cx={x} cy={y} r="2.5" fill={color} />;
+        })}
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+        {data.filter((_, i) => i % Math.ceil(data.length / 6) === 0 || i === data.length - 1).map((d, i) => (
+          <span key={i} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{d.label}</span>
+        ))}
+      </div>
+      {secondaryData && (
+        <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
+          <span style={{ fontSize: 10, color }}><span style={{ display: "inline-block", width: 12, height: 2, background: color, verticalAlign: "middle", marginRight: 4 }} />Active scholars</span>
+          <span style={{ fontSize: 10, color: secondaryColor }}><span style={{ display: "inline-block", width: 12, height: 2, background: secondaryColor, verticalAlign: "middle", marginRight: 4 }} />Quizzes</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Cohort retention heatmap ─────────────────────────────────────────────────
+function CohortTable({ data = [] }) {
+  const pctColor = (pct) => {
+    if (pct == null || isNaN(pct)) return "rgba(255,255,255,0.04)";
+    if (pct >= 70) return "rgba(52,211,153,0.25)";
+    if (pct >= 40) return "rgba(251,191,36,0.2)";
+    if (pct >= 15) return "rgba(251,146,60,0.2)";
+    return "rgba(248,113,113,0.15)";
+  };
+  const pctText = (active, total) => {
+    if (!total) return "—";
+    return `${Math.round((active / total) * 100)}%`;
+  };
+  const fmtMonth = (d) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+  };
+
+  return (
+    <div style={S.card}>
+      <div style={S.label}>Monthly Cohort Retention</div>
+      {data.length === 0 ? (
+        <div style={{ ...S.empty, padding: 20 }}>No cohort data yet</div>
+      ) : (
+        <div style={{ overflowX: "auto", marginTop: 10 }}>
+          <table style={{ ...S.table, fontSize: 11 }}>
+            <thead>
+              <tr>
+                <th style={S.th}>Cohort</th>
+                <th style={S.th}>Size</th>
+                <th style={{ ...S.th, color: "#34d399" }}>Month 0</th>
+                <th style={{ ...S.th, color: "#fbbf24" }}>Month 1</th>
+                <th style={{ ...S.th, color: "#fb923c" }}>Month 2</th>
+                <th style={{ ...S.th, color: "#f87171" }}>Month 3</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, i) => {
+                const cols = [
+                  { active: row.active_m0, label: pctText(row.active_m0, row.cohort_size) },
+                  { active: row.active_m1, label: pctText(row.active_m1, row.cohort_size) },
+                  { active: row.active_m2, label: pctText(row.active_m2, row.cohort_size) },
+                  { active: row.active_m3, label: pctText(row.active_m3, row.cohort_size) },
+                ];
+                return (
+                  <tr key={i}>
+                    <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{fmtMonth(row.cohort_month)}</td>
+                    <td style={S.td}>{row.cohort_size}</td>
+                    {cols.map((c, j) => {
+                      const pct = row.cohort_size ? (c.active / row.cohort_size) * 100 : null;
+                      return (
+                        <td key={j} style={{ ...S.td, background: pctColor(pct), textAlign: "center", fontWeight: 700 }}>
+                          {c.label}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Coverage matrix (curriculum × subject) ───────────────────────────────────
+function CoverageMatrix({ data = [] }) {
+  const curricula = [...new Set(data.map(d => d.curriculum))].sort();
+  const subjects = [...new Set(data.map(d => d.subject))].sort();
+  const lookup = {};
+  data.forEach(d => { lookup[`${d.curriculum}|${d.subject}`] = d.question_count; });
+
+  const cellColor = (n) => {
+    if (!n) return "rgba(248,113,113,0.12)";
+    if (n >= 200) return "rgba(52,211,153,0.2)";
+    if (n >= 80) return "rgba(251,191,36,0.15)";
+    return "rgba(251,146,60,0.15)";
+  };
+  const fmtC = (c) => ({
+    uk_national: "UK", ng_primary: "NG-P", ng_jss: "NG-J", ng_sss: "NG-S",
+    "11_plus": "11+", ca_primary: "CA-P", ca_secondary: "CA-S",
+  }[c] || c);
+  const fmtS = (s) => s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+
+  return (
+    <div style={S.card}>
+      <div style={S.label}>Question Bank Coverage Matrix</div>
+      <div style={{ display: "flex", gap: 12, marginTop: 6, marginBottom: 8, flexWrap: "wrap" }}>
+        {[["≥200", "rgba(52,211,153,0.2)", "Good"], ["80–199", "rgba(251,191,36,0.15)", "Fair"], ["1–79", "rgba(251,146,60,0.15)", "Sparse"], ["0", "rgba(248,113,113,0.12)", "Gap"]].map(([label, bg]) => (
+          <span key={label} style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: bg, color: "rgba(255,255,255,0.6)" }}>{label}</span>
+        ))}
+      </div>
+      {curricula.length === 0 ? (
+        <div style={{ ...S.empty, padding: 20 }}>No coverage data yet</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ ...S.table, fontSize: 10 }}>
+            <thead>
+              <tr>
+                <th style={{ ...S.th, fontSize: 9 }}>Curriculum</th>
+                {subjects.map(s => (
+                  <th key={s} style={{ ...S.th, fontSize: 9, textAlign: "center" }}>{fmtS(s)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {curricula.map(cur => (
+                <tr key={cur}>
+                  <td style={{ ...S.td, fontWeight: 700, color: "#e2e8f0", fontSize: 10 }}>{fmtC(cur)}</td>
+                  {subjects.map(sub => {
+                    const n = lookup[`${cur}|${sub}`] || 0;
+                    return (
+                      <td key={sub} style={{ ...S.td, background: cellColor(n), textAlign: "center", fontWeight: n > 0 ? 600 : 400, color: n > 0 ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.2)" }}>
+                        {n || "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -161,7 +342,7 @@ function FunnelChart({ steps }) {
   );
 }
 
-// ── Horizontal stat bar ─────────────────────────────────────────────────────
+// ── Horizontal stat bars ─────────────────────────────────────────────────────
 function HorizontalBars({ data = [], label, color = "#60a5fa" }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
@@ -273,23 +454,59 @@ async function sq(promise) {
   }
 }
 
-// ── Fetch all analytics directly from Supabase client ───────────────────────
+/** Export array of objects to CSV download */
+function exportCSV(rows, filename) {
+  if (!rows || rows.length === 0) return;
+  const cols = Object.keys(rows[0]);
+  const lines = [
+    cols.join(","),
+    ...rows.map(r => cols.map(c => {
+      const v = r[c] == null ? "" : String(r[c]);
+      return v.includes(",") || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+    }).join(","))
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Estimate monthly recurring revenue from parents table data */
+function estimateMRR(parentsData) {
+  let ngMRR = 0, gbMRR = 0, payingNG = 0, payingGB = 0;
+  (parentsData || []).forEach(p => {
+    if (p.subscription_tier === "ng_scholar") {
+      payingNG++;
+      let monthly = NG_PRICE.ng_scholar;
+      if (p.billing_cycle === "annual") monthly = Math.round(25000 / 12);
+      const addons = Array.isArray(p.ng_addons) ? p.ng_addons : [];
+      addons.forEach(a => { monthly += NG_PRICE[a] || 0; });
+      ngMRR += monthly;
+    } else if (p.subscription_tier === "gb_standard") {
+      payingGB++;
+      gbMRR += p.billing_cycle === "annual" ? Math.round(9999 / 12) : 999; // pence → £ /100 later
+    }
+  });
+  return { ngMRR, gbMRR, payingNG, payingGB };
+}
+
+// ── Fetch core analytics directly from Supabase client ──────────────────────
 async function fetchAnalytics(supabase) {
   const now = new Date();
   const d7 = new Date(now - 7 * 86400000).toISOString();
   const d14 = new Date(now - 14 * 86400000).toISOString();
 
   const [
-    parents, scholars, questionsAll, sessions, schools, subs, quizCount,
+    parents, scholars, questionsAll, sessions, schools, quizCount,
     ns7, ps7, np7, pp7, q7, pq7,
     allScholars, allQuizzes, topicMastery, questionsActive,
+    parentsSource,
   ] = await Promise.all([
     sq(supabase.from("parents").select("*", { count: "exact", head: true })),
     sq(supabase.from("scholars").select("*", { count: "exact", head: true }).is("archived_at", null)),
     sq(supabase.from("question_bank").select("*", { count: "exact", head: true })),
     sq(supabase.from("scholar_sessions").select("*", { count: "exact", head: true })),
     sq(supabase.from("schools").select("*", { count: "exact", head: true })),
-    sq(supabase.from("subscriptions").select("*", { count: "exact", head: true })),
     sq(supabase.from("quiz_results").select("*", { count: "exact", head: true })),
     sq(supabase.from("scholars").select("*", { count: "exact", head: true }).gte("created_at", d7).is("archived_at", null)),
     sq(supabase.from("scholars").select("*", { count: "exact", head: true }).gte("created_at", d14).lt("created_at", d7).is("archived_at", null)),
@@ -301,11 +518,13 @@ async function fetchAnalytics(supabase) {
     sq(supabase.from("quiz_results").select("id, scholar_id, subject, accuracy, time_spent_seconds, created_at").order("created_at", { ascending: false }).limit(200)),
     sq(supabase.from("scholar_topic_mastery").select("scholar_id, subject, topic, current_tier").limit(500)),
     sq(supabase.from("question_bank").select("*", { count: "exact", head: true }).eq("is_active", true)),
+    sq(supabase.from("parents").select("signup_source").limit(500)),
   ]);
 
   const scholarsData = allScholars.data || [];
   const quizzesData = allQuizzes.data || [];
   const masteryData = topicMastery.data || [];
+  const sourceData = parentsSource.data || [];
 
   // Activation
   const scholarsWithQuiz = new Set(quizzesData.map(q => q.scholar_id));
@@ -313,11 +532,9 @@ async function fetchAnalytics(supabase) {
   const totalScholars = scholars.count;
   const activationRate = totalScholars > 0 ? Math.round((activatedScholars / totalScholars) * 100) : 0;
 
-  // Avg accuracy
+  // Avg accuracy & time
   const withAcc = quizzesData.filter(q => q.accuracy != null);
   const avgAccuracy = withAcc.length > 0 ? Math.round(withAcc.reduce((s, q) => s + q.accuracy, 0) / withAcc.length) : 0;
-
-  // Avg time
   const withTime = quizzesData.filter(q => q.time_spent_seconds > 0);
   const avgTimeMin = withTime.length > 0
     ? (withTime.reduce((s, q) => s + q.time_spent_seconds, 0) / withTime.length / 60).toFixed(1) : "0";
@@ -331,10 +548,20 @@ async function fetchAnalytics(supabase) {
   const countryDist = buildDist(scholarsData, "country");
   const subjectDist = buildDist(quizzesData, "subject").map(d => ({ ...d, label: d.label.replace(/_/g, " ") }));
   const tierDist = buildDist(masteryData, "current_tier");
+  const sourceDist = buildDist(sourceData, "signup_source");
 
   // Funnel
   const multipleQuizzes = scholarsData.filter(s => quizzesData.filter(q => q.scholar_id === s.id).length >= 3).length;
   const hasXP = scholarsData.filter(s => s.total_xp > 0).length;
+
+  // Weekly trend + anomaly detection
+  const signupWeekly = buildWeeklyTrend(scholarsData, 8);
+  const thisWeek = signupWeekly[signupWeekly.length - 1]?.value || 0;
+  const prior4Avg = signupWeekly.slice(-5, -1).reduce((s, d) => s + d.value, 0) / 4;
+  const anomalyFlag = prior4Avg > 3 && thisWeek < prior4Avg * 0.8;
+  const anomalyMsg = anomalyFlag
+    ? `⚠ This week's signups (${thisWeek}) are ${Math.round((1 - thisWeek / prior4Avg) * 100)}% below the 4-week average (${Math.round(prior4Avg)}). Check acquisition channels.`
+    : null;
 
   // Recent scholars
   const recentScholars = scholarsData.slice(0, 20).map(s => ({
@@ -365,7 +592,6 @@ async function fetchAnalytics(supabase) {
       activeQuestions: questionsActive.count,
       totalSessions: sessions.count,
       totalSchools: schools.count,
-      totalSubscriptions: subs.count,
       totalQuizResults: quizCount.count,
       totalTopicMastery: masteryData.length,
     },
@@ -373,14 +599,15 @@ async function fetchAnalytics(supabase) {
       newScholars7d: ns7.count, prevScholars7d: ps7.count, scholarsGrowthPct: pctChange(ns7.count, ps7.count),
       newParents7d: np7.count, prevParents7d: pp7.count, parentsGrowthPct: pctChange(np7.count, pp7.count),
       quizzes7d: q7.count, prevQuizzes7d: pq7.count, quizzesGrowthPct: pctChange(q7.count, pq7.count),
+      anomalyMsg,
     },
     engagement: {
       activationRate, activatedScholars, avgAccuracy,
       avgTimeMin: parseFloat(avgTimeMin), scholarPerParent: parseFloat(scholarPerParent),
     },
     funnel: { totalSignups: totalScholars, firstQuizCompleted: activatedScholars, multipleQuizzes, hasXP },
-    distributions: { curriculum: currDist, ageBand: ageDist, country: countryDist, subject: subjectDist, masteryTier: tierDist },
-    trends: { signupWeekly: buildWeeklyTrend(scholarsData, 8) },
+    distributions: { curriculum: currDist, ageBand: ageDist, country: countryDist, subject: subjectDist, masteryTier: tierDist, signupSource: sourceDist },
+    trends: { signupWeekly },
     recentScholars,
     topPerformers,
   };
@@ -434,9 +661,7 @@ export default function AdminDashboard() {
           if (!loaded) { loaded = true; loadData(supabase); }
           return;
         }
-        if (event === "SIGNED_OUT") {
-          router.replace("/login");
-        }
+        if (event === "SIGNED_OUT") router.replace("/login");
       }
     );
     return () => { ignore = true; subscription.unsubscribe(); };
@@ -458,11 +683,13 @@ export default function AdminDashboard() {
   }
 
   const TABS = [
-    { id: "growth", label: "Growth" },
+    { id: "growth",     label: "Growth" },
     { id: "engagement", label: "Engagement" },
-    { id: "content", label: "Content" },
-    { id: "scholars", label: "Scholars" },
-    { id: "schools", label: "Schools" },
+    { id: "retention",  label: "Retention" },
+    { id: "revenue",    label: "Revenue" },
+    { id: "content",    label: "Content" },
+    { id: "scholars",   label: "Scholars" },
+    { id: "schools",    label: "Schools" },
   ];
 
   const k = data?.kpis || {};
@@ -477,13 +704,11 @@ export default function AdminDashboard() {
       {/* Header */}
       <div style={S.header}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#fbbf24", letterSpacing: "-0.02em" }}>
-            LaunchPard HQ
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#fbbf24", letterSpacing: "-0.02em" }}>LaunchPard HQ</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Growth Analytics</div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button style={S.btn} onClick={() => loadData(sb())}>Refresh</button>
+          <button style={S.btn} onClick={() => loadData(sb())}>↺ Refresh</button>
           <Link href="/dashboard/parent" style={{ ...S.btn, textDecoration: "none", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
             Parent
           </Link>
@@ -502,14 +727,9 @@ export default function AdminDashboard() {
 
       {/* Error banner */}
       {dataError && (
-        <div style={{
-          margin: "12px 20px", padding: "10px 14px", borderRadius: 10,
-          background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-          color: "#fca5a5", fontSize: 12, display: "flex", alignItems: "center", gap: 8,
-        }}>
+        <div style={{ margin: "12px 20px", padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#fca5a5", fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontWeight: 700, color: "#f87171" }}>Error:</span> {dataError}
-          <button onClick={() => loadData(sb())}
-            style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer" }}>
+          <button onClick={() => loadData(sb())} style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer" }}>
             Retry
           </button>
         </div>
@@ -522,13 +742,16 @@ export default function AdminDashboard() {
         </div>
       ) : data ? (
         <div style={S.content}>
+
           {/* ══════ GROWTH TAB ══════ */}
           {tab === "growth" && (
             <>
+              {g.anomalyMsg && <div style={S.anomaly}>⚠ {g.anomalyMsg}</div>}
+
               <RGrid cols={4}>
                 <KPICard label="Total Parents" value={k.totalParents} color="#60a5fa" trend={g.parentsGrowthPct} sub={`+${g.newParents7d} this week`} />
                 <KPICard label="Total Scholars" value={k.totalScholars} color="#34d399" trend={g.scholarsGrowthPct} sub={`+${g.newScholars7d} this week`} />
-                <KPICard label="Quizzes Completed" value={k.totalQuizResults} color="#fbbf24" trend={g.quizzesGrowthPct} sub={`+${g.quizzes7d} this week`} />
+                <KPICard label="Quizzes Completed" value={formatNum(k.totalQuizResults)} color="#fbbf24" trend={g.quizzesGrowthPct} sub={`+${g.quizzes7d} this week`} />
                 <KPICard label="Activation Rate" value={`${e.activationRate}%`} color={e.activationRate >= 30 ? "#34d399" : "#fb923c"} sub={`${e.activatedScholars} of ${k.totalScholars} scholars`} />
               </RGrid>
 
@@ -536,7 +759,7 @@ export default function AdminDashboard() {
                 <KPICard label="Scholar / Parent" value={e.scholarPerParent} color="#a78bfa" sub="avg ratio" small />
                 <KPICard label="Avg Accuracy" value={`${e.avgAccuracy}%`} color={e.avgAccuracy >= 60 ? "#34d399" : "#fb923c"} sub="across all quizzes" small />
                 <KPICard label="Avg Quiz Time" value={`${e.avgTimeMin}m`} color="#22d3ee" sub="per session" small />
-                <KPICard label="Topic Mastery" value={k.totalTopicMastery} color="#f472b6" sub="records tracked" small />
+                <KPICard label="Topic Mastery" value={formatNum(k.totalTopicMastery)} color="#f472b6" sub="records tracked" small />
               </RGrid>
 
               <div style={{ ...S.grid2, marginTop: 16 }}>
@@ -551,7 +774,9 @@ export default function AdminDashboard() {
 
               <div style={{ ...S.grid2, marginTop: 16 }}>
                 <DonutChart data={d_.curriculum || []} label="Scholars by Curriculum" />
-                <DonutChart data={d_.ageBand || []} label="Scholars by Age Band" />
+                {(d_.signupSource || []).length > 0
+                  ? <DonutChart data={d_.signupSource} label="Acquisition Channel" />
+                  : <DonutChart data={d_.ageBand || []} label="Scholars by Age Band" />}
               </div>
 
               {(d_.country || []).length > 0 && (
@@ -591,17 +816,18 @@ export default function AdminDashboard() {
 
               {(data.topPerformers || []).length > 0 && (
                 <div style={{ marginTop: 16 }}>
-                  <div style={S.sectionTitle}>Top Performers</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", ...S.sectionTitle }}>
+                    <span style={S.sectionTitle}>Top Performers</span>
+                    <button style={S.btn} onClick={() => exportCSV(data.topPerformers, "top_performers.csv")}>
+                      ↓ Export CSV
+                    </button>
+                  </div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={S.table}>
                       <thead>
                         <tr>
-                          <th style={S.th}>#</th>
-                          <th style={S.th}>Scholar</th>
-                          <th style={S.th}>Band</th>
-                          <th style={S.th}>XP</th>
-                          <th style={S.th}>Quizzes</th>
-                          <th style={S.th}>Avg Accuracy</th>
+                          <th style={S.th}>#</th><th style={S.th}>Scholar</th><th style={S.th}>Band</th>
+                          <th style={S.th}>XP</th><th style={S.th}>Quizzes</th><th style={S.th}>Avg Accuracy</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -627,29 +853,19 @@ export default function AdminDashboard() {
             </>
           )}
 
+          {/* ══════ RETENTION TAB ══════ */}
+          {tab === "retention" && <RetentionTab />}
+
+          {/* ══════ REVENUE TAB ══════ */}
+          {tab === "revenue" && <RevenueTab />}
+
           {/* ══════ CONTENT TAB ══════ */}
           {tab === "content" && (
-            <>
-              <RGrid cols={3}>
-                <KPICard label="Total Questions" value={formatNum(k.totalQuestions)} color="#a78bfa" sub="in question bank" />
-                <KPICard label="Active Questions" value={formatNum(k.activeQuestions)} color="#34d399" sub="serving to scholars" />
-                <KPICard label="Inactive/Purged" value={formatNum((k.totalQuestions || 0) - (k.activeQuestions || 0))} color="#f87171" sub="flagged or deleted" />
-              </RGrid>
-              <div style={{ marginTop: 16 }}>
-                <div style={S.sectionTitle}>Content Health</div>
-                <div style={S.card}>
-                  <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.7 }}>
-                    <strong style={{ color: "#a78bfa" }}>{formatNum(k.activeQuestions)}</strong> active questions across all curricula.
-                    Coverage spans <strong style={{ color: "#60a5fa" }}>UK National, 11+, Nigerian (Primary/JSS/SSS), Canadian, Australian, IB, and US Common Core</strong>.
-                  </p>
-                </div>
-              </div>
-              {(d_.subject || []).length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <HorizontalBars data={d_.subject} label="Quiz Activity by Subject" color="#a78bfa" />
-                </div>
-              )}
-            </>
+            <ContentTab
+              totalQuestions={k.totalQuestions}
+              activeQuestions={k.activeQuestions}
+              subjectDist={d_.subject}
+            />
           )}
 
           {/* ══════ SCHOLARS TAB ══════ */}
@@ -660,25 +876,23 @@ export default function AdminDashboard() {
                 <KPICard label="Total Parents" value={k.totalParents} color="#60a5fa" trend={g.parentsGrowthPct} sub={`+${g.newParents7d} this week`} />
                 <KPICard label="Activated" value={e.activatedScholars} color="#fbbf24" sub={`${e.activationRate}% rate`} />
               </RGrid>
-              <div style={S.sectionTitle}>Recent Scholars</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={S.sectionTitle}>Recent Scholars</div>
+                <button style={S.btn} onClick={() => exportCSV(data.recentScholars, "scholars.csv")}>↓ Export CSV</button>
+              </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={S.table}>
                   <thead>
                     <tr>
-                      <th style={S.th}>Name</th>
-                      <th style={S.th}>Band</th>
-                      <th style={S.th}>Curriculum</th>
-                      <th style={S.th}>XP</th>
-                      <th style={S.th}>Quizzes</th>
-                      <th style={S.th}>Topics</th>
-                      <th style={S.th}>Joined</th>
+                      <th style={S.th}>Name</th><th style={S.th}>Band</th><th style={S.th}>Curriculum</th>
+                      <th style={S.th}>XP</th><th style={S.th}>Quizzes</th><th style={S.th}>Topics</th><th style={S.th}>Joined</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(data.recentScholars || []).map(s => (
                       <tr key={s.id}>
-                        <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name || "\u2014"}</td>
-                        <td style={S.td}><span style={S.badge(bandColor(s.age_band))}>{(s.age_band || "\u2014").toUpperCase()}</span></td>
+                        <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name || "—"}</td>
+                        <td style={S.td}><span style={S.badge(bandColor(s.age_band))}>{(s.age_band || "—").toUpperCase()}</span></td>
                         <td style={S.td}>{formatCurriculum(s.curriculum)}</td>
                         <td style={{ ...S.td, color: "#fbbf24", fontWeight: 600 }}>{(s.total_xp || 0).toLocaleString()}</td>
                         <td style={S.td}>{s.quiz_count || 0}</td>
@@ -703,68 +917,435 @@ export default function AdminDashboard() {
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         @media (max-width: 768px) {
-          [style*="grid-template-columns: repeat(auto-fill"] {
-            grid-template-columns: 1fr 1fr !important;
-          }
+          [style*="grid-template-columns: repeat(auto-fill"] { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 480px) {
-          [style*="grid-template-columns: repeat(auto-fill"] {
-            grid-template-columns: 1fr !important;
-          }
+          [style*="grid-template-columns: repeat(auto-fill"] { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
   );
 }
 
-// ── Schools Tab ─────────────────────────────────────────────────────────────
-function SchoolsTab({ totalSchools }) {
-  const [schools, setSchools] = useState([]);
+// ── Retention Tab ────────────────────────────────────────────────────────────
+function RetentionTab() {
+  const [wauData, setWauData] = useState([]);
+  const [cohortData, setCohortData] = useState([]);
+  const [churnList, setChurnList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [churnRate, setChurnRate] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = sb();
+        const d30 = new Date(Date.now() - 30 * 86400000).toISOString();
+        const d60 = new Date(Date.now() - 60 * 86400000).toISOString();
+
+        const [wau, cohort, recentQuizzes, olderQuizzes] = await Promise.all([
+          sq(supabase.rpc("admin_weekly_actives", { p_weeks: 12 })),
+          sq(supabase.rpc("admin_cohort_retention")),
+          sq(supabase.from("quiz_results").select("scholar_id").gte("created_at", d30)),
+          sq(supabase.from("quiz_results").select("scholar_id, created_at").gte("created_at", d60).lt("created_at", d30)),
+        ]);
+
+        // WAU line chart data
+        const wauRows = (wau.data || []).map(r => ({
+          label: new Date(r.week_start).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+          value: Number(r.active_scholars),
+          quizzes: Number(r.quiz_count),
+        }));
+        setWauData(wauRows);
+
+        // Cohort retention
+        setCohortData(wau.data || [] /* fallback */ , cohort.data || []);
+        setCohortData(cohort.data || []);
+
+        // Churn approximation: scholars active 30-60 days ago but not in last 30 days
+        const recentSet = new Set((recentQuizzes.data || []).map(r => r.scholar_id));
+        const olderSet = [...new Set((olderQuizzes.data || []).map(r => r.scholar_id))];
+        const churned = olderSet.filter(id => !recentSet.has(id));
+        const churnPct = olderSet.length > 0 ? Math.round((churned.length / olderSet.length) * 100) : 0;
+        setChurnRate(churnPct);
+
+        // Enrich churn list with scholar names
+        if (churned.length > 0) {
+          const { data: scholarNames } = await supabase
+            .from("scholars")
+            .select("id, name, age_band, curriculum")
+            .in("id", churned.slice(0, 20));
+          // Find last active date per churned scholar
+          const lastActive = {};
+          (olderQuizzes.data || []).forEach(q => {
+            if (churned.includes(q.scholar_id)) {
+              if (!lastActive[q.scholar_id] || q.created_at > lastActive[q.scholar_id]) {
+                lastActive[q.scholar_id] = q.created_at;
+              }
+            }
+          });
+          setChurnList((scholarNames || []).map(s => ({ ...s, last_active: lastActive[s.id] }))
+            .sort((a, b) => new Date(b.last_active) - new Date(a.last_active)));
+        }
+      } catch (e) {
+        console.warn("[retention]", e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div style={S.empty}>Loading retention data...</div>;
+
+  const wauLatest = wauData[wauData.length - 1]?.value || 0;
+  const wauPrev = wauData[wauData.length - 2]?.value || 0;
+
+  return (
+    <>
+      <RGrid cols={3}>
+        <KPICard label="Weekly Active Scholars (WAU)" value={wauLatest} color="#34d399" trend={pctChange(wauLatest, wauPrev)} sub="last 7 days" />
+        <KPICard label="Churn Rate (30d)" value={churnRate != null ? `${churnRate}%` : "—"} color={churnRate > 30 ? "#f87171" : churnRate > 15 ? "#fbbf24" : "#34d399"} sub="lost prev-month actives" small />
+        <KPICard label="At-Risk Scholars" value={churnList.length} color="#fb923c" sub="active 30–60d ago, silent now" small />
+      </RGrid>
+
+      {wauData.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <LineChart
+            data={wauData}
+            secondaryData={wauData.map(d => ({ ...d, value: Math.round(d.quizzes / 5) }))}
+            label="Weekly Active Scholars — 12 weeks"
+            color="#34d399"
+            secondaryColor="#60a5fa"
+            height={90}
+          />
+        </div>
+      )}
+
+      {cohortData.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <CohortTable data={cohortData} />
+        </div>
+      )}
+
+      {churnList.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={S.sectionTitle}>At-Risk Scholars (silent 30–60 days)</div>
+            <button style={S.btn} onClick={() => exportCSV(churnList, "at_risk_scholars.csv")}>↓ Export</button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>Scholar</th><th style={S.th}>Band</th>
+                  <th style={S.th}>Curriculum</th><th style={S.th}>Last Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {churnList.map(s => (
+                  <tr key={s.id}>
+                    <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name || "—"}</td>
+                    <td style={S.td}><span style={S.badge(bandColor(s.age_band))}>{(s.age_band || "—").toUpperCase()}</span></td>
+                    <td style={S.td}>{formatCurriculum(s.curriculum)}</td>
+                    <td style={{ ...S.td, color: "#fb923c" }}>{fmtDate(s.last_active)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {cohortData.length === 0 && churnList.length === 0 && wauData.length === 0 && (
+        <div style={{ ...S.card, marginTop: 16, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 32 }}>
+          No retention data yet — run the admin_dashboard migration to enable RPC functions.
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Revenue Tab ───────────────────────────────────────────────────────────────
+function RevenueTab() {
+  const [parentsData, setParentsData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await sb().from("schools").select("*").order("name").limit(100);
-        setSchools(data || []);
-      } catch (e) { console.warn(e); }
+        const { data } = await sb()
+          .from("parents")
+          .select("id, subscription_tier, ng_addons, currency, billing_cycle, created_at, region")
+          .limit(1000);
+        setParentsData(data || []);
+      } catch (e) { console.warn("[revenue]", e.message); }
       finally { setLoading(false); }
     })();
   }, []);
 
-  const countryFlag = (c) => ({ GB: "\ud83c\uddec\ud83c\udde7", NG: "\ud83c\uddf3\ud83c\uddec", AU: "\ud83c\udde6\ud83c\uddfa", CA: "\ud83c\udde8\ud83c\udde6", CH: "\ud83c\udde8\ud83c\udded" }[c] || "\ud83c\udf0d");
+  if (loading) return <div style={S.empty}>Loading revenue data...</div>;
+
+  const { ngMRR, gbMRR, payingNG, payingGB } = estimateMRR(parentsData);
+  const totalPaying = payingNG + payingGB;
+  const ngARPU = payingNG > 0 ? Math.round(ngMRR / payingNG) : 0;
+  const freeCount = parentsData.filter(p => !p.subscription_tier || p.subscription_tier === "free").length;
+  const conversionRate = parentsData.length > 0 ? Math.round((totalPaying / parentsData.length) * 100) : 0;
+
+  // Tier distribution
+  const tierDist = buildDist(parentsData, "subscription_tier");
+  const addonDist = {};
+  parentsData.forEach(p => {
+    (Array.isArray(p.ng_addons) ? p.ng_addons : []).forEach(a => { addonDist[a] = (addonDist[a] || 0) + 1; });
+  });
+  const addonRows = Object.entries(addonDist).map(([k, v]) => ({ label: k.replace(/_/g, " "), value: v })).sort((a, b) => b.value - a.value);
+
+  // Monthly signups of paying users
+  const payingParents = parentsData.filter(p => p.subscription_tier === "ng_scholar");
+  const signupTrend = buildWeeklyTrend(payingParents, 8);
 
   return (
     <>
-      <RGrid cols={2}>
-        <KPICard label="Total Schools" value={totalSchools || 0} color="#f472b6" sub="in database" />
-        <KPICard label="Countries" value={[...new Set(schools.map(s => s.country).filter(Boolean))].length} color="#22d3ee" sub="represented" />
+      <RGrid cols={4}>
+        <KPICard label="NG MRR (est.)" value={`₦${formatNum(ngMRR)}`} color="#fbbf24" sub={`${payingNG} paying accounts`} />
+        <KPICard label="NG ARPU" value={`₦${ngARPU.toLocaleString()}`} color="#34d399" sub="per paying parent/mo" small />
+        <KPICard label="Conversion Rate" value={`${conversionRate}%`} color={conversionRate >= 10 ? "#34d399" : "#fb923c"} sub={`${totalPaying} paid / ${parentsData.length} total`} small />
+        <KPICard label="Free Accounts" value={freeCount} color="#60a5fa" sub="upgrade opportunity" small />
       </RGrid>
-      <div style={S.sectionTitle}>Schools ({schools.length})</div>
+
+      <div style={{ ...S.grid2, marginTop: 16 }}>
+        <DonutChart data={tierDist} label="Parents by Tier" />
+        {addonRows.length > 0
+          ? <HorizontalBars data={addonRows} label="Add-on Adoption (NG)" color="#fbbf24" />
+          : (
+            <div style={S.card}>
+              <div style={S.label}>GB Revenue</div>
+              <div style={{ marginTop: 16, color: "rgba(255,255,255,0.35)", fontSize: 12, lineHeight: 1.7 }}>
+                GB Stripe integration pending UK entity setup.<br />
+                Target: £9.99/mo core plan once live.
+              </div>
+            </div>
+          )}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <BarChart data={signupTrend} label="New Paying Parents — Weekly" color="#fbbf24" height={72} />
+      </div>
+
+      <div style={{ ...S.card, marginTop: 16 }}>
+        <div style={S.label}>Revenue Benchmarks</div>
+        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, fontSize: 11 }}>
+          {[
+            ["uLesson (NG)", "₦4,000/mo", "#f87171"],
+            ["LaunchPard Scholar", "₦2,500/mo", "#34d399"],
+            ["Target 100 subs", `₦${formatNum(250000)}/mo MRR`, "#fbbf24"],
+          ].map(([label, val, color]) => (
+            <div key={label} style={{ textAlign: "center", padding: "10px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+              <div style={{ color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontWeight: 800, fontSize: 14, color }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {totalPaying === 0 && (
+        <div style={{ ...S.card, marginTop: 16, padding: 20, background: "rgba(251,191,36,0.04)", border: "1px solid rgba(251,191,36,0.15)" }}>
+          <div style={{ fontSize: 13, color: "#fbbf24", fontWeight: 700, marginBottom: 6 }}>Payment integration needed</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>
+            Paystack (NG) and Stripe (GB) routes are pending activation. Once live, MRR will populate automatically from <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: 3 }}>parents.subscription_tier</code>.
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Content Tab (self-contained, lazy) ───────────────────────────────────────
+function ContentTab({ totalQuestions, activeQuestions, subjectDist }) {
+  const [coverageData, setCoverageData] = useState([]);
+  const [gapData, setGapData] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = sb();
+        const [coverage, gaps] = await Promise.all([
+          sq(supabase.rpc("admin_coverage_matrix")),
+          sq(supabase.rpc("admin_topic_gaps", { p_min_count: 30 })),
+        ]);
+        setCoverageData(coverage.data || []);
+        setGapData(gaps.data || []);
+      } catch (e) { console.warn("[content]", e.message); }
+      finally { setLoadingContent(false); }
+    })();
+  }, []);
+
+  const inactive = (totalQuestions || 0) - (activeQuestions || 0);
+
+  return (
+    <>
+      <RGrid cols={3}>
+        <KPICard label="Total Questions" value={formatNum(totalQuestions)} color="#a78bfa" sub="in question bank" />
+        <KPICard label="Active Questions" value={formatNum(activeQuestions)} color="#34d399" sub="serving to scholars" />
+        <KPICard label="Inactive / Purged" value={formatNum(inactive)} color="#f87171" sub="flagged or deleted" />
+      </RGrid>
+
+      <div style={{ marginTop: 16 }}>
+        {loadingContent ? (
+          <div style={{ ...S.card, textAlign: "center", padding: 24, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            Loading coverage matrix...
+          </div>
+        ) : (
+          <CoverageMatrix data={coverageData} />
+        )}
+      </div>
+
+      {gapData.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={S.sectionTitle}>Topic Gaps (&lt;30 active questions)</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>Curriculum</th><th style={S.th}>Subject</th>
+                  <th style={S.th}>Topic</th><th style={S.th}>Questions</th><th style={S.th}>Priority</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gapData.map((row, i) => (
+                  <tr key={i}>
+                    <td style={S.td}>{formatCurriculum(row.curriculum)}</td>
+                    <td style={S.td}>{(row.subject || "").replace(/_/g, " ")}</td>
+                    <td style={{ ...S.td, color: "#e2e8f0", fontWeight: 600 }}>{row.topic}</td>
+                    <td style={S.td}>
+                      <span style={S.badge(row.question_count === 0 ? "#f87171" : row.question_count < 10 ? "#fb923c" : "#fbbf24")}>
+                        {row.question_count}
+                      </span>
+                    </td>
+                    <td style={S.td}>
+                      <span style={S.badge(row.question_count === 0 ? "#f87171" : "#fb923c")}>
+                        {row.question_count === 0 ? "Critical" : "High"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {(subjectDist || []).length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <HorizontalBars data={subjectDist} label="Quiz Activity by Subject" color="#a78bfa" />
+        </div>
+      )}
+
+      {!loadingContent && coverageData.length === 0 && gapData.length === 0 && (
+        <div style={{ ...S.card, marginTop: 16, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 32 }}>
+          Coverage matrix not available — apply the admin_dashboard migration to enable RPC functions.
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Schools Tab ──────────────────────────────────────────────────────────────
+function SchoolsTab({ totalSchools }) {
+  const [schools, setSchools] = useState([]);
+  const [summary, setSummary] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = sb();
+        const [schoolList, schoolSummary] = await Promise.all([
+          sq(supabase.from("schools").select("*").order("name").limit(100)),
+          sq(supabase.rpc("admin_school_summary")),
+        ]);
+        setSchools(schoolList.data || []);
+        setSummary(schoolSummary.data || []);
+      } catch (e) { console.warn("[schools]", e.message); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const countryFlag = (c) => ({ GB: "🇬🇧", NG: "🇳🇬", AU: "🇦🇺", CA: "🇨🇦", CH: "🇨🇭" }[c] || "🌍");
+
+  // Compute KPIs from summary
+  const activeSchools = summary.filter(s => s.total_scholars > 0).length;
+  const totalInvites = summary.reduce((a, s) => a + Number(s.total_invites || 0), 0);
+  const claimedInvites = summary.reduce((a, s) => a + Number(s.claimed_invites || 0), 0);
+  const claimRate = totalInvites > 0 ? Math.round((claimedInvites / totalInvites) * 100) : 0;
+  const countries = [...new Set(schools.map(s => s.country).filter(Boolean))];
+
+  return (
+    <>
+      <RGrid cols={4}>
+        <KPICard label="Total Schools" value={totalSchools || schools.length || 0} color="#f472b6" sub="in database" />
+        <KPICard label="Active Schools" value={activeSchools || "—"} color="#34d399" sub="with enrolled scholars" small />
+        <KPICard label="Invite Claim Rate" value={totalInvites > 0 ? `${claimRate}%` : "—"} color={claimRate >= 60 ? "#34d399" : "#fbbf24"} sub={`${claimedInvites}/${totalInvites} claimed`} small />
+        <KPICard label="Countries" value={countries.length} color="#22d3ee" sub="represented" small />
+      </RGrid>
+
+      {summary.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={S.sectionTitle}>School Enrolment & Conversion</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>School</th><th style={S.th}>Scholars</th>
+                  <th style={S.th}>Invites Sent</th><th style={S.th}>Claimed</th><th style={S.th}>Claim Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.map(s => {
+                  const rate = s.total_invites > 0 ? Math.round((s.claimed_invites / s.total_invites) * 100) : 0;
+                  return (
+                    <tr key={s.school_id}>
+                      <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.school_name}</td>
+                      <td style={{ ...S.td, color: "#34d399", fontWeight: 600 }}>{s.total_scholars}</td>
+                      <td style={S.td}>{s.total_invites}</td>
+                      <td style={S.td}>{s.claimed_invites}</td>
+                      <td style={S.td}>
+                        <span style={S.badge(rate >= 60 ? "#34d399" : rate >= 30 ? "#fbbf24" : "#f87171")}>
+                          {s.total_invites > 0 ? `${rate}%` : "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div style={S.sectionTitle}>Schools Directory ({schools.length})</div>
       {loading ? <div style={S.empty}>Loading...</div> : (
         <div style={{ overflowX: "auto" }}>
           <table style={S.table}>
             <thead>
               <tr>
-                <th style={S.th}>School</th>
-                <th style={S.th}>Region</th>
-                <th style={S.th}>Country</th>
-                <th style={S.th}>Curriculum</th>
-                <th style={S.th}>Type</th>
-                <th style={S.th}>Verified</th>
+                <th style={S.th}>School</th><th style={S.th}>Region</th><th style={S.th}>Country</th>
+                <th style={S.th}>Curriculum</th><th style={S.th}>Type</th><th style={S.th}>Verified</th>
               </tr>
             </thead>
             <tbody>
               {schools.map(s => (
                 <tr key={s.id}>
                   <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{s.name}</td>
-                  <td style={S.td}>{s.region || "\u2014"}</td>
+                  <td style={S.td}>{s.region || "—"}</td>
                   <td style={S.td}>{countryFlag(s.country)} {s.country}</td>
                   <td style={S.td}>{formatCurriculum(s.curriculum)}</td>
-                  <td style={S.td}><span style={S.badge(s.school_type === "primary" ? "#34d399" : "#60a5fa")}>{s.school_type || "\u2014"}</span></td>
-                  <td style={S.td}>{s.verified ? "\u2713" : "\u2014"}</td>
+                  <td style={S.td}><span style={S.badge(s.school_type === "primary" ? "#34d399" : "#60a5fa")}>{s.school_type || "—"}</span></td>
+                  <td style={S.td}>{s.verified ? "✓" : "—"}</td>
                 </tr>
               ))}
+              {schools.length === 0 && (
+                <tr><td colSpan={6} style={{ ...S.td, textAlign: "center", color: "rgba(255,255,255,0.25)" }}>No schools yet</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -781,7 +1362,7 @@ function formatNum(n) {
 }
 
 function formatCurriculum(c) {
-  if (!c) return "\u2014";
+  if (!c) return "—";
   const map = {
     uk_national: "UK National", ng_primary: "NG Primary", ng_jss: "NG JSS", ng_sss: "NG SSS",
     ca_primary: "CA Primary", ca_secondary: "CA Secondary", "11_plus": "11+", unknown: "Unknown",
@@ -794,6 +1375,6 @@ function bandColor(b) {
 }
 
 function fmtDate(d) {
-  if (!d) return "\u2014";
+  if (!d) return "—";
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }

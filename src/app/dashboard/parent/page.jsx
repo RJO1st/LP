@@ -945,6 +945,10 @@ export default function ParentDashboard() {
   const rawMax = parent ? getLimit(parent, 'scholars_max') : 3;
   const MAX_SCHOLARS = Number.isFinite(rawMax) ? rawMax : 3;
 
+  // True if this parent is on the Nigerian plan (region field or curriculum-based fallback).
+  // Used to gate NG-specific UI blocks (Coach's Corner, add-on upsell, etc.)
+  const isNgParent = parent?.region === 'NG' || scholars.some(s => s.curriculum?.startsWith('ng_'));
+
   const handleArchiveScholar = async () => {
     if (!deletingScholar) return;
     try {
@@ -1350,15 +1354,15 @@ export default function ParentDashboard() {
               <MultiChildComparison scholars={scholars} supabase={supabase} />
             )}
 
-            {/* ── Coach's Corner + Value Report ── */}
-            {scholars.length > 0 && (() => {
+            {/* ── Coach's Corner + Value Report (NG only — exam-prep context) ── */}
+            {isNgParent && scholars.length > 0 && (() => {
               const firstScholar = scholars[0];
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <CoachesCorner
                     scholarId={firstScholar.id}
                     scholarName={firstScholar.name}
-                    isNigerian={firstScholar.curriculum?.startsWith("ng_")}
+                    isNigerian={true}
                   />
                   <ValueReport
                     scholarId={firstScholar.id}
@@ -1606,7 +1610,7 @@ export default function ParentDashboard() {
                                   </select>
                                   <button type="button" onClick={() => handleEditCreateSchool(scholar.curriculum)}
                                     disabled={!editNewSchoolName.trim()}
-                                    className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg transition-colors">
+                                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500/90 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg transition-colors">
                                     Add
                                   </button>
                                   <button type="button" onClick={() => { setEditCreatingSchool(false); setEditNewSchoolName(""); setEditNewSchoolRegion(""); }}
@@ -1732,20 +1736,6 @@ export default function ParentDashboard() {
                     </div>
                   );
                 })
-              )}
-
-              {/* Scholar-limit reached — show upgrade prompt */}
-              {scholars.length >= MAX_SCHOLARS && (
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border-2 border-dashed border-amber-400 dark:border-amber-500/50 p-6 flex flex-col justify-center items-center text-center">
-                  <div className="text-4xl mb-3">🎓</div>
-                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1">Want to add another scholar?</h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    You&apos;re on the <strong>{getTierLabel(parent?.subscription_tier || 'free')}</strong> plan ({MAX_SCHOLARS} scholar{MAX_SCHOLARS === 1 ? '' : 's'} max). Upgrade to add more.
-                  </p>
-                  <Link href="/subscribe" className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-amber-500/20">
-                    View plans <span>→</span>
-                  </Link>
-                </div>
               )}
 
               {/* Add Scholar Card */}
@@ -1877,7 +1867,7 @@ export default function ParentDashboard() {
                           <div className="flex gap-2">
                             <button type="button" onClick={handleCreateSchool}
                               disabled={!newSchoolName.trim()}
-                              className="flex-1 px-3 py-2 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 text-white font-black text-xs rounded-lg border-b-2 border-amber-700 disabled:opacity-50 transition-all">
+                              className="flex-1 px-3 py-2 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500/90 text-white font-black text-xs rounded-lg border-b-2 border-amber-700 disabled:opacity-50 transition-all">
                               Add School
                             </button>
                             <button type="button" onClick={() => { setCreatingSchool(false); setNewSchoolName(""); setNewSchoolRegion(""); }}
@@ -1999,28 +1989,45 @@ export default function ParentDashboard() {
                     })()}
 
                     <button type="submit" disabled={isAdding || !newName.trim() || !newSchoolId || (isNgSss && !newStream)}
-                      className="w-full px-4 py-2.5 bg-amber-50 dark:bg-amber-500/100 hover:bg-amber-600 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
+                      className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500/90 dark:hover:bg-amber-500 text-white font-black text-sm rounded-lg border-b-2 border-amber-700 hover:border-amber-800 disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-0 transition-all">
                       {isAdding ? "Creating…" : "Create Scholar"}
                     </button>
                   </form>
                 </div>
               )}
 
-              {/* Max scholars reached — contact card */}
+              {/* Max scholars reached — NG: add-on upsell | non-NG: contact form */}
               {scholars.length >= MAX_SCHOLARS && (
-                <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 p-6 flex flex-col justify-center items-center text-center">
-                  <div className="text-4xl mb-3">🚀</div>
-                  <h3 className="font-black text-lg text-indigo-900 dark:text-indigo-300 mb-1">Full crew aboard!</h3>
-                  <p className="text-sm text-indigo-700 dark:text-indigo-300/70 font-semibold mb-4 leading-relaxed">
-                    You've added {MAX_SCHOLARS} scholars — the maximum on your current plan. Need more? Let us know!
-                  </p>
-                  <button
-                    onClick={() => setShowContactForm(true)}
-                    className="px-6 py-2.5 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 active:translate-y-0.5 active:border-b-0 transition-all"
-                  >
-                    Request more scholars ✦
-                  </button>
-                </div>
+                isNgParent ? (
+                  <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 p-6 flex flex-col justify-center items-center text-center">
+                    <div className="text-4xl mb-3">🚀</div>
+                    <h3 className="font-black text-lg text-indigo-900 dark:text-indigo-300 mb-1">Full crew aboard!</h3>
+                    <p className="text-sm text-indigo-700 dark:text-indigo-400 font-semibold mb-3 leading-relaxed">
+                      You&apos;ve reached the limit on your current plan. Add more scholars with the <strong>Family add-on</strong>.
+                    </p>
+                    <div className="bg-white dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 rounded-xl px-4 py-3 mb-4 text-left w-full">
+                      <p className="text-xs font-black text-indigo-800 dark:text-indigo-300 mb-1">👨‍👩‍👧 Family Child Add-on</p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400">₦1,000/month per extra scholar — full access to Tara, practice quizzes, and progress tracking.</p>
+                    </div>
+                    <Link href="/subscribe" className="px-6 py-2.5 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 active:translate-y-0.5 active:border-b-0 transition-all">
+                      Add scholar — ₦1,000/mo ✦
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 p-6 flex flex-col justify-center items-center text-center">
+                    <div className="text-4xl mb-3">🚀</div>
+                    <h3 className="font-black text-lg text-indigo-900 dark:text-indigo-300 mb-1">Full crew aboard!</h3>
+                    <p className="text-sm text-indigo-700 dark:text-indigo-400 font-semibold mb-4 leading-relaxed">
+                      You&apos;ve added {MAX_SCHOLARS} scholar{MAX_SCHOLARS === 1 ? '' : 's'} — the maximum on your current plan. Need more? Let us know!
+                    </p>
+                    <button
+                      onClick={() => setShowContactForm(true)}
+                      className="px-6 py-2.5 bg-indigo-600 text-white font-black text-sm rounded-xl border-b-2 border-indigo-800 hover:bg-indigo-700 active:translate-y-0.5 active:border-b-0 transition-all"
+                    >
+                      Request more scholars ✦
+                    </button>
+                  </div>
+                )
               )}
 
             </div>
