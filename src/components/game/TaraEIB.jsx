@@ -21,6 +21,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { BookOpen, MessageCircle } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
+import MathsDiagram from "@/components/MathsDiagram";
 
 // ─── PROFANITY GUARD (follow-up input) ───────────────────────────────────────
 const BLOCKED_WORDS = [
@@ -121,10 +122,12 @@ export default function TaraEIB({
 }) {
   const [aiExplanation,    setAiExplanation]    = useState("");
   const [loadingAI,        setLoadingAI]        = useState(false);
+  const [diagramSpec,      setDiagramSpec]      = useState(null);   // Mode 2: Tara-generated diagram
 
   // Follow-up state
   const [followUpText,     setFollowUpText]     = useState("");
   const [followUpFeedback, setFollowUpFeedback] = useState("");
+  const [followUpDiagram,  setFollowUpDiagram]  = useState(null);   // Mode 2: diagram from follow-up
   const [followUpLoading,  setFollowUpLoading]  = useState(false);
   const [followUpLocked,   setFollowUpLocked]   = useState(false);
   const [followUpWarn,     setFollowUpWarn]     = useState(false);
@@ -191,6 +194,7 @@ export default function TaraEIB({
           const text = data?.feedback
             || LOCAL_EXPLANATION(correctAnswer, subject, student?.name, band);
           setAiExplanation(text);
+          if (data?.diagram_spec) setDiagramSpec(data.diagram_spec);
           setLoadingAI(false);
           onSpeak?.(text);
           unlock();
@@ -252,6 +256,7 @@ export default function TaraEIB({
       const data = await res.json();
       if (!data.feedback) throw new Error("Empty");
       setFollowUpFeedback(data.feedback);
+      if (data.diagram_spec) setFollowUpDiagram(data.diagram_spec);
       onSpeak?.(data.feedback);
     } catch {
       clearTimeout(timeout);
@@ -310,6 +315,18 @@ export default function TaraEIB({
         )}
       </div>
 
+      {/* ── Mode 2: Tara-generated diagram in feedback ── */}
+      {diagramSpec && !loadingAI && (
+        <div className="flex justify-center mt-3">
+          <MathsDiagram
+            spec={diagramSpec}
+            width={280}
+            height={280}
+            className="rounded-lg border border-current/10"
+          />
+        </div>
+      )}
+
       {/* ── Optional follow-up question ── */}
       {!followUpFeedback && (
         <div className="mt-3 border-t border-current/10 pt-3">
@@ -354,6 +371,17 @@ export default function TaraEIB({
           <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border font-medium italic text-xs sm:text-sm leading-relaxed ${t.explanation}`}>
             {followUpFeedback}
           </div>
+          {/* Mode 2: diagram from follow-up response */}
+          {followUpDiagram && (
+            <div className="flex justify-center mt-3">
+              <MathsDiagram
+                spec={followUpDiagram}
+                width={260}
+                height={260}
+                className="rounded-lg border border-current/10"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,0 +1,55 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment A1 A0 -->
+<line x1="1.00" y1="5.00" x2="1.00" y2="3.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Drawing segment A1 A2 -->
+<line x1="1.00" y1="5.00" x2="2.41" y2="5.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment B1 B0 -->
+<line x1="4.00" y1="5.00" x2="4.00" y2="3.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Drawing segment B1 B2 -->
+<line x1="4.00" y1="5.00" x2="6.00" y2="5.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Drawing segment RaV RaC -->
+<line x1="4.00" y1="4.70" x2="4.30" y2="4.70" style="stroke:#000000; stroke-width:1.00"></line>
+
+<!-- Drawing segment RaH RaC -->
+<line x1="4.30" y1="5.00" x2="4.30" y2="4.70" style="stroke:#000000; stroke-width:1.00"></line>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment C1 C0 -->
+<line x1="7.50" y1="5.00" x2="8.50" y2="3.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Drawing segment C1 C2 -->
+<line x1="7.50" y1="5.00" x2="9.50" y2="5.00" style="stroke:#003CB4; stroke-width:1.50"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point T1 -->
+<text x="1.50" y="6.80" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="middle" dy="3.514938"> Acute </text>
+
+<!-- Printing text at point T2 -->
+<text x="4.00" y="6.80" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="middle" dy="3.514938"> Right </text>
+
+<!-- Printing text at point T3 -->
+<text x="7.50" y="6.80" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="middle" dy="3.514938"> Obtuse </text>
+
+<!-- Printing text at point T4 -->
+<text x="0.80" y="3.40" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="end" dy="1.757469"> 45 deg </text>
+
+<!-- Printing text at point T5 -->
+<text x="3.80" y="3.40" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="end" dy="1.757469"> 90 deg </text>
+
+<!-- Printing text at point T6 -->
+<text x="7.00" y="3.40" style="font-size:3.51pt; font-style:italic; fill:#000000" text-anchor="end" dy="1.757469"> 135 deg </text>
+</svg>

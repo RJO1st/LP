@@ -346,11 +346,50 @@ INSTRUCTIONS:
     if (!raw || raw.trim() === '') throw new Error('Empty body');
 
     const data = JSON.parse(raw);
-    const feedback = data?.choices?.[0]?.message?.content?.trim();
-    if (!feedback) throw new Error('No content');
+    const rawContent = data?.choices?.[0]?.message?.content?.trim();
+    if (!rawContent) throw new Error('No content');
 
-    // ── 6. Llama Guard on Tara's response ─────────────────────────────────────
-    const responseSafe = await isSafe(feedback);
+    // ── 6. DiagramSpec extraction (Mode 2 — Tara-generated diagram) ───────────
+    // Tara may return a JSON block like:
+    //   { "feedback": "Tara: ...", "diagram_spec": { "version": 1, ... } }
+    // We try to parse it; if it fails we treat the whole content as plain text.
+    let feedbackText = rawContent;
+    let diagramSpec  = null;
+
+    if (rawContent.trimStart().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawContent);
+        if (parsed && typeof parsed.feedback === 'string') {
+          feedbackText = parsed.feedback.trim();
+          if (parsed.diagram_spec && typeof parsed.diagram_spec === 'object') {
+            diagramSpec = parsed.diagram_spec;
+          }
+        }
+      } catch {
+        // Not valid JSON — treat as plain text, no diagram
+      }
+    }
+
+    // Fallback: strip markdown code fences if Tara wrapped the JSON in ```json
+    if (!diagramSpec && rawContent.includes('```json')) {
+      try {
+        const jsonBlock = rawContent.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
+        if (jsonBlock) {
+          const parsed = JSON.parse(jsonBlock);
+          if (parsed && typeof parsed.feedback === 'string') {
+            feedbackText = parsed.feedback.trim();
+            if (parsed.diagram_spec && typeof parsed.diagram_spec === 'object') {
+              diagramSpec = parsed.diagram_spec;
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // ── 7. Llama Guard on Tara's feedback text ────────────────────────────────
+    const responseSafe = await isSafe(feedbackText);
     if (!responseSafe) {
       console.warn('[Tara] Response flagged unsafe, using fallback');
       const fallback = mode === "followup"
@@ -360,10 +399,13 @@ INSTRUCTIONS:
     }
 
     const taraPrefix = `${tara.name}:`;
-    const normalised = feedback.startsWith(taraPrefix) || feedback.startsWith('Tara:')
-      ? feedback
-      : `${taraPrefix} ${feedback}`;
-    return NextResponse.json({ feedback: normalised });
+    const normalised = feedbackText.startsWith(taraPrefix) || feedbackText.startsWith('Tara:')
+      ? feedbackText
+      : `${taraPrefix} ${feedbackText}`;
+
+    const responsePayload = { feedback: normalised };
+    if (diagramSpec) responsePayload.diagram_spec = diagramSpec;
+    return NextResponse.json(responsePayload);
 
   } catch (err) {
     clearTimeout(timeoutId);

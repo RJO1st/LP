@@ -1,0 +1,36 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 80 160 -->
+
+<!-- Drawing segment A B -->
+<line x1="1.90" y1="8.00" x2="8.10" y2="8.00" style="stroke:#0050A0; stroke-width:1.80"></line>
+
+<!-- Drawing segment B M -->
+<line x1="8.30" y1="7.65" x2="5.00" y2="1.94" style="stroke:#0050A0; stroke-width:1.80"></line>
+
+<!-- Drawing segment M A -->
+<line x1="5.00" y1="1.94" x2="1.70" y2="7.65" style="stroke:#0050A0; stroke-width:1.80"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Marking point A by circle -->
+<circle cx="1.50" cy="8.00" r="0.40" fill="none" stroke="#000000" stroke-width="1.80"></circle>
+<text x="1.50" y="9.00" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914">A</text>
+
+<!-- Marking point B by circle -->
+<circle cx="8.50" cy="8.00" r="0.40" fill="none" stroke="#000000" stroke-width="1.80"></circle>
+<text x="8.50" y="9.00" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914">B</text>
+
+<!-- Printing text at point Mc -->
+<text x="5.00" y="0.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle"> C </text>
+
+<!-- Printing text at point T1 -->
+<text x="3.20" y="7.90" style="font-size:4.92pt; font-style:italic; fill:#000000" dy="4.920914"> 60 deg </text>
+
+<!-- Printing text at point T2 -->
+<text x="6.80" y="7.90" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="end" dy="4.920914"> 60 deg </text>
+
+<!-- Printing text at point T3 -->
+<text x="5.00" y="3.80" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> 60 deg </text>
+</svg>

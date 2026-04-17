@@ -4065,8 +4065,96 @@ const VISUAL_LAYOUT_MAP = {
   shape:            'tall',
   geometry:         'tall',
   '3d_shape':       'tall',
-  quadrilateral:    'tall',
-  polygon:          'tall',
+  quadrilateral:         'tall',
+  polygon:               'tall',
+  static_concept_image:  'wide',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATIC CONCEPT IMAGE MAP
+// Maps topic_slug → { src, alt, caption } for Canva PNGs + Bioicons SVGs.
+// Used as a last-resort fallback in _resolveVisualInner when no programmatic
+// visual fires. Add any new downloaded asset here.
+// ═══════════════════════════════════════════════════════════════════════════════
+const TOPIC_IMAGE_MAP = {
+  // ── Biology — Human Body ──────────────────────────────────────────────────
+  circulatory_system:    { src: '/concept-visuals/biology/circulatory_system.png',   alt: 'heart anatomy diagram',             caption: 'Diagram of the human heart' },
+  digestive_system:      { src: '/concept-visuals/biology/digestive_system.png',     alt: 'digestive system diagram',          caption: 'Human digestive system' },
+  respiratory_system:    { src: '/concept-visuals/biology/respiratory_system.png',   alt: 'lungs diagram',                     caption: 'Diagram of the lungs and airways' },
+  skeleton:              { src: '/concept-visuals/biology/skeleton.png',              alt: 'human skeleton',                    caption: 'Full human skeleton diagram' },
+  reproductive_system:   { src: '/concept-visuals/biology/reproductive_system.png',  alt: 'male reproductive system',          caption: 'Male reproductive system' },
+  excretory_system:      { src: '/concept-visuals/biology/excretory_system.png',      alt: 'kidneys diagram',                   caption: 'Kidneys and urinary system' },
+  muscular_system:       { src: '/concept-visuals/biology/muscular_system.png',      alt: 'muscular system diagram',           caption: 'Full body muscular system' },
+  human_body:            { src: '/concept-visuals/biology/human_body.png',           alt: 'body organs diagram',               caption: 'Labelled diagram of human body organs' },
+  nervous_system:        { src: '/concept-visuals/biology/nervous_system.png',       alt: 'ear anatomy cross-section',         caption: 'Anatomy of the ear' },
+  digestion:             { src: '/concept-visuals/biology/digestion.png',            alt: 'intestines diagram',                caption: 'Large and small intestines' },
+  dna_genetics:          { src: '/concept-visuals/biology/dna_genetics.png',         alt: 'DNA double helix',                  caption: 'DNA double helix structure' },
+
+  // ── Biology — Ecology ─────────────────────────────────────────────────────
+  food_chains:           { src: '/concept-visuals/biology/food_chains.png',          alt: 'food chain cycle',                  caption: 'Food chain cycle from producers to decomposers' },
+  ecosystems:            { src: '/concept-visuals/biology/ecosystems.png',           alt: 'ecological pyramid',                caption: 'Ecological pyramid and energy flow' },
+  natural_selection:     { src: '/concept-visuals/biology/natural_selection.png',    alt: 'evolution march of progress',       caption: 'Evolution: march of progress silhouettes' },
+  photosynthesis:        { src: '/concept-visuals/biology/photosynthesis.png',       alt: 'photosynthesis diagram',            caption: 'Photosynthesis process diagram' },
+  viruses:               { src: '/concept-visuals/biology/viruses.png',              alt: 'virus particle',                    caption: 'Virus particle structure' },
+
+  // ── Biology — Bioicons SVGs (topics without Canva PNG) ───────────────────
+  cell_biology:          { src: '/concept-visuals/biology/animal-cell.svg',          alt: 'animal cell diagram',               caption: 'Structure of an animal cell' },
+  mitosis:               { src: '/concept-visuals/biology/mitosis.svg',              alt: 'mitosis cell division',             caption: 'Cell division: mitosis' },
+  genetics:              { src: '/concept-visuals/biology/dna-double-helix.svg',     alt: 'DNA double helix structure',        caption: 'DNA double helix' },
+  inheritance:           { src: '/concept-visuals/biology/punnett-square.svg',       alt: 'Punnett square',                    caption: 'Punnett square for genetic inheritance' },
+  protein_synthesis:     { src: '/concept-visuals/biology/ribosome.svg',            alt: 'ribosome',                          caption: 'Ribosome — site of protein synthesis' },
+  bacteria:              { src: '/concept-visuals/biology/bacteria-types.svg',       alt: 'types of bacteria',                 caption: 'Bacterial cell types (cocci, bacilli, spirilli)' },
+  eye:                   { src: '/concept-visuals/biology/eye.svg',                  alt: 'eye anatomy',                       caption: 'Cross-section of the human eye' },
+  ear:                   { src: '/concept-visuals/biology/ear.svg',                  alt: 'ear anatomy',                       caption: 'Cross-section of the human ear' },
+  skin:                  { src: '/concept-visuals/biology/skin.svg',                 alt: 'skin layers',                       caption: 'Layers of the skin (dermis, epidermis)' },
+  food_web:              { src: '/concept-visuals/biology/food-web.svg',             alt: 'food web',                          caption: 'Food web showing energy flow' },
+  classification:        { src: '/concept-visuals/biology/phylogenetic-tree.svg',    alt: 'phylogenetic tree',                 caption: 'Phylogenetic tree of life' },
+  lab_equipment:         { src: '/concept-visuals/biology/microscope.svg',           alt: 'microscope',                        caption: 'Light microscope' },
+  lab_safety:            { src: '/concept-visuals/biology/lab_safety.png',           alt: 'lab safety sign',                   caption: 'Laboratory safety signage' },
+
+  // ── Chemistry ─────────────────────────────────────────────────────────────
+  atoms_elements:        { src: '/concept-visuals/biology/atoms_elements.png',       alt: 'Bohr atom model',                   caption: 'Bohr model of an atom' },
+  periodic_table:        { src: '/concept-visuals/biology/periodic_table.png',       alt: 'periodic table of elements',        caption: 'The periodic table of elements' },
+  acids_bases:           { src: '/concept-visuals/biology/acids_bases.png',          alt: 'pH scale',                          caption: 'The pH scale from 0 to 14' },
+  chemical_reactions:    { src: '/concept-visuals/biology/chemical_reactions.png',   alt: 'chemical reaction in test tube',    caption: 'Chemical reaction in a test tube' },
+  chemical_bonding:      { src: '/concept-visuals/biology/chemical_bonding.png',     alt: 'organic molecule structural formula', caption: 'Organic molecule structural formula' },
+  carbohydrates:         { src: '/concept-visuals/biology/carbohydrates.png',        alt: 'glucose molecule',                  caption: 'Glucose molecule C₆H₁₂O₆' },
+  atoms:                 { src: '/concept-visuals/chemistry/atom-model.svg',         alt: 'atom Bohr model',                   caption: 'Bohr model of an atom' },
+  chemical_bonds:        { src: '/concept-visuals/chemistry/molecular-bond.svg',     alt: 'molecular bond',                    caption: 'Covalent molecular bond' },
+
+  // ── Physics ───────────────────────────────────────────────────────────────
+  electricity:           { src: '/concept-visuals/biology/electricity.png',          alt: 'electric circuit diagram',          caption: 'Simple series electric circuit' },
+  parallel_circuits:     { src: '/concept-visuals/biology/parallel_circuits.png',    alt: 'parallel circuit diagram',          caption: 'Parallel circuit with three light bulbs' },
+  forces:                { src: '/concept-visuals/biology/forces.png',               alt: 'forces and gravity diagram',        caption: 'Forces and gravity' },
+  magnetism:             { src: '/concept-visuals/biology/magnetism.png',            alt: 'bar magnet with field lines',       caption: 'Bar magnet with magnetic field lines' },
+  energy:                { src: '/concept-visuals/biology/energy.png',               alt: 'energy types diagram',              caption: 'Potential and kinetic energy' },
+  sound:                 { src: '/concept-visuals/biology/sound.png',                alt: 'sound wave waveform',               caption: 'Sound wave waveform' },
+  waves:                 { src: '/concept-visuals/biology/waves.png',                alt: 'transverse wave diagram',           caption: 'Transverse wave with amplitude and wavelength' },
+  refraction:            { src: '/concept-visuals/biology/refraction.png',           alt: 'refraction of light in water',      caption: 'Pencil appearing bent in water — refraction of light' },
+  light:                 { src: '/concept-visuals/biology/light.png',                alt: 'light dispersion through prism',    caption: 'White light dispersed into spectrum by a prism' },
+  electromagnetic_spectrum: { src: '/concept-visuals/biology/electromagnetic_spectrum.png', alt: 'electromagnetic spectrum diagram', caption: 'The electromagnetic spectrum with wavelengths' },
+
+  // ── Geography ─────────────────────────────────────────────────────────────
+  weather:               { src: '/concept-visuals/biology/weather.png',              alt: 'snow cloud',                        caption: 'Cloud producing snowfall' },
+  precipitation:         { src: '/concept-visuals/biology/precipitation.png',        alt: 'rain cloud',                        caption: 'Cloud producing rainfall' },
+  storms:                { src: '/concept-visuals/biology/storms.png',               alt: 'thunderstorm with lightning',       caption: 'Thunderstorm with lightning bolts' },
+  natural_disasters:     { src: '/concept-visuals/biology/natural_disasters.png',    alt: 'tornado funnel cloud',              caption: 'Tornado funnel cloud' },
+  volcanoes:             { src: '/concept-visuals/biology/volcanoes.png',            alt: 'volcanic eruption',                 caption: 'Volcanic eruption with lava flow' },
+  earthquakes:           { src: '/concept-visuals/biology/earthquakes.png',          alt: 'earthquake ground crack',           caption: 'Earthquake splitting the ground' },
+  rivers:                { src: '/concept-visuals/biology/rivers.png',               alt: 'winding river landscape',           caption: 'Winding river through green countryside' },
+  tsunamis:              { src: '/concept-visuals/biology/tsunamis.png',             alt: 'tsunami wave',                      caption: 'Tsunami wave hitting coastline' },
+  deforestation:         { src: '/concept-visuals/biology/deforestation.png',        alt: 'deforestation tree stumps',         caption: 'Deforestation — felled trees and stumps' },
+  pollution:             { src: '/concept-visuals/biology/pollution.png',            alt: 'ocean plastic pollution',           caption: 'Plastic pollution in the ocean' },
+  urbanisation:          { src: '/concept-visuals/biology/urbanisation.png',         alt: 'modern city skyline',               caption: 'Modern city skyline at night' },
+  waterfalls:            { src: '/concept-visuals/biology/waterfalls.png',           alt: 'waterfall over rocks',              caption: 'Waterfall over rocky terrain' },
+  farming:               { src: '/concept-visuals/biology/farming.png',              alt: 'rural farmland and river',          caption: 'Rural farmland with river and cottages' },
+
+  // ── History ───────────────────────────────────────────────────────────────
+  ancient_egypt:         { src: '/concept-visuals/biology/ancient_egypt.png',        alt: 'Egyptian pyramids and Sphinx',      caption: 'The Pyramids and Great Sphinx at Giza' },
+  ancient_rome:          { src: '/concept-visuals/biology/ancient_rome.png',         alt: 'Roman Colosseum',                   caption: 'The Roman Colosseum' },
+  ancient_greece:        { src: '/concept-visuals/biology/ancient_greece.png',       alt: 'Greek Parthenon',                   caption: 'The Parthenon in ancient Athens' },
+  ancient_americas:      { src: '/concept-visuals/biology/ancient_americas.png',     alt: 'Aztec step pyramid',                caption: 'Aztec step pyramid temple' },
+  ancient_china:         { src: '/concept-visuals/biology/ancient_china.png',        alt: 'Great Wall of China',               caption: 'The Great Wall of China' },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4381,6 +4469,12 @@ function _resolveVisualInner(question, subject, yearLevel) {
   const ext = parseVisualExtended(topicStr, questionStr, enrichedSubject, year, question);
   if (ext) return enrichWithObjectIcon(ext, questionStr);
 
+  // ── Static concept image fallback ─────────────────────────────────────────
+  // Last resort: if the topic_slug maps to a downloaded Canva PNG or Bioicon SVG,
+  // show it as a teaching context image. Only fires when ALL other visuals return null.
+  const imgEntry = TOPIC_IMAGE_MAP[topicStr];
+  if (imgEntry) return { type: 'static_concept_image', ...imgEntry };
+
   return null;
 }
 
@@ -4519,8 +4613,9 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
       case "html_structure":     return `HTML structure: ${visual.tag} element`;
       case "right_triangle":     return `Right-angled triangle${visual.sides ? `: sides ${visual.sides.filter(Boolean).join(", ")}` : ""}`;
       case "circle_diagram":     return `Circle diagram${visual.radius ? ` with radius ${visual.radius}` : ""}${visual.mode ? ` — ${visual.mode}` : ""}`;
-      case "parallel_lines":     return `Parallel lines cut by a transversal${visual.angleType ? ` — ${visual.angleType} angles` : ""}`;
-      default:                 return "Maths visual aid";
+      case "parallel_lines":          return `Parallel lines cut by a transversal${visual.angleType ? ` — ${visual.angleType} angles` : ""}`;
+      case "static_concept_image":    return visual.alt || "Concept diagram";
+      default:                        return "Maths visual aid";
     }
   })();
 
@@ -4685,6 +4780,31 @@ export default function MathsVisualiser({ question, subject, yearLevel }) {
         const fns = (visual.equations || []).map(eq => ({ expr: eq, label: eq }));
         return <JSXGraphBoard mode="function" functions={fns} xRange={visual.xRange || [-8, 8]} yRange={visual.yRange || [-8, 8]} ageBand={ageBand} title={visual.title || "Simultaneous Equations"} readOnly={visual.readOnly} />;
       }
+
+      // ── Static concept image (Canva PNG or Bioicon SVG fallback) ───────────
+      case "static_concept_image":
+        return (
+          <figure style={{ margin: 0, textAlign: 'center' }}>
+            <img
+              src={visual.src}
+              alt={visual.alt || "Concept diagram"}
+              loading="lazy"
+              style={{
+                maxHeight: 180,
+                maxWidth: '100%',
+                borderRadius: 12,
+                objectFit: 'contain',
+                display: 'block',
+                margin: '0 auto',
+              }}
+            />
+            {visual.caption && (
+              <figcaption style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                {visual.caption}
+              </figcaption>
+            )}
+          </figure>
+        );
 
       default:                return null;
     }

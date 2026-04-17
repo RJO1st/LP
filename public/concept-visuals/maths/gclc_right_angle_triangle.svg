@@ -1,0 +1,42 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment A B -->
+<line x1="1.40" y1="8.00" x2="7.60" y2="8.00" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment B C -->
+<line x1="7.67" y1="7.77" x2="1.33" y2="3.23" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment C A -->
+<line x1="1.00" y1="3.40" x2="1.00" y2="7.60" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Drawing segment RaV RaC -->
+<line x1="1.00" y1="7.40" x2="1.84" y2="7.40" style="stroke:#000000; stroke-width:1.00"></line>
+
+<!-- Drawing segment RaH RaC -->
+<line x1="1.84" y1="8.00" x2="1.84" y2="7.40" style="stroke:#000000; stroke-width:1.00"></line>
+
+<!-- Marking point A by circle -->
+<circle cx="1.00" cy="8.00" r="0.40" fill="none" stroke="#000000" stroke-width="1.00"></circle>
+<text x="1.00" y="9.00" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914">A</text>
+
+<!-- Marking point B by circle -->
+<circle cx="8.00" cy="8.00" r="0.40" fill="none" stroke="#000000" stroke-width="1.00"></circle>
+<text x="8.00" y="9.00" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914">B</text>
+
+<!-- Marking point C by circle -->
+<circle cx="1.00" cy="3.00" r="0.40" fill="none" stroke="#000000" stroke-width="1.00"></circle>
+<text x="1.00" y="2.00" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle">C</text>
+
+<!-- Printing text at point T1 -->
+<text x="4.50" y="9.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> adjacent </text>
+
+<!-- Printing text at point T2 -->
+
+<!-- Printing text at point T3 -->
+<text x="6.00" y="4.50" style="font-size:4.92pt; font-style:italic; fill:#000000"> hypotenuse </text>
+</svg>

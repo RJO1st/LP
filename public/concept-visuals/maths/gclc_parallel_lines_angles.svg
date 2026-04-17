@@ -1,0 +1,36 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment P1 P2 -->
+<line x1="0.50" y1="3.00" x2="9.50" y2="3.00" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment Q1 Q2 -->
+<line x1="0.50" y1="7.00" x2="9.50" y2="7.00" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Changing color 180 0 0 -->
+
+<!-- Drawing segment Tv1 Tv2 -->
+<line x1="2.00" y1="0.50" x2="8.00" y2="9.50" style="stroke:#B40000; stroke-width:1.50"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point Ta1 -->
+<text x="2.10" y="4.50" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end" dy="4.217926"> z </text>
+
+<!-- Printing text at point Ta2 -->
+<text x="6.10" y="6.90" style="font-size:4.22pt; font-style:italic; fill:#000000" dy="4.217926"> z </text>
+
+<!-- Printing text at point Tc1 -->
+<text x="5.10" y="1.50" style="font-size:4.22pt; font-style:italic; fill:#000000"> c </text>
+
+<!-- Printing text at point Tc2 -->
+<text x="7.30" y="4.50" style="font-size:4.22pt; font-style:italic; fill:#000000"> c </text>
+
+<!-- Printing text at point Talt -->
+<text x="1.80" y="0.80" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end"> alternate </text>
+
+<!-- Printing text at point Tco -->
+<text x="7.90" y="1.10" style="font-size:4.22pt; font-style:italic; fill:#000000"> corresponding </text>
+</svg>

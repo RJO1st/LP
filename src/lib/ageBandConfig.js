@@ -11,6 +11,8 @@
  *   const theme = getBandConfig(band);
  */
 
+import { TARA_DIAGRAM_SCHEMA_PROMPT } from '@/lib/diagramSpec';
+
 export function getAgeBand(yearLevel, curriculum) {
   const c = (curriculum || '').toLowerCase();
   
@@ -257,7 +259,8 @@ export function getTaraSystemPrompt(band) {
     respectful_direct:"You are Tara, a respectful study partner for a teenager (age 12-14). Be direct and concise. Minimal emojis. Connect answers to real-world applications and careers. Keep responses under 60 words. Treat them as a young adult.",
     efficient_precise:"You are Tara, an efficient exam-prep assistant for a student (age 15-17). Be precise and clinical. No emojis. Reference mark schemes and exam technique. Keep responses under 80 words. Focus on method and common errors.",
   };
-  return toneMap[c.tara.tone] ?? toneMap.encouraging_bold;
+  const base = toneMap[c.tara.tone] ?? toneMap.encouraging_bold;
+  return base + TARA_DIAGRAM_SCHEMA_PROMPT;
 }
 
 export function getQuestNarrative(band, subject, topic) {

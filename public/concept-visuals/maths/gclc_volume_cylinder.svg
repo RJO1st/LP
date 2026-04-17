@@ -1,0 +1,48 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 80 180 -->
+
+<!-- Drawing segment TL BL -->
+<line x1="3.00" y1="2.00" x2="3.00" y2="8.00" style="stroke:#0050B4; stroke-width:1.80"></line>
+
+<!-- Drawing segment TR BR -->
+<line x1="7.00" y1="2.00" x2="7.00" y2="8.00" style="stroke:#0050B4; stroke-width:1.80"></line>
+
+<!-- Drawing segment BL BR -->
+<line x1="3.00" y1="8.00" x2="7.00" y2="8.00" style="stroke:#0050B4; stroke-width:1.80"></line>
+
+<!-- Drawing arc TC TR 180.00 -->
+<path d="M7.00,2.00  a2.00,2.00 0 1,0 -4.00,-0.00" fill="none" stroke="#0050B4" stroke-width="1.80"></path>
+
+<!-- Changing color 180 180 180 -->
+
+<!-- Drawing arc TC TL 180.00 -->
+<path d="M3.00,2.00  a2.00,2.00 0 1,0 4.00,0.00" fill="none" stroke="#B4B4B4" stroke-width="0.80"></path>
+
+<!-- Drawing arc BC BR 180.00 -->
+<path d="M7.00,8.00  a2.00,2.00 0 1,0 -4.00,-0.00" fill="none" stroke="#B4B4B4" stroke-width="0.80"></path>
+
+<!-- Changing color 200 0 0 -->
+
+<!-- Drawing segment TC TR -->
+<line x1="5.00" y1="2.00" x2="6.50" y2="2.00" style="stroke:#C80000; stroke-width:1.00"></line>
+
+<!-- Printing text at point Tr -->
+<text x="6.50" y="0.60" style="font-size:4.57pt; font-style:italic; fill:#C80000" text-anchor="middle"> r </text>
+
+<!-- Changing color 0 140 0 -->
+
+<!-- Drawing segment HS HE -->
+<line x1="7.80" y1="8.00" x2="7.80" y2="6.50" style="stroke:#008C00; stroke-width:1.00"></line>
+<line x1="7.80" y1="5.75" x2="7.80" y2="4.25" style="stroke:#008C00; stroke-width:1.00"></line>
+<line x1="7.80" y1="3.50" x2="7.80" y2="2.00" style="stroke:#008C00; stroke-width:1.00"></line>
+
+<!-- Printing text at point Th -->
+<text x="9.50" y="5.00" style="font-size:4.57pt; font-style:italic; fill:#008C00" dy="2.108963"> h </text>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point Tv -->
+<text x="5.00" y="9.50" style="font-size:4.57pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.569420"> V = pi r^2 h </text>
+</svg>

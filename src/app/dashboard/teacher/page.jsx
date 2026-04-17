@@ -27,6 +27,9 @@ const ChevronDown = ({ size = 16 }) => <Icon size={size} d="m6 9 6 6 6-6" />;
 const ChevronRight = ({ size = 16 }) => <Icon size={size} d="m9 18 6-6-6-6" />;
 const FilterIcon = ({ size = 16 }) => <Icon size={size} d={["M4 6h16M4 12h16M4 18h16"]} />;
 const DownloadIcon = ({ size = 16 }) => <Icon size={size} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]} />;
+const BellIcon     = ({ size = 16 }) => <Icon size={size} d={["M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9","M13.73 21a2 2 0 0 1-3.46 0"]} />;
+const MailIcon     = ({ size = 16 }) => <Icon size={size} d={["M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z","M22 6 12 13 2 6"]} />;
+const FileTextIcon = ({ size = 16 }) => <Icon size={size} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8M16 17H8M10 9H8"]} />;
 
 // ═══════════════════════════════════════════════════════════════════
 // SUBJECT DISPLAY
@@ -107,6 +110,10 @@ export default function TeacherDashboard() {
   const [filterType, setFilterType] = useState("all");
   const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [printing, setPrinting] = useState(false);
+  const [notifyingParentId, setNotifyingParentId] = useState(null);
+  const [notifySuccess, setNotifySuccess] = useState({});
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
+  const [noteModal, setNoteModal] = useState(null); // { studentId, studentName, email? }
 
   // Initialize session & load data
   useEffect(() => {
@@ -175,6 +182,54 @@ export default function TeacherDashboard() {
       return true;
     });
   }, [classData, filterType]);
+
+  // Notify Parent
+  const handleNotifyParent = async (student, teacherNote = "") => {
+    setNotifyingParentId(student.id);
+    try {
+      const res = await fetch("/api/teacher/notify-parent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scholarId: student.id,
+          classId: selectedClassId,
+          teacherNote,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifySuccess((prev) => ({ ...prev, [student.id]: data.type }));
+        setTimeout(() => setNotifySuccess((prev) => ({ ...prev, [student.id]: null })), 4000);
+      } else {
+        alert(data.error || "Failed to notify parent.");
+      }
+    } catch {
+      alert("Network error — please try again.");
+    } finally {
+      setNotifyingParentId(null);
+      setNoteModal(null);
+    }
+  };
+
+  // Download per-student PDF report
+  const handleDownloadReport = async (student) => {
+    setDownloadingReportId(student.id);
+    try {
+      const res = await fetch(`/api/teacher/student-report?scholarId=${student.id}&classId=${selectedClassId}`);
+      if (!res.ok) { alert("Failed to generate report."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${student.name?.replace(/\s+/g, "_")}_Report.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Network error — please try again.");
+    } finally {
+      setDownloadingReportId(null);
+    }
+  };
 
   // Handle export/print
   const handleExport = () => {
@@ -420,9 +475,10 @@ export default function TeacherDashboard() {
                             </div>
                           </div>
 
-                          {/* Expanded Subject Scores */}
+                          {/* Expanded Subject Scores + Actions */}
                           {isExpanded && (
-                            <div className="bg-slate-700/20 px-4 py-3 border-b border-white/5">
+                            <div className="bg-slate-700/20 px-4 py-3 border-b border-white/5 space-y-3">
+                              {/* Subject scores */}
                               {student.consentStatus !== "granted" ? (
                                 <div className="flex items-center gap-3 text-amber-200/80">
                                   <ShieldIcon size={18} className="flex-shrink-0" />
@@ -444,6 +500,43 @@ export default function TeacherDashboard() {
                               ) : (
                                 <p className="text-sm text-slate-400">No subject scores available yet.</p>
                               )}
+
+                              {/* Action buttons */}
+                              <div className="flex flex-wrap gap-2 pt-1 border-t border-white/5">
+                                {/* Notify Parent */}
+                                {notifySuccess[student.id] ? (
+                                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg">
+                                    <CheckIcon size={13} />
+                                    {notifySuccess[student.id] === "claim_invite" ? "Claim link sent" : "Update sent"}
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setNoteModal({ studentId: student.id, studentName: student.name }); }}
+                                    disabled={notifyingParentId === student.id}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    {notifyingParentId === student.id ? (
+                                      <span className="animate-spin">⟳</span>
+                                    ) : (
+                                      <BellIcon size={13} />
+                                    )}
+                                    Notify Parent
+                                  </button>
+                                )}
+                                {/* Download PDF */}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDownloadReport(student); }}
+                                  disabled={downloadingReportId === student.id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600/50 hover:bg-slate-600/70 text-slate-300 text-xs rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  {downloadingReportId === student.id ? (
+                                    <span className="animate-spin">⟳</span>
+                                  ) : (
+                                    <FileTextIcon size={13} />
+                                  )}
+                                  Download Report
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -498,6 +591,43 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+
+      {/* Notify Parent — Note Modal */}
+      {noteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="font-semibold text-lg mb-1">Notify {noteModal.studentName}&apos;s Parent</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Add an optional note to personalise the notification. Leave blank to send a standard progress update.
+            </p>
+            <textarea
+              id="teacher-note"
+              rows={4}
+              className="w-full px-3 py-2 bg-slate-800/60 border border-white/10 rounded-lg text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-500"
+              placeholder="e.g. Tamar has been working really hard on fractions this week…"
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  const note = document.getElementById("teacher-note")?.value || "";
+                  const student = classData?.students?.find((s) => s.id === noteModal.studentId);
+                  if (student) handleNotifyParent(student, note);
+                }}
+                disabled={notifyingParentId === noteModal.studentId}
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+              >
+                {notifyingParentId === noteModal.studentId ? "Sending…" : "Send Notification"}
+              </button>
+              <button
+                onClick={() => setNoteModal(null)}
+                className="px-5 py-2.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Print Styles */}
       <style>{`

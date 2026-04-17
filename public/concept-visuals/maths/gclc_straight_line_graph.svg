@@ -1,0 +1,48 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Drawing segment XL XR -->
+<line x1="0.30" y1="5.00" x2="9.70" y2="5.00" style="stroke:#000000; stroke-width:1.20"></line>
+
+<!-- Drawing segment YB YT -->
+<line x1="5.00" y1="9.70" x2="5.00" y2="4.40" style="stroke:#000000; stroke-width:1.20"></line>
+<line x1="5.00" y1="3.60" x2="5.00" y2="0.30" style="stroke:#000000; stroke-width:1.20"></line>
+
+<!-- Changing color 200 0 0 -->
+
+<!-- Drawing segment L1 L2 -->
+<line x1="2.50" y1="9.00" x2="7.50" y2="1.00" style="stroke:#C80000; stroke-width:2.00"></line>
+
+<!-- Changing color 200 0 0 -->
+
+<!-- Marking point YI by circle -->
+<circle cx="5.00" cy="4.00" r="0.40" fill="none" stroke="#C80000" stroke-width="2.00"></circle>
+<text x="5.00" y="5.00" style="font-size:4.22pt; font-style:italic; fill:#C80000" text-anchor="middle" dy="4.217926">YI</text>
+
+<!-- Printing text at point YIlbl -->
+<text x="6.10" y="4.70" style="font-size:4.22pt; font-style:italic; fill:#C80000" dy="4.217926"> (0,1) </text>
+
+<!-- Changing color 0 100 0 -->
+
+<!-- Drawing segment GA GB -->
+<line x1="6.00" y1="4.00" x2="7.00" y2="4.00" style="stroke:#006400; stroke-width:1.00"></line>
+
+<!-- Drawing segment GB GC -->
+<line x1="7.00" y1="4.00" x2="7.00" y2="2.00" style="stroke:#006400; stroke-width:1.00"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point T1 -->
+<text x="6.50" y="5.50" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.217926"> run=1 </text>
+
+<!-- Printing text at point T2 -->
+<text x="8.70" y="3.00" style="font-size:4.22pt; font-style:italic; fill:#000000" dy="2.108963"> rise=2 </text>
+
+<!-- Printing text at point T3 -->
+<text x="3.80" y="0.80" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end"> gradient = 2 </text>
+
+<!-- Printing text at point T4 -->
+<text x="3.80" y="1.60" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end"> y-int = 1 </text>
+</svg>

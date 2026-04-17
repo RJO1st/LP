@@ -1,0 +1,40 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 60 180 -->
+
+<!-- Drawing segment V1 V2 -->
+<line x1="5.00" y1="1.80" x2="8.10" y2="4.10" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment V2 V3 -->
+<line x1="8.10" y1="4.10" x2="6.90" y2="7.40" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment V3 V4 -->
+<line x1="6.90" y1="7.40" x2="3.10" y2="7.40" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment V4 V5 -->
+<line x1="3.10" y1="7.40" x2="1.90" y2="4.10" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Drawing segment V5 V1 -->
+<line x1="1.90" y1="4.10" x2="5.00" y2="1.80" style="stroke:#003CB4; stroke-width:1.80"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point T1 -->
+<text x="5.00" y="0.40" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="middle"> 108 </text>
+
+<!-- Printing text at point T2 -->
+<text x="9.40" y="4.50" style="font-size:4.22pt; font-style:italic; fill:#000000" dy="2.108963"> 108 </text>
+
+<!-- Printing text at point T3 -->
+<text x="7.90" y="8.70" style="font-size:4.22pt; font-style:italic; fill:#000000" dy="4.217926"> 108 </text>
+
+<!-- Printing text at point T4 -->
+<text x="2.10" y="8.70" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end" dy="4.217926"> 108 </text>
+
+<!-- Printing text at point T5 -->
+<text x="0.60" y="4.50" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="end" dy="2.108963"> 108 </text>
+
+<!-- Printing text at point T6 -->
+<text x="5.00" y="6.00" style="font-size:4.22pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.217926"> Sum = 540 deg </text>
+</svg>

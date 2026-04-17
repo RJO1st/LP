@@ -1,0 +1,59 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Drawing segment TL TR -->
+<line x1="1.00" y1="4.50" x2="9.00" y2="4.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment TR BR -->
+<line x1="9.00" y1="4.50" x2="9.00" y2="6.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment BR BL -->
+<line x1="9.00" y1="6.50" x2="1.00" y2="6.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment BL TL -->
+<line x1="1.00" y1="6.50" x2="1.00" y2="4.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment D1T D1B -->
+<line x1="3.00" y1="4.50" x2="3.00" y2="6.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment D2T D2B -->
+<line x1="5.00" y1="4.50" x2="5.00" y2="6.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment D3T D3B -->
+<line x1="7.00" y1="4.50" x2="7.00" y2="6.50" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point N1 -->
+<text x="2.00" y="7.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> 1 </text>
+
+<!-- Printing text at point N2 -->
+<text x="4.00" y="7.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> 2 </text>
+
+<!-- Printing text at point N3 -->
+<text x="6.00" y="7.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> 3 </text>
+
+<!-- Printing text at point N4 -->
+<text x="8.00" y="7.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.920914"> 4 </text>
+
+<!-- Changing color 100 150 255 -->
+
+<!-- Drawing segment S1a S1b -->
+<line x1="1.20" y1="4.70" x2="2.80" y2="6.30" style="stroke:#6496FF; stroke-width:0.50"></line>
+
+<!-- Drawing segment S2a S2b -->
+<line x1="3.20" y1="4.70" x2="4.80" y2="6.30" style="stroke:#6496FF; stroke-width:0.50"></line>
+
+<!-- Drawing segment S3a S3b -->
+<line x1="5.20" y1="4.70" x2="6.80" y2="6.30" style="stroke:#6496FF; stroke-width:0.50"></line>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point Ls -->
+<text x="0.50" y="3.50" style="font-size:4.92pt; font-style:italic; fill:#000000" text-anchor="end" dy="2.460457"> 3/4 shaded </text>
+
+<!-- Printing text at point Lu -->
+<text x="8.50" y="3.50" style="font-size:4.92pt; font-style:italic; fill:#000000" dy="2.460457"> 1/4 unshaded </text>
+</svg>

@@ -24,7 +24,7 @@ export async function registerSW(onUpdate) {
 
     swRegistration = registration;
 
-    // Handle when a new SW is waiting
+    // Handle when a new SW is already waiting on first load
     if (registration.waiting) {
       onUpdate?.();
     }
@@ -37,8 +37,8 @@ export async function registerSW(onUpdate) {
             newWorker.state === 'installed' &&
             navigator.serviceWorker.controller
           ) {
-            // New SW installed and there's an active controller
-            // This means a new version is available
+            // New SW installed and there is an active controller —
+            // a new version is available but waiting.
             onUpdate?.();
           }
         });
@@ -54,22 +54,31 @@ export async function registerSW(onUpdate) {
 }
 
 /**
- * Skip the waiting phase and activate new SW immediately
- * This will reload the page
+ * Skip the waiting phase and activate the new SW immediately.
+ *
+ * Two scenarios:
+ *  A) New SW is in "waiting" state — send SKIP_WAITING, then reload after
+ *     controllerchange fires.
+ *  B) New SW has already activated (banner shown via SW_UPDATE_AVAILABLE
+ *     message from the activate event) — just reload; the new SW is already
+ *     in control.
  */
 export function skipWaiting() {
-  if (!swRegistration?.waiting) {
-    console.warn('No waiting service worker found');
-    return;
-  }
+  if (swRegistration?.waiting) {
+    // Scenario A: SW is still waiting.
+    // IMPORTANT: attach the controllerchange listener BEFORE posting the
+    // message to avoid the race where the event fires before the listener
+    // is registered.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    }, { once: true });
 
-  // Tell the new SW to skip waiting
-  swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-  // When the new SW takes over, reload the page
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  } else {
+    // Scenario B: SW already activated (SW_UPDATE_AVAILABLE path).
+    // The new SW is already the controller — a reload picks it up.
     window.location.reload();
-  });
+  }
 }
 
 /**
@@ -106,20 +115,14 @@ export async function checkForSWUpdates() {
 }
 
 /**
- * Request periodic checks for SW updates (for long-lived sessions)
- * Checks every 12 hours
+ * Request periodic checks for SW updates (for long-lived sessions).
+ * Checks every 12 hours.
  */
 export function startPeriodicSWUpdates() {
-  if (!('periodicallyUpdate' in swRegistration)) {
-    console.warn('Periodic SW updates not supported');
-    return;
-  }
-
-  // Some browsers support periodicallyUpdate
   try {
     setInterval(() => {
       checkForSWUpdates();
-    }, 12 * 60 * 60 * 1000); // 12 hours
+    }, 12 * 60 * 60 * 1000);
   } catch (error) {
     console.error('Error starting periodic SW updates:', error);
   }

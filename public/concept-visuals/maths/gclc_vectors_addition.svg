@@ -1,0 +1,43 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 80 200 -->
+
+<!-- Drawing segment P Q -->
+<line x1="2.22" y1="7.67" x2="3.78" y2="5.33" style="stroke:#0050C8; stroke-width:2.50"></line>
+
+<!-- Printing text at point Ta -->
+<text x="0.80" y="6.30" style="font-size:4.57pt; font-style:italic; fill:#0050C8" text-anchor="end" dy="2.108963"> a </text>
+
+<!-- Changing color 200 0 0 -->
+
+<!-- Drawing segment Q R -->
+<line x1="4.38" y1="4.87" x2="6.62" y2="4.13" style="stroke:#C80000; stroke-width:2.50"></line>
+
+<!-- Printing text at point Tb -->
+<text x="5.50" y="2.70" style="font-size:4.57pt; font-style:italic; fill:#C80000" text-anchor="middle"> b </text>
+
+<!-- Changing color 0 140 0 -->
+
+<!-- Drawing segment P R -->
+<line x1="2.31" y1="7.75" x2="3.17" y2="7.06" style="stroke:#008C00; stroke-width:2.00"></line>
+<line x1="3.76" y1="6.59" x2="4.93" y2="5.66" style="stroke:#008C00; stroke-width:2.00"></line>
+<line x1="5.51" y1="5.19" x2="6.69" y2="4.25" style="stroke:#008C00; stroke-width:2.00"></line>
+
+<!-- Printing text at point Tr -->
+<text x="4.90" y="7.20" style="font-size:4.57pt; font-style:italic; fill:#008C00" dy="4.569420"> a+b </text>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Marking point P by circle -->
+<circle cx="2.00" cy="8.00" r="0.40" fill="none" stroke="#000000" stroke-width="2.00"></circle>
+<text x="2.00" y="9.00" style="font-size:4.57pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.569420">P</text>
+
+<!-- Marking point Q by circle -->
+<circle cx="4.00" cy="5.00" r="0.40" fill="none" stroke="#000000" stroke-width="2.00"></circle>
+<text x="4.00" y="6.00" style="font-size:4.57pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.569420">Q</text>
+
+<!-- Marking point R by circle -->
+<circle cx="7.00" cy="4.00" r="0.40" fill="none" stroke="#000000" stroke-width="2.00"></circle>
+<text x="7.00" y="5.00" style="font-size:4.57pt; font-style:italic; fill:#000000" text-anchor="middle" dy="4.569420">R</text>
+</svg>

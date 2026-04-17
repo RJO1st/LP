@@ -275,8 +275,36 @@ function ConceptVisual({ type, data }) {
     case 'nih_3d':
       return <NIH3DPanel data={data} />
 
+    // ── Static image from /public/concept-visuals/ ────────────────────────
+    // visual_data: { src: '/concept-visuals/biology/heart.png', alt: '...', caption: '...' }
+    case 'static_image':
+      return <StaticConceptImage data={data} />
+
     default: return null
   }
+}
+
+// ── Static image renderer ─────────────────────────────────────────────────────
+function StaticConceptImage({ data }) {
+  const { src, alt = 'Science diagram', caption } = data || {}
+  if (!src) return null
+  return (
+    <figure className="flex flex-col items-center gap-2">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className="max-h-52 w-auto rounded-xl object-contain"
+        style={{ background: 'transparent' }}
+      />
+      {caption && (
+        <figcaption className="text-xs text-slate-400 text-center italic">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  )
 }
 
 // ── Worked example steps renderer ──────────────────────────────────────────

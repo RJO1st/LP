@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import MathsDiagram from "@/components/MathsDiagram";
 
 /**
  * ExamRunner.jsx
@@ -3939,6 +3940,21 @@ export default function ExamRunner({
   // ── RENDER DIAGRAM / TABLE / FIGURE ────────────────────────────────────────────
   const renderDiagram = () => {
     if (!currentQuestion) return null;
+
+    // ── Mode 1: JSXGraph DiagramSpec on the question ────────────────────────────
+    // visual_spec takes priority over all legacy diagram rendering paths.
+    if (currentQuestion.visual_spec) {
+      return (
+        <div className="flex justify-center mb-8">
+          <MathsDiagram
+            spec={currentQuestion.visual_spec}
+            width={320}
+            height={320}
+            className="rounded-lg border border-slate-200 shadow-sm"
+          />
+        </div>
+      );
+    }
 
     // ── SMART DIAGRAM INHERITANCE GATE ─────────────────────────────────────────
     // Sub-questions should only inherit a parent diagram if they explicitly

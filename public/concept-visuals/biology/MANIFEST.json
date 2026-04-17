@@ -1,0 +1,464 @@
+[
+  {
+    "page": 1,
+    "file": "p01.png",
+    "topic_slug": "circulatory_system",
+    "alt": "heart anatomy diagram",
+    "caption": "Diagram of the human heart"
+  },
+  {
+    "page": 2,
+    "file": "p02.png",
+    "topic_slug": "digestive_system",
+    "alt": "digestive system diagram",
+    "caption": "Human digestive system"
+  },
+  {
+    "page": 3,
+    "file": "p03.png",
+    "topic_slug": "dna_genetics",
+    "alt": "DNA double helix",
+    "caption": "DNA double helix structure"
+  },
+  {
+    "page": 4,
+    "file": "p04.png",
+    "topic_slug": "skeleton",
+    "alt": "human skeleton",
+    "caption": "Full human skeleton diagram"
+  },
+  {
+    "page": 5,
+    "file": "p05.png",
+    "topic_slug": "reproductive_system",
+    "alt": "male reproductive system",
+    "caption": "Male reproductive system"
+  },
+  {
+    "page": 6,
+    "file": "p06.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 7,
+    "file": "p07.png",
+    "topic_slug": "respiratory_system",
+    "alt": "lungs diagram",
+    "caption": "Diagram of the lungs and airways"
+  },
+  {
+    "page": 8,
+    "file": "p08.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 9,
+    "file": "p09.png",
+    "topic_slug": "human_body",
+    "alt": "body organs diagram",
+    "caption": "Labelled diagram of human body organs"
+  },
+  {
+    "page": 10,
+    "file": "p10.png",
+    "topic_slug": "excretory_system",
+    "alt": "kidneys diagram",
+    "caption": "Kidneys and urinary system"
+  },
+  {
+    "page": 11,
+    "file": "p11.png",
+    "topic_slug": "digestion",
+    "alt": "intestines diagram",
+    "caption": "Large and small intestines"
+  },
+  {
+    "page": 12,
+    "file": "p12.png",
+    "topic_slug": "electricity",
+    "alt": "electric circuit diagram",
+    "caption": "Simple series electric circuit"
+  },
+  {
+    "page": 13,
+    "file": "p13.png",
+    "topic_slug": "atoms_elements",
+    "alt": "Bohr atom model",
+    "caption": "Bohr model of an atom"
+  },
+  {
+    "page": 14,
+    "file": "p14.png",
+    "topic_slug": "food_chains",
+    "alt": "food chain cycle",
+    "caption": "Food chain cycle from producers to decomposers"
+  },
+  {
+    "page": 15,
+    "file": "p15.png",
+    "topic_slug": "viruses",
+    "alt": "virus particle",
+    "caption": "Virus particle structure"
+  },
+  {
+    "page": 16,
+    "file": "p16.png",
+    "topic_slug": "photosynthesis",
+    "alt": "photosynthesis diagram",
+    "caption": "Photosynthesis process diagram"
+  },
+  {
+    "page": 17,
+    "file": "p17.png",
+    "topic_slug": "natural_selection",
+    "alt": "evolution march of progress",
+    "caption": "Evolution: march of progress silhouettes"
+  },
+  {
+    "page": 18,
+    "file": "p18.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 19,
+    "file": "p19.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 20,
+    "file": "p20.png",
+    "topic_slug": "muscular_system",
+    "alt": "muscular system diagram",
+    "caption": "Full body muscular system"
+  },
+  {
+    "page": 21,
+    "file": "p21.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 22,
+    "file": "p22.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 23,
+    "file": "p23.png",
+    "topic_slug": "ecosystems",
+    "alt": "ecological pyramid",
+    "caption": "Ecological pyramid and energy flow"
+  },
+  {
+    "page": 24,
+    "file": "p24.png",
+    "topic_slug": "chemical_reactions",
+    "alt": "chemical reaction in test tube",
+    "caption": "Chemical reaction in a test tube"
+  },
+  {
+    "page": 25,
+    "file": "p25.png",
+    "topic_slug": "periodic_table",
+    "alt": "periodic table of elements",
+    "caption": "The periodic table of elements"
+  },
+  {
+    "page": 26,
+    "file": "p26.png",
+    "topic_slug": "acids_bases",
+    "alt": "pH scale",
+    "caption": "The pH scale from 0 to 14"
+  },
+  {
+    "page": 27,
+    "file": "p27.png",
+    "topic_slug": "lab_safety",
+    "alt": "lab safety sign",
+    "caption": "Laboratory safety signage"
+  },
+  {
+    "page": 28,
+    "file": "p28.png",
+    "topic_slug": "chemical_bonding",
+    "alt": "organic molecule structural formula",
+    "caption": "Organic molecule structural formula"
+  },
+  {
+    "page": 29,
+    "file": "p29.png",
+    "topic_slug": "carbohydrates",
+    "alt": "glucose molecule",
+    "caption": "Glucose molecule C\u2086H\u2081\u2082O\u2086"
+  },
+  {
+    "page": 30,
+    "file": "p30.png",
+    "topic_slug": "forces",
+    "alt": "forces and gravity diagram",
+    "caption": "Forces and gravity"
+  },
+  {
+    "page": 31,
+    "file": "p31.png",
+    "topic_slug": "magnetism",
+    "alt": "bar magnet with field lines",
+    "caption": "Bar magnet with magnetic field lines"
+  },
+  {
+    "page": 32,
+    "file": "p32.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 33,
+    "file": "p33.png",
+    "topic_slug": "energy",
+    "alt": "energy types diagram",
+    "caption": "Potential and kinetic energy"
+  },
+  {
+    "page": 34,
+    "file": "p34.png",
+    "topic_slug": "sound",
+    "alt": "sound wave waveform",
+    "caption": "Sound wave waveform"
+  },
+  {
+    "page": 35,
+    "file": "p35.png",
+    "topic_slug": "waves",
+    "alt": "transverse wave diagram",
+    "caption": "Transverse wave with amplitude and wavelength"
+  },
+  {
+    "page": 36,
+    "file": "p36.png",
+    "topic_slug": "nervous_system",
+    "alt": "ear anatomy cross-section",
+    "caption": "Anatomy of the ear"
+  },
+  {
+    "page": 37,
+    "file": "p37.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 38,
+    "file": "p38.png",
+    "topic_slug": "ancient_egypt",
+    "alt": "Egyptian pyramids and Sphinx",
+    "caption": "The Pyramids and Great Sphinx at Giza"
+  },
+  {
+    "page": 39,
+    "file": "p39.png",
+    "topic_slug": "ancient_rome",
+    "alt": "Roman Colosseum",
+    "caption": "The Roman Colosseum"
+  },
+  {
+    "page": 40,
+    "file": "p40.png",
+    "topic_slug": "ancient_greece",
+    "alt": "Greek Parthenon",
+    "caption": "The Parthenon in ancient Athens"
+  },
+  {
+    "page": 41,
+    "file": "p41.png",
+    "topic_slug": "ancient_americas",
+    "alt": "Aztec step pyramid",
+    "caption": "Aztec step pyramid temple"
+  },
+  {
+    "page": 42,
+    "file": "p42.png",
+    "topic_slug": "ancient_china",
+    "alt": "Great Wall of China",
+    "caption": "The Great Wall of China"
+  },
+  {
+    "page": 43,
+    "file": "p43.png",
+    "topic_slug": "refraction",
+    "alt": "refraction of light in water",
+    "caption": "Pencil appearing bent in water — refraction of light"
+  },
+  {
+    "page": 44,
+    "file": "p44.png",
+    "topic_slug": "light",
+    "alt": "light dispersion through prism",
+    "caption": "White light dispersed into spectrum by a prism"
+  },
+  {
+    "page": 45,
+    "file": "p45.png",
+    "topic_slug": "parallel_circuits",
+    "alt": "parallel circuit diagram",
+    "caption": "Parallel circuit with three light bulbs"
+  },
+  {
+    "page": 46,
+    "file": "p46.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 47,
+    "file": "p47.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 48,
+    "file": "p48.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 49,
+    "file": "p49.png",
+    "topic_slug": "weather",
+    "alt": "snow cloud",
+    "caption": "Cloud producing snowfall"
+  },
+  {
+    "page": 50,
+    "file": "p50.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 51,
+    "file": "p51.png",
+    "topic_slug": "precipitation",
+    "alt": "rain cloud",
+    "caption": "Cloud producing rainfall"
+  },
+  {
+    "page": 52,
+    "file": "p52.png",
+    "topic_slug": "storms",
+    "alt": "thunderstorm with lightning",
+    "caption": "Thunderstorm with lightning bolts"
+  },
+  {
+    "page": 53,
+    "file": "p53.png",
+    "topic_slug": "natural_disasters",
+    "alt": "tornado funnel cloud",
+    "caption": "Tornado funnel cloud"
+  },
+  {
+    "page": 54,
+    "file": "p54.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 55,
+    "file": "p55.png",
+    "topic_slug": "volcanoes",
+    "alt": "volcanic eruption",
+    "caption": "Volcanic eruption with lava flow"
+  },
+  {
+    "page": 56,
+    "file": "p56.png",
+    "topic_slug": "earthquakes",
+    "alt": "earthquake ground crack",
+    "caption": "Earthquake splitting the ground"
+  },
+  {
+    "page": 57,
+    "file": "p57.png",
+    "topic_slug": "rivers",
+    "alt": "winding river landscape",
+    "caption": "Winding river through green countryside"
+  },
+  {
+    "page": 58,
+    "file": "p58.png",
+    "topic_slug": "tsunamis",
+    "alt": "tsunami wave",
+    "caption": "Tsunami wave hitting coastline"
+  },
+  {
+    "page": 59,
+    "file": "p59.png",
+    "topic_slug": "deforestation",
+    "alt": "deforestation tree stumps",
+    "caption": "Deforestation — felled trees and stumps"
+  },
+  {
+    "page": 60,
+    "file": "p60.png",
+    "topic_slug": "pollution",
+    "alt": "ocean plastic pollution",
+    "caption": "Plastic pollution in the ocean"
+  },
+  {
+    "page": 61,
+    "file": "p61.png",
+    "topic_slug": "urbanisation",
+    "alt": "modern city skyline",
+    "caption": "Modern city skyline at night"
+  },
+  {
+    "page": 62,
+    "file": "p62.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  },
+  {
+    "page": 63,
+    "file": "p63.png",
+    "topic_slug": "waterfalls",
+    "alt": "waterfall over rocks",
+    "caption": "Waterfall over rocky terrain"
+  },
+  {
+    "page": 64,
+    "file": "p64.png",
+    "topic_slug": "farming",
+    "alt": "rural farmland and river",
+    "caption": "Rural farmland with river and cottages"
+  },
+  {
+    "page": 65,
+    "file": "p65.png",
+    "topic_slug": "electromagnetic_spectrum",
+    "alt": "electromagnetic spectrum diagram",
+    "caption": "The electromagnetic spectrum with wavelengths"
+  },
+  {
+    "page": 66,
+    "file": "p66.png",
+    "topic_slug": "",
+    "alt": "",
+    "caption": ""
+  }
+]

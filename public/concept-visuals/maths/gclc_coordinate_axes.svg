@@ -1,0 +1,34 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Drawing segment XL XR -->
+<line x1="0.30" y1="5.00" x2="9.70" y2="5.00" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Drawing segment YB YT -->
+<line x1="5.00" y1="9.70" x2="5.00" y2="0.30" style="stroke:#000000; stroke-width:1.50"></line>
+
+<!-- Changing color 200 0 0 -->
+
+<!-- Printing text at point P1 -->
+<text x="7.70" y="2.30" style="font-size:4.22pt; font-style:italic; fill:#C80000"> (2,2) </text>
+
+<!-- Printing text at point P2 -->
+<text x="2.30" y="2.30" style="font-size:4.22pt; font-style:italic; fill:#C80000" text-anchor="end"> (-2,2) </text>
+
+<!-- Printing text at point P3 -->
+<text x="7.70" y="7.70" style="font-size:4.22pt; font-style:italic; fill:#C80000" dy="4.217926"> (2,-2) </text>
+
+<!-- Printing text at point P4 -->
+<text x="2.30" y="7.70" style="font-size:4.22pt; font-style:italic; fill:#C80000" text-anchor="end" dy="4.217926"> (-2,-2) </text>
+
+<!-- Changing color 0 0 0 -->
+
+<!-- Printing text at point Tx -->
+
+<!-- Printing text at point Ty -->
+
+<!-- Printing text at point Tor -->
+<text x="6.00" y="6.00" style="font-size:4.22pt; font-style:italic; fill:#000000" dy="4.217926"> O </text>
+</svg>

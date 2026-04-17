@@ -1,0 +1,55 @@
+<svg width="10mm" height="10mm" viewBox="0 0 10 10" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<title>GCLCOutputFigure</title>
+
+<!-- Changing color 150 0 150 -->
+
+<!-- Drawing segment ML1 ML2 -->
+<line x1="5.00" y1="9.50" x2="5.00" y2="8.00" style="stroke:#960096; stroke-width:1.50"></line>
+<line x1="5.00" y1="7.25" x2="5.00" y2="5.75" style="stroke:#960096; stroke-width:1.50"></line>
+<line x1="5.00" y1="5.00" x2="5.00" y2="3.50" style="stroke:#960096; stroke-width:1.50"></line>
+<line x1="5.00" y1="2.75" x2="5.00" y2="1.25" style="stroke:#960096; stroke-width:1.50"></line>
+
+<!-- Printing text at point Tm -->
+<text x="4.50" y="0.50" style="font-size:4.22pt; font-style:italic; fill:#960096" text-anchor="end"> mirror line </text>
+
+<!-- Changing color 0 80 200 -->
+
+<!-- Drawing segment A B -->
+<line x1="2.00" y1="6.00" x2="4.00" y2="8.00" style="stroke:#0050C8; stroke-width:2.00"></line>
+
+<!-- Drawing segment B C -->
+<line x1="4.00" y1="8.00" x2="4.00" y2="3.00" style="stroke:#0050C8; stroke-width:2.00"></line>
+
+<!-- Drawing segment C A -->
+<line x1="4.00" y1="3.00" x2="2.00" y2="6.00" style="stroke:#0050C8; stroke-width:2.00"></line>
+
+<!-- Printing text at point Tobj -->
+<text x="0.80" y="3.80" style="font-size:4.22pt; font-style:italic; fill:#0050C8" text-anchor="end"> Object </text>
+
+<!-- Changing color 200 100 0 -->
+
+<!-- Drawing segment Ar Br -->
+<line x1="8.00" y1="6.00" x2="6.00" y2="8.00" style="stroke:#C86400; stroke-width:2.00"></line>
+
+<!-- Drawing segment Br Cr -->
+<line x1="6.00" y1="8.00" x2="6.00" y2="3.00" style="stroke:#C86400; stroke-width:2.00"></line>
+
+<!-- Drawing segment Cr Ar -->
+<line x1="6.00" y1="3.00" x2="8.00" y2="6.00" style="stroke:#C86400; stroke-width:2.00"></line>
+
+<!-- Printing text at point Timg -->
+<text x="9.20" y="3.80" style="font-size:4.22pt; font-style:italic; fill:#C86400"> Image </text>
+
+<!-- Changing color 180 180 180 -->
+
+<!-- Drawing segment A Ar -->
+<line x1="2.00" y1="6.00" x2="3.50" y2="6.00" style="stroke:#B4B4B4; stroke-width:0.50"></line>
+<line x1="4.25" y1="6.00" x2="5.75" y2="6.00" style="stroke:#B4B4B4; stroke-width:0.50"></line>
+<line x1="6.50" y1="6.00" x2="8.00" y2="6.00" style="stroke:#B4B4B4; stroke-width:0.50"></line>
+
+<!-- Drawing segment B Br -->
+<line x1="4.00" y1="8.00" x2="5.50" y2="8.00" style="stroke:#B4B4B4; stroke-width:0.50"></line>
+
+<!-- Drawing segment C Cr -->
+<line x1="4.00" y1="3.00" x2="5.50" y2="3.00" style="stroke:#B4B4B4; stroke-width:0.50"></line>
+</svg>
