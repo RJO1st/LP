@@ -1347,6 +1347,7 @@ export default function ParentDashboard() {
             {/* ── Push notification opt-in ── */}
             <PushNotificationPrompt
               scholarId={scholars[0]?.id}
+              isNgParent={isNgParent}
             />
 
             {/* ── Multi-child comparison (2+ scholars) ── */}
