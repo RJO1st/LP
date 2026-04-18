@@ -11,7 +11,7 @@
  *   - Manual region switcher in footer — sets __geo_override cookie.
  *   - Hero, curricula grid, pricing, final CTA all swap based on region.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import DarkModeToggle from '@/components/theme/DarkModeToggle';
@@ -206,6 +206,117 @@ const FAQS_NG = [
   { q: "Can I cancel anytime?", a: "Yes. No contracts, no cancellation fees. Cancel at any time from your dashboard." },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGE BANDS ERROR BOUNDARY — silently catches any render crash inside
+// AgeBandsSection so a stale activeBand or bad band entry never explodes the
+// whole page. Returns null on crash (the section simply disappears).
+// ═══════════════════════════════════════════════════════════════════════════════
+class AgeBandsErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { crashed: false }; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  componentDidCatch() { /* swallow — no logging needed in prod */ }
+  render() {
+    if (this.state.crashed) return null;
+    return this.props.children;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGE BANDS SECTION — isolated component so activeBand state resets on region
+// switch. Never key on index in parent; key={region} at the call site unmounts
+// and remounts this entirely, eliminating all race conditions with the interval.
+// ═══════════════════════════════════════════════════════════════════════════════
+function AgeBandsSection({ bands, signupHref }) {
+  const [activeBand, setActiveBand] = useState(0);
+
+  useEffect(() => {
+    setActiveBand(0);
+    if (!bands.length) return;
+    const len = bands.filter(Boolean).length;
+    if (!len) return;
+    const t = setInterval(() => setActiveBand(n => (n + 1) % len), 5000);
+    return () => clearInterval(t);
+  }, [bands.length]);
+
+  // Defensive: filter out any falsy entries that might have slipped in
+  const safeBands = bands.filter(Boolean);
+  if (!safeBands.length) return null;
+
+  // idx is always valid: modulo keeps it in [0, safeBands.length-1] and the
+  // component re-mounts on region change so activeBand starts at 0.
+  const idx = activeBand % safeBands.length;
+  const b = safeBands[idx];
+  if (!b) return null;
+
+  return (
+    <section id="age-bands" className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 bg-slate-100 dark:bg-slate-800/20">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <span className="inline-block text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-slate-200 dark:bg-slate-800/40 border border-slate-300 dark:border-indigo-500/30 px-4 py-1.5 rounded-full mb-5">Adapts As They Grow</span>
+          <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">
+            {safeBands.length === 3 ? '3 Worlds. 1 Platform.' : '4 Worlds. 1 Platform.'}
+          </h2>
+          <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">From magical adventures at age 5 to exam preparation at age 17. They never outgrow LaunchPard. They graduate to the next world.</p>
+        </div>
+
+        {/* Band selector tabs */}
+        <div className="flex justify-center gap-2 mb-10 flex-wrap">
+          {safeBands.map((band, i) => band && (
+            <button key={i} onClick={() => setActiveBand(i)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all ${
+                idx === i
+                  ? `bg-gradient-to-r ${band?.color ?? ''} text-white shadow-lg shadow-slate-900/30`
+                  : 'bg-slate-200 dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500/40'
+              }`}>
+              <span className="text-lg">{band?.icon}</span>
+              <span>{band?.band} ({band?.ages})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Active band showcase */}
+        <div className="bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-indigo-500/30 rounded-3xl overflow-hidden transition-all duration-500 backdrop-blur-xl">
+          <div className="grid md:grid-cols-2">
+            {/* Left: info */}
+            <div className="p-8 sm:p-10 flex flex-col justify-center">
+              <div className="flex items-center gap-3 mb-5">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${b?.color ?? ''} flex items-center justify-center text-2xl shadow-lg shadow-slate-900/30`}>{b?.icon}</div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-slate-50">{b?.title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">{b?.band} · Ages {b?.ages}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5 mb-6">
+                {(b?.features ?? []).map((f, i) => (
+                  <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300">
+                    <span className="text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5">✓</span>
+                    <span>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-300 dark:border-white/10">
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Tara speaks their language</p>
+                <p className="text-slate-700 dark:text-slate-300 text-sm italic leading-relaxed">{b?.taraVoice}</p>
+              </div>
+            </div>
+            {/* Right: visual */}
+            <div className="p-8 sm:p-10 bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center border-t md:border-t-0 md:border-l border-slate-200 dark:border-white/5">
+              <div className="text-center space-y-4 w-full max-w-xs">
+                <div className="text-7xl mb-2">{b?.icon}</div>
+                <div className={`text-2xl font-black text-transparent bg-gradient-to-r ${b?.color ?? ''} bg-clip-text`}>{b?.title}</div>
+                <p className="text-slate-600 dark:text-slate-400 text-sm">{b?.band} · {b?.ages} · Adaptive AI</p>
+                <Link href={signupHref} className={`inline-block bg-gradient-to-r ${b?.color ?? ''} text-white font-bold px-6 py-3 rounded-2xl text-sm shadow-lg shadow-slate-900/30 hover:scale-105 transition-all`}>
+                  Try {b?.band} Experience →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FaqItem({ q, a }) {
   const [open, setOpen] = useState(false);
   return (
@@ -224,10 +335,14 @@ function FaqItem({ q, a }) {
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [activeBand, setActiveBand] = useState(0);
   const [annual, setAnnual] = useState(true);
   const [navScrolled, setNavScrolled] = useState(false);
   const [region, setRegion] = useRegion();
+  const [ngPath, setNgPath] = useState(null); // null | 'parent' | 'school' — NG content gate
+  // ngGateActive: true = content hidden until parent card clicked.
+  // Starts false (matches SSR default) then useLayoutEffect sets it to true
+  // for NG visitors BEFORE the first browser paint, so there is no flash.
+  const [ngGateActive, setNgGateActive] = useState(false);
   const cfg = REGION_CONFIG[region] || REGION_CONFIG.GB;
   const isNG = region === 'NG';
   const CURRICULA = isNG ? CURRICULA_NG : CURRICULA_GB;
@@ -242,15 +357,44 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  useEffect(() => {
-    const t = setInterval(() => setActiveFeature(f => (f + 1) % FEATURES_GB.length), 3500);
-    return () => clearInterval(t);
+  // Gate NG content BEFORE the first browser paint.
+  // useLayoutEffect fires synchronously after hydration but before paint, so the
+  // page never flashes the gated content to NG visitors — no CSS trick needed.
+  // We don't set this during SSR (typeof document check in readRegionCookie) so
+  // hydration always succeeds (server = gate closed, client adjusts silently).
+  useLayoutEffect(() => {
+    if (readRegionCookie() === 'NG') setNgGateActive(true);
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setActiveBand(b => (b + 1) % AGE_BANDS_GB.length), 5000);
+    setActiveFeature(0);
+    const t = setInterval(() => setActiveFeature(f => (f + 1) % FEATURES.length), 3500);
     return () => clearInterval(t);
-  }, []);
+  }, [FEATURES.length]); // re-init when region changes feature count
+
+  // Reset NG path gate whenever region changes
+  useEffect(() => {
+    setNgPath(null);
+    // Activate gate if switching TO NG; deactivate if switching away
+    setNgGateActive(region === 'NG');
+  }, [region]);
+
+  const handleParentPathSelect = () => {
+    // React 18 batches these two setState calls into a single re-render
+    setNgPath('parent');
+    setNgGateActive(false);
+    setTimeout(() => {
+      document.getElementById('age-bands')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
+  const handleSchoolPathSelect = () => {
+    setNgPath('school');
+    setNgGateActive(false);
+    setTimeout(() => {
+      document.getElementById('school-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100 dark:from-[#080c15] dark:via-[#0a0f1a] dark:to-[#0f1629] text-slate-900 dark:text-slate-100 font-sans overflow-x-hidden transition-colors duration-300">
@@ -272,6 +416,7 @@ export default function LandingPage() {
             <button onClick={() => document.getElementById('age-bands')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Ages 5–17</button>
             <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Features</button>
             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Pricing</button>
+            <Link href="/for-schools" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">For Schools</Link>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <DarkModeToggle />
@@ -284,105 +429,181 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══ HERO ═══ */}
-      <section className="relative z-10 px-4 sm:px-6 pt-28 pb-20">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-300 dark:border-indigo-500/30 rounded-full px-4 py-2 mb-8 animate-fade-in">
-            <span className="relative flex h-2 w-2"><span className={`animate-ping absolute h-full w-full rounded-full ${isNG ? 'bg-emerald-500' : 'bg-indigo-500'} opacity-75`} /><span className={`relative rounded-full h-2 w-2 ${isNG ? 'bg-emerald-500' : 'bg-indigo-500'}`} /></span>
-            <span className={`text-sm font-bold ${isNG ? 'text-emerald-700 dark:text-emerald-300' : 'text-indigo-600 dark:text-indigo-300'}`}>{cfg.heroBadge}</span>
-          </div>
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black mb-6 leading-[0.95] animate-fade-in-up text-slate-900 dark:text-slate-50">
-            <span className="block mb-3">Their Learning.</span>
-            <span className="block mb-3">Their Pace.</span>
-            <span className="block text-indigo-600 dark:text-indigo-400">Their Path.</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-            You stop guessing. They start progressing. AI that adapts to your child's age, curriculum, and level. Every question is pitched at the right difficulty, every time.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 animate-fade-in-up animation-delay-400">
-            <Link href={signupHref} className="group bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/30 hover:scale-105 transition-all inline-flex items-center justify-center gap-2">
-              {cfg.heroCta} <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
-            <button onClick={() => document.getElementById('age-bands')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-slate-200 dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 text-slate-900 dark:text-slate-100 font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all">
-              See How It Works
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-600 dark:text-slate-400 animate-fade-in-up animation-delay-600">
-            {[["✓","Free plan available"],["🛡️",cfg.trustLabel],["⚡","Cancel anytime"],["🔒","No data selling"]].map(([icon,text],i) => (
-              <span key={i} className="flex items-center gap-1.5"><span className="text-indigo-600 dark:text-indigo-400">{icon}</span>{text}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ AGE BANDS ═══ */}
-      <section id="age-bands" className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 bg-slate-100 dark:bg-slate-800/20">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-block text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-slate-200 dark:bg-slate-800/40 border border-slate-300 dark:border-indigo-500/30 px-4 py-1.5 rounded-full mb-5">Adapts As They Grow</span>
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-slate-900 dark:text-slate-50">4 Worlds. 1 Platform.</h2>
-            <p className="text-lg text-slate-700 dark:text-slate-300 max-w-xl mx-auto">From magical adventures at age 5 to exam preparation at age 17. They never outgrow LaunchPard. They graduate to the next world.</p>
+      {isNG ? (
+        /* ── Nigerian dual-path hero ─────────────────────────────────────── */
+        <section className="relative z-10 px-4 sm:px-6 pt-28 pb-16">
+          {/* Badge */}
+          <div className="text-center mb-8 animate-fade-in">
+            <div className="inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-300 dark:border-emerald-500/30 rounded-full px-4 py-2">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-500 opacity-75" /><span className="relative rounded-full h-2 w-2 bg-emerald-500" /></span>
+              <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{cfg.heroBadge}</span>
+            </div>
           </div>
 
-          {/* Band selector tabs */}
-          <div className="flex justify-center gap-2 mb-10 flex-wrap">
-            {AGE_BANDS.map((b, i) => (
-              <button key={i} onClick={() => setActiveBand(i)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all ${
-                  activeBand === i
-                    ? `bg-gradient-to-r ${b.color} text-white shadow-lg shadow-slate-900/30`
-                    : 'bg-slate-200 dark:bg-slate-800/40 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500/40'
-                }`}>
-                <span className="text-lg">{b.icon}</span>
-                <span>{b.band} ({b.ages})</span>
-              </button>
-            ))}
+          {/* Main headline */}
+          <div className="text-center mb-4 animate-fade-in-up">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[0.95] text-slate-900 dark:text-slate-50 mb-4">
+              Built for<br />
+              <span className="text-emerald-500">Nigerian</span> Scholars.
+            </h1>
+            <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
+              Primary, JSS, SSS — adaptive AI that follows the NERDC syllabus and prepares your child for WAEC, NECO, BECE, and beyond.
+            </p>
           </div>
 
-          {/* Active band showcase */}
-          {(() => {
-            const b = AGE_BANDS[activeBand];
-            return (
-              <div className={`bg-white dark:bg-slate-800/40 border border-slate-300 dark:border-indigo-500/30 rounded-3xl overflow-hidden transition-all duration-500 backdrop-blur-xl`}>
-                <div className="grid md:grid-cols-2">
-                  {/* Left: info */}
-                  <div className="p-8 sm:p-10 flex flex-col justify-center">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${b.color} flex items-center justify-center text-2xl shadow-lg shadow-slate-900/30`}>{b.icon}</div>
-                      <div>
-                        <h3 className="text-2xl font-black text-slate-900 dark:text-slate-50">{b.title}</h3>
-                        <p className="text-slate-600 dark:text-slate-400 text-sm">{b.band} · Ages {b.ages}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2.5 mb-6">
-                      {b.features.map((f, i) => (
-                        <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300">
-                          <span className="text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5">✓</span><span>{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-slate-100 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-300 dark:border-white/10">
-                      <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Tara speaks their language</p>
-                      <p className="text-slate-700 dark:text-slate-300 text-sm italic leading-relaxed">{b.taraVoice}</p>
-                    </div>
-                  </div>
-                  {/* Right: visual */}
-                  <div className="p-8 sm:p-10 bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center border-t md:border-t-0 md:border-l border-slate-200 dark:border-white/5">
-                    <div className="text-center space-y-4 w-full max-w-xs">
-                      <div className="text-7xl mb-2">{b.icon}</div>
-                      <div className={`text-2xl font-black text-transparent bg-gradient-to-r ${b.color} bg-clip-text`}>{b.title}</div>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm">{b.band} · {b.ages} · Adaptive AI</p>
-                      <Link href="/signup" className={`inline-block bg-gradient-to-r ${b.color} text-white font-bold px-6 py-3 rounded-2xl text-sm shadow-lg shadow-slate-900/30 hover:scale-105 transition-all`}>
-                        Try {b.band} Experience →
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+          {/* Dual-path cards — selected card expands, other card disappears */}
+          <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-4 mt-10 animate-fade-in-up animation-delay-200">
+
+            {/* Parent card — hidden when school path selected */}
+            {ngPath !== 'school' && (
+            <div
+              onClick={handleParentPathSelect}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleParentPathSelect(); } }}
+              className={`relative bg-amber-50 dark:bg-amber-950/40 rounded-3xl p-7 flex flex-col cursor-pointer transition-all hover:shadow-xl hover:shadow-amber-500/10 ${
+                ngPath === 'parent'
+                  ? 'border-2 border-amber-500 dark:border-amber-400 shadow-lg shadow-amber-500/20 sm:col-span-2'
+                  : 'border-2 border-amber-200 dark:border-amber-500/30'
+              }`}>
+              {ngPath === 'parent' && (
+                <span className="absolute top-4 right-4 bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">✓ Selected</span>
+              )}
+              <div className="text-3xl mb-3">👨‍👩‍👧</div>
+              <h2 className="text-xl font-black text-amber-900 dark:text-amber-200 mb-2">I&apos;m a Parent</h2>
+              <p className="text-amber-800 dark:text-amber-300 text-sm leading-relaxed mb-5 flex-1">
+                Give your child a real edge in WAEC, NECO, BECE, and Common Entrance. Adaptive questions, mock papers, and a guardian dashboard — start free, no card needed.
+              </p>
+              <div className="bg-white dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/20 rounded-2xl px-4 py-3 mb-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Scholar Plan from</p>
+                <p className="text-2xl font-black text-amber-700 dark:text-amber-300">₦2,500<span className="text-sm font-semibold">/mo</span></p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-500 font-semibold">Free plan always available</p>
               </div>
-            );
-          })()}
-        </div>
-      </section>
+              {ngPath === 'parent' ? (
+                <Link
+                  href={signupHref}
+                  onClick={e => e.stopPropagation()}
+                  className="block text-center bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30 border-b-2 border-amber-700 active:border-b-0 active:translate-y-0.5">
+                  Start Free Today →
+                </Link>
+              ) : (
+                <button type="button" className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30 border-b-2 border-amber-700 active:border-b-0 active:translate-y-0.5">
+                  See What&apos;s Included ↓
+                </button>
+              )}
+            </div>
+            )}
+
+            {/* School card — hidden when parent path selected */}
+            {ngPath !== 'parent' && (
+            <div
+              onClick={handleSchoolPathSelect}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSchoolPathSelect(); } }}
+              className={`relative bg-indigo-50 dark:bg-indigo-950/40 rounded-3xl p-7 flex flex-col cursor-pointer transition-all hover:shadow-xl hover:shadow-indigo-500/10 ${
+                ngPath === 'school'
+                  ? 'border-2 border-indigo-500 dark:border-indigo-400 shadow-lg shadow-indigo-500/20 sm:col-span-2'
+                  : 'border-2 border-indigo-200 dark:border-indigo-500/30'
+              }`}>
+              {ngPath === 'school' && (
+                <span className="absolute top-4 right-4 bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">✓ Selected</span>
+              )}
+              <div className="text-3xl mb-3">🏫</div>
+              <h2 className="text-xl font-black text-indigo-900 dark:text-indigo-200 mb-2">I&apos;m a School</h2>
+              <p className="text-indigo-800 dark:text-indigo-300 text-sm leading-relaxed mb-5 flex-1">
+                Give every teacher a live view of class readiness — topic gaps, mastery scores, and individual student profiles across JSS and SSS. A platform built for school improvement.
+              </p>
+              <ul className="space-y-1.5 text-xs text-indigo-700 dark:text-indigo-300 mb-5">
+                {[
+                  "Teacher dashboard — full class readiness at a glance",
+                  "Per-student, per-subject mastery tracking",
+                  "Subject gap analysis and exam readiness scores",
+                  "NDPR-compliant · No billing handled by your school",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2">
+                    <span className="text-indigo-400 mt-0.5 flex-shrink-0">✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              {ngPath === 'school' ? (
+                <Link
+                  href="/for-schools"
+                  onClick={e => e.stopPropagation()}
+                  className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-500/30 border-b-2 border-indigo-800 active:border-b-0 active:translate-y-0.5">
+                  Get Started for Your School →
+                </Link>
+              ) : (
+                <button type="button" className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-500/30 border-b-2 border-indigo-800 active:border-b-0 active:translate-y-0.5">
+                  See What Schools Get ↓
+                </button>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-600 dark:text-slate-400 mt-8 animate-fade-in-up animation-delay-400">
+            {[["✓","Free plan available"],["🛡️","NDPR compliant"],["⚡","No contracts"],["🔒","No data selling"]].map(([icon,text],i) => (
+              <span key={i} className="flex items-center gap-1.5"><span className="text-emerald-600 dark:text-emerald-400">{icon}</span>{text}</span>
+            ))}
+          </div>
+
+          {/* Path-selection prompt — visible until a card is chosen */}
+          {!ngPath && (
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-5 animate-fade-in">
+              👆 Select a card above to explore what&apos;s included
+            </p>
+          )}
+        </section>
+      ) : (
+        /* ── UK / global hero (unchanged) ───────────────────────────────── */
+        <section className="relative z-10 px-4 sm:px-6 pt-28 pb-20">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-300 dark:border-indigo-500/30 rounded-full px-4 py-2 mb-8 animate-fade-in">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-indigo-500 opacity-75" /><span className="relative rounded-full h-2 w-2 bg-indigo-500" /></span>
+              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-300">{cfg.heroBadge}</span>
+            </div>
+            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black mb-6 leading-[0.95] animate-fade-in-up text-slate-900 dark:text-slate-50">
+              <span className="block mb-3">Their Learning.</span>
+              <span className="block mb-3">Their Pace.</span>
+              <span className="block text-indigo-600 dark:text-indigo-400">Their Path.</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
+              You stop guessing. They start progressing. AI that adapts to your child's age, curriculum, and level. Every question is pitched at the right difficulty, every time.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 animate-fade-in-up animation-delay-400">
+              <Link href={signupHref} className="group bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/30 hover:scale-105 transition-all inline-flex items-center justify-center gap-2">
+                {cfg.heroCta} <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </Link>
+              <button onClick={() => document.getElementById('age-bands')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-slate-200 dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/40 text-slate-900 dark:text-slate-100 font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all">
+                See How It Works
+              </button>
+            </div>
+            <div className="flex flex-wrap justify-center gap-5 sm:gap-8 text-sm text-slate-600 dark:text-slate-400 animate-fade-in-up animation-delay-600">
+              {[["✓","Free plan available"],["🛡️",cfg.trustLabel],["⚡","Cancel anytime"],["🔒","No data selling"]].map(([icon,text],i) => (
+                <span key={i} className="flex items-center gap-1.5"><span className="text-indigo-600 dark:text-indigo-400">{icon}</span>{text}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ PARENT / GB CONTENT GATE — hidden for NG visitors until parent card is clicked.
+           Uses conditional rendering (not CSS): ngGateActive=true means the DOM
+           simply doesn't exist, so there is no flash and no 700ms CSS transition
+           showing hidden content. key triggers fade-in animation on reveal.
+           Also hidden when school path is active (school content renders below). ═══ */}
+      {!ngGateActive && ngPath !== 'school' && (
+      <div key={ngPath || 'default'} className={ngPath ? 'animate-fade-in' : undefined}>
+
+      {/* ═══ AGE BANDS — wrapped in error boundary to silently catch any render
+           crash (e.g. stale activeBand after Fast Refresh). Keyed on region so
+           it fully re-mounts on region switch for a clean activeBand=0 start.  ═══ */}
+      <AgeBandsErrorBoundary>
+        <AgeBandsSection key={region} bands={AGE_BANDS} signupHref={signupHref} />
+      </AgeBandsErrorBoundary>
 
       {/* ═══ PROBLEM ═══ */}
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
@@ -645,6 +866,134 @@ export default function LandingPage() {
           <p className="text-slate-700 dark:text-slate-400 text-sm mt-5">No credit card required · Set up in 60 seconds</p>
         </div>
       </section>
+
+      </div>
+      )}{/* /parent-content-gate */}
+
+      {/* ═══ SCHOOL INLINE CONTENT — shown when school path selected on NG hero ═══ */}
+      {ngPath === 'school' && (
+      <div id="school-content" className="animate-fade-in">
+
+        {/* How it works */}
+        <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20 bg-slate-50 dark:bg-slate-800/20">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <span className="inline-block text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 px-4 py-1.5 rounded-full mb-4">How It Works</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-3">From registration to class insights in four steps</h2>
+              <p className="text-slate-600 dark:text-slate-400 text-lg">Schools get powerful analytics. Scholars get personalised AI learning. Both see results.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-5">
+              {[
+                { step:'01', icon:'🏫', title:'School sets up in minutes', desc:'Create your school account and add your classes — Primary through SSS3. Takes 10 minutes and our team will walk you through it.' },
+                { step:'02', icon:'📧', title:'Scholars join via invitation', desc:'Share a class link or validation code. Students and parents sign up with their own accounts. School data and student billing stay completely separate.' },
+                { step:'03', icon:'📊', title:'Teachers see real-time insights', desc:'Your dashboard shows every student\'s readiness score, subject mastery, and the exact topics dragging down their grade — updated after every session.' },
+                { step:'04', icon:'🚀', title:'School drives improvement', desc:'Use gap analysis to focus revision. Share readiness reports with parents. Run exam countdowns. The data is yours to act on.' },
+              ].map(({ step, icon, title, desc }) => (
+                <div key={step} className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="text-3xl flex-shrink-0">{icon}</div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1">Step {step}</p>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">{title}</h3>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{desc}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* What's included — Starter vs Professional */}
+        <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-3">What your school gets</h2>
+              <p className="text-slate-600 dark:text-slate-400 text-lg max-w-xl mx-auto">Start with our Starter tier and upgrade to Professional when your school is ready to go deeper.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-5">
+              {/* Starter */}
+              <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+                <div className="mb-5">
+                  <span className="inline-block text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/40 px-3 py-1 rounded-full mb-3">Starter</span>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">Get started today</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">Everything you need to put data behind every teaching decision.</p>
+                </div>
+                <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 mb-7 flex-1">
+                  {[
+                    "Teacher dashboard — live class readiness",
+                    "Per-student mastery tracking (with consent)",
+                    "Subject gap analysis across all topics",
+                    "Exam readiness scores (JSS–SSS3)",
+                    "Student activity monitoring",
+                    "NDPR-compliant consent management",
+                  ].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0">✓</span>{f}</li>)}
+                </ul>
+                <Link href="/for-schools" className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-indigo-500/30 border-b-2 border-indigo-800 active:border-b-0 active:translate-y-0.5">
+                  Register Your School →
+                </Link>
+              </div>
+              {/* Professional */}
+              <div className="relative bg-indigo-600 dark:bg-indigo-700 rounded-3xl p-7 flex flex-col">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">Coming Soon</div>
+                <div className="mb-5">
+                  <span className="inline-block text-xs font-black uppercase tracking-widest text-indigo-200 bg-indigo-500/40 px-3 py-1 rounded-full mb-3">Professional</span>
+                  <h3 className="text-2xl font-black text-white mb-1">School-wide intelligence</h3>
+                  <p className="text-indigo-200 text-sm">For HODs, proprietors, and schools serious about exam outcomes.</p>
+                </div>
+                <ul className="space-y-2.5 text-sm text-indigo-100 mb-7 flex-1">
+                  {[
+                    "Everything in Starter",
+                    "PDF & CSV report export",
+                    "School-wide proprietor analytics",
+                    "Bulk student import from spreadsheet",
+                    "Multi-class HOD overview",
+                    "Parent engagement tools",
+                    "Priority onboarding support",
+                    "Termly readiness trend reports",
+                  ].map(f => <li key={f} className="flex items-start gap-2"><span className="text-indigo-300 mt-0.5 flex-shrink-0">✓</span>{f}</li>)}
+                </ul>
+                <Link href="/for-schools" className="block text-center bg-white hover:bg-indigo-50 text-indigo-700 font-black py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-indigo-900/30">
+                  Join the Waitlist →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stat bar */}
+        <section className="relative z-10 px-4 sm:px-6 py-10 bg-indigo-600 dark:bg-indigo-700">
+          <div className="max-w-4xl mx-auto grid sm:grid-cols-3 gap-6 text-center text-white">
+            <div>
+              <p className="text-4xl font-black mb-1">10 min</p>
+              <p className="text-indigo-200 text-sm font-semibold">Setup time</p>
+              <p className="text-indigo-300 text-xs mt-1">Onboarding support included</p>
+            </div>
+            <div>
+              <p className="text-4xl font-black mb-1">P1–SSS3</p>
+              <p className="text-indigo-200 text-sm font-semibold">All Year Groups</p>
+              <p className="text-indigo-300 text-xs mt-1">No Key Stage left out</p>
+            </div>
+            <div>
+              <p className="text-4xl font-black mb-1">6 exams</p>
+              <p className="text-indigo-200 text-sm font-semibold">Fully covered</p>
+              <p className="text-indigo-300 text-xs mt-1">WAEC · NECO · BECE · JAMB · Common Entrance · State</p>
+            </div>
+          </div>
+        </section>
+
+        {/* School CTA */}
+        <section className="relative z-10 px-4 sm:px-6 py-20 bg-gradient-to-r from-slate-200 dark:from-slate-800/40 to-slate-100 dark:to-slate-900/40 border-y border-slate-300 dark:border-white/10">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-3xl sm:text-4xl font-black mb-4 text-slate-900 dark:text-slate-50">Ready to bring data-driven teaching to your school?</h2>
+            <p className="text-lg text-slate-700 dark:text-slate-300 mb-8">Register your school and we&apos;ll book a 30-minute walkthrough of the teacher dashboard — no commitment required.</p>
+            <Link href="/for-schools" className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl px-10 py-5 rounded-2xl shadow-2xl shadow-indigo-500/30 hover:scale-105 transition-all">Register Your School →</Link>
+            <p className="text-slate-700 dark:text-slate-400 text-sm mt-5">NDPR compliant · No hidden fees · No long-term contracts</p>
+          </div>
+        </section>
+
+      </div>
+      )}{/* /school-content */}
 
       {/* ═══ FOOTER ═══ */}
       <footer className="relative z-10 border-t border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 backdrop-blur">

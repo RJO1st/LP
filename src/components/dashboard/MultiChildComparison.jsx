@@ -108,13 +108,13 @@ function MasteryBar({ pct }) {
   const colour = pct >= 0.8 ? "#34d399" : pct >= 0.55 ? "#6366f1" : pct >= 0.3 ? "#f59e0b" : "#ef4444";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${Math.round(pct * 100)}%`, backgroundColor: colour }}
         />
       </div>
-      <span className="text-[10px] font-bold text-slate-400 w-7 text-right">
+      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 w-7 text-right">
         {Math.round(pct * 100)}%
       </span>
     </div>
@@ -122,14 +122,6 @@ function MasteryBar({ pct }) {
 }
 
 function ScholarCard({ scholar }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Data fetching is done by the parent and passed down — this is a display-only card
-    setLoading(false);
-  }, [scholar]);
-
   const s = scholar.stats;
   const inactive = s?.lastActive
     ? (new Date() - new Date(s.lastActive)) / 86400000 > 3
@@ -143,15 +135,15 @@ function ScholarCard({ scholar }) {
       : "#ef4444";
 
   return (
-    <div className="bg-slate-900/60 border border-white/10 rounded-xl p-4 flex flex-col gap-3 min-w-[200px]">
+    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 rounded-xl p-4 flex flex-col gap-3 min-w-[200px]">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl">
+        <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-xl">
           {scholar.avatar?.base ? "🚀" : "👤"}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-white truncate">{scholar.name}</p>
-          <p className="text-[10px] text-slate-400 font-semibold capitalize">
+          <p className="text-sm font-black text-slate-900 dark:text-white truncate">{scholar.name}</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold capitalize">
             {scholar.curriculum?.replace(/_/g, " ") || "—"}
           </p>
         </div>
@@ -168,13 +160,13 @@ function ScholarCard({ scholar }) {
               <p className="text-base font-black" style={{ color: "#f59e0b" }}>
                 {s.streak}
               </p>
-              <p className="text-[10px] text-slate-500">🔥 Streak</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">🔥 Streak</p>
             </div>
             <div>
-              <p className="text-base font-black text-indigo-400">
+              <p className="text-base font-black text-indigo-600 dark:text-indigo-400">
                 {Math.round((s.avgMastery ?? 0) * 100)}%
               </p>
-              <p className="text-[10px] text-slate-500">Mastery</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Mastery</p>
             </div>
             <div>
               <p
@@ -183,7 +175,7 @@ function ScholarCard({ scholar }) {
               >
                 {s.readinessScore != null ? Math.round(s.readinessScore) : "—"}
               </p>
-              <p className="text-[10px] text-slate-500">Ready</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Ready</p>
             </div>
           </div>
 
@@ -192,7 +184,7 @@ function ScholarCard({ scholar }) {
             <div className="space-y-1.5">
               {s.subjectMastery.map(({ subject, avg }) => (
                 <div key={subject}>
-                  <p className="text-[10px] text-slate-400 mb-0.5">{subjectLabel(subject)}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">{subjectLabel(subject)}</p>
                   <MasteryBar pct={avg} />
                 </div>
               ))}
@@ -201,8 +193,8 @@ function ScholarCard({ scholar }) {
 
           {/* Nudge */}
           {inactive && (
-            <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2">
-              <p className="text-[11px] text-amber-400 font-bold">
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-lg px-2.5 py-2">
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-bold">
                 No activity in {s.lastActive
                   ? `${Math.floor((new Date() - new Date(s.lastActive)) / 86400000)} days`
                   : "a while"
@@ -214,7 +206,7 @@ function ScholarCard({ scholar }) {
       )}
 
       {!s && (
-        <div className="text-center py-4 text-slate-500 text-xs">No data yet</div>
+        <div className="text-center py-4 text-slate-400 dark:text-slate-500 text-xs">No data yet</div>
       )}
     </div>
   );
@@ -244,12 +236,12 @@ export default function MultiChildComparison({ scholars = [], supabase }) {
   if (loading) {
     return (
       <div className="mb-6">
-        <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
           Family Overview
         </p>
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(scholars.length, 3)}, 1fr)` }}>
           {scholars.map((s) => (
-            <div key={s.id} className="bg-slate-900/60 border border-white/10 rounded-xl p-4 h-48 animate-pulse" />
+            <div key={s.id} className="bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 rounded-xl p-4 h-48 animate-pulse" />
           ))}
         </div>
       </div>
@@ -267,8 +259,8 @@ export default function MultiChildComparison({ scholars = [], supabase }) {
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base">👨‍👩‍👧‍👦</span>
-        <p className="text-xs font-black text-slate-200 uppercase tracking-wider">Family Overview</p>
-        <span className="text-[10px] text-slate-500 font-semibold">{scholars.length} scholars</span>
+        <p className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">Family Overview</p>
+        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">{scholars.length} scholars</span>
       </div>
 
       <div

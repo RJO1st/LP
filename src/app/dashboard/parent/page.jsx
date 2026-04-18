@@ -945,9 +945,15 @@ export default function ParentDashboard() {
   const rawMax = parent ? getLimit(parent, 'scholars_max') : 3;
   const MAX_SCHOLARS = Number.isFinite(rawMax) ? rawMax : 3;
 
-  // True if this parent is on the Nigerian plan (region field or curriculum-based fallback).
-  // Used to gate NG-specific UI blocks (Coach's Corner, add-on upsell, etc.)
-  const isNgParent = parent?.region === 'NG' || scholars.some(s => s.curriculum?.startsWith('ng_'));
+  // True if this parent is on the Nigerian plan.
+  // SOURCE OF TRUTH: scholar curriculum (what they're actually studying and billed for).
+  // Only falls back to parent.region when no scholars exist yet (e.g. fresh signup).
+  // We deliberately IGNORE parent.region when scholars are present — the region field
+  // can be stale (test accounts, manual DB edits) whereas curriculum cannot.
+  const activeScholars = scholars.filter(s => !s.archived_at);
+  const isNgParent = activeScholars.length > 0
+    ? activeScholars.some(s => s.curriculum?.startsWith('ng_'))
+    : parent?.region === 'NG';
 
   const handleArchiveScholar = async () => {
     if (!deletingScholar) return;
@@ -1760,7 +1766,7 @@ export default function ParentDashboard() {
                       {/* NG parents only see Nigerian curricula — prevents currency arbitrage
                           and avoids confusing Nigerian families with UK/US/Canadian options. */}
                       {Object.entries(CURRICULA)
-                        .filter(([key]) => parent?.region !== 'NG' || ['ng_primary','ng_jss','ng_sss'].includes(key))
+                        .filter(([key]) => !isNgParent || ['ng_primary','ng_jss','ng_sss'].includes(key))
                         .map(([key, c]) => <option key={key} value={key}>{c.country} {c.name}</option>)}
                     </select>
                     <select value={newGrade} onChange={e => handleGradeChange(e.target.value)}

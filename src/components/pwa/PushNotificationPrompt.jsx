@@ -5,7 +5,7 @@
  * Displayed in parent and scholar dashboards.
  * Registers the subscription via POST /api/push/subscribe.
  *
- * Props: { scholarId?, onDismiss? }
+ * Props: { scholarId?, isNgParent?, onDismiss? }
  */
 
 import React, { useState, useEffect } from "react";
@@ -30,7 +30,7 @@ function urlBase64ToUint8Array(base64String) {
   return array;
 }
 
-export default function PushNotificationPrompt({ scholarId, onDismiss }) {
+export default function PushNotificationPrompt({ scholarId, isNgParent = false, onDismiss }) {
   const [state, setState] = useState("idle"); // idle | requesting | subscribed | denied | unsupported | dismissed
   const [mounted, setMounted] = useState(false);
 
@@ -87,13 +87,19 @@ export default function PushNotificationPrompt({ scholarId, onDismiss }) {
   // Nothing to show
   if (["unsupported", "dismissed", "denied", "subscribed"].includes(state)) return null;
 
+  // NG parents have teacher dashboards → mention teacher updates
+  // Non-NG parents don't have the teacher feature yet → keep copy simpler
+  const subCopy = isNgParent
+    ? "Get reminders when your child\u2019s streak is at risk, a new plan is ready, or their teacher sends an update."
+    : "Get reminders when your child\u2019s streak is at risk or a new personalised plan is ready.";
+
   return (
-    <div className="flex items-start gap-3 bg-indigo-950/60 border border-indigo-500/30 rounded-xl p-4 mb-4">
-      <div className="w-9 h-9 bg-indigo-500/20 rounded-lg flex items-center justify-center text-xl flex-shrink-0">🔔</div>
+    <div className="flex items-start gap-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-500/30 rounded-xl p-4 mb-4">
+      <div className="w-9 h-9 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center text-xl flex-shrink-0">🔔</div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">Stay on top of learning</p>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Get reminders when your child&apos;s streak is at risk, a new plan is ready, or their teacher sends an update.
+        <p className="text-sm font-semibold text-indigo-900 dark:text-white">Stay on top of learning</p>
+        <p className="text-xs text-indigo-700 dark:text-slate-400 mt-0.5">
+          {subCopy}
         </p>
         <div className="flex gap-2 mt-3">
           <button
@@ -105,7 +111,7 @@ export default function PushNotificationPrompt({ scholarId, onDismiss }) {
           </button>
           <button
             onClick={handleDismiss}
-            className="px-3 py-1.5 text-slate-500 hover:text-slate-300 text-xs transition-colors"
+            className="px-3 py-1.5 text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-xs transition-colors"
           >
             Not now
           </button>
