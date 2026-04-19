@@ -76,7 +76,6 @@ const FEATURE_LABELS = {
   boss_battles: 'Boss Battles',
   simulations_3d: 'Interactive 3D Simulations',
   exam_papers: 'GCSE & WAEC Exam Papers',
-  live_qa: 'Live Tutor Q&A Sessions',
   offline_mode: 'Offline Learning Mode',
   dashboard_analytics: 'Full Dashboard Analytics',
   feedback_monthly: 'Tara AI Feedback',

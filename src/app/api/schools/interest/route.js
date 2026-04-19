@@ -65,7 +65,7 @@ export async function POST(request) {
             <ul>
               <li>A short demo call (30 min) — we'll show you the teacher dashboard live</li>
               <li>A tailored onboarding plan for your school size</li>
-              <li>No cost to the school — parents fund access through optional upgrades</li>
+              <li>A Starter tier for your school with no upfront cost — teacher dashboards, mastery tracking, and gap analysis included from day one</li>
             </ul>
             <p>Got a question right now? Reply to this email and we'll answer quickly.</p>
             <p>— The LaunchPard Team</p>

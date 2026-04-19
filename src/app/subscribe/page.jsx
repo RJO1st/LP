@@ -270,9 +270,8 @@ export default function SubscribePage() {
                     <div className="space-y-3">
                       {[
                         { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Full Scholar access.' },
-                        { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Live Q&A 2×/week · unlimited Tara · mock exams' },
+                        { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Unlimited Tara AI · full mock exams · A1–F9 grade predictions' },
                         { icon:'🤖', title:'Unlimited AI Feedback', price:'₦500/mo', desc:'Remove the 50/month Tara cap' },
-                        { icon:'👨‍🏫', title:'Tutor Connect', price:'₦2,000/session', desc:'Live subject specialist — no monthly commit' },
                       ].map(a => (
                         <div key={a.title} className="flex items-start justify-between gap-3 bg-white dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-white/10">
                           <div className="flex items-start gap-2.5">

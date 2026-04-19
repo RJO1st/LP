@@ -198,7 +198,7 @@ const FAQS_NG = [
   { q: "What ages is it suitable for?", a: "Scholars aged 5–17 — Primary 1 through SSS3. The platform adapts to Nigerian grade levels automatically: Primary scholars get story-mode adventures, JSS scholars get BECE prep, SSS scholars get full WAEC studio mode." },
   { q: "How does it know what my child is studying?", a: "You choose their level (Primary, JSS, or SSS) at setup. Tara then maps every question to the NERDC syllabus and focuses on topics flagged as weak — exactly what WAEC and NECO examiners test." },
   { q: "Is there a free version?", a: "Yes. The free plan gives your scholar 10 questions per day across all subjects. No card needed. Free plan stays free forever." },
-  { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. The Scholar plan includes 20 full past papers per subject with WAEC-style marking. Add the WAEC Intensive Boost (₦1,000/mo) for live Q&A sessions 2× per week, unlimited Tara AI feedback, and mock exams with A1–F9 grade predictions." },
+  { q: "Does it help with WAEC, NECO, JAMB, and BECE?", a: "Yes. The Scholar plan includes 20 full past papers per subject with WAEC-style marking. Add the WAEC Intensive Boost (₦1,000/mo) for unlimited Tara AI feedback and full mock exams with A1–F9 grade predictions." },
   { q: "How do I pay?", a: "You can pay with any Nigerian bank card, bank transfer, or USSD. All Scholar payments are in naira (₦). No international card required." },
   { q: "Will this work on mobile data?", a: "Yes. LaunchPard is built mobile-first and works on 3G and 4G. Aggressive caching means a full day's learning uses under 15 MB of data. An offline mode is coming." },
   { q: "Can I add more than one child?", a: "Yes. The Scholar plan covers 1 scholar. Add siblings for ₦1,000/month each — every child gets their own progress tracking, age-adapted experience, and exam countdown." },
@@ -447,7 +447,7 @@ export default function LandingPage() {
               <span className="text-emerald-500">Nigerian</span> Scholars.
             </h1>
             <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
-              Primary, JSS, SSS — adaptive AI that follows the NERDC syllabus and prepares your child for WAEC, NECO, BECE, and beyond.
+              Primary, JSS, SSS. Adaptive AI that follows the NERDC syllabus and prepares your child for WAEC, NECO, BECE, and beyond.
             </p>
           </div>
 
@@ -472,7 +472,7 @@ export default function LandingPage() {
               <div className="text-3xl mb-3">👨‍👩‍👧</div>
               <h2 className="text-xl font-black text-amber-900 dark:text-amber-200 mb-2">I&apos;m a Parent</h2>
               <p className="text-amber-800 dark:text-amber-300 text-sm leading-relaxed mb-5 flex-1">
-                Give your child a real edge in WAEC, NECO, BECE, and Common Entrance. Adaptive questions, mock papers, and a guardian dashboard — start free, no card needed.
+                Give your child a real edge in WAEC, NECO, BECE, and Common Entrance. Adaptive questions, mock papers, and a guardian dashboard. Start free, no card needed.
               </p>
               <div className="bg-white dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/20 rounded-2xl px-4 py-3 mb-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Scholar Plan from</p>
@@ -512,11 +512,11 @@ export default function LandingPage() {
               <div className="text-3xl mb-3">🏫</div>
               <h2 className="text-xl font-black text-indigo-900 dark:text-indigo-200 mb-2">I&apos;m a School</h2>
               <p className="text-indigo-800 dark:text-indigo-300 text-sm leading-relaxed mb-5 flex-1">
-                Give every teacher a live view of class readiness — topic gaps, mastery scores, and individual student profiles across JSS and SSS. A platform built for school improvement.
+                Give every teacher a live view of class readiness: Topic gaps, Mastery scores, and Individual student profiles across. A platform built for school improvement.
               </p>
               <ul className="space-y-1.5 text-xs text-indigo-700 dark:text-indigo-300 mb-5">
                 {[
-                  "Teacher dashboard — full class readiness at a glance",
+                  "Teacher dashboard with full class readiness at a glance",
                   "Per-student, per-subject mastery tracking",
                   "Subject gap analysis and exam readiness scores",
                   "NDPR-compliant · No billing handled by your school",
@@ -788,9 +788,8 @@ export default function LandingPage() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Each gets full Scholar access.' },
-                    { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Live Q&A 2×/week · mock exams · unlimited Tara' },
+                    { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Unlimited Tara AI · full mock exams · A1–F9 grade predictions' },
                     { icon:'🤖', title:'Unlimited AI', price:'₦500/mo', desc:'Remove the 50 Tara feedback/month cap' },
-                    { icon:'👨‍🏫', title:'Tutor Connect', price:'₦2,000/session', desc:'Live subject specialist — no monthly commit' },
                   ].map(a => (
                     <div key={a.title} className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-xl p-4">
                       <div className="text-2xl mb-2">{a.icon}</div>
@@ -886,7 +885,7 @@ export default function LandingPage() {
               {[
                 { step:'01', icon:'🏫', title:'School sets up in minutes', desc:'Create your school account and add your classes — Primary through SSS3. Takes 10 minutes and our team will walk you through it.' },
                 { step:'02', icon:'📧', title:'Scholars join via invitation', desc:'Share a class link or validation code. Students and parents sign up with their own accounts. School data and student billing stay completely separate.' },
-                { step:'03', icon:'📊', title:'Teachers see real-time insights', desc:'Your dashboard shows every student\'s readiness score, subject mastery, and the exact topics dragging down their grade — updated after every session.' },
+                { step:'03', icon:'📊', title:'Teachers see real-time insights', desc:'Your dashboard shows every student\'s readiness score, subject mastery, and the exact topics dragging down their grade, updated after every session.' },
                 { step:'04', icon:'🚀', title:'School drives improvement', desc:'Use gap analysis to focus revision. Share readiness reports with parents. Run exam countdowns. The data is yours to act on.' },
               ].map(({ step, icon, title, desc }) => (
                 <div key={step} className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-2xl p-6">

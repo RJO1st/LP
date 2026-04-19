@@ -1021,7 +1021,6 @@ export default function AdaptiveDashboardLayout({
   const canUseExamPapers    = hasFeature(parent, 'exam_papers');
   const canUse3DSimulations = hasFeature(parent, 'simulations_3d');
   const canUseBossBattles   = hasFeature(parent, 'boss_battles');
-  const canUseLiveQA        = hasFeature(parent, 'live_qa');
 
   const gatedOpenExams = () => {
     if (!canUseExamPapers) { window.location.href = '/subscribe?feature=exam_papers'; return; }

@@ -6,9 +6,8 @@
  * add-ons stored in parent.ng_addons TEXT[]:
  *
  *   'family_child'      ₦1,000/mo per additional scholar
- *   'waec_boost'        ₦1,000/mo — live Q&A 2×/week, unlimited AI, mock exams
+ *   'waec_boost'        ₦1,000/mo — unlimited Tara AI, full mock exams, paper-level analytics
  *   'ai_unlimited'      ₦500/mo  — removes 50-feedback/mo cap
- *   'tutor_connect'     pay-per-session; flag signals entitlement, not billing
  *
  * ─── Currency-by-curriculum rule ─────────────────────────────────────────────
  * Billing currency is determined by the SCHOLAR's curriculum, not the parent's
@@ -39,7 +38,6 @@ const NG_ADDON_DEFS = {
   },
   // +₦1,000/mo — WAEC exam cram pack
   waec_boost: {
-    live_qa: true,
     feedback_monthly: INF,       // overrides base 50/mo cap
     dashboard_analytics: 'full_paper_level',
     support: 'whatsapp',
@@ -47,10 +45,6 @@ const NG_ADDON_DEFS = {
   // +₦500/mo — removes feedback cap without the full WAEC pack
   ai_unlimited: {
     feedback_monthly: INF,
-  },
-  // pay-per-session (₦2,000/session) — flag marks entitlement
-  tutor_connect: {
-    tutor_sessions: true,
   },
 };
 
@@ -65,7 +59,6 @@ export const TIER_DEFS = {
       boss_battles: false,
       simulations_3d: false,
       exam_papers: 0,
-      live_qa: false,
       offline_mode: false,
       dashboard_analytics: 'none',
       support: 'community',
@@ -77,7 +70,6 @@ export const TIER_DEFS = {
       boss_battles: true,
       simulations_3d: true,
       exam_papers: 0,
-      live_qa: false,
       offline_mode: true,
       dashboard_analytics: 'full',
       support: 'email',
@@ -89,7 +81,6 @@ export const TIER_DEFS = {
       boss_battles: true,
       simulations_3d: true,
       exam_papers: INF,
-      live_qa: false,
       offline_mode: true,
       dashboard_analytics: 'full_paper_level',
       support: 'email',
@@ -107,11 +98,9 @@ export const TIER_DEFS = {
       boss_battles: false,
       simulations_3d: false,
       exam_papers: 0,
-      live_qa: false,
       offline_mode: false,
       dashboard_analytics: 'none',
       support: 'community',
-      tutor_sessions: false,
     },
     ng_scholar: {                 // ₦2,500/mo — the only paid NG tier
       scholars_max: 1,           // base: 1 scholar; add family_child add-on per extra
@@ -120,11 +109,9 @@ export const TIER_DEFS = {
       boss_battles: true,
       simulations_3d: true,
       exam_papers: 20,
-      live_qa: false,            // waec_boost add-on unlocks this
       offline_mode: true,
       dashboard_analytics: 'full',
       support: 'email',
-      tutor_sessions: false,     // tutor_connect add-on unlocks this
     },
     // Legacy aliases — map old tier names to ng_scholar so existing
     // parent records with the old values don't break after migration.
@@ -348,7 +335,6 @@ export const ADDON_LABELS = {
   family_child:   'Family Add-on (₦1,000/mo per child)',
   waec_boost:     'WAEC Intensive Boost (₦1,000/mo)',
   ai_unlimited:   'Unlimited AI Feedback (₦500/mo)',
-  tutor_connect:  'Tutor Connect (₦2,000/session)',
 };
 
 export function getAddonLabel(addonKey) {
