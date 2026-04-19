@@ -25,6 +25,7 @@ const LinkIcon = ({ size = 20 }) => <Icon size={size} d={["M10 13a5 5 0 0 0 7.54
 const CheckIcon = ({ size = 14 }) => <Icon size={size} d="M20 6 9 17l-5-5" />;
 const ChevronDown = ({ size = 16 }) => <Icon size={size} d="m6 9 6 6 6-6" />;
 const ChevronRight = ({ size = 16 }) => <Icon size={size} d="m9 18 6-6-6-6" />;
+const LogOutIcon = ({ size = 16 }) => <Icon size={size} d={["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"]} />;
 
 // ═══════════════════════════════════════════════════════════════════
 // SKELETON LOADER
@@ -62,6 +63,7 @@ export default function ProprietorDashboard() {
   // State
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [userName, setUserName] = useState("");
   const [school, setSchool] = useState(null);
   const [schoolData, setSchoolData] = useState(null);
   const [expandedClassId, setExpandedClassId] = useState(null);
@@ -110,54 +112,43 @@ export default function ProprietorDashboard() {
         }
 
         setSession(session);
+        setUserName(
+          session.user.user_metadata?.name ||
+          session.user.email?.split("@")[0] ||
+          "Staff"
+        );
 
-        // Fetch school data
-        // Simulated: in real implementation, query school_roles + schools table
+        // Look up which school this user manages
         const { data: roles, error } = await supabase
           .from("school_roles")
           .select("school_id")
           .eq("user_id", session.user.id)
-          .eq("role", "proprietor")
+          .in("role", ["proprietor", "admin"])
           .limit(1);
 
         if (error || !roles || roles.length === 0) {
-          console.error("No school found");
+          console.error("No proprietor/admin school_roles row found");
           setLoading(false);
           return;
         }
 
         const schoolId = roles[0].school_id;
 
-        // Fetch school overview
+        // Fetch school overview — API uses service client, handles all data
         const response = await fetch(`/api/schools/${schoolId}/overview`);
         if (response.ok) {
           const data = await response.json();
           setSchoolData(data);
-          setSchool({ id: schoolId });
+          // Propagate school name + id so header + copy-link work
+          setSchool({ id: schoolId, name: data.school?.name ?? "Your School" });
+          // Claim funnel comes from the API (scholar_invitations is service-role only)
+          if (data.claimFunnel) {
+            setClaimFunnel(data.claimFunnel);
+          }
+        } else {
+          const errBody = await response.json().catch(() => ({}));
+          console.error("Overview API error:", response.status, errBody);
         }
-
-        // Fetch claim funnel analytics
-        const [invitedRes, claimedRes, subscribedRes] = await Promise.all([
-          supabase
-            .from("scholar_invitations")
-            .select("id", { count: "exact", head: true })
-            .eq("school_id", schoolId),
-          supabase
-            .from("scholar_invitations")
-            .select("id", { count: "exact", head: true })
-            .eq("school_id", schoolId)
-            .eq("status", "claimed"),
-          supabase
-            .from("scholar_invitations")
-            .select("id", { count: "exact", head: true })
-            .eq("school_id", schoolId)
-            .eq("status", "subscribed"),
-        ]);
-        setClaimFunnel({
-          invited:    invitedRes.count  ?? 0,
-          claimed:    claimedRes.count  ?? 0,
-          subscribed: subscribedRes.count ?? 0,
-        });
 
         setLoading(false);
       } catch (err) {
@@ -316,10 +307,32 @@ export default function ProprietorDashboard() {
   return (
     <div className="min-h-screen bg-[#080c15] text-white">
       {/* Header */}
-      <header className="bg-slate-900/50 border-b border-white/5 sticky top-0 z-40 p-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold">{school?.name || "School Dashboard"}</h1>
-          <p className="text-sm text-slate-400">Proprietor Overview</p>
+      <header className="bg-slate-900/60 backdrop-blur border-b border-white/8 sticky top-0 z-40 px-4 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight truncate">
+              {school?.name || "School Dashboard"}
+            </h1>
+            <p className="text-xs text-slate-400">Proprietor Overview</p>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {userName && (
+              <span className="hidden sm:block text-sm text-slate-400 truncate max-w-[180px]">
+                {userName}
+              </span>
+            )}
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/school-login");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-700/60 transition-colors"
+              title="Sign out"
+            >
+              <LogOutIcon size={14} />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -678,8 +691,27 @@ export default function ProprietorDashboard() {
         )}
 
         {!schoolData && !loading && (
-          <div className="text-center py-12">
-            <p className="text-slate-400">No school data available.</p>
+          <div className="bg-slate-800/40 border border-white/10 rounded-xl p-8 text-center">
+            <div className="text-4xl mb-3">🏫</div>
+            <h2 className="text-lg font-bold text-white mb-2">Welcome to your school dashboard</h2>
+            <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
+              No data loaded yet. Upload a scholar CSV to get started — once scholars are in the system,
+              you'll see readiness scores, grade band breakdowns, and admission predictions here.
+            </p>
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-semibold text-sm cursor-pointer transition-colors relative">
+              <UploadIcon size={16} />
+              Upload Scholar CSV
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCSVUpload}
+                disabled={uploadingCSV}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
+            <p className="text-xs text-slate-500 mt-3">
+              CSV format: <code className="text-slate-400">first_name, last_name, class, year_level</code>
+            </p>
           </div>
         )}
       </main>

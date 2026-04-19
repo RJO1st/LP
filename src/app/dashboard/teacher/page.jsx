@@ -30,6 +30,7 @@ const DownloadIcon = ({ size = 16 }) => <Icon size={size} d={["M21 15v4a2 2 0 0 
 const BellIcon     = ({ size = 16 }) => <Icon size={size} d={["M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9","M13.73 21a2 2 0 0 1-3.46 0"]} />;
 const MailIcon     = ({ size = 16 }) => <Icon size={size} d={["M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z","M22 6 12 13 2 6"]} />;
 const FileTextIcon = ({ size = 16 }) => <Icon size={size} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8M16 17H8M10 9H8"]} />;
+const LogOutIcon   = ({ size = 16 }) => <Icon size={size} d={["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"]} />;
 
 // ═══════════════════════════════════════════════════════════════════
 // SUBJECT DISPLAY
@@ -104,6 +105,8 @@ export default function TeacherDashboard() {
   // State
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [userName, setUserName] = useState("");
+  const [schoolName, setSchoolName] = useState("");
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState(null);
   const [classData, setClassData] = useState(null);
@@ -143,15 +146,29 @@ export default function TeacherDashboard() {
         }
 
         setSession(session);
+        setUserName(
+          session.user.user_metadata?.name ||
+          session.user.email?.split("@")[0] ||
+          "Teacher"
+        );
 
         const teacherSchoolId = roles[0].school_id;
 
-        // Fetch teacher's assigned classes for this school
+        // Fetch school name (schools is publicly readable)
+        const { data: schoolRow } = await supabase
+          .from("schools")
+          .select("name")
+          .eq("id", teacherSchoolId)
+          .maybeSingle();
+        if (schoolRow?.name) setSchoolName(schoolRow.name);
+
+        // Fetch classes via teacher_assignments (respects RLS for teachers)
+        // Also allows proprietors who may not be in teacher_assignments
         const { data: assignedClasses, error } = await supabase
           .from("classes")
           .select("*")
           .eq("school_id", teacherSchoolId)
-          .limit(10);
+          .limit(20);
 
         if (error) {
           console.error("Error loading classes:", error);
@@ -279,15 +296,20 @@ export default function TeacherDashboard() {
   return (
     <div className="min-h-screen bg-[#080c15] text-white">
       {/* Header */}
-      <header className="bg-slate-900/50 border-b border-white/5 sticky top-0 z-40 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">My Classroom</h1>
-            <p className="text-sm text-slate-400">Monitor readiness & learning progress</p>
+      <header className="bg-slate-900/60 backdrop-blur border-b border-white/8 sticky top-0 z-40 px-4 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          {/* School branding */}
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight truncate">
+              {schoolName || "My Classroom"}
+            </h1>
+            <p className="text-xs text-slate-400 truncate">
+              {userName ? `${userName} · ` : ""}Teacher Dashboard
+            </p>
           </div>
-          {/* Class Selector */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-300">Select Class:</label>
+          {/* Class Selector + Sign out */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <label className="text-xs text-slate-400 hidden sm:block">Class:</label>
             <select
               value={selectedClassId || ""}
               onChange={(e) => setSelectedClassId(e.target.value)}
@@ -299,6 +321,17 @@ export default function TeacherDashboard() {
                 </option>
               ))}
             </select>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/school-login");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-700/60 transition-colors"
+              title="Sign out"
+            >
+              <LogOutIcon size={14} />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
           </div>
         </div>
       </header>
