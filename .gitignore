@@ -21,6 +21,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Exam paper PDFs — copyright material, never commit
+/papers/
+/logs/
 .vercel
 node_modules
 .next
