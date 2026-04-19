@@ -80,9 +80,35 @@ export default function ProprietorDashboard() {
         // Check auth
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          router.push("/login");
+          router.push("/school-login");
           return;
         }
+
+        // Verify the user has a proprietor/admin school_roles row
+        const { data: staffRoles } = await supabase
+          .from("school_roles")
+          .select("role, school_id")
+          .eq("user_id", session.user.id)
+          .in("role", ["proprietor", "admin"])
+          .limit(1);
+
+        if (!staffRoles?.length) {
+          // Not a proprietor/admin — check if they're a teacher and redirect accordingly
+          const { data: teacherRoles } = await supabase
+            .from("school_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .limit(1);
+
+          if (teacherRoles?.length) {
+            router.push("/dashboard/teacher");
+          } else {
+            await supabase.auth.signOut();
+            router.push("/school-login");
+          }
+          return;
+        }
+
         setSession(session);
 
         // Fetch school data

@@ -496,6 +496,12 @@ function LoginForm() {
                 Start your child's free path
               </Link>
             </p>
+            <p className="text-sm text-slate-500 dark:text-slate-500 text-center mt-2">
+              School staff?{" "}
+              <Link href="/school-login" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold">
+                Staff sign in
+              </Link>
+            </p>
             <div className="mt-3 text-center">
               <Link href="/" className="text-slate-500 dark:text-slate-500 text-sm hover:text-slate-600 dark:hover:text-slate-400">← Back to home</Link>
             </div>

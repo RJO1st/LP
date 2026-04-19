@@ -225,6 +225,16 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // ── School staff dashboard routes — require session, redirect to staff login ──
+  if (
+    !session &&
+    (pathname.startsWith('/dashboard/teacher') || pathname.startsWith('/dashboard/proprietor'))
+  ) {
+    const redirectUrl = new URL('/school-login', req.url);
+    redirectUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // ── Trial / subscription check ──────────────────────────────────────────────
   if (session) {
     const { data: parent } = await supabase

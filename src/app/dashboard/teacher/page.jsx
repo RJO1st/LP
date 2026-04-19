@@ -124,17 +124,33 @@ export default function TeacherDashboard() {
         // Check auth
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          router.push("/login");
+          router.push("/school-login");
           return;
         }
+
+        // Verify the user has a school_roles row (teacher or admin)
+        const { data: roles } = await supabase
+          .from("school_roles")
+          .select("role, school_id")
+          .eq("user_id", session.user.id)
+          .limit(1);
+
+        if (!roles?.length) {
+          // Authenticated but not school staff — boot them back to staff login
+          await supabase.auth.signOut();
+          router.push("/school-login");
+          return;
+        }
+
         setSession(session);
 
-        // Fetch teacher's classes
-        // Simulated: in real implementation, query teacher_assignments table
-        // For now, we'll fetch from a mock endpoint or use direct supabase query
+        const teacherSchoolId = roles[0].school_id;
+
+        // Fetch teacher's assigned classes for this school
         const { data: assignedClasses, error } = await supabase
           .from("classes")
           .select("*")
+          .eq("school_id", teacherSchoolId)
           .limit(10);
 
         if (error) {
