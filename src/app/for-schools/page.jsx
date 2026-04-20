@@ -276,13 +276,36 @@ export default function ForSchoolsPage() {
         </div>
       </section>
 
+      {/* ── Self-serve CTA ── */}
+      <section className="px-4 sm:px-6 py-12 bg-indigo-950/60 dark:bg-indigo-950/40 border-y border-indigo-900/40">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div>
+              <div className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-2">Already decided?</div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white mb-2">Set up your school right now.</h3>
+              <p className="text-indigo-200 text-sm">No demo call needed. Sign up and you'll be guided through the 10-minute setup.</p>
+            </div>
+            <div className="flex flex-col gap-3 flex-shrink-0 w-full sm:w-auto">
+              <a href="/school-login?redirectTo=/onboarding/school"
+                className="inline-flex items-center justify-center gap-2 bg-white text-indigo-700 font-black text-sm px-6 py-3.5 rounded-xl shadow-lg hover:bg-indigo-50 transition-all whitespace-nowrap">
+                I have an account — set up my school →
+              </a>
+              <a href="/signup?next=/onboarding/school"
+                className="inline-flex items-center justify-center gap-2 bg-indigo-600/40 border border-indigo-400/30 text-indigo-100 font-bold text-sm px-6 py-3.5 rounded-xl hover:bg-indigo-600/60 transition-all whitespace-nowrap">
+                Create an account &amp; set up school
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Registration Form ── */}
       <section id="register" className="px-4 sm:px-6 py-16">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-3">Register your school</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-3">Book a guided setup</h2>
             <p className="text-slate-600 dark:text-slate-400 text-lg">
-              Leave your details. We'll book a 30-minute demo call and walk you through the teacher dashboard live — at no cost.
+              Prefer a walkthrough? Leave your details and we'll book a 30-minute demo call — at no cost.
             </p>
           </div>
           <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 rounded-3xl p-8 shadow-xl shadow-slate-900/5">

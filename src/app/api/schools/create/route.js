@@ -13,7 +13,36 @@ import { createServerClient } from "@supabase/ssr";
 
 export async function POST(request) {
   try {
-    const { name, schoolType, state, country } = await request.json();
+    const { name, schoolType, state, country, schoolId: claimSchoolId } = await request.json();
+
+    // claimSchoolId mode: admin pre-created the school; just create the role.
+    if (claimSchoolId) {
+      const cookieStore = await cookies();
+      const userSupabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        { cookies: { getAll: () => cookieStore.getAll() } },
+      );
+      const { data: { user } } = await userSupabase.auth.getUser();
+      if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
+      const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+      );
+
+      // Verify the school exists
+      const { data: school } = await admin.from("schools").select("id, name").eq("id", claimSchoolId).single();
+      if (!school) return NextResponse.json({ error: "School not found." }, { status: 404 });
+
+      // Upsert the role
+      await admin.from("school_roles").upsert(
+        { user_id: user.id, school_id: claimSchoolId, role: "proprietor" },
+        { onConflict: "user_id,school_id" },
+      );
+
+      return NextResponse.json({ schoolId: school.id, schoolName: school.name });
+    }
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "School name is required." }, { status: 400 });

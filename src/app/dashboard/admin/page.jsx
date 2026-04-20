@@ -1249,6 +1249,103 @@ function ContentTab({ totalQuestions, activeQuestions, subjectDist }) {
   );
 }
 
+// ── Provision School Modal ────────────────────────────────────────────────────
+const PROVISION_TYPES = ["Primary school","Secondary school","Primary + Secondary (all-through)","International school","Private / independent school"];
+
+function ProvisionModal({ onClose, onProvisioned }) {
+  const [form, setForm] = useState({ schoolName: "", schoolType: PROVISION_TYPES[0], state: "", country: "Nigeria", proprietorEmail: "" });
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState(null); // { schoolId, schoolName, isNewUser, inviteLink }
+  const [err, setErr] = useState("");
+
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const submit = async () => {
+    if (!form.schoolName.trim() || !form.proprietorEmail.trim()) { setErr("School name and proprietor email are required."); return; }
+    setSaving(true); setErr("");
+    try {
+      const res = await fetch("/api/admin/schools/provision", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setResult(data);
+      onProvisioned(data);
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const inp = "width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);borderRadius:8px;padding:'8px 12px';fontSize:13px;color:#e2e8f0;outline:'none'";
+
+  if (result) return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200 }}>
+      <div style={{ background:"#0f1629",border:"1px solid rgba(255,255,255,0.1)",borderRadius:16,padding:28,width:"100%",maxWidth:440 }}>
+        <div style={{ fontSize:32,marginBottom:12 }}>✅</div>
+        <div style={{ fontSize:16,fontWeight:900,color:"#e2e8f0",marginBottom:6 }}>School provisioned!</div>
+        <div style={{ fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:16 }}>
+          {result.isNewUser ? "Invite email sent" : "Magic link sent"} to <strong style={{ color:"#e2e8f0" }}>{form.proprietorEmail}</strong>
+        </div>
+        {result.inviteLink && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6 }}>Invite link (copy if email fails)</div>
+            <div style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#818cf8",wordBreak:"break-all",cursor:"pointer" }}
+              onClick={() => navigator.clipboard.writeText(result.inviteLink)}>
+              {result.inviteLink.substring(0, 80)}…
+            </div>
+            <div style={{ fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:4 }}>Click to copy full link</div>
+          </div>
+        )}
+        <button onClick={onClose} style={{ width:"100%",padding:"10px",background:"#4f46e5",borderRadius:10,fontWeight:900,fontSize:13,color:"#fff",cursor:"pointer",border:"none" }}>Done</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200 }}>
+      <div style={{ background:"#0f1629",border:"1px solid rgba(255,255,255,0.1)",borderRadius:16,padding:28,width:"100%",maxWidth:440 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
+          <div style={{ fontSize:15,fontWeight:900,color:"#e2e8f0" }}>Provision New School</div>
+          <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:18,cursor:"pointer",lineHeight:1 }}>✕</button>
+        </div>
+        {[
+          { label:"School name", key:"schoolName", placeholder:"e.g. Greenfield Academy, Lagos", type:"text" },
+          { label:"Proprietor email", key:"proprietorEmail", placeholder:"proprietor@school.edu.ng", type:"email" },
+          { label:"State / county", key:"state", placeholder:"e.g. Lagos", type:"text" },
+        ].map(({ label, key, placeholder, type }) => (
+          <div key={key} style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5 }}>{label}</div>
+            <input type={type} value={form[key]} onChange={set(key)} placeholder={placeholder}
+              style={{ width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#e2e8f0",outline:"none",boxSizing:"border-box" }} />
+          </div>
+        ))}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5 }}>School type</div>
+          <select value={form.schoolType} onChange={set("schoolType")}
+            style={{ width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#e2e8f0",outline:"none" }}>
+            {PROVISION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5 }}>Country</div>
+          <select value={form.country} onChange={set("country")}
+            style={{ width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#e2e8f0",outline:"none" }}>
+            <option>Nigeria</option><option>United Kingdom</option><option>Other</option>
+          </select>
+        </div>
+        {err && <div style={{ color:"#f87171",fontSize:12,marginBottom:12,fontWeight:600 }}>{err}</div>}
+        <div style={{ display:"flex",gap:10 }}>
+          <button onClick={onClose} style={{ flex:1,padding:"10px",background:"rgba(255,255,255,0.06)",borderRadius:10,fontWeight:700,fontSize:13,color:"rgba(255,255,255,0.6)",cursor:"pointer",border:"1px solid rgba(255,255,255,0.1)" }}>Cancel</button>
+          <button onClick={submit} disabled={saving}
+            style={{ flex:2,padding:"10px",background:"#4f46e5",borderRadius:10,fontWeight:900,fontSize:13,color:"#fff",cursor:"pointer",border:"none",opacity:saving?0.6:1 }}>
+            {saving ? "Creating…" : "Create School & Send Invite"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Schools Tab ──────────────────────────────────────────────────────────────
 function SchoolsTab({ totalSchools }) {
   const [schools, setSchools] = useState([]);
@@ -1257,33 +1354,34 @@ function SchoolsTab({ totalSchools }) {
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updatingLead, setUpdatingLead] = useState(null); // { id, status }
+  const [showProvision, setShowProvision] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const supabase = sb();
-        const [schoolList, schoolSummary, leadsResult] = await Promise.all([
-          sq(supabase.from("schools").select("*").order("name").limit(100)),
-          sq(supabase.rpc("admin_school_summary")),
-          sq(supabase
-            .from("school_leads")
-            .select(`
-              id, lead_status, created_at,
-              schools!inner ( id, name, country, region ),
-              parents ( full_name, email ),
-              scholars ( name, curriculum )
-            `)
-            .order("created_at", { ascending: false })
-            .limit(200)
-          ),
-        ]);
-        setSchools(schoolList.data || []);
-        setSummary(schoolSummary.data || []);
-        setLeads(leadsResult.data || []);
-      } catch (e) { console.warn("[schools]", e.message); }
-      finally { setLoading(false); setLeadsLoading(false); }
-    })();
+  const loadSchools = useCallback(async () => {
+    try {
+      const supabase = sb();
+      const [schoolList, schoolSummary, leadsResult] = await Promise.all([
+        sq(supabase.from("schools").select("*").order("name").limit(100)),
+        sq(supabase.rpc("admin_school_summary")),
+        sq(supabase
+          .from("school_leads")
+          .select(`
+            id, lead_status, created_at,
+            schools!inner ( id, name, country, region ),
+            parents ( full_name, email ),
+            scholars ( name, curriculum )
+          `)
+          .order("created_at", { ascending: false })
+          .limit(200)
+        ),
+      ]);
+      setSchools(schoolList.data || []);
+      setSummary(schoolSummary.data || []);
+      setLeads(leadsResult.data || []);
+    } catch (e) { console.warn("[schools]", e.message); }
+    finally { setLoading(false); setLeadsLoading(false); }
   }, []);
+
+  useEffect(() => { loadSchools(); }, [loadSchools]);
 
   // Update a single lead's status (optimistic)
   const updateLeadStatus = async (leadId, newStatus) => {
@@ -1307,6 +1405,21 @@ function SchoolsTab({ totalSchools }) {
 
   return (
     <>
+      {showProvision && (
+        <ProvisionModal
+          onClose={() => setShowProvision(false)}
+          onProvisioned={() => { loadSchools(); }}
+        />
+      )}
+
+      {/* ── Provision button ── */}
+      <div style={{ display:"flex",justifyContent:"flex-end",marginBottom:16 }}>
+        <button onClick={() => setShowProvision(true)}
+          style={{ display:"flex",alignItems:"center",gap:8,padding:"9px 18px",background:"rgba(79,70,229,0.15)",border:"1px solid rgba(79,70,229,0.35)",borderRadius:10,fontWeight:800,fontSize:13,color:"#818cf8",cursor:"pointer" }}>
+          <span style={{ fontSize:16 }}>+</span> Provision School
+        </button>
+      </div>
+
       <RGrid cols={4}>
         <KPICard label="Total Schools" value={totalSchools || schools.length || 0} color="#f472b6" sub="in database" />
         <KPICard label="Active Schools" value={activeSchools || "—"} color="#34d399" sub="with enrolled scholars" small />

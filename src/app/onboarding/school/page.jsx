@@ -9,8 +9,8 @@
 // On complete: marks schools.onboarding_completed_at, redirects to /dashboard/proprietor
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -110,8 +110,19 @@ function CopyButton({ value, label = "Copy" }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function SchoolOnboardingPage() {
-  const router = useRouter();
+export default function SchoolOnboardingPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" /></div>}>
+      <SchoolOnboardingPage />
+    </Suspense>
+  );
+}
+
+function SchoolOnboardingPage() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const claimId      = searchParams.get("schoolId"); // set when admin provisions + sends invite
+
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -152,6 +163,24 @@ export default function SchoolOnboardingPage() {
         .eq("user_id", session.user.id)
         .in("role", ["proprietor", "admin"])
         .limit(1);
+
+      // ── Admin-provisioned claim: schoolId in URL, no role yet ─────────────
+      if (!roles?.length && claimId) {
+        // Claim the pre-created school via API (creates school_roles)
+        const res = await fetch("/api/schools/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schoolId: claimId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSchoolId(data.schoolId);
+          setSchoolName(data.schoolName || "");
+          setLoading(false);
+          return; // proceed to step 1 with pre-filled name
+        }
+        // Claim failed — fall through to new-school mode
+      }
 
       // ── New school: no existing role row → self-serve creation ────────────
       if (!roles?.length) {

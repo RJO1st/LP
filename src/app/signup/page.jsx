@@ -83,7 +83,8 @@ export default function SignupPage() {
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const refFromUrl = searchParams.get("ref");
+  const refFromUrl   = searchParams.get("ref");
+  const nextUrl      = searchParams.get("next"); // e.g. /onboarding/school
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -216,7 +217,7 @@ function SignupForm() {
         password: formData.password,
       });
 
-      if (!signInError) router.push("/dashboard/parent");
+      if (!signInError) router.push(nextUrl || "/dashboard/parent");
     } catch (err) {
       console.error("Signup error:", err);
       const msg = (err.message || "").toLowerCase();
