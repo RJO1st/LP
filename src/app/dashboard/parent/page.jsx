@@ -1708,6 +1708,7 @@ export default function ParentDashboard() {
                         <ScholarSchoolReadiness
                           scholar={scholar}
                           parentTier={parent?.subscription_tier}
+                          isNgParent={isNgParent}
                         />
                       )}
 

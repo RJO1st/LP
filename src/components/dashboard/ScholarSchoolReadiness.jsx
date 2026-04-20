@@ -64,7 +64,7 @@ function SubjectBar({ label, score, blurred }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function ScholarSchoolReadiness({ scholar, parentTier }) {
+export default function ScholarSchoolReadiness({ scholar, parentTier, isNgParent = false }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -160,7 +160,7 @@ export default function ScholarSchoolReadiness({ scholar, parentTier }) {
                   href="/subscribe"
                   className="text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  Upgrade — ₦2,500/mo
+                  {isNgParent ? "Upgrade — ₦2,500/mo" : "Upgrade — £12.99/mo"}
                 </Link>
               </div>
             )}
