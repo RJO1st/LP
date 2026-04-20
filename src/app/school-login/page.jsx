@@ -1,15 +1,22 @@
 "use client";
 /**
- * School Staff Login — /school-login
+ * School Staff Login / Register — /school-login
  *
  * Used by teachers and proprietors/admins to access school dashboards.
- * Authentication flow:
+ *
+ * Tabs:
+ *   "signin"  — Email + password login
+ *   "signup"  — Create new school staff account (no parent/trial language)
+ *
+ * Authentication flow (sign in):
  *   1. Email + password → supabase.auth.signInWithPassword
  *   2. Look up school_roles for the authenticated user
- *   3. Redirect based on role:
- *        proprietor | admin → /dashboard/proprietor
- *        teacher           → /dashboard/teacher
+ *   3. Redirect based on role or ?redirectTo param
  *   4. If no school_roles row: show "No staff account found" error
+ *
+ * Authentication flow (sign up):
+ *   1. supabase.auth.signUp → creates auth user
+ *   2. Redirect to ?redirectTo (default /onboarding/school)
  *
  * Design: matches global dark space theme, emerald accent for school context.
  */
@@ -60,12 +67,17 @@ function SchoolLoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get("redirectTo");
+  const initialTab   = searchParams.get("tab") === "signup" ? "signup" : "signin";
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
+  // Tab state
+  const [tab,         setTab]         = useState(initialTab);
+
+  // Sign-in states
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [loading,     setLoading]     = useState(false);
@@ -76,6 +88,24 @@ function SchoolLoginForm() {
   const [showReset,   setShowReset]   = useState(false);
   const [resetEmail,  setResetEmail]  = useState("");
   const [resetSent,   setResetSent]   = useState(false);
+
+  // Sign-up states
+  const [suFullName,  setSuFullName]  = useState("");
+  const [suEmail,     setSuEmail]     = useState("");
+  const [suPassword,  setSuPassword]  = useState("");
+  const [suConfirm,   setSuConfirm]   = useState("");
+  const [suShowPwd,   setSuShowPwd]   = useState(false);
+  const [suLoading,   setSuLoading]   = useState(false);
+  const [suError,     setSuError]     = useState(null);
+  const [suDone,      setSuDone]      = useState(false);
+
+  // Switch tab — clear errors
+  function switchTab(t) {
+    setTab(t);
+    setError(null);
+    setSuError(null);
+    setShowReset(false);
+  }
 
   // Check if already signed in on mount — redirect immediately if so
   useEffect(() => {
@@ -158,6 +188,46 @@ function SchoolLoginForm() {
     }
   };
 
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setSuError(null);
+
+    if (suPassword !== suConfirm) {
+      setSuError("Passwords do not match.");
+      return;
+    }
+    if (suPassword.length < 8) {
+      setSuError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setSuLoading(true);
+    try {
+      const destination = redirectTo || "/onboarding/school";
+      const { data, error: signUpErr } = await supabase.auth.signUp({
+        email:    suEmail.trim(),
+        password: suPassword,
+        options: {
+          data:        { full_name: suFullName.trim() },
+          emailRedirectTo: `${window.location.origin}${destination}`,
+        },
+      });
+
+      if (signUpErr) throw signUpErr;
+
+      // Supabase may require email confirmation, or may auto-confirm (depends on project settings).
+      // If a session was created immediately, navigate now; otherwise show confirmation notice.
+      if (data?.session) {
+        router.push(destination);
+      } else {
+        setSuDone(true);
+      }
+    } catch (err) {
+      setSuError(friendlyError(err));
+      setSuLoading(false);
+    }
+  };
+
   // ── Subtle star field for dark mode ──────────────────────────────────────
   const stars = Array.from({ length: 30 }).map((_, i) => {
     const seed = i * 113 % 1000;
@@ -193,15 +263,114 @@ function SchoolLoginForm() {
             </svg>
             School Staff Portal
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">Staff Sign In</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Teachers &amp; proprietors</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+            {tab === "signup" ? "Set Up Your School" : "Staff Sign In"}
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            {tab === "signup" ? "Proprietors &amp; administrators" : "Teachers &amp; proprietors"}
+          </p>
         </div>
+
+        {/* Tab switcher */}
+        {!showReset && (
+          <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 mb-4 bg-slate-100 dark:bg-white/5">
+            {["signin", "signup"].map(t => (
+              <button key={t} type="button" onClick={() => switchTab(t)}
+                className={[
+                  "flex-1 py-2.5 text-sm font-bold transition-colors",
+                  tab === t
+                    ? "bg-emerald-500 text-white shadow"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white",
+                ].join(" ")}>
+                {t === "signin" ? "Sign In" : "Create Account"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-white dark:bg-slate-800/60 backdrop-blur-xl rounded-[20px] p-6 sm:p-8 shadow-lg dark:shadow-2xl border border-slate-200 dark:border-white/10">
 
-          {/* ── Reset password view ────────────────────────────────────── */}
-          {showReset ? (
+          {/* ─────────────────── SIGN-UP TAB ─────────────────── */}
+          {tab === "signup" ? (
+            suDone ? (
+              <div className="text-center py-4">
+                <div className="text-4xl mb-3">📧</div>
+                <p className="text-emerald-600 dark:text-emerald-300 font-black text-lg mb-2">Check your email</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
+                  We sent a confirmation link to{" "}
+                  <span className="font-bold text-slate-900 dark:text-white">{suEmail}</span>.
+                  Click the link to activate your account and begin school setup.
+                </p>
+                <button onClick={() => { setSuDone(false); switchTab("signin"); }}
+                  className="text-emerald-600 dark:text-emerald-400 text-sm font-bold hover:underline">
+                  ← Back to sign in
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSignUp} className="space-y-4">
+                {suError && <ErrorBanner msg={suError} />}
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Full Name</label>
+                  <input type="text" required autoComplete="name" placeholder="Your name"
+                    value={suFullName} onChange={e => setSuFullName(e.target.value)}
+                    className={inputCls} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Work Email</label>
+                  <input type="email" required autoComplete="email" placeholder="you@school.com"
+                    value={suEmail} onChange={e => setSuEmail(e.target.value)}
+                    className={inputCls} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
+                  <div className="relative">
+                    <input type={suShowPwd ? "text" : "password"} required autoComplete="new-password"
+                      placeholder="Min 8 characters"
+                      value={suPassword} onChange={e => setSuPassword(e.target.value)}
+                      className={`${inputCls} pr-12`} />
+                    <button type="button" onClick={() => setSuShowPwd(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1"
+                      aria-label={suShowPwd ? "Hide password" : "Show password"}>
+                      {suShowPwd
+                        ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Confirm Password</label>
+                  <input type={suShowPwd ? "text" : "password"} required autoComplete="new-password"
+                    placeholder="Repeat password"
+                    value={suConfirm} onChange={e => setSuConfirm(e.target.value)}
+                    className={inputCls} />
+                </div>
+
+                <button type="submit" disabled={suLoading} className={primaryBtn("emerald")}>
+                  {suLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                      </svg>
+                      Creating account…
+                    </span>
+                  ) : "Create Account & Continue"}
+                </button>
+
+                <p className="text-xs text-center text-slate-500 dark:text-slate-500">
+                  Your account will be used to manage your school on LaunchPard.
+                  Next, you'll set up your school profile.
+                </p>
+              </form>
+            )
+
+          /* ─────────────────── SIGN-IN TAB ─────────────────── */
+          ) : showReset ? (
             resetSent ? (
               <div className="text-center py-4">
                 <div className="text-4xl mb-3">📧</div>
@@ -236,8 +405,6 @@ function SchoolLoginForm() {
                 </button>
               </form>
             )
-
-          /* ── Sign-in view ──────────────────────────────────────────── */
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
               {error && <ErrorBanner msg={error} />}
