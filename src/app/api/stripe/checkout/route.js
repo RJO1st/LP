@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import Stripe from "stripe";
+// Stripe is loaded dynamically below the env-var guard — no build-time dep needed.
 
 // ─── Supabase service client ─────────────────────────────────────────────────
 const serviceClient = createClient(
@@ -101,6 +101,8 @@ export async function POST(request) {
     );
   }
 
+  // Dynamic import — only reached when STRIPE_SECRET_KEY is present
+  const { default: Stripe } = await import("stripe");
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2024-06-20",
   });
