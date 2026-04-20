@@ -45,6 +45,34 @@ function getBandLabel(pct) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// JOIN CODE CELL — copy-to-clipboard inline chip
+// ═══════════════════════════════════════════════════════════════════
+function JoinCodeCell({ code }) {
+  const [copied, setCopied] = useState(false);
+  const copy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <button
+      onClick={copy}
+      title="Click to copy join code"
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg
+        bg-slate-700/50 border border-white/10 hover:border-indigo-500/50
+        text-xs font-mono font-bold text-indigo-300 hover:text-indigo-200
+        transition-colors group">
+      <span>{code}</span>
+      <span className="text-[10px] text-slate-500 group-hover:text-indigo-400 transition-colors">
+        {copied ? "✓" : "⎘"}
+      </span>
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // SKELETON LOADERS
 // ═══════════════════════════════════════════════════════════════════
 function SkeletonCard() {
@@ -704,14 +732,19 @@ export default function ProprietorDashboard() {
                             <th className="text-left py-3 px-4 font-semibold text-slate-300">Avg Readiness</th>
                             <th className="text-left py-3 px-4 font-semibold text-slate-300">% Ready</th>
                             <th className="text-left py-3 px-4 font-semibold text-slate-300">Trend</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-300">Join code</th>
                             <th className="py-3 px-4" />
                           </tr>
                         </thead>
                         <tbody>
                           {sortedClasses.length === 0 ? (
                             <tr>
-                              <td colSpan="7" className="py-8 px-4 text-center text-slate-400">
-                                No classes yet. Upload a CSV to add scholars.
+                              <td colSpan="8" className="py-10 px-4 text-center">
+                                <p className="text-slate-400 mb-3">No classes yet.</p>
+                                <a href="/onboarding/school"
+                                  className="inline-block px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition-colors">
+                                  Set up your first class →
+                                </a>
                               </td>
                             </tr>
                           ) : (
@@ -721,13 +754,15 @@ export default function ProprietorDashboard() {
                               return (
                                 <tr
                                   key={cls.id}
-                                  onClick={() => setDrillClassId(cls.id)}
-                                  className="border-b border-white/5 hover:bg-slate-700/30 cursor-pointer transition-colors"
+                                  className="border-b border-white/5 hover:bg-slate-700/30 transition-colors"
                                 >
-                                  <td className="py-3 px-4 font-medium">{cls.name}</td>
-                                  <td className="py-3 px-4 text-slate-400">{cls.year_level || "—"}</td>
-                                  <td className="py-3 px-4">{cls.studentCount || 0}</td>
-                                  <td className="py-3 px-4">
+                                  <td className="py-3 px-4 font-medium cursor-pointer"
+                                    onClick={() => setDrillClassId(cls.id)}>{cls.name}</td>
+                                  <td className="py-3 px-4 text-slate-400 cursor-pointer"
+                                    onClick={() => setDrillClassId(cls.id)}>{cls.year_level || "—"}</td>
+                                  <td className="py-3 px-4 cursor-pointer"
+                                    onClick={() => setDrillClassId(cls.id)}>{cls.studentCount || 0}</td>
+                                  <td className="py-3 px-4 cursor-pointer" onClick={() => setDrillClassId(cls.id)}>
                                     <div className="flex items-center gap-2">
                                       <div className="w-16 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
                                         <div className={`h-full ${col.bar}`} style={{ width: `${cls.avgReadiness || 0}%` }} />
@@ -735,11 +770,21 @@ export default function ProprietorDashboard() {
                                       <span className={`font-bold ${col.text}`}>{cls.avgReadiness?.toFixed(0) ?? "—"}%</span>
                                     </div>
                                   </td>
-                                  <td className="py-3 px-4">{cls.percentReady?.toFixed(0) ?? "—"}%</td>
-                                  <td className={`py-3 px-4 font-bold ${trend >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  <td className="py-3 px-4 cursor-pointer"
+                                    onClick={() => setDrillClassId(cls.id)}>{cls.percentReady?.toFixed(0) ?? "—"}%</td>
+                                  <td className={`py-3 px-4 font-bold cursor-pointer ${trend >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                                    onClick={() => setDrillClassId(cls.id)}>
                                     {trend >= 0 ? "+" : ""}{trend.toFixed(1)}%
                                   </td>
-                                  <td className="py-3 px-4">
+                                  {/* Join code — click to copy, stop propagation */}
+                                  <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                                    {cls.join_code ? (
+                                      <JoinCodeCell code={cls.join_code} />
+                                    ) : (
+                                      <span className="text-slate-600 text-xs">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 cursor-pointer" onClick={() => setDrillClassId(cls.id)}>
                                     <span className="flex items-center gap-1 text-xs text-slate-400 hover:text-white whitespace-nowrap">
                                       View class <ChevronRight size={12} />
                                     </span>

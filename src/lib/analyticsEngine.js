@@ -702,7 +702,7 @@ export async function computeSchoolReadiness(schoolId, supabase) {
   // Fetch all classes in the school
   const { data: classes, error: clErr } = await supabase
     .from('classes')
-    .select('id, name, year_level')
+    .select('id, name, year_level, join_code')
     .eq('school_id', schoolId)
     .order('year_level', { ascending: true });
   if (clErr) throw new Error(`classes fetch: ${clErr.message}`);
@@ -718,6 +718,7 @@ export async function computeSchoolReadiness(schoolId, supabase) {
         id:             c.id,
         name:           c.name,
         year_level:     c.year_level,
+        join_code:      c.join_code,
         avgReadiness:   r.classAverage,
         percentReady:   r.students.length
           ? Math.round((r.readyList.length / r.students.length) * 100) : 0,
