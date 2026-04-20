@@ -75,7 +75,7 @@ function getReadinessStatus(pct) {
 // ═══════════════════════════════════════════════════════════════════
 function SkeletonCard() {
   return (
-    <div className="bg-slate-800/50 dark:bg-slate-700/30 rounded-lg p-4 animate-pulse">
+    <div className="bg-slate-800/50 rounded-lg p-4 animate-pulse">
       <div className="h-4 bg-slate-600/30 rounded w-3/4 mb-3" />
       <div className="h-6 bg-slate-600/30 rounded w-1/2" />
     </div>
@@ -111,6 +111,7 @@ export default function TeacherDashboard() {
   const [selectedClassId, setSelectedClassId] = useState(null);
   const [classData, setClassData] = useState(null);
   const [filterType, setFilterType] = useState("all");
+  const [sortStudentsBy, setSortStudentsBy] = useState("readiness");
   const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [printing, setPrinting] = useState(false);
   const [notifyingParentId, setNotifyingParentId] = useState(null);
@@ -206,15 +207,20 @@ export default function TeacherDashboard() {
     fetchClassData();
   }, [selectedClassId]);
 
-  // Filter students
+  // Filter + sort students
   const filteredStudents = useCallback(() => {
     if (!classData?.students) return [];
-    return classData.students.filter((s) => {
+    const filtered = classData.students.filter((s) => {
       if (filterType === "struggling") return s.readiness < 50;
-      if (filterType === "ready") return s.readiness >= 70;
+      if (filterType === "developing") return s.readiness >= 50 && s.readiness < 70;
+      if (filterType === "ready")      return s.readiness >= 70;
       return true;
     });
-  }, [classData, filterType]);
+    return filtered.sort((a, b) => {
+      if (sortStudentsBy === "name") return (a.name || "").localeCompare(b.name || "");
+      return (b.readiness ?? 0) - (a.readiness ?? 0);
+    });
+  }, [classData, filterType, sortStudentsBy]);
 
   // Notify Parent
   const handleNotifyParent = async (student, teacherNote = "") => {
@@ -428,50 +434,85 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            {/* Consent Legend */}
-            <div className="bg-slate-800/30 border border-white/5 rounded-lg p-4">
-              <div className="flex items-start gap-4">
-                <ShieldIcon size={20} className="text-slate-400 mt-1 flex-shrink-0" />
-                <div className="text-sm text-slate-300">
-                  <p className="font-semibold mb-3">Parental Consent Status</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span>Consent granted — you can view this student&apos;s detailed scores</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>Pending — parent has not yet provided consent</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-red-500" />
-                      <span>Revoked — parent has withdrawn consent</span>
-                    </div>
+            {/* Consent counts banner — shows at a glance how many students need action */}
+            {(() => {
+              const granted  = classData.students?.filter(s => s.consentStatus === "granted").length  ?? 0;
+              const pending  = classData.students?.filter(s => s.consentStatus !== "granted" && s.consentStatus !== "revoked").length ?? 0;
+              const revoked  = classData.students?.filter(s => s.consentStatus === "revoked").length  ?? 0;
+              return (
+                <div className="flex flex-wrap items-center gap-3 bg-slate-800/30 border border-white/5 rounded-lg px-4 py-3">
+                  <ShieldIcon size={16} className="text-slate-400 flex-shrink-0" />
+                  <span className="text-xs text-slate-400 font-medium uppercase tracking-widest">NDPR Consent</span>
+                  <div className="flex flex-wrap gap-2 ml-1">
+                    <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block flex-shrink-0" />
+                      {granted} granted — detailed scores visible
+                    </span>
+                    {pending > 0 && (
+                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block flex-shrink-0" />
+                        {pending} pending — send a claim invite to unlock scores
+                      </span>
+                    )}
+                    {revoked > 0 && (
+                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-red-500/15 text-red-300 text-xs">
+                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block flex-shrink-0" />
+                        {revoked} revoked — scores hidden per parent request
+                      </span>
+                    )}
                   </div>
                 </div>
+              );
+            })()}
+
+            {/* Focus-area callout */}
+            {classData.topicWeaknesses?.length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 flex items-start gap-3">
+                <AlertIcon size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-200">
+                  <span className="font-semibold">Lesson focus: </span>
+                  {classData.topicWeaknesses[0].name} ({classData.topicWeaknesses[0].average}% class average) —
+                  this is your class's weakest topic right now.
+                </p>
               </div>
-            </div>
+            )}
 
             {/* Two-Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Student List */}
               <div className="lg:col-span-2 bg-slate-800/50 border border-white/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Students</h3>
-                  <div className="flex gap-2">
-                    {["all", "struggling", "ready"].map((f) => (
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="font-semibold">Students</h3>
+                    <p className="text-xs text-slate-500">Click a student to see subject scores and notify their parent</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { key: "all",        label: `All (${classData.students?.length ?? 0})` },
+                      { key: "struggling", label: `At Risk (${classData.students?.filter(s => s.readiness < 50).length ?? 0})` },
+                      { key: "developing", label: `Developing (${classData.students?.filter(s => s.readiness >= 50 && s.readiness < 70).length ?? 0})` },
+                      { key: "ready",      label: `Ready (${classData.students?.filter(s => s.readiness >= 70).length ?? 0})` },
+                    ].map((f) => (
                       <button
-                        key={f}
-                        onClick={() => setFilterType(f)}
-                        className={`px-3 py-1 text-xs rounded transition-all ${
-                          filterType === f
+                        key={f.key}
+                        onClick={() => setFilterType(f.key)}
+                        className={`px-2.5 py-1 text-xs rounded-full transition-all ${
+                          filterType === f.key
                             ? "bg-emerald-500 text-white"
                             : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
                         }`}
                       >
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                        {f.label}
                       </button>
                     ))}
+                    <select
+                      value={sortStudentsBy}
+                      onChange={e => setSortStudentsBy(e.target.value)}
+                      className="px-2.5 py-1 text-xs rounded bg-slate-700/50 border border-white/10 text-white focus:outline-none"
+                    >
+                      <option value="readiness">Sort: Readiness</option>
+                      <option value="name">Sort: Name</option>
+                    </select>
                   </div>
                 </div>
 
@@ -680,41 +721,90 @@ export default function TeacherDashboard() {
 
       {/* Print Styles */}
       <style>{`
+        /* ── Print header (hidden on screen, shown when printing) ─────── */
+        .print-header { display: none; }
+
         @media print {
-          header, button, .overflow-y-auto {
-            display: none;
+          /* Page setup */
+          @page {
+            size: A4 portrait;
+            margin: 16mm 14mm;
           }
-          body {
-            background: white;
-            color: black;
+
+          /* Show print-only header */
+          .print-header {
+            display: block !important;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #333;
           }
-          .bg-slate-800\\/50,
-          .border-white\\/10 {
-            background: white !important;
-            border: 1px solid #ccc !important;
+          .print-header h2 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+          .print-header p  { font-size: 11px; color: #555; margin: 0; }
+
+          /* Hide interactive chrome */
+          header, button, select, .print\\:hidden,
+          [data-print-hide], .modal-overlay { display: none !important; }
+
+          /* Reset backgrounds and colours */
+          html, body, #__next, main {
+            background: #fff !important;
+            color: #111 !important;
           }
-          .text-white,
-          .text-slate-300,
-          .text-slate-400 {
-            color: black !important;
+          * {
+            box-shadow: none !important;
+            text-shadow: none !important;
           }
-          .bg-emerald-500,
-          .bg-amber-500,
-          .bg-red-500 {
-            background: #ccc !important;
+          [class*="bg-slate-"],
+          [class*="bg-white"],
+          [class*="backdrop-blur"] {
+            background: #fff !important;
           }
-          .text-emerald-400 {
-            color: #333 !important;
+          [class*="border-white"],
+          [class*="border-slate-"] {
+            border-color: #ddd !important;
           }
-          main {
-            max-width: 100%;
-            padding: 20px;
+          [class*="text-white"],
+          [class*="text-slate-"],
+          [class*="text-indigo-"],
+          [class*="text-emerald-"],
+          [class*="text-amber-"],
+          [class*="text-red-"] {
+            color: #111 !important;
           }
-          .max-h-96 {
+
+          /* Readiness bars — keep distinct grayscale shades */
+          .bg-emerald-500 { background: #1a8a4a !important; }
+          .bg-amber-500   { background: #c97a10 !important; }
+          .bg-red-500     { background: #b91c1c !important; }
+
+          /* Remove scroll limits so all rows print */
+          .max-h-96, .overflow-y-auto {
             max-height: none !important;
+            overflow: visible !important;
           }
+
+          /* Layout */
+          main {
+            max-width: 100% !important;
+            padding: 0 !important;
+          }
+          .grid {
+            display: grid !important;
+          }
+
+          /* Avoid orphaned rows */
+          .border-b { page-break-inside: avoid; }
+
+          /* Collapse expanded detail rows in print */
+          [data-expanded-detail] { page-break-inside: avoid; }
         }
       `}</style>
+
+      {/* Print-only class header — invisible on screen */}
+      <div className="print-header">
+        <h2>{schoolName || "LaunchPard"} — Class Report</h2>
+        <p>{currentClass?.name ?? ""} · Printed {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+      </div>
     </div>
   );
 }

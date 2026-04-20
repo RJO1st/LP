@@ -1253,22 +1253,48 @@ function ContentTab({ totalQuestions, activeQuestions, subjectDist }) {
 function SchoolsTab({ totalSchools }) {
   const [schools, setSchools] = useState([]);
   const [summary, setSummary] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [updatingLead, setUpdatingLead] = useState(null); // { id, status }
 
   useEffect(() => {
     (async () => {
       try {
         const supabase = sb();
-        const [schoolList, schoolSummary] = await Promise.all([
+        const [schoolList, schoolSummary, leadsResult] = await Promise.all([
           sq(supabase.from("schools").select("*").order("name").limit(100)),
           sq(supabase.rpc("admin_school_summary")),
+          sq(supabase
+            .from("school_leads")
+            .select(`
+              id, lead_status, created_at,
+              schools!inner ( id, name, country, region ),
+              parents ( full_name, email ),
+              scholars ( name, curriculum )
+            `)
+            .order("created_at", { ascending: false })
+            .limit(200)
+          ),
         ]);
         setSchools(schoolList.data || []);
         setSummary(schoolSummary.data || []);
+        setLeads(leadsResult.data || []);
       } catch (e) { console.warn("[schools]", e.message); }
-      finally { setLoading(false); }
+      finally { setLoading(false); setLeadsLoading(false); }
     })();
   }, []);
+
+  // Update a single lead's status (optimistic)
+  const updateLeadStatus = async (leadId, newStatus) => {
+    setUpdatingLead(leadId);
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, lead_status: newStatus } : l));
+    try {
+      const supabase = sb();
+      await supabase.from("school_leads").update({ lead_status: newStatus }).eq("id", leadId);
+    } catch (e) { console.warn("[leads update]", e.message); }
+    finally { setUpdatingLead(null); }
+  };
 
   const countryFlag = (c) => ({ GB: "🇬🇧", NG: "🇳🇬", AU: "🇦🇺", CA: "🇨🇦", CH: "🇨🇭" }[c] || "🌍");
 
@@ -1350,7 +1376,172 @@ function SchoolsTab({ totalSchools }) {
           </table>
         </div>
       )}
+
+      {/* ── School Leads (non-partner schools selected by parents) ── */}
+      <LeadsSection leads={leads} loading={leadsLoading} onUpdateStatus={updateLeadStatus} updatingLead={updatingLead} />
     </>
+  );
+}
+
+// ── Lead status helpers ───────────────────────────────────────────────────────
+const LEAD_STATUSES = ["new", "contacted", "converted", "ignored"];
+const LEAD_COLORS   = { new: "#fbbf24", contacted: "#60a5fa", converted: "#34d399", ignored: "rgba(255,255,255,0.25)" };
+
+function LeadsSection({ leads, loading, onUpdateStatus, updatingLead }) {
+  const [statusFilter, setStatusFilter] = useState("new");
+
+  // Group leads by school for the summary row
+  const bySchool = leads.reduce((acc, l) => {
+    const sId = l.schools?.id;
+    if (!sId) return acc;
+    if (!acc[sId]) acc[sId] = { school: l.schools, new: 0, contacted: 0, converted: 0, ignored: 0, total: 0 };
+    acc[sId][l.lead_status] = (acc[sId][l.lead_status] || 0) + 1;
+    acc[sId].total += 1;
+    return acc;
+  }, {});
+  const schoolGroups = Object.values(bySchool).sort((a, b) => b.new - a.new);
+
+  // Status counts for filter pills
+  const counts = LEAD_STATUSES.reduce((a, s) => {
+    a[s] = leads.filter(l => l.lead_status === s).length;
+    return a;
+  }, {});
+
+  const filtered = leads.filter(l => l.lead_status === statusFilter);
+
+  if (loading) return <div style={S.empty}>Loading leads...</div>;
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={S.sectionTitle}>
+          School Leads — Non-Partner Schools ({leads.length})
+        </div>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+          Parents who selected schools not yet on LaunchPard
+        </span>
+      </div>
+
+      {leads.length === 0 ? (
+        <div style={S.empty}>No leads captured yet — they appear when parents select non-partner schools.</div>
+      ) : (
+        <>
+          {/* School rollup */}
+          {schoolGroups.length > 0 && (
+            <div style={{ overflowX: "auto", marginBottom: 20 }}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    <th style={S.th}>School</th>
+                    <th style={S.th}>Region</th>
+                    <th style={S.th}>Total</th>
+                    <th style={S.th}>New</th>
+                    <th style={S.th}>Contacted</th>
+                    <th style={S.th}>Converted</th>
+                    <th style={S.th}>Ignored</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schoolGroups.map(g => (
+                    <tr key={g.school.id}>
+                      <td style={{ ...S.td, fontWeight: 700, color: "#e2e8f0" }}>{g.school.name}</td>
+                      <td style={S.td}>{g.school.region || g.school.country || "—"}</td>
+                      <td style={{ ...S.td, fontWeight: 700, color: "#fbbf24" }}>{g.total}</td>
+                      <td style={S.td}><span style={S.badge(LEAD_COLORS.new)}>{g.new}</span></td>
+                      <td style={S.td}><span style={S.badge(LEAD_COLORS.contacted)}>{g.contacted}</span></td>
+                      <td style={S.td}><span style={S.badge(LEAD_COLORS.converted)}>{g.converted}</span></td>
+                      <td style={S.td}><span style={S.badge("rgba(255,255,255,0.3)")}>{g.ignored}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Filter pills */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+            {LEAD_STATUSES.map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  background: statusFilter === s ? `${LEAD_COLORS[s]}20` : "transparent",
+                  color: statusFilter === s ? LEAD_COLORS[s] : "rgba(255,255,255,0.35)",
+                  border: `1px solid ${statusFilter === s ? LEAD_COLORS[s] + "40" : "rgba(255,255,255,0.08)"}`,
+                  transition: "all 0.15s",
+                }}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)} <span style={{ opacity: 0.7 }}>({counts[s]})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Individual leads table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>School</th>
+                  <th style={S.th}>Parent</th>
+                  <th style={S.th}>Scholar</th>
+                  <th style={S.th}>Curriculum</th>
+                  <th style={S.th}>Date</th>
+                  <th style={S.th}>Status</th>
+                  <th style={S.th}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ ...S.td, textAlign: "center", color: "rgba(255,255,255,0.25)" }}>
+                      No {statusFilter} leads
+                    </td>
+                  </tr>
+                ) : filtered.map(lead => (
+                  <tr key={lead.id}>
+                    <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0" }}>{lead.schools?.name || "—"}</td>
+                    <td style={S.td}>
+                      <div style={{ fontWeight: 600, color: "#e2e8f0" }}>{lead.parents?.full_name || "—"}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>{lead.parents?.email || ""}</div>
+                    </td>
+                    <td style={S.td}>{lead.scholars?.name || "—"}</td>
+                    <td style={S.td}>{formatCurriculum(lead.scholars?.curriculum)}</td>
+                    <td style={S.td}>{fmtDate(lead.created_at)}</td>
+                    <td style={S.td}>
+                      <span style={S.badge(LEAD_COLORS[lead.lead_status] || "#94a3b8")}>
+                        {lead.lead_status}
+                      </span>
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {LEAD_STATUSES.filter(s => s !== lead.lead_status).map(s => (
+                          <button
+                            key={s}
+                            disabled={updatingLead === lead.id}
+                            onClick={() => onUpdateStatus(lead.id, s)}
+                            style={{
+                              padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700,
+                              background: `${LEAD_COLORS[s]}15`, color: LEAD_COLORS[s],
+                              border: `1px solid ${LEAD_COLORS[s]}30`, cursor: "pointer",
+                              opacity: updatingLead === lead.id ? 0.5 : 1,
+                              transition: "opacity 0.15s",
+                            }}
+                          >
+                            → {s}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

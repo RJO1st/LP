@@ -18,6 +18,7 @@ export default function SubscribePage() {
   const router = useRouter();
   const [billingCycle, setBillingCycle] = useState("annual");
   const [loading, setLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   // Region is fetched from the parents table — the authoritative source
   // (NOT from __geo cookie, which is client-overridable). Defaults to 'GB'
@@ -33,6 +34,15 @@ export default function SubscribePage() {
     const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
     return x - Math.floor(x);
   };
+
+  // Show a banner if Paystack redirected back with payment=failed
+  const [paymentFailed, setPaymentFailed] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("payment") === "failed") setPaymentFailed(true);
+    }
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -55,12 +65,54 @@ export default function SubscribePage() {
     checkAuth();
   }, [router, supabase]);
 
+  /**
+   * handleCheckout — calls the appropriate payment provider based on region.
+   * NG  → Paystack (kobo-denominated, hosted page redirect)
+   * GB  → Stripe   (pending UK entity setup — shows coming-soon message)
+   *
+   * addons is intentionally empty for now (add-on selection UI is a future sprint).
+   * The checkout API accepts addons[] if we want to pre-select them.
+   */
   const handleCheckout = async () => {
     setLoading(true);
-    // Simulate a successful activation
-    setTimeout(() => {
-      window.location.href = "/dashboard/parent?success=true";
-    }, 1000);
+    setCheckoutError(null);
+
+    if (region === "NG") {
+      // ── Nigerian checkout via Paystack ──────────────────────────────────
+      try {
+        const res = await fetch("/api/paystack/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plan: "ng_scholar",
+            billing: billingCycle,
+            addons: [], // add-on selection UI coming in next sprint
+          }),
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          setCheckoutError(json.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Redirect to Paystack hosted payment page
+        window.location.href = json.authorization_url;
+        // loading stays true — user is leaving the page
+      } catch (err) {
+        console.error("[subscribe] Paystack checkout error:", err);
+        setCheckoutError("Could not reach the payment provider. Check your connection and try again.");
+        setLoading(false);
+      }
+    } else {
+      // ── UK checkout via Stripe (pending UK entity setup) ─────────────────
+      // Stripe integration is built but awaiting UK Ltd entity + Stripe account.
+      // Show an informative message rather than silently failing.
+      setCheckoutError("UK subscriptions are launching soon. We'll email you as soon as they're available.");
+      setLoading(false);
+    }
   };
 
   if (checkingAuth) {
@@ -106,6 +158,33 @@ export default function SubscribePage() {
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16">
+
+        {/* Payment failure banner — shown when Paystack redirects back with ?payment=failed */}
+        {paymentFailed && (
+          <div className="max-w-2xl mx-auto mb-6 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-500/40 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-red-500 text-xl flex-shrink-0">✕</span>
+            <div>
+              <p className="font-bold text-red-700 dark:text-red-300 text-sm">Payment was not completed</p>
+              <p className="text-red-600 dark:text-red-400 text-xs mt-0.5">Your card was not charged. Please try again or use a different payment method.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Checkout API error banner */}
+        {checkoutError && (
+          <div className="max-w-2xl mx-auto mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-500/40 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-amber-500 text-xl flex-shrink-0">⚠</span>
+            <div>
+              <p className="font-bold text-amber-700 dark:text-amber-300 text-sm">Could not start checkout</p>
+              <p className="text-amber-600 dark:text-amber-400 text-xs mt-0.5">{checkoutError}</p>
+            </div>
+            <button
+              onClick={() => setCheckoutError(null)}
+              className="ml-auto text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 text-lg leading-none"
+            >×</button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8 sm:mb-16 animate-fade-in-up">
           <div className="inline-block mb-4 sm:mb-6">

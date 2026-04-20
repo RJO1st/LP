@@ -17,6 +17,7 @@ import CoachesCorner from "@/components/CoachesCorner";
 import ValueReport from "@/components/dashboard/ValueReport";
 import PushNotificationPrompt from "@/components/pwa/PushNotificationPrompt";
 import MultiChildComparison from "@/components/dashboard/MultiChildComparison";
+import ScholarSchoolReadiness from "@/components/dashboard/ScholarSchoolReadiness";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -1701,6 +1702,14 @@ export default function ParentDashboard() {
                           </div>
                         )}
                       </div>
+
+                      {/* School Readiness — only for scholars enrolled at a partner school */}
+                      {scholar.school_id && !isArchived && (
+                        <ScholarSchoolReadiness
+                          scholar={scholar}
+                          parentTier={parent?.subscription_tier}
+                        />
+                      )}
 
                       {/* Actions row */}
                       <div className="flex items-center gap-2">
