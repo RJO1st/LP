@@ -134,11 +134,17 @@ export default function SchoolOnboardingPage() {
   const [classId,   setClassId]   = useState("");
   const [joinLink,  setJoinLink]  = useState("");
 
+  // newSchool = true when the user has no school yet (self-serve sign-up path)
+  const [newSchool, setNewSchool] = useState(false);
+
   // ── Auth + load school ────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/school-login"); return; }
+      if (!session) {
+        router.push("/school-login?redirect=/onboarding/school");
+        return;
+      }
 
       const { data: roles } = await supabase
         .from("school_roles")
@@ -147,7 +153,12 @@ export default function SchoolOnboardingPage() {
         .in("role", ["proprietor", "admin"])
         .limit(1);
 
-      if (!roles?.length) { router.push("/school-login"); return; }
+      // ── New school: no existing role row → self-serve creation ────────────
+      if (!roles?.length) {
+        setNewSchool(true);
+        setLoading(false);
+        return;
+      }
 
       const sid = roles[0].school_id;
       setSchoolId(sid);
@@ -186,23 +197,49 @@ export default function SchoolOnboardingPage() {
     if (!schoolName.trim()) { setError("School name is required."); return; }
     setSaving(true); setError("");
     try {
-      const { error: upErr } = await supabase
-        .from("schools")
-        .update({
-          name:        schoolName.trim(),
-          school_type: schoolType,
-          region:      state.trim() || null,
-          country:     country.trim() || null,
-        })
-        .eq("id", schoolId);
-      if (upErr) throw upErr;
+      if (newSchool) {
+        // Self-serve path: create school + proprietor role via API
+        const res = await fetch("/api/schools/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name:       schoolName.trim(),
+            schoolType,
+            state:      state.trim() || null,
+            country:    country.trim() || "Nigeria",
+          }),
+        });
+        const data = await res.json();
+        // 409 = school already exists for this user (race / double-click)
+        if (res.status === 409 && data.schoolId) {
+          setSchoolId(data.schoolId);
+          setNewSchool(false);
+          setStep(2);
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || "Could not create school.");
+        setSchoolId(data.schoolId);
+        setNewSchool(false);
+      } else {
+        // Existing school: update profile
+        const { error: upErr } = await supabase
+          .from("schools")
+          .update({
+            name:        schoolName.trim(),
+            school_type: schoolType,
+            region:      state.trim() || null,
+            country:     country.trim() || null,
+          })
+          .eq("id", schoolId);
+        if (upErr) throw upErr;
+      }
       setStep(2);
     } catch (e) {
       setError(e.message || "Could not save school profile.");
     } finally {
       setSaving(false);
     }
-  }, [schoolId, schoolName, schoolType, state, country]);
+  }, [newSchool, schoolId, schoolName, schoolType, state, country]);
 
   // ── Step 2 → Step 3: create class ────────────────────────────────────────
   const createClass = useCallback(async () => {
