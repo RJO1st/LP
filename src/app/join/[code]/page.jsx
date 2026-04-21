@@ -13,6 +13,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createBrowserClient } from "@supabase/ssr";
 import { apiFetch } from "@/lib/apiFetch";
 
@@ -154,8 +155,8 @@ export default function JoinClassPage({ params }) {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-start px-4 py-12">
 
       {/* Logo */}
-      <div className="mb-8 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-sm">L</div>
+      <div className="mb-8 flex items-center gap-2.5">
+        <Image src="/logo192.png" alt="LaunchPard" width={34} height={34} priority style={{ width: 34, height: 34 }} />
         <span className="font-black text-lg tracking-tight">LaunchPard</span>
       </div>
 

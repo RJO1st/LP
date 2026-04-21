@@ -12,6 +12,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createBrowserClient } from "@supabase/ssr";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
 
@@ -328,7 +329,7 @@ function SchoolOnboardingPage() {
       {/* Logo */}
       <div className="mb-10 flex flex-col items-center gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30">L</div>
+          <Image src="/logo192.png" alt="LaunchPard" width={40} height={40} priority style={{ width: 40, height: 40 }} />
           <span className="font-black text-xl text-white tracking-tight">LaunchPard</span>
         </div>
         <span className="text-xs px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-bold border border-indigo-500/20">Schools Portal</span>
