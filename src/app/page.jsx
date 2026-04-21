@@ -211,6 +211,40 @@ const FAQS_NG = [
 // AgeBandsSection so a stale activeBand or bad band entry never explodes the
 // whole page. Returns null on crash (the section simply disappears).
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROTATING TEXT HERO — cycles through hero phrases with a smooth vertical slide.
+// No dependencies beyond React itself.
+// ═══════════════════════════════════════════════════════════════════════════════
+function RotatingText({ phrases, interval = 2800 }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % phrases.length);
+        setVisible(true);
+      }, 350);
+    }, interval);
+    return () => clearInterval(timer);
+  }, [phrases.length, interval]);
+
+  return (
+    <span
+      style={{
+        display: 'block',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(12px)',
+        transition: 'opacity 0.35s ease, transform 0.35s ease',
+        willChange: 'opacity, transform',
+      }}
+    >
+      {phrases[idx]}
+    </span>
+  );
+}
+
 class AgeBandsErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { crashed: false }; }
   static getDerivedStateFromError() { return { crashed: true }; }
@@ -565,9 +599,10 @@ export default function LandingPage() {
               <span className="text-sm font-bold text-indigo-600 dark:text-indigo-300">{cfg.heroBadge}</span>
             </div>
             <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black mb-6 leading-[0.95] animate-fade-in-up text-slate-900 dark:text-slate-50">
-              <span className="block mb-3">Their Learning.</span>
-              <span className="block mb-3">Their Pace.</span>
-              <span className="block text-indigo-600 dark:text-indigo-400">Their Path.</span>
+              <span className="block mb-1">Their</span>
+              <span className="text-indigo-600 dark:text-indigo-400">
+                <RotatingText phrases={["Learning.", "Pace.", "Path."]} />
+              </span>
             </h1>
             <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
               You stop guessing. They start progressing. AI that adapts to your child's age, curriculum, and level. Every question is pitched at the right difficulty, every time.

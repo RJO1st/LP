@@ -2194,7 +2194,7 @@ export default function AdaptiveDashboardLayout({
           cursor: "pointer", color: cfg.textMuted,
           display: "flex", alignItems: "center", gap: 4,
         }} title="Avatar Shop">
-          <MIcon name="face" size={18} />
+          <span style={{ fontSize: 16, lineHeight: 1 }}>👤</span>
           <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Avatar</span>
         </button>
       )}

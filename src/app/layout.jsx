@@ -104,16 +104,18 @@ export default function RootLayout({ children }) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Prevent flash of wrong theme — inline script in <head> runs before React hydrates.
-            Regular <script> in App Router Server Component head = correct pattern for
-            synchronous blocking scripts. No React warning. No next/script needed. */}
-        <script
+      </head>
+      <body>
+        {/* Dark mode detection — must run before React hydrates to avoid FOUC.
+            strategy="beforeInteractive" injects a blocking script in <head> via Next.js,
+            which is the correct pattern for Next.js 16 + React 19. */}
+        <Script
+          id="dark-mode-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var d=localStorage.getItem('lp-dark-mode');if(d==='true'||(d===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
           }}
         />
-      </head>
-      <body>
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-ZFZN7XZ36Y" strategy="afterInteractive" />
         <Script id="gtag-init" strategy="afterInteractive">
           {`

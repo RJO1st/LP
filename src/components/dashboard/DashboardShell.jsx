@@ -223,28 +223,31 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
           {isKS1 && (
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: cfg.accentBg }}
+              style={{ background: cfg.accentBg, fontSize: 20, lineHeight: 1 }}
             >
-              <MIcon name="auto_awesome" filled size={20} style={{ color: cfg.accent }} />
+              ✨
             </div>
           )}
           {band === "ks2" && (
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(99,102,241,0.15)" }}
+              style={{ background: "rgba(99,102,241,0.15)", fontSize: 16, lineHeight: 1 }}
             >
-              <MIcon name="rocket_launch" filled size={16} style={{ color: cfg.accent }} />
+              🚀
             </div>
           )}
           {isKS3 && (
             <div
-              className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
+              className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 font-bold"
               style={{
                 background: cfg.accentBg,
                 border: `1px solid ${cfg.accent}40`,
+                color: cfg.accent,
+                fontSize: 11,
+                letterSpacing: "-0.02em",
               }}
             >
-              <MIcon name="terminal" size={16} style={{ color: cfg.accent }} />
+              {"</>"}
             </div>
           )}
           {isKS4 && (
@@ -253,9 +256,12 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
               style={{
                 background: cfg.accentBg,
                 border: `1px solid ${cfg.accent}30`,
+                color: cfg.accent,
+                fontSize: 13,
+                lineHeight: 1,
               }}
             >
-              <MIcon name="diamond" filled size={14} style={{ color: cfg.accent }} />
+              ◆
             </div>
           )}
           <h1
@@ -266,10 +272,11 @@ function SideNav({ band, activeTab, onTabChange, scholarName, onStartQuest, onAc
           </h1>
         </div>
         <p
-          className={`uppercase tracking-[0.2em] font-bold ml-${isKS1 ? "13" : "11"}`}
+          className="uppercase tracking-[0.2em] font-bold"
           style={{
             color: cfg.textMuted,
             fontSize: isKS1 ? "8px" : "9px",
+            marginLeft: isKS1 ? 52 : 44,
           }}
         >
           {cfg.sublabel}
@@ -561,7 +568,7 @@ export default function DashboardShell({
             title="Notifications"
             aria-label="Notifications"
           >
-            <MIcon name="notifications" size={18} />
+            <span style={{ fontSize: 16, lineHeight: 1 }}>🔔</span>
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Alerts</span>
           </button>
           <button
@@ -580,7 +587,7 @@ export default function DashboardShell({
             title="Sign out"
             aria-label="Sign out"
           >
-            <MIcon name="logout" size={18} />
+            <span style={{ fontSize: 14, lineHeight: 1, fontWeight: 700 }}>→</span>
             <span className="hidden lg:inline" style={{ fontSize: 11, fontWeight: 700 }}>Sign Out</span>
           </button>
         </div>

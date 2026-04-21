@@ -109,21 +109,19 @@ async function handleChargeSuccess(data) {
     parentId = meta.parent_id;
   }
 
-  // If we still don't have a parent_id, look it up by email
+  // If we still don't have a parent_id, look it up by email via auth.admin
   if (!parentId) {
     const customerEmail = data.customer?.email;
     if (!customerEmail) {
       console.error("[paystack/webhook] No parent_id or email in charge.success", data);
       return;
     }
-    // Look up via auth.users — note: this requires service role
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const matchedUser = users?.users?.find((u) => u.email === customerEmail);
-    if (!matchedUser) {
-      console.error("[paystack/webhook] No user found for email:", customerEmail);
+    const { data: authUser, error: authErr } = await supabase.auth.admin.getUserByEmail(customerEmail);
+    if (authErr || !authUser?.user) {
+      console.error("[paystack/webhook] No auth user found for email:", customerEmail, authErr);
       return;
     }
-    parentId = matchedUser.id;
+    parentId = authUser.user.id;
   }
 
   const subscriptionEnd = computeSubscriptionEnd(billing);
@@ -162,10 +160,11 @@ async function handleSubscriptionDisable(data) {
   const customerEmail = data.customer?.email;
   if (!customerEmail) return;
 
-  // Find auth user by email
-  const { data: users } = await supabase.auth.admin.listUsers();
-  const matchedUser = users?.users?.find((u) => u.email === customerEmail);
-  if (!matchedUser) return;
+  const { data: authUser, error: authErr } = await supabase.auth.admin.getUserByEmail(customerEmail);
+  if (authErr || !authUser?.user) {
+    console.error("[paystack/webhook] No auth user found for subscription.disable email:", customerEmail, authErr);
+    return;
+  }
 
   await supabase
     .from("parents")
@@ -176,7 +175,7 @@ async function handleSubscriptionDisable(data) {
       ng_addons:           [],
       updated_at:          new Date().toISOString(),
     })
-    .eq("id", matchedUser.id);
+    .eq("id", authUser.user.id);
 
   console.log(`[paystack/webhook] Downgraded to free for ${customerEmail}`);
 }
