@@ -22,14 +22,16 @@ const supabase = createBrowserClient(
 
 // ── Curriculum options (school-facing — grouped by region) ───────────────────
 const CURRICULA = [
-  { value: "ng_primary",   label: "Nigerian Primary (NERDC / UBEC)",  region: "NG" },
-  { value: "ng_jss",       label: "Nigerian JSS (NERDC / WAEC)",       region: "NG" },
-  { value: "ng_sss",       label: "Nigerian SSS (WAEC / NECO)",        region: "NG" },
-  { value: "uk_national",  label: "UK National Curriculum (KS1–KS4)",  region: "GB" },
-  { value: "uk_ks1",       label: "UK KS1 (Year 1–2)",                 region: "GB" },
-  { value: "uk_ks2",       label: "UK KS2 (Year 3–6)",                 region: "GB" },
-  { value: "uk_ks3",       label: "UK KS3 (Year 7–9)",                 region: "GB" },
-  { value: "uk_ks4",       label: "UK KS4 / GCSE (Year 10–11)",        region: "GB" },
+  { value: "ng_primary",   label: "Nigerian Primary (NERDC / UBEC)",                  region: "NG" },
+  { value: "ng_jss",       label: "Nigerian JSS (NERDC / WAEC)",                      region: "NG" },
+  { value: "ng_sss",       label: "Nigerian SSS (WAEC / NECO)",                       region: "NG" },
+  { value: "ng_british",   label: "Nigerian School · British Curriculum (KS1–KS4)",   region: "NG" },
+  { value: "ng_hybrid",    label: "Nigerian School · Hybrid (NERDC + British)",        region: "NG" },
+  { value: "uk_national",  label: "UK National Curriculum (KS1–KS4)",                 region: "GB" },
+  { value: "uk_ks1",       label: "UK KS1 (Year 1–2)",                                region: "GB" },
+  { value: "uk_ks2",       label: "UK KS2 (Year 3–6)",                                region: "GB" },
+  { value: "uk_ks3",       label: "UK KS3 (Year 7–9)",                                region: "GB" },
+  { value: "uk_ks4",       label: "UK KS4 / GCSE (Year 10–11)",                       region: "GB" },
 ];
 
 const SCHOOL_TYPES = [
@@ -40,12 +42,14 @@ const SCHOOL_TYPES = [
   "Private / independent school",
 ];
 
-// Year levels 1–13 (label adjusted by curriculum region)
+// Year levels 1–13 (label adjusted by curriculum)
+// ng_primary / ng_jss / ng_sss → Nigerian labels (Primary X / JSS X / SSS X)
+// ng_british / ng_hybrid / uk_* → Year X labels
 function yearOptions(curriculum) {
-  const isNG = curriculum?.startsWith("ng_");
+  const nigerianStandard = ["ng_primary", "ng_jss", "ng_sss"].includes(curriculum);
   return Array.from({ length: 13 }, (_, i) => {
     const y = i + 1;
-    if (isNG) {
+    if (nigerianStandard) {
       if (y <= 6)  return { value: y, label: `Primary ${y}` };
       if (y <= 9)  return { value: y, label: `JSS ${y - 6}` };
       return          { value: y, label: `SSS ${y - 9}` };
@@ -71,7 +75,7 @@ function StepDot({ n, active, done }) {
 function Steps({ step }) {
   const labels = ["School profile", "First class", "Share & go"];
   return (
-    <div className="flex items-center gap-0 mb-8">
+    <div className="flex items-center justify-center w-full gap-0 mb-8">
       {labels.map((l, i) => (
         <div key={i} className="flex items-center">
           <div className="flex flex-col items-center">
@@ -322,10 +326,12 @@ function SchoolOnboardingPage() {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-start px-4 py-12">
 
       {/* Logo */}
-      <div className="mb-8 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-sm">L</div>
-        <span className="font-black text-lg text-white tracking-tight">LaunchPard</span>
-        <span className="text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-full font-bold ml-1">Schools</span>
+      <div className="mb-10 flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30">L</div>
+          <span className="font-black text-xl text-white tracking-tight">LaunchPard</span>
+        </div>
+        <span className="text-xs px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-bold border border-indigo-500/20">Schools Portal</span>
       </div>
 
       <div className="w-full max-w-md">
@@ -418,9 +424,19 @@ function SchoolOnboardingPage() {
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
                   {CURRICULA.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
-                {(curriculum === "uk_national" || curriculum?.startsWith("uk_")) && (
+                {curriculum === "ng_british" && (
                   <p className="mt-1.5 text-xs text-amber-400 font-semibold">
-                    🇬🇧 British curriculum — students can also access Nigerian history topics (hybrid mode).
+                    🇳🇬🇬🇧 British curriculum delivered in a Nigerian school — billed in NGN, content follows UK National Curriculum.
+                  </p>
+                )}
+                {curriculum === "ng_hybrid" && (
+                  <p className="mt-1.5 text-xs text-amber-400 font-semibold">
+                    🇳🇬 Hybrid curriculum — combines NERDC core subjects with British / international content. Billed in NGN.
+                  </p>
+                )}
+                {curriculum?.startsWith("uk_") && (
+                  <p className="mt-1.5 text-xs text-slate-400 font-semibold">
+                    🇬🇧 British curriculum — billed in GBP.
                   </p>
                 )}
               </div>

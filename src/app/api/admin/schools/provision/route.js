@@ -18,6 +18,8 @@ import { createClient }       from "@supabase/supabase-js";
 import { cookies }            from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { sendEmail }          from "@/lib/email";
+import { EMAIL_TEMPLATES }    from "@/lib/emailTemplates";
+import crypto                 from "crypto";
 
 const ADMIN_EMAILS = ["ogunwede.r@gmail.com", "admin@launchpard.com"];
 
@@ -115,37 +117,42 @@ export async function POST(request) {
       // Non-fatal — school is created, just notify admin
     }
 
-    // ── 5. Send branded invite email via Brevo ─────────────────────────────────
-    const isNewUser = !inviteErr; // true = invite, false = magic link (existing account)
-    const emailSubject = isNewUser
-      ? `You've been invited to set up ${school.name} on LaunchPard`
-      : `Your LaunchPard school setup link — ${school.name}`;
+    // ── 5. Generate one-time LaunchPard setup token ────────────────────────────
+    // We store a UUID token in the schools row so the proprietor receives a
+    // launchpard.com URL rather than a raw Supabase auth URL (which looks like spam).
+    // /api/auth/school-setup validates the token then generates a fresh Supabase
+    // auth link and redirects the user transparently.
+    const isNewUser  = !inviteErr; // true = invite (new user), false = magic link (existing)
+    const setupToken = crypto.randomUUID();
+    const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+    const { error: tokenErr } = await admin
+      .from("schools")
+      .update({
+        setup_token:            setupToken,
+        setup_token_email:      proprietorEmail.trim(),
+        setup_token_expires_at: setupTokenExpiresAt,
+      })
+      .eq("id", school.id);
+
+    if (tokenErr) {
+      console.error("[provision] setup_token update:", tokenErr);
+      // Non-fatal — admin can still copy the raw link returned in the response
+    }
+
+    const setupUrl = `${appUrl}/api/auth/school-setup?t=${setupToken}&s=${school.id}`;
+
+    // ── 6. Send branded invite email via Brevo ─────────────────────────────────
+    const { subject: emailSubject, htmlContent } = EMAIL_TEMPLATES.schoolProvisioned(
+      school.name,
+      setupUrl,
+      isNewUser,
+    );
 
     await sendEmail({
       to: proprietorEmail.trim(),
       subject: emailSubject,
-      htmlContent: `
-        <div style="font-family:'DM Sans','Nunito',system-ui,sans-serif;max-width:560px;margin:0 auto;background:#f8fafc;padding:32px 24px;border-radius:16px;">
-          <div style="margin-bottom:24px;">
-            <span style="display:inline-block;background:#4f46e5;color:#fff;font-weight:900;font-size:13px;padding:4px 10px;border-radius:6px;letter-spacing:0.05em;">LAUNCHPARD SCHOOLS</span>
-          </div>
-          <h1 style="font-size:24px;font-weight:900;color:#1e293b;margin:0 0 12px;">Your school dashboard is ready.</h1>
-          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 8px;">
-            A LaunchPard school account has been created for <strong>${school.name}</strong>.
-          </p>
-          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
-            ${isNewUser
-              ? "Click the button below to set your password and complete the 10-minute school setup."
-              : "Click the button below to log in and complete your school setup."}
-          </p>
-          <a href="${actionLink}"
-             style="display:inline-block;background:#4f46e5;color:#fff;font-weight:900;font-size:15px;padding:14px 28px;border-radius:12px;text-decoration:none;margin-bottom:24px;">
-            ${isNewUser ? "Accept Invitation & Set Up School →" : "Log In & Set Up School →"}
-          </a>
-          <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">This link expires in 24 hours. If you didn't expect this email, please ignore it.</p>
-          <p style="color:#94a3b8;font-size:12px;margin:0;">Questions? Reply to this email or contact <a href="mailto:hello@launchpard.com" style="color:#4f46e5;">hello@launchpard.com</a></p>
-        </div>
-      `,
+      htmlContent,
     });
 
     return NextResponse.json({
@@ -153,8 +160,8 @@ export async function POST(request) {
       schoolId:   school.id,
       schoolName: school.name,
       isNewUser,
-      // Return the raw link too so the admin can copy/paste if email fails
-      inviteLink: actionLink || null,
+      // Return the setup URL so the admin can copy/paste if email fails
+      inviteLink: setupUrl,
     });
 
   } catch (err) {

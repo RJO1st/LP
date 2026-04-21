@@ -57,11 +57,10 @@ export async function POST(request) {
     const { data: newClass, error: classErr } = await admin
       .from("classes")
       .insert({
-        school_id:   schoolId,
-        name:        className.trim(),
+        school_id:  schoolId,
+        name:       className.trim(),
         curriculum,
-        year_level:  yearLevel,
-        academic_year: new Date().getFullYear().toString(),
+        year_level: yearLevel,
       })
       .select("id, join_code")
       .single();

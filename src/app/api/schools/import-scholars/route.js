@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/email';
+import { sendEmail }       from '@/lib/email';
+import { EMAIL_TEMPLATES } from '@/lib/emailTemplates';
 import { generateCodename } from '@/lib/codename';
 import crypto from 'crypto';
 
@@ -126,6 +127,14 @@ export async function POST(request) {
         { status: 403 }
       )
     }
+
+    // ── Fetch school name (for invitation emails) ────────────────────────
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('name')
+      .eq('id', schoolId)
+      .single()
+    const schoolName = schoolData?.name || 'Your school'
 
     // ── Parse CSV ────────────────────────────────────────────────────────
     const csvBuffer = await file.arrayBuffer()
@@ -324,18 +333,13 @@ export async function POST(request) {
         if (parentEmail) {
           try {
             const claimUrl = `${process.env.APP_URL || 'https://launchpard.com'}/parent/claim?code=${validationCode}`
-            await sendEmail({
-              to: parentEmail,
-              subject: `${studentName} is ready to learn with LaunchPard!`,
-              htmlContent: `
-                <p>Hello!</p>
-                <p>${studentName} has been enrolled in LaunchPard. To get started, claim their profile using this code:</p>
-                <p><strong>${validationCode}</strong></p>
-                <p><a href="${claimUrl}">Or click here to claim immediately</a></p>
-                <p>This code expires in 7 days.</p>
-                <p>Best,<br/>LaunchPard</p>
-              `,
-            })
+            const { subject, htmlContent } = EMAIL_TEMPLATES.scholarInvitation(
+              schoolName,
+              studentName,
+              validationCode,
+              claimUrl,
+            )
+            await sendEmail({ to: parentEmail, subject, htmlContent })
           } catch (emailErr) {
             console.error(`Email send failed for ${parentEmail}:`, emailErr.message)
             // Don't fail the row for email errors, just log

@@ -136,7 +136,7 @@ const LEGACY_TIER_MAP = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Nigerian curricula — determines NGN billing; everything else → GBP
 // ─────────────────────────────────────────────────────────────────────────────
-export const NG_CURRICULA = new Set(['ng_primary', 'ng_jss', 'ng_sss']);
+export const NG_CURRICULA = new Set(['ng_primary', 'ng_jss', 'ng_sss', 'ng_british', 'ng_hybrid']);
 
 /**
  * Given a curriculum string, return whether it should be billed in NGN.

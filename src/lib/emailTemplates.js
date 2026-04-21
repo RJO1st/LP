@@ -66,10 +66,19 @@ function curriculumLabel(curriculum) {
   const map = {
     uk_11plus:        'UK 11+ (GL / CEM)',
     uk_national:      'UK National Curriculum',
+    uk_ks1:           'UK KS1',
+    uk_ks2:           'UK KS2',
+    uk_ks3:           'UK KS3',
+    uk_ks4:           'UK KS4 / GCSE',
     us_common_core:   'US Common Core',
     australian:       'Australian National Curriculum',
     ib_pyp:           'IB Primary Years (PYP)',
     ib_myp:           'IB Middle Years (MYP)',
+    ng_primary:       'Nigerian Primary (NERDC / UBEC)',
+    ng_jss:           'Nigerian JSS (NERDC / WAEC)',
+    ng_sss:           'Nigerian SSS (WAEC / NECO)',
+    ng_british:       'Nigerian School · British Curriculum',
+    ng_hybrid:        'Nigerian School · Hybrid Curriculum',
     nigerian_primary: 'Nigerian Primary (NERDC)',
     nigerian_jss:     'Nigerian JSS (BECE)',
     waec:             'WAEC / NECO (SSS)',
@@ -338,6 +347,98 @@ export const EMAIL_TEMPLATES = {
     return {
       subject: '🔑 Reset your LaunchPard password',
       htmlContent: shell('Password Reset', 'Secure your account', body),
+    };
+  },
+
+  // ── Scholar invitation (sent to parents when school imports scholars via CSV) ─
+  scholarInvitation(schoolName, studentName, validationCode, claimUrl) {
+    const body = `
+      <p>Hello!</p>
+      <p><strong>${studentName}</strong> has been enrolled at <strong>${schoolName}</strong> on LaunchPard — the AI-powered learning platform used by their school.</p>
+      <p>To activate their account and track their progress, claim their scholar profile using the code below:</p>
+
+      <div class="code">${validationCode}</div>
+
+      <a href="${claimUrl}" class="cta">Claim ${studentName}'s Profile →</a>
+
+      <div class="tip">
+        <p>⏰ This invitation expires in 7 days. Once you claim the profile, you'll see ${studentName}'s learning progress, quiz scores, and AI tutor feedback in real time.</p>
+      </div>
+
+      <h3 style="color:#1e293b;font-size:16px;font-weight:900;margin:28px 0 12px;">What happens next?</h3>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr>
+          <td style="padding:12px 16px;background:#eef2ff;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#4f46e5;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">1</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Click the button above</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">Create a free LaunchPard account in 30 seconds.</p>
+          </td>
+        </tr>
+        <tr><td style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px 16px;background:#f5f3ff;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#7c3aed;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">2</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Claim ${studentName}'s profile</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">Enter the code above — this links your account to their school record.</p>
+          </td>
+        </tr>
+        <tr><td style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px 16px;background:#ecfdf5;border-radius:12px;vertical-align:top;">
+            <div style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#059669;color:#fff;text-align:center;line-height:24px;font-size:12px;font-weight:900;">3</div>
+            <strong style="color:#1e293b;font-size:13px;margin-left:8px;">Track progress, anytime</strong>
+            <p style="color:#64748b;font-size:12px;margin:6px 0 0 32px;">Get a live view of ${studentName}'s quests, scores, and areas to improve from your guardian dashboard.</p>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:13px;color:#94a3b8;">This email was sent by ${schoolName} via LaunchPard. If you weren't expecting this, you can safely ignore it.</p>
+    `;
+    return {
+      subject: `📚 ${studentName} has been enrolled on LaunchPard by ${schoolName}`,
+      htmlContent: shell(`${studentName} is ready to learn!`, `Enrolled by ${schoolName}`, body),
+    };
+  },
+
+  // ── School provisioned (sent to proprietor when admin sets up a school) ─────
+  schoolProvisioned(schoolName, setupUrl, isNewUser) {
+    const body = `
+      <p>Hi there,</p>
+      <p>A LaunchPard school dashboard has been created for <strong>${schoolName}</strong>. 🏫</p>
+      <p>${isNewUser
+        ? "Click the button below to set your password and complete the 10-minute school setup."
+        : "Click the button below to log in and complete your school setup."
+      }</p>
+
+      <a href="${setupUrl}" class="cta">${isNewUser ? "Accept Invitation &amp; Set Up School →" : "Log In &amp; Set Up School →"}</a>
+
+      <div class="tip">
+        <p>⏰ This link expires in 7 days. If you didn't expect this email, you can safely ignore it.</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num" style="font-size:18px;">~10 min</div>
+          <div class="label">Setup time</div>
+        </div>
+        <div class="stat">
+          <div class="num" style="font-size:18px;">Free</div>
+          <div class="label">To get started</div>
+        </div>
+        <div class="stat">
+          <div class="num" style="font-size:18px;">100%</div>
+          <div class="label">Cohort visibility</div>
+        </div>
+      </div>
+
+      <p style="font-size:13px;color:#94a3b8;">Questions? Reply to this email or contact <a href="mailto:hello@launchpard.com" style="color:#4f46e5;">hello@launchpard.com</a></p>
+    `;
+    return {
+      subject: isNewUser
+        ? `You've been invited to set up ${schoolName} on LaunchPard`
+        : `Your LaunchPard school setup link — ${schoolName}`,
+      htmlContent: shell('Your school dashboard is ready.', `LaunchPard Schools · ${schoolName}`, body),
     };
   },
 };
