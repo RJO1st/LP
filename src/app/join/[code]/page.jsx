@@ -14,6 +14,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { apiFetch } from "@/lib/apiFetch";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -81,7 +82,7 @@ export default function JoinClassPage({ params }) {
     if (!selected) { setJoinError("Please select a scholar to enrol."); return; }
     setJoining(true); setJoinError("");
     try {
-      const res = await fetch("/api/classes/join", {
+      const res = await apiFetch("/api/classes/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, scholarId: selected }),

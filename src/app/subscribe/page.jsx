@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { apiFetch } from "@/lib/apiFetch";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ─── LOGO (uses correct brand SVG) ──────────────────────────────────────────
@@ -80,7 +81,7 @@ export default function SubscribePage() {
     if (region === "NG") {
       // ── Nigerian checkout via Paystack ──────────────────────────────────
       try {
-        const res = await fetch("/api/paystack/checkout", {
+        const res = await apiFetch("/api/paystack/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -167,7 +168,7 @@ function SchoolOnboardingPage() {
       // ── Admin-provisioned claim: schoolId in URL, no role yet ─────────────
       if (!roles?.length && claimId) {
         // Claim the pre-created school via API (creates school_roles)
-        const res = await fetch("/api/schools/create", {
+        const res = await fetchWithCsrf("/api/schools/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ schoolId: claimId }),
@@ -228,7 +229,7 @@ function SchoolOnboardingPage() {
     try {
       if (newSchool) {
         // Self-serve path: create school + proprietor role via API
-        const res = await fetch("/api/schools/create", {
+        const res = await fetchWithCsrf("/api/schools/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -275,7 +276,7 @@ function SchoolOnboardingPage() {
     if (!className.trim()) { setError("Class name is required."); return; }
     setSaving(true); setError("");
     try {
-      const res = await fetch("/api/schools/onboard", {
+      const res = await fetchWithCsrf("/api/schools/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

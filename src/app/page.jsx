@@ -157,10 +157,10 @@ const AGE_BANDS_NG = [
 ];
 
 const CURRICULA_GB = [
-  { flag: '🇬🇧', name: 'UK National', desc: 'KS1–KS4 · Y1–Y13', tag: '11+ & GCSE Prep', tagColor: 'bg-indigo-900/40 text-indigo-300', featured: true },
-  { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS · SSS', tag: 'WAEC/NECO Prep', tagColor: 'bg-emerald-900/40 text-emerald-300' },
+  { flag: '🇬🇧', name: 'UK National', desc: 'KS1–KS4 · Y1–Y13', tag: '11+ & GCSE Prep', tagColor: 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white', featured: true },
+  { flag: '🇳🇬', name: 'Nigerian NERDC', desc: 'Primary · JSS · SSS', tag: 'WAEC/NECO Prep', tagColor: 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white' },
   { flag: '🇦🇺', name: 'Australian ACARA', desc: 'Foundation–Year 9', tag: null },
-  { flag: '🇨🇦', name: 'Canadian', desc: 'Grade 1–12', tag: 'Primary & Secondary' , tagColor: 'bg-red-900/40 text-red-300' },
+  { flag: '🇨🇦', name: 'Canadian', desc: 'Grade 1–12', tag: 'Primary & Secondary', tagColor: 'bg-rose-600 text-white dark:bg-rose-500 dark:text-white' },
   { flag: '🌐', name: 'IB PYP / MYP', desc: 'International Baccalaureate', tag: null },
   { flag: '🇺🇸', name: 'US Common Core', desc: 'Grade 1–8', tag: null },
 ];
@@ -820,7 +820,7 @@ export default function LandingPage() {
               {/* Add-ons */}
               <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">Optional Add-ons — buy only what you need</p>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid sm:grid-cols-3 gap-4 justify-items-center">
                   {[
                     { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Each gets full Scholar access.' },
                     { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Unlimited Tara AI · full mock exams · A1–F9 grade predictions' },
@@ -838,9 +838,9 @@ export default function LandingPage() {
             </div>
           ) : (
             // ─── UK / rest-of-world tiers ───
-            <div className="grid sm:grid-cols-3 gap-5 max-w-3xl mx-auto">
+            <div className="grid sm:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Free */}
-              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-9 flex flex-col">
                 <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Free Plan</h3>
                 <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">No card needed. Free plan stays free.</p>
                 <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">£0</span></div>
@@ -851,7 +851,7 @@ export default function LandingPage() {
               </div>
 
               {/* Pro */}
-              <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-indigo-400 dark:border-indigo-500/40 rounded-3xl p-7 flex flex-col shadow-lg shadow-indigo-500/20">
+              <div className="relative bg-slate-50 dark:bg-slate-800/60 backdrop-blur-xl border-2 border-indigo-400 dark:border-indigo-500/40 rounded-3xl p-9 flex flex-col shadow-lg shadow-indigo-500/20">
                 {annual && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-600 text-slate-900 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-wider">Most popular</div>}
                 <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Pro</h3>
                 <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Unlimited questions, 3 scholars, weekly reports</p>
@@ -867,7 +867,7 @@ export default function LandingPage() {
               </div>
 
               {/* Exam Mode */}
-              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-slate-300 dark:border-white/10 rounded-3xl p-9 flex flex-col">
                 <h3 className="text-xl font-black mb-1 text-slate-900 dark:text-slate-50">Exam Mode</h3>
                 <p className="text-slate-600 dark:text-slate-400 text-xs mb-5">Add-on for Pro subscribers</p>
                 <div className="mb-6"><span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">+£3.99</span><span className="text-slate-600 dark:text-slate-400 text-sm ml-1">/mo</span></div>

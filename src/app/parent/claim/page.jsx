@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import { apiFetch } from '@/lib/apiFetch'
 import Link from 'next/link'
 import clsx from 'clsx'
 
@@ -159,7 +160,7 @@ function ClaimScholarInner() {
     setError('')
 
     try {
-      const res = await fetch('/api/parent/claim-scholar', {
+      const res = await apiFetch('/api/parent/claim-scholar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ validation_code: finalCode }),

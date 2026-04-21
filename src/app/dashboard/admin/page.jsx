@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { apiFetch } from "@/lib/apiFetch";
 
 function sb() {
   return createBrowserClient(
@@ -518,7 +519,7 @@ async function fetchAnalytics(supabase) {
     sq(supabase.from("quiz_results").select("id, scholar_id, subject, accuracy, time_spent_seconds, created_at").order("created_at", { ascending: false }).limit(200)),
     sq(supabase.from("scholar_topic_mastery").select("scholar_id, subject, topic, current_tier").limit(500)),
     sq(supabase.from("question_bank").select("*", { count: "exact", head: true }).eq("is_active", true)),
-    sq(supabase.from("parents").select("signup_source").limit(500)),
+    sq(supabase.from("parents").select("id").limit(500)),
   ]);
 
   const scholarsData = allScholars.data || [];
@@ -1264,7 +1265,7 @@ function ProvisionModal({ onClose, onProvisioned }) {
     if (!form.schoolName.trim() || !form.proprietorEmail.trim()) { setErr("School name and proprietor email are required."); return; }
     setSaving(true); setErr("");
     try {
-      const res = await fetch("/api/admin/schools/provision", {
+      const res = await apiFetch("/api/admin/schools/provision", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -1365,9 +1366,8 @@ function SchoolsTab({ totalSchools }) {
         sq(supabase
           .from("school_leads")
           .select(`
-            id, lead_status, created_at,
+            id, lead_status, created_at, parent_id, scholar_id,
             schools!inner ( id, name, country, region ),
-            parents ( full_name, email ),
             scholars ( name, curriculum )
           `)
           .order("created_at", { ascending: false })

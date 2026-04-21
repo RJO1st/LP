@@ -94,6 +94,8 @@ const CSRF_EXEMPT  = [
   '/api/validate-questions',
   '/api/scholar',         // scholar login by access code (no session yet)
   '/api/tts',             // text-to-speech — called by useReadAloud without CSRF token
+  '/api/emails/',         // transactional email triggers (fire-and-forget side effects)
+  '/api/schools/interest', // public contact form — no session required
 ];
 
 function needsCsrf(pathname: string, method: string): boolean {
@@ -118,13 +120,11 @@ export async function proxy(req: NextRequest) {
   let response = NextResponse.next({ request: { headers: newHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  // ── 1b. Geo cookie (Vercel edge country → region) ──────────────────────────
-  // Skip for static assets and API calls — only page visits need the cookie.
+  // ── 1b. Geo cookie + CSRF token — page loads only (not API / static) ─────────
   if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+    // Geo cookie
     const override = req.cookies.get(GEO_OVERRIDE_COOKIE)?.value;
     const existing = req.cookies.get(GEO_COOKIE)?.value;
-    // If user manually picked a region, respect it and mirror into __geo.
-    // Otherwise derive from Vercel's IP country header.
     const detected = countryToRegion(getDetectedCountry(req));
     const target   = override === 'NG' || override === 'GB' ? override : detected;
     if (existing !== target) {
@@ -138,8 +138,24 @@ export async function proxy(req: NextRequest) {
         secure: true,
       });
     }
-    // Expose to downstream handlers via header for server components if ever needed.
     response.headers.set('x-launchpard-region', target);
+
+    // CSRF token — generate once per browser session if not already set.
+    // Client JS reads this cookie and echoes it as x-csrf-token on every
+    // state-mutating request (double-submit cookie pattern).
+    const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value;
+    if (!existingCsrf) {
+      const token = crypto.randomUUID();
+      response.cookies.set({
+        name:     CSRF_COOKIE,
+        value:    token,
+        path:     '/',
+        sameSite: 'strict',
+        secure:   true,
+        httpOnly: false,  // MUST be JS-readable for double-submit to work
+        // No maxAge — session cookie; rotated on next cold-start
+      });
+    }
   }
 
   // ── 2. Rate limiting ────────────────────────────────────────────────────────
