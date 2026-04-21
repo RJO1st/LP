@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
 import { CURRICULA, SUBJECTS_BY_CURRICULUM, getLevelInfo } from "@/lib/constants";
 import SkillHeatmap from "@/components/parent/SkillHeatmap";
 import ReadinessScore from "@/components/ReadinessScore";
@@ -143,7 +144,7 @@ export default function ScholarInsights({ params }) {
   // ── Goal handlers ─────────────────────────────────────────────────────────
   const handleAddGoal = async (goal) => {
     const { data: { user } } = await supabase.auth.getUser();
-    const res = await fetch("/api/parent/goals", {
+    const res = await apiFetch("/api/parent/goals", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...goal, parent_id: user?.id }),
     });
@@ -154,7 +155,7 @@ export default function ScholarInsights({ params }) {
   };
 
   const handleToggleGoal = async (goalId, achieved) => {
-    const res = await fetch(`/api/parent/goals/${goalId}`, {
+    const res = await apiFetch(`/api/parent/goals/${goalId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ achieved }),
     });

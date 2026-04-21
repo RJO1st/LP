@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -444,7 +445,7 @@ export default function ProprietorDashboard() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch(`/api/schools/${school?.id}/import-scholars`, { method: "POST", body: formData });
+      const response = await fetchWithCsrf(`/api/schools/${school?.id}/import-scholars`, { method: "POST", body: formData });
       if (response.ok) {
         const overviewResp = await fetch(`/api/schools/${school?.id}/overview`);
         if (overviewResp.ok) setSchoolData(await overviewResp.json());

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -226,7 +227,7 @@ export default function TeacherDashboard() {
   const handleNotifyParent = async (student, teacherNote = "") => {
     setNotifyingParentId(student.id);
     try {
-      const res = await fetch("/api/teacher/notify-parent", {
+      const res = await apiFetch("/api/teacher/notify-parent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
