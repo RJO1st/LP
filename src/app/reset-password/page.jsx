@@ -15,6 +15,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import { passwordError } from "../../lib/passwordValidation";
 
 export default function ResetPasswordPage() {
@@ -28,8 +29,8 @@ export default function ResetPasswordPage() {
 function ResetPasswordForm() {
   const router = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [password, setPassword] = useState("");

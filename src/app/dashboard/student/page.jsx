@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import dynamic from "next/dynamic";
 import {
   BADGES, TIER_COLORS, AVATAR_ITEMS, RARITY_COLORS,
@@ -652,8 +653,8 @@ function getTestCentreConfig(scholar) {
 export default function StudentDashboard() {
   const router   = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [scholar,          setScholar]          = useState(null);

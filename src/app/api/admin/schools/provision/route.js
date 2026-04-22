@@ -4,24 +4,28 @@
 // Body: { schoolName, schoolType, state, country, proprietorEmail }
 //
 // Flow:
-//   1. Verify caller is a LaunchPard admin (email in ADMIN_EMAILS)
+//   1. Verify caller is a LaunchPard admin via requireAdmin()
 //   2. Create schools row
 //   3. Generate Supabase invite/magic-link for the proprietor email
 //      → new account  : generateLink type=invite  (sets password on first login)
 //      → existing user: generateLink type=magiclink (one-click login)
 //   4. Create school_roles (proprietor) using the returned user.id
 //   5. Send branded invite email via Brevo with the action_link
+//
+// NOTE (April 22 2026 security audit): previous version carried a hard-coded
+// ADMIN_EMAILS array that leaked a personal gmail address. Admin identity now
+// lives in ADMIN_EMAILS env var with `rotimi@launchpard.com` as the canonical
+// default (see src/lib/security/admin.js). The service-role Supabase client
+// is lazily constructed via getServiceRoleClient() to avoid instantiating it
+// at module scope on routes that might short-circuit before needing it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextResponse }       from "next/server";
-import { createClient }       from "@supabase/supabase-js";
-import { cookies }            from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { sendEmail }          from "@/lib/email";
-import { EMAIL_TEMPLATES }    from "@/lib/emailTemplates";
-import crypto                 from "crypto";
-
-const ADMIN_EMAILS = ["ogunwede.r@gmail.com", "admin@launchpard.com"];
+import { NextResponse }        from "next/server";
+import { sendEmail }           from "@/lib/email";
+import { EMAIL_TEMPLATES }     from "@/lib/emailTemplates";
+import { requireAdmin }        from "@/lib/security/admin";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import crypto                  from "crypto";
 
 export async function POST(request) {
   try {
@@ -32,21 +36,10 @@ export async function POST(request) {
     }
 
     // ── 1. Verify admin ────────────────────────────────────────────────────────
-    const cookieStore = await cookies();
-    const userSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      { cookies: { getAll: () => cookieStore.getAll() } },
-    );
-    const { data: { user } } = await userSupabase.auth.getUser();
-    if (!user || !ADMIN_EMAILS.includes(user.email)) {
-      return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-    }
+    const { error: adminError } = await requireAdmin(request);
+    if (adminError) return adminError;
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-    );
+    const admin = getServiceRoleClient();
 
     const appUrl = process.env.APP_URL || "https://launchpard.com";
 

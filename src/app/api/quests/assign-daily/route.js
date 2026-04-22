@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { supabaseKeys } from '@/lib/env'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role key
+  supabaseKeys.url(),
+  supabaseKeys.secret() // Use from env helpers
 );
 
 const DAILY_QUESTS = [

@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { supabaseKeys } from '@/lib/env';
 import QRCode from 'qrcode';
 import { Camera, Clock, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 
@@ -18,8 +19,8 @@ export default function AdvancedQuizWithQR({
   onSkip 
 }) {
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   // State

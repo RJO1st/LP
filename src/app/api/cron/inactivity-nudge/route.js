@@ -15,6 +15,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { supabaseKeys } from '@/lib/env'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -34,17 +36,7 @@ export async function GET(req) {
     return NextResponse.json({ error: "RESEND_API_KEY not set" }, { status: 500 });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL
-    || process.env.NEXT_PUBLIC_SUPABASE_URL
-    || "https://vjslqdvhujzlupxyosbq.supabase.co";
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    || process.env.SUPABASE_SERVICE_KEY;
-
-  if (!supabaseKey) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }, { status: 500 });
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getServiceRoleClient();
 
   // ── 2. Config ──────────────────────────────────────────────────────────────
   const url = new URL(req.url);

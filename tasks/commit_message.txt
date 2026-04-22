@@ -1,0 +1,72 @@
+feat: 9-phase security audit — Supabase key migration, CSP, RLS, webhook hardening
+
+Phase 1 — Env + Supabase key migration
+- New src/lib/env.ts with Zod-validated config and supabaseKeys helpers
+  (url / publishable / secret) plus legacy-field fallback during rollout
+- Swept ~107 files onto supabaseKeys helpers; removed direct reads of
+  NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_KEY
+  from production src/ surface
+- Node scripts use canonical inline fallback chain:
+  SUPABASE_SECRET_KEY || SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_KEY
+- .env.example documents new publishable/secret key format
+- Supabase discontinued service role keys — now on sb_publishable_* / sb_secret_*
+
+Phase 2 — Service role hardening
+- src/lib/security/serviceRole.js — memoised getServiceRoleClient() factory
+  with hard server-only guard (throws if called client-side)
+- All API routes + server libs now use getServiceRoleClient() — no raw
+  createClient calls with service keys anywhere in src/
+
+Phase 3 — Admin guard + RLS
+- src/lib/security/admin.js — requireAdmin() helper returning {user} or
+  {error: NextResponse}, SSR-cookie-based auth, ADMIN_EMAILS allow-list
+- 20260422_security_rls.sql — tightened RLS on scholars, parents,
+  scholar_topic_mastery, exam_sittings, school_roles, consent tables
+- Canonical admin: rotimi@launchpard.com
+
+Phase 4 — CSRF + CSP nonce (src/proxy.ts)
+- /api/paystack/webhook and /api/stripe/webhook added to CSRF_EXEMPT
+  (external callers sign via HMAC, not cookies)
+- CSP nonce pipeline: proxy sets x-nonce per request, strict-dynamic,
+  Report-Only first for 48h observation before enforce flip
+
+Phase 5 — Rate limiting + idempotency
+- src/lib/security/rateLimit.js — Upstash-backed sliding window
+- src/lib/security/idempotency.js — request-hash replay guard for mutating routes
+- src/lib/security/clientIp.js — canonical client IP extraction
+  (cf-connecting-ip → x-real-ip → x-forwarded-for first hop)
+
+Phase 6 — Webhook signature verification
+- src/lib/security/webhook.js — constant-time HMAC verifier
+- 20260420_paystack_transactions.sql + 20260422_paystack_events.sql —
+  idempotency table keyed on event reference, raw payload retained
+- 20260421_paystack_parent_columns.sql — subscription columns on parents
+- 20260420_stripe_columns.sql — parallel Stripe columns for GB tier
+- 20260422_subscription_status_cancelling.sql — graceful cancellation state
+
+Phase 7 — CSV sanitisation
+- src/lib/security/csv.js — quotes leading =,+,-,@ to neutralise CSV
+  injection in school import + export endpoints
+
+Phase 8 — RPCs with SECURITY DEFINER
+- 20260422_claim_scholar_rpc.sql — server-side validation code check,
+  consent capture, parent-scholar link in single atomic transaction
+
+Phase 9 — Cleanup
+- Removed legacy files: expand-targeted.js, populate-questions.js,
+  scripts/generateMassiveQuestionBank, scripts/generateNigerianSSS.js,
+  scripts/generateQuestionBank.js, scripts/generateQuestionsLocal.js,
+  scripts/repurposeVisualsInDB.js, scripts/repurposeVisualsInDBU.txt,
+  src/generateQuestionsLocal.js, src/lib/curricula.js
+- Removed legacy avatar components: AvatarCustomiser.jsx,
+  AvatarRenderer.jsx, LottieAvatar.jsx (replaced by AvatarRendererCanvas.jsx)
+- Removed committed .log files
+- package.json: dependency + script cleanup
+
+Follow-ups (not in this commit)
+- Rotate exposed secrets in dashboards: OPENROUTER_API_KEY, CRON_SECRET,
+  BREVO_API_KEY, RESEND_API_KEY, old Supabase service-role JWT
+- Delete legacy env field shims from env.ts after 24h green in prod
+- Flip CSP Report-Only to enforce after 48h observation
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>

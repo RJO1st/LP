@@ -13,6 +13,7 @@
 // ============================================================================
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import { AVATAR_ITEMS, RARITY_COLORS } from "@/lib/gamificationEngine";
 import gsap from "gsap";
 import AvatarRenderer from "./AvatarRendererCanvas";
@@ -98,8 +99,8 @@ export default function AvatarShop({ scholarId, onAvatarChange }) {
   const [liveAvatar, setLiveAvatar] = useState({ base: "astronaut" });
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   useEffect(() => {

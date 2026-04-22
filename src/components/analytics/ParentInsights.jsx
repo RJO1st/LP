@@ -18,11 +18,12 @@ import {
 import { estimateExamReadiness } from "@/lib/learningPathEngine";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { getSubjectLabel } from "@/lib/subjectDisplay";
+import { supabaseKeys } from "@/lib/env";
 
 export default function ParentInsights({ parentId }) {
   const [supabase]    = useState(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   ));
   const [scholars,    setScholars]    = useState([]);
   const [activeIdx,   setActiveIdx]   = useState(0);

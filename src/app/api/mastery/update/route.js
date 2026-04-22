@@ -29,6 +29,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse }  from "next/server";
 import { masteryUpdateSchema, parseBody } from '@/lib/validation';
+import { supabaseKeys } from '@/lib/env'
 
 // Fallbacks if optional modules don't exist
 const _fallbackCalcStoryPoints = (correct, total, streak) => correct * 5 + (correct === total ? 10 : 0);
@@ -178,7 +179,7 @@ export async function POST(request) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll() { return cookieStore.getAll(); },

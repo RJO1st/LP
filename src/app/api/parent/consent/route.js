@@ -1,114 +1,109 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+// ─── /api/parent/consent ────────────────────────────────────────────────────
+// POST:   parent gives NDPR consent for a school to see their child's data.
+// DELETE: parent revokes consent.
+//
+// NOTE (April 22 2026 security audit):
+//   Previous version instantiated a *service-role* client via
+//   `createServerClient(URL, SERVICE_ROLE_KEY, { cookies })` — which not only
+//   misused `createServerClient` (it's an SSR wrapper, not an admin client)
+//   but also widened the blast radius: a bug anywhere in this route could
+//   bypass RLS on *any* table. Service role is no longer used here.
+//
+//   The flow now:
+//     1. SSR client with user cookies (subject to RLS).
+//     2. Ownership check: scholars.parent_id === session.user.id.
+//     3. Consent upsert/update goes through the SSR client, which means the
+//        existing RLS policies on scholar_school_consent must allow parents
+//        to insert/update rows WHERE parent_id = auth.uid(). The companion
+//        migration 20260422_security_rls.sql adds those policies. Until that
+//        migration runs, parents without an existing consent row will 403.
+// ────────────────────────────────────────────────────────────────────────────
 
-/**
- * POST /api/parent/consent
- * Parent gives consent to share their child's data with a school.
- *
- * Body: { scholar_id, school_id }
- * Auth: parent must be logged in and own the scholar
- */
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { supabaseKeys } from "@/lib/env";
+import logger from "@/lib/logger";
+
+function getClientIp(request) {
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
+
+function buildSsrClient(cookieStore) {
+  return createServerClient(
+    supabaseKeys.url(),
+    supabaseKeys.publishable(),
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+}
+
 export async function POST(request) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
+    const cookieStore = await cookies();
+    const supabase = buildSsrClient(cookieStore);
 
-    // ── Auth: get session ─────────────────────────────────────────────────
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const parentId = session.user.id;
 
-    const parentId = session.user.id
-
-    // ── Parse request ────────────────────────────────────────────────────
-    const body = await request.json()
-    const { scholar_id, school_id } = body
-
+    const body = await request.json();
+    const { scholar_id, school_id } = body || {};
     if (!scholar_id || !school_id) {
       return NextResponse.json(
-        { error: 'Missing scholar_id or school_id' },
+        { error: "Missing scholar_id or school_id" },
         { status: 400 }
-      )
+      );
     }
 
-    // ── Verify parent owns scholar ────────────────────────────────────────
+    // Ownership check (RLS will also enforce, but fail fast with 403).
     const { data: scholar, error: scholarError } = await supabase
-      .from('scholars')
-      .select('id, parent_id')
-      .eq('id', scholar_id)
-      .single()
+      .from("scholars")
+      .select("id, parent_id")
+      .eq("id", scholar_id)
+      .maybeSingle();
 
     if (scholarError || !scholar) {
-      return NextResponse.json(
-        { error: 'Scholar not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Scholar not found" }, { status: 404 });
     }
-
     if (scholar.parent_id !== parentId) {
       return NextResponse.json(
-        { error: 'You do not own this scholar' },
+        { error: "You do not own this scholar" },
         { status: 403 }
-      )
+      );
     }
 
-    // ── Verify school exists ─────────────────────────────────────────────
+    // School existence check.
     const { data: school, error: schoolError } = await supabase
-      .from('schools')
-      .select('id')
-      .eq('id', school_id)
-      .single()
-
+      .from("schools")
+      .select("id")
+      .eq("id", school_id)
+      .maybeSingle();
     if (schoolError || !school) {
-      return NextResponse.json(
-        { error: 'School not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "School not found" }, { status: 404 });
     }
 
-    // ── Get client IP and user agent from headers ────────────────────────
-    const clientIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      request.headers.get('cf-connecting-ip') ||
-      'unknown'
+    const clientIp = getClientIp(request);
+    const userAgent = request.headers.get("user-agent") || null;
 
-    const userAgent = request.headers.get('user-agent') || null
-
-    // ── Use service role for upsert (to bypass RLS) ──────────────────────
-    const serviceSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    // ── Upsert consent record ────────────────────────────────────────────
-    const { data: consentRecord, error: consentError } = await serviceSupabase
-      .from('scholar_school_consent')
+    // Upsert consent through the user's RLS-scoped client.
+    const { data: consentRecord, error: consentError } = await supabase
+      .from("scholar_school_consent")
       .upsert(
         {
           scholar_id,
@@ -120,140 +115,84 @@ export async function POST(request) {
           revoked_at: null,
           revoke_reason: null,
         },
-        {
-          onConflict: 'scholar_id,school_id',
-        }
+        { onConflict: "scholar_id,school_id" }
       )
-      .select()
-      .single()
+      .select("id")
+      .single();
 
     if (consentError) {
-      console.error('Consent upsert error:', consentError)
+      logger.error("consent_upsert_failed", { error: consentError, parentId });
       return NextResponse.json(
-        { error: 'Failed to save consent record' },
+        { error: "Failed to save consent record" },
         { status: 500 }
-      )
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      consentId: consentRecord.id,
-    })
+    return NextResponse.json({ success: true, consentId: consentRecord.id });
   } catch (err) {
-    console.error('POST /api/parent/consent error:', err)
-    return NextResponse.json(
-      { error: err.message || 'An error occurred' },
-      { status: 500 }
-    )
+    logger.error("consent_post_error", { error: err });
+    return NextResponse.json({ error: "An error occurred" }, { status: 500 });
   }
 }
 
-/**
- * DELETE /api/parent/consent
- * Parent revokes consent for a school to see their child's data.
- *
- * Body: { scholar_id, school_id, reason? }
- * Auth: parent must be logged in and own the scholar
- */
 export async function DELETE(request) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
+    const cookieStore = await cookies();
+    const supabase = buildSsrClient(cookieStore);
 
-    // ── Auth: get session ─────────────────────────────────────────────────
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const parentId = session.user.id;
 
-    const parentId = session.user.id
-
-    // ── Parse request ────────────────────────────────────────────────────
-    const body = await request.json()
-    const { scholar_id, school_id, reason } = body
-
+    const body = await request.json();
+    const { scholar_id, school_id, reason } = body || {};
     if (!scholar_id || !school_id) {
       return NextResponse.json(
-        { error: 'Missing scholar_id or school_id' },
+        { error: "Missing scholar_id or school_id" },
         { status: 400 }
-      )
+      );
     }
 
-    // ── Verify parent owns scholar ────────────────────────────────────────
     const { data: scholar, error: scholarError } = await supabase
-      .from('scholars')
-      .select('id, parent_id')
-      .eq('id', scholar_id)
-      .single()
-
+      .from("scholars")
+      .select("id, parent_id")
+      .eq("id", scholar_id)
+      .maybeSingle();
     if (scholarError || !scholar) {
-      return NextResponse.json(
-        { error: 'Scholar not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Scholar not found" }, { status: 404 });
     }
-
     if (scholar.parent_id !== parentId) {
       return NextResponse.json(
-        { error: 'You do not own this scholar' },
+        { error: "You do not own this scholar" },
         { status: 403 }
-      )
+      );
     }
 
-    // ── Use service role for revocation ──────────────────────────────────
-    const serviceSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    // ── Update consent record to mark as revoked ────────────────────────
-    const { error: revokeError } = await serviceSupabase
-      .from('scholar_school_consent')
+    // Revocation goes through RLS-scoped client; the policy scopes UPDATE to
+    // rows where parent_id = auth.uid().
+    const { error: revokeError } = await supabase
+      .from("scholar_school_consent")
       .update({
         revoked_at: new Date().toISOString(),
-        revoke_reason: reason || null,
+        revoke_reason: typeof reason === "string" ? reason.slice(0, 500) : null,
       })
-      .eq('scholar_id', scholar_id)
-      .eq('school_id', school_id)
-      .eq('parent_id', parentId)
+      .eq("scholar_id", scholar_id)
+      .eq("school_id", school_id)
+      .eq("parent_id", parentId);
 
     if (revokeError) {
-      console.error('Consent revoke error:', revokeError)
+      logger.error("consent_revoke_failed", { error: revokeError, parentId });
       return NextResponse.json(
-        { error: 'Failed to revoke consent' },
+        { error: "Failed to revoke consent" },
         { status: 500 }
-      )
+      );
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('DELETE /api/parent/consent error:', err)
-    return NextResponse.json(
-      { error: err.message || 'An error occurred' },
-      { status: 500 }
-    )
+    logger.error("consent_delete_error", { error: err });
+    return NextResponse.json({ error: "An error occurred" }, { status: 500 });
   }
 }

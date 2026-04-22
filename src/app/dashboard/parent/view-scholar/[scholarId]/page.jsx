@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import dynamic from "next/dynamic";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import AdaptiveDashboardLayout from "@/components/dashboard/AdaptiveDashboardLayout";
@@ -93,8 +94,8 @@ export default function ViewScholarPage() {
 
   const [supabase] = useState(() =>
     createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      supabaseKeys.url(),
+      supabaseKeys.publishable()
     )
   );
 

@@ -8,12 +8,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { supabaseKeys } from '@/lib/env'
 
 export async function POST(req) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeys.publishable(),
     { cookies: { getAll: () => cookieStore.getAll() } }
   );
   const { data: { user } } = await supabase.auth.getUser();
@@ -70,7 +71,7 @@ export async function GET(req) {
   const cookieStoreGet = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeys.publishable(),
     { cookies: { getAll: () => cookieStoreGet.getAll() } }
   );
   const { data: { user } } = await supabase.auth.getUser();

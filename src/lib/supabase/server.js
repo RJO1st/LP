@@ -1,15 +1,20 @@
 // src/lib/supabase/server.js
-// Next.js 15: cookies() is async and must be awaited
+// Next.js 15: cookies() is async and must be awaited.
+//
+// Uses `supabaseKeys.publishable()` so the migration from the legacy
+// `anon` JWT to the new `sb_publishable_*` key happens in one place.
+// See src/lib/env.ts for the resolution rule.
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabaseKeys } from "@/lib/env";
 
 export async function createClient() {
   const cookieStore = await cookies(); // <-- MUST be awaited in Next.js 15
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeys.url(),
+    supabaseKeys.publishable(),
     {
       cookies: {
         getAll() {

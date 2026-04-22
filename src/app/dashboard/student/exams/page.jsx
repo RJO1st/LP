@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import dynamic from "next/dynamic";
 
 /**
@@ -34,8 +35,8 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true);
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   // Load scholar from localStorage (same pattern as main dashboard)

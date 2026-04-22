@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { supabaseKeys } from '@/lib/env'
 
 /**
  * Helper: create auth-aware client (for verifying user identity via cookies)
@@ -9,27 +10,14 @@ import { NextResponse } from 'next/server'
 async function getAuthClient() {
   const cookieStore = await cookies()
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeys.url(),
+    supabaseKeys.publishable(),
     {
       cookies: {
         getAll: () => cookieStore.getAll()
       }
     }
   )
-}
-
-/**
- * Helper: create service-role client (bypasses RLS for DB operations after auth is verified)
- */
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) {
-    console.error('[exam-sittings] Missing env vars:', { hasUrl: !!url, hasKey: !!key })
-    throw new Error('Server misconfiguration: missing Supabase credentials')
-  }
-  return createClient(url, key)
 }
 
 /**
@@ -40,7 +28,7 @@ function getServiceClient() {
 export async function GET(req, { params }) {
   try {
     const authClient = await getAuthClient()
-    const supabase = getServiceClient()
+    const supabase = getServiceRoleClient()
 
     // Verify authenticated
     const { data: { user }, error: authError } = await authClient.auth.getUser()

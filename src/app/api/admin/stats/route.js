@@ -1,32 +1,28 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// ── Service-role client — bypasses RLS for admin aggregations ───────────────
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-// ── Admin email whitelist (must match dashboard page) ───────────────────────
-const ADMIN_EMAILS = [
-  "ogunwede.r@gmail.com",
-  "admin@launchpard.com",
-];
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { isAdminEmail } from "@/lib/security/admin";
 
 /**
  * GET /api/admin/stats
  * Returns comprehensive growth analytics for the admin dashboard.
- * Requires an authenticated admin session (checked via auth header).
+ * Requires an authenticated admin session (Bearer access token).
+ *
+ * NOTE (April 22 2026 security audit): previously carried its own ADMIN_EMAILS
+ * array with a personal gmail in it and created the service-role client at
+ * module scope. Both are fixed via the env-driven isAdminEmail() check and
+ * the guarded getServiceRoleClient() factory.
  */
 export async function GET(req) {
   try {
     // ── Auth gate ────────────────────────────────────────────────────────
     const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace("Bearer ", "").trim();
     if (!token) return NextResponse.json({ error: "Missing auth token" }, { status: 401 });
 
+    const supabaseAdmin = getServiceRoleClient();
+
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user || !ADMIN_EMAILS.includes(user.email)) {
+    if (authError || !user || !isAdminEmail(user.email)) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 

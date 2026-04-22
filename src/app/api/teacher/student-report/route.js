@@ -9,6 +9,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { supabaseKeys } from "@/lib/env";
 
 const GRADE_BANDS = [
   { label: "Exceptional", min: 85, color: "#10b981" },
@@ -39,8 +40,8 @@ export async function GET(request) {
 
     const cookieStore = await cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       { cookies: { getAll: () => cookieStore.getAll() } }
     );
 

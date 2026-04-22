@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { supabaseKeys } from "@/lib/env";
 import { computeSchoolReadiness } from "@/lib/analyticsEngine";
 
 /**
@@ -25,8 +26,8 @@ export async function GET(request, { params }) {
     // ── 1. Verify caller identity via session cookie ────────────────────────
     const cookieStore = await cookies();
     const authSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll() { return cookieStore.getAll(); },
@@ -43,10 +44,7 @@ export async function GET(request, { params }) {
     }
 
     // ── 2. Service client — bypasses RLS for all subsequent reads ───────────
-    const svc = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const svc = getServiceRoleClient();
 
     // ── 3. Authorise: caller must be proprietor/admin of this school ────────
     const { data: roleCheck } = await svc

@@ -103,7 +103,7 @@ export async function POST(request) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseKeys.secret() // Use from env helpers,
       { cookies: { getAll: () => cookieStore.getAll() } }
     );
 

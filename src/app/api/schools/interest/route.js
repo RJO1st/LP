@@ -1,66 +1,206 @@
-// app/api/schools/interest/route.js
-// Captures school interest leads from the landing page modal.
-// Sends an internal notification email via Brevo. No auth required.
+/**
+ * /api/schools/interest
+ *
+ * Captures school interest leads from the landing page modal.
+ * No auth required — public lead-capture form.
+ *
+ * Security posture (April 22 2026 audit):
+ *   1. IP rate limit (5/min) — tight because this endpoint sends TWO emails
+ *      (internal + external confirmation) per hit and has no auth. A loose
+ *      limit lets an attacker cheaply waste our Brevo quota and DB rows.
+ *   2. Recipient-email rate limit (3/hour) — blocks email-bombing via the
+ *      confirmation flow. An attacker submitting the victim's address 100x
+ *      would otherwise use our sender reputation to spam them. 3/hour on the
+ *      same `email` still covers a legitimate typo-and-retry.
+ *   3. Field length caps — prevent 10 MB payloads from inflating our Brevo
+ *      bill or the DB row.
+ *   4. HTML escaping on every user-supplied field that flows into an outbound
+ *      email. Without this, an attacker can turn our domain into a phishing
+ *      vector (submit a malicious link as `schoolName`, target email in the
+ *      `email` field, we deliver it).
+ *   5. `getServiceRoleClient()` — lazy, browser-guarded, resolves new
+ *      `sb_secret_*` key with legacy JWT fallback.
+ */
 
-import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/email';
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/email";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { limit } from "@/lib/security/rateLimit";
+import { getClientIp } from "@/lib/security/clientIp";
+import logger from "@/lib/logger";
+
+// ── Input caps ─────────────────────────────────────────────────────────────
+// These are comfortably above any legitimate value (longest registered school
+// name in Nigeria is ~90 chars) but below anything that'd wedge our email
+// provider or DB.
+const MAX_LEN = {
+  schoolName: 200,
+  contactName: 120,
+  email: 320, // RFC 5321 upper bound
+  phone: 40,
+  state: 80,
+};
+
+/**
+ * Minimal HTML escape for fields that land in an outbound HTML email body.
+ * Not a general-purpose sanitiser — just blocks tag injection and attribute
+ * breakouts. For a full sanitiser reach for DOMPurify; we don't render this
+ * HTML in a browser, only email clients, so the risk surface is phishing
+ * links and script-capable clients, which this covers.
+ */
+function esc(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/** Clip a string to a max length; returns null/undefined untouched. */
+function clip(str, max) {
+  if (str == null) return str;
+  const s = String(str);
+  return s.length > max ? s.slice(0, max) : s;
+}
 
 export async function POST(request) {
   try {
-    const { schoolName, contactName, email, phone, studentCount, state } = await request.json();
-
-    if (!schoolName || !email) {
-      return NextResponse.json({ error: 'schoolName and email are required' }, { status: 400 });
-    }
-
-    // ── Save to Supabase (graceful fail — table may not yet exist) ──────────
-    try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-      );
-      await supabase.from('school_interest_leads').insert({
-        school_name: schoolName,
-        contact_name: contactName || null,
-        contact_email: email,
-        contact_phone: phone || null,
-        student_count: studentCount ? parseInt(studentCount, 10) : null,
-        state: state || null,
-        source: 'landing_page',
+    // ── 0a. IP rate limit ──────────────────────────────────────────────────
+    const ip = getClientIp(request);
+    const ipRl = await limit({
+      key: `schools-interest:ip:${ip}`,
+      windowSec: 60,
+      max: 5,
+    });
+    if (!ipRl.success) {
+      logger.warn("schools_interest_rate_limited_ip", {
+        ip,
+        backend: ipRl.backend,
       });
-    } catch (_) {
-      // table likely doesn't exist yet — continue to email notification
+      return NextResponse.json(
+        { error: "Too many requests. Try again in a minute." },
+        { status: 429 }
+      );
     }
 
-    // ── Internal notification email ─────────────────────────────────────────
+    // ── 1. Parse & validate ────────────────────────────────────────────────
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const rawSchoolName = clip(body.schoolName, MAX_LEN.schoolName);
+    const rawContactName = clip(body.contactName, MAX_LEN.contactName);
+    const rawEmail = clip(body.email, MAX_LEN.email);
+    const rawPhone = clip(body.phone, MAX_LEN.phone);
+    const rawState = clip(body.state, MAX_LEN.state);
+    const rawStudentCount = body.studentCount;
+
+    if (!rawSchoolName || !rawEmail) {
+      return NextResponse.json(
+        { error: "schoolName and email are required" },
+        { status: 400 }
+      );
+    }
+
+    const email = String(rawEmail).trim().toLowerCase();
+    if (!email.includes("@")) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
+
+    // ── 0b. Per-recipient email rate limit ────────────────────────────────
+    // Blocks using our Brevo sender to email-bomb a stranger. 3/hour per
+    // target email is above any real typo-and-retry rate.
+    const emailRl = await limit({
+      key: `schools-interest:email:${email}`,
+      windowSec: 3600,
+      max: 3,
+    });
+    if (!emailRl.success) {
+      logger.warn("schools_interest_rate_limited_email", {
+        emailLength: email.length,
+        backend: emailRl.backend,
+      });
+      // Fake success. Attacker sees identical output to a real submission so
+      // they can't probe which emails have already hit the limit.
+      return NextResponse.json({ ok: true });
+    }
+
+    const schoolName = String(rawSchoolName).trim();
+    const contactName = rawContactName ? String(rawContactName).trim() : null;
+    const phone = rawPhone ? String(rawPhone).trim() : null;
+    const state = rawState ? String(rawState).trim() : null;
+
+    let studentCount = null;
+    if (rawStudentCount != null && rawStudentCount !== "") {
+      const n = parseInt(rawStudentCount, 10);
+      // Reject absurd values so an attacker can't DoS the DB column width
+      // or feed weird data to our ops team's visual scan.
+      if (!Number.isFinite(n) || n < 0 || n > 100_000) {
+        return NextResponse.json(
+          { error: "Invalid student count" },
+          { status: 400 }
+        );
+      }
+      studentCount = n;
+    }
+
+    // ── 2. Save to Supabase (graceful fail — table may not yet exist) ──────
+    try {
+      const supabase = getServiceRoleClient();
+      await supabase.from("school_interest_leads").insert({
+        school_name: schoolName,
+        contact_name: contactName,
+        contact_email: email,
+        contact_phone: phone,
+        student_count: studentCount,
+        state,
+        source: "landing_page",
+      });
+    } catch (insertError) {
+      // Non-fatal: we still want the email notification to go out. The
+      // logger call is the operational signal that we need to create or
+      // fix the table.
+      logger.warn("schools_interest_db_insert_failed", {
+        error: insertError?.message || String(insertError),
+      });
+    }
+
+    // ── 3. Internal notification email ─────────────────────────────────────
+    // NOTE: every user-supplied field goes through esc() before hitting HTML.
+    // The mailto: link wraps an email address whose local/domain chars can't
+    // carry active content, but we still escape for consistency.
     await sendEmail({
-      to: 'hello@launchpard.com',
-      subject: `🏫 New School Lead: ${schoolName}`,
+      to: "hello@launchpard.com",
+      subject: `New School Lead: ${schoolName.slice(0, 80)}`,
       htmlContent: `
         <h2>New School Interest Lead</h2>
         <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">
-          <tr><td><strong>School Name</strong></td><td>${schoolName}</td></tr>
-          <tr><td><strong>Contact</strong></td><td>${contactName || '—'}</td></tr>
-          <tr><td><strong>Email</strong></td><td><a href="mailto:${email}">${email}</a></td></tr>
-          <tr><td><strong>Phone</strong></td><td>${phone || '—'}</td></tr>
-          <tr><td><strong>Students</strong></td><td>${studentCount || '—'}</td></tr>
-          <tr><td><strong>State</strong></td><td>${state || '—'}</td></tr>
+          <tr><td><strong>School Name</strong></td><td>${esc(schoolName)}</td></tr>
+          <tr><td><strong>Contact</strong></td><td>${esc(contactName) || "—"}</td></tr>
+          <tr><td><strong>Email</strong></td><td><a href="mailto:${esc(email)}">${esc(email)}</a></td></tr>
+          <tr><td><strong>Phone</strong></td><td>${esc(phone) || "—"}</td></tr>
+          <tr><td><strong>Students</strong></td><td>${esc(studentCount) || "—"}</td></tr>
+          <tr><td><strong>State</strong></td><td>${esc(state) || "—"}</td></tr>
         </table>
         <p style="margin-top:16px;color:#666;font-size:12px;">Submitted via landing page school interest modal.</p>
       `,
     });
 
-    // ── Confirmation email to the school contact ─────────────────────────────
+    // ── 4. Confirmation email to the school contact ────────────────────────
     try {
       await sendEmail({
         to: email,
-        subject: `Thanks for your interest in LaunchPard, ${contactName || schoolName}`,
+        subject: `Thanks for your interest in LaunchPard, ${(contactName || schoolName).slice(0, 60)}`,
         htmlContent: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
-            <h2 style="color:#4f46e5;">We got your message! 🎉</h2>
-            <p>Hi ${contactName || 'there'},</p>
-            <p>Thanks for reaching out about <strong>${schoolName}</strong>. We'll be in touch within 1–2 business days to walk you through how LaunchPard works for schools.</p>
+            <h2 style="color:#4f46e5;">We got your message!</h2>
+            <p>Hi ${esc(contactName) || "there"},</p>
+            <p>Thanks for reaching out about <strong>${esc(schoolName)}</strong>. We'll be in touch within 1–2 business days to walk you through how LaunchPard works for schools.</p>
             <p>In the meantime, here's what to expect:</p>
             <ul>
               <li>A short demo call (30 min) — we'll show you the teacher dashboard live</li>
@@ -72,13 +212,19 @@ export async function POST(request) {
           </div>
         `,
       });
-    } catch (_) {
-      // confirmation email is best-effort
+    } catch (confirmError) {
+      // Confirmation email is best-effort; the internal lead already landed.
+      logger.warn("schools_interest_confirmation_failed", {
+        error: confirmError?.message || String(confirmError),
+      });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[schools/interest]', error);
-    return NextResponse.json({ error: 'Failed to submit interest' }, { status: 500 });
+    logger.error("schools_interest_error", { error });
+    return NextResponse.json(
+      { error: "Failed to submit interest" },
+      { status: 500 }
+    );
   }
 }

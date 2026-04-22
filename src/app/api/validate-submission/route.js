@@ -9,6 +9,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { validateExplanation } from '@/lib/aiValidator';
 import { validateSubmissionSchema, parseBody } from '@/lib/validation';
+import { supabaseKeys } from '@/lib/env'
 
 export async function POST(request) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll() { return cookieStore.getAll(); },

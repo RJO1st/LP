@@ -10,6 +10,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { supabaseKeys } from "@/lib/env";
 
 const APP_URL = process.env.APP_URL || "https://launchpard.com";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -35,8 +36,8 @@ export async function POST(request) {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       { cookies: { getAll: () => cookieStore.getAll() } }
     );
 

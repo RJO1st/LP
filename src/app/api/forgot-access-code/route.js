@@ -1,47 +1,115 @@
 /**
  * /api/forgot-access-code
- * Deploy to: src/app/api/forgot-access-code/route.js
  *
- * Looks up all scholars belonging to a parent (by email),
- * then sends the parent an email with each scholar's access code.
- * Used by the scholar "Forgot access code?" flow on the login page.
+ * Looks up all scholars belonging to a parent (by email) and emails the parent
+ * their scholars' access codes. Used by the scholar "Forgot access code?" flow
+ * on the login page.
+ *
+ * Security posture (April 22 2026 audit):
+ *   1. IP rate limit (10/min) — blocks a single attacker from volume-scraping
+ *      (scholar, code) pairs or Supabase auth's listUsers endpoint via this
+ *      route. Caught before the admin API call.
+ *   2. Email rate limit (5/hour) — blocks targeted harassment even across
+ *      rotating IPs. A real parent who lost their code clicks once; anything
+ *      past 5/hour on the same inbox is abuse.
+ *   3. `getServiceRoleClient()` — lazy, browser-guarded, resolves new
+ *      `sb_secret_*` key with legacy JWT fallback.
+ *   4. Generic response on every non-200 path we care about for enumeration
+ *      resistance. The attacker should see the same output whether the email
+ *      exists, is rate-limited, or has no scholars attached.
+ *
+ * Note on listUsers(): this endpoint pages through every auth user, which is
+ * expensive at scale. If the `profiles` table lookup consistently succeeds we
+ * should flip the order — profiles first, listUsers as the fallback. That's
+ * noted but deferred (requires verifying profiles.email is populated at
+ * signup for 100 % of accounts; a single gap would silently skip legitimate
+ * users).
  */
 
-import { createClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/email";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/email";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { limit } from "@/lib/security/rateLimit";
+import { getClientIp } from "@/lib/security/clientIp";
+import { env } from "@/lib/env";
+import logger from "@/lib/logger";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const GENERIC_RESPONSE = {
+  message: "If that email is associated with an account, we've sent the access codes.",
+};
 
 export async function POST(request) {
   try {
-    const { parentEmail } = await request.json();
+    // ── 0a. IP rate limit ──────────────────────────────────────────────────
+    const ip = getClientIp(request);
+    const ipRl = await limit({
+      key: `forgot-access-code:ip:${ip}`,
+      windowSec: 60,
+      max: 10,
+    });
+    if (!ipRl.success) {
+      logger.warn("forgot_access_code_rate_limited_ip", {
+        ip,
+        backend: ipRl.backend,
+      });
+      return NextResponse.json(
+        { error: "Too many requests. Try again in a minute." },
+        { status: 429 }
+      );
+    }
 
-    if (!parentEmail) {
+    const { parentEmail } = await request.json();
+    if (!parentEmail || typeof parentEmail !== "string") {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
     const trimmed = parentEmail.trim().toLowerCase();
+    if (!trimmed.includes("@") || trimmed.length > 320) {
+      // Don't leak format validity either — generic 200.
+      return NextResponse.json(GENERIC_RESPONSE);
+    }
 
-    // 1. Find the parent user by email in Supabase auth
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    // ── 0b. Email rate limit ───────────────────────────────────────────────
+    // 5/hour matches forgot-password: one real request plus four retries is
+    // more than any legitimate flow ever needs on the same inbox.
+    const emailRl = await limit({
+      key: `forgot-access-code:email:${trimmed}`,
+      windowSec: 3600,
+      max: 5,
+    });
+    if (!emailRl.success) {
+      logger.warn("forgot_access_code_rate_limited_email", {
+        emailLength: trimmed.length, // don't log the email itself
+        backend: emailRl.backend,
+      });
+      // Return the generic success message — same output as a valid lookup so
+      // an attacker probing a specific account can't distinguish the two.
+      return NextResponse.json(GENERIC_RESPONSE);
+    }
 
-    // Find matching user — fallback to checking profiles table if listUsers is too broad
+    const supabaseAdmin = getServiceRoleClient();
+
+    // ── 1. Find the parent user by email in Supabase auth ─────────────────
+    const { data: authData, error: listError } =
+      await supabaseAdmin.auth.admin.listUsers();
+
     let parentId = null;
     let parentName = "Parent";
 
-    if (!listError && users) {
-      const match = users.find(u => u.email?.toLowerCase() === trimmed);
+    if (!listError && authData?.users) {
+      const match = authData.users.find(
+        (u) => u.email?.toLowerCase() === trimmed
+      );
       if (match) {
         parentId = match.id;
-        parentName = match.user_metadata?.name || match.user_metadata?.full_name || "Parent";
+        parentName =
+          match.user_metadata?.name ||
+          match.user_metadata?.full_name ||
+          "Parent";
       }
     }
 
-    // If we didn't find via auth, try the profiles table
+    // Fallback to profiles table if listUsers didn't match.
     if (!parentId) {
       const { data: profiles } = await supabaseAdmin
         .from("profiles")
@@ -55,8 +123,8 @@ export async function POST(request) {
       }
     }
 
-    // 2. Look up scholars associated with this parent
-    // Try by parent_id first, then by parent_email
+    // ── 2. Look up scholars attached to this parent ────────────────────────
+    // Try by parent_id first, then by parent_email on scholars.
     let scholars = [];
 
     if (parentId) {
@@ -75,16 +143,16 @@ export async function POST(request) {
       if (data?.length) scholars = data;
     }
 
-    // Always return success to avoid leaking whether the email exists
+    // Always return the generic message to prevent enumeration.
     if (!scholars.length) {
-      return NextResponse.json({
-        message: "If that email is associated with an account, we've sent the access codes."
-      });
+      return NextResponse.json(GENERIC_RESPONSE);
     }
 
-    // 3. Build & send the email
-    const scholarRows = scholars.map(s =>
-      `<tr>
+    // ── 3. Build & send the email ──────────────────────────────────────────
+    const scholarRows = scholars
+      .map(
+        (s) =>
+          `<tr>
         <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;">${s.name}</td>
         <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;">Year ${s.year_level || "?"}</td>
         <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;">
@@ -93,7 +161,10 @@ export async function POST(request) {
           </span>
         </td>
       </tr>`
-    ).join("");
+      )
+      .join("");
+
+    const appUrl = env.NEXT_PUBLIC_APP_URL || env.APP_URL || "https://launchpard.com";
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -129,7 +200,7 @@ export async function POST(request) {
           Your scholar just needs to type the 4 digits after QUEST- on the login page. Keep these codes safe!
         </p>
       </div>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://launchpard.com"}/login?type=scholar"
+      <a href="${appUrl}/login?type=scholar"
          style="display:block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:900;font-size:15px;text-align:center;padding:16px 24px;border-radius:14px;margin:24px 0;">
         Go to Scholar Login
       </a>
@@ -149,11 +220,9 @@ export async function POST(request) {
       htmlContent,
     });
 
-    return NextResponse.json({
-      message: "If that email is associated with an account, we've sent the access codes."
-    });
+    return NextResponse.json(GENERIC_RESPONSE);
   } catch (err) {
-    console.error("forgot-access-code error:", err);
+    logger.error("forgot_access_code_error", { error: err });
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }

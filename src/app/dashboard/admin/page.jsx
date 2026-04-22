@@ -10,15 +10,20 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { apiFetch } from "@/lib/apiFetch";
+import { supabaseKeys } from "@/lib/env";
 
 function sb() {
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 }
 
-const ADMIN_EMAILS = ["ogunwede.r@gmail.com", "admin@launchpard.com"];
+// Client-side UX gate ONLY — real enforcement lives on every /api/admin/*
+// route via requireAdmin() / isAdminEmail() (env-driven). Kept here as a
+// best-effort redirect for non-admins who land on this URL. If you add new
+// admins, update ADMIN_EMAILS env var, not this list.
+const ADMIN_EMAILS = ["rotimi@launchpard.com", "admin@launchpard.com"];
 
 // ── NG pricing constants ─────────────────────────────────────────────────────
 const NG_PRICE = { ng_scholar: 2500, waec_boost: 1000, ai_unlimited: 500, family_child: 1000 };

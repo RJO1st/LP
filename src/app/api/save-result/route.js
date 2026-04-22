@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { saveResultSchema, parseBody } from '@/lib/validation'
+import { supabaseKeys } from '@/lib/env'
 
 export async function POST(req) {
   try {
@@ -30,7 +31,7 @@ export async function POST(req) {
     // 3. Initialize Supabase Server Client
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.publishable(),
       {
         cookies: {
           get(name) { return cookieStore.get(name)?.value },

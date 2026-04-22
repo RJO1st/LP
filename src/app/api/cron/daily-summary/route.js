@@ -7,7 +7,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
+import { supabaseKeys } from '@/lib/env'
 export const runtime = "edge";
 export const maxDuration = 30;
 
@@ -21,7 +23,7 @@ export async function GET(req) {
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
+    supabaseKeys.secret() // Use from env helpers
   );
 
   // Find all quest sessions completed today

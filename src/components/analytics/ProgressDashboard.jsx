@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import {
   computeSubjectOverview,
   computeTopicHeatmap,
@@ -28,8 +29,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 
 export default function ProgressDashboard({ scholar }) {
   const [supabase]       = useState(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   ));
   const [mastery,        setMastery]        = useState([]);
   const [sessionAnswers, setSessionAnswers] = useState([]);

@@ -8,8 +8,8 @@
 //   · One actionable focus topic for the week ahead
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse }  from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { sendEmail }     from "@/lib/email";
 
 export const runtime    = "nodejs";   // edge doesn't support supabase admin API
@@ -30,10 +30,7 @@ export async function GET(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-  );
+  const supabase = getServiceRoleClient();
 
   const now           = new Date();
   const thisWeekStart = new Date(now); thisWeekStart.setDate(now.getDate() - 7);

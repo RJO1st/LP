@@ -29,10 +29,12 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse }  from "next/server";
 import { checkMilestones } from "@/lib/learningPathEngine";
 import { calcStoryPoints }  from "@/lib/narrativeEngine";
+import { supabaseKeys } from '@/lib/env'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY   // service role — needed for RPC + insert
+  supabaseKeys.url(),
+  supabaseKeys.secret() // Use from env helpers
 );
 
 export async function POST(request) {

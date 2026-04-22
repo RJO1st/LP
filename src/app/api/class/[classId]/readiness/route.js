@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { supabaseKeys } from "@/lib/env";
 import { computeClassReadiness } from "@/lib/analyticsEngine";
 
 /**
@@ -23,8 +24,8 @@ export async function GET(request, { params }) {
     // ── 1. Verify caller identity ───────────────────────────────────────────
     const cookieStore = await cookies();
     const authSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll() { return cookieStore.getAll(); },
@@ -39,10 +40,7 @@ export async function GET(request, { params }) {
     }
 
     // ── 2. Service client for all data reads ────────────────────────────────
-    const svc = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const svc = getServiceRoleClient();
 
     // ── 3. Authorise: teacher assigned to this class OR school admin ────────
     const [{ data: authCheck }, { data: adminCheck }] = await Promise.all([

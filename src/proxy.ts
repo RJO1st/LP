@@ -2,6 +2,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { supabaseKeys } from '@/lib/env';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // EDGE-COMPATIBLE RATE LIMITER (sliding window, in-process Map)
@@ -87,6 +88,8 @@ const CSRF_EXEMPT  = [
   '/api/auth/callback',
   '/api/cron/',
   '/api/webhooks/',
+  '/api/paystack/webhook', // Paystack webhook — HMAC-SHA512 signature auth
+  '/api/stripe/webhook',   // Stripe webhook — signed by Stripe secret
   '/api/forgot-password',
   '/api/forgot-access-code',
   '/api/brevo/',
@@ -117,11 +120,74 @@ export async function proxy(req: NextRequest) {
   const newHeaders = new Headers(req.headers);
   newHeaders.set('x-request-id', requestId);
 
+  // ── 1a. CSP nonce — per-request, exposed to the app via `x-nonce` header ────
+  // The app root layout can call `headers().get('x-nonce')` and pass the value
+  // into <Script nonce={...}> and <style nonce={...}> tags. Next.js also
+  // automatically propagates the nonce to its own framework <script> tags when
+  // a nonce is attached to the request headers.
+  //
+  // Rollout plan (per security audit, April 22 2026):
+  //   Stage 1 (DEFAULT): ship a Report-Only CSP with nonce + 'strict-dynamic'
+  //            alongside the existing enforcing CSP from next.config.js
+  //            (which still permits 'unsafe-inline' to keep the site working).
+  //            Violations are POSTed to CSP_REPORT_URI (Sentry or local).
+  //   Stage 2: once 48 hours of no unexpected violations, flip by setting
+  //            CSP_ENFORCE=true — the nonce CSP becomes enforcing and the
+  //            fallback in next.config.js should be removed in a follow-up PR.
+  const cspNonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  newHeaders.set('x-nonce', cspNonce);
+
   let response = NextResponse.next({ request: { headers: newHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  // ── 1b. Geo cookie + CSRF token — page loads only (not API / static) ─────────
+  // ── 1b. Geo cookie + CSRF token + CSP nonce — page loads only ─────────────
   if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+    // CSP: nonce-based policy. `'strict-dynamic'` tells capable browsers to
+    // trust scripts loaded by already-trusted (nonce'd) scripts, and to ignore
+    // the host allowlist — which is what we want, because allowlists are
+    // bypass-prone. Older browsers fall back to the allowlist we still provide.
+    const isDev = process.env.NODE_ENV === 'development';
+    const scriptSrc = [
+      "'self'",
+      `'nonce-${cspNonce}'`,
+      "'strict-dynamic'",
+      // Keep unsafe-eval in dev for Turbopack. Never in prod.
+      isDev ? "'unsafe-eval'" : '',
+      // Legacy-browser fallback (strict-dynamic ignores these in modern browsers)
+      'https://storage.googleapis.com',
+      'https://www.googletagmanager.com',
+      isDev ? 'https://vercel.live' : '',
+    ].filter(Boolean).join(' ');
+
+    const cspParts = [
+      "default-src 'self'",
+      `script-src ${scriptSrc}`,
+      // Inline styles are still needed until all styled-jsx / Tailwind JIT
+      // output can be nonce'd end-to-end; accept the residual risk for now.
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://avatars.githubusercontent.com https://www.googletagmanager.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://openrouter.ai https://storage.googleapis.com https://www.google-analytics.com https://www.googletagmanager.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+      "upgrade-insecure-requests",
+    ];
+    const reportUri = process.env.CSP_REPORT_URI;
+    if (reportUri) cspParts.push(`report-uri ${reportUri}`);
+    const cspValue = cspParts.join('; ');
+
+    // Stage 1 = Report-Only; Stage 2 (CSP_ENFORCE=true) = enforcing.
+    // In enforcing mode we also remove the next.config.js static CSP by
+    // overwriting the same header name; in report-only mode we leave the
+    // enforcing header from next.config.js untouched.
+    if (process.env.CSP_ENFORCE === 'true') {
+      response.headers.set('Content-Security-Policy', cspValue);
+    } else {
+      response.headers.set('Content-Security-Policy-Report-Only', cspValue);
+    }
+
     // Geo cookie
     const override = req.cookies.get(GEO_OVERRIDE_COOKIE)?.value;
     const existing = req.cookies.get(GEO_COOKIE)?.value;
@@ -209,8 +275,8 @@ export async function proxy(req: NextRequest) {
   }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseKeys.url(),
+    supabaseKeys.publishable(),
     {
       cookies: {
         get(name: string) {

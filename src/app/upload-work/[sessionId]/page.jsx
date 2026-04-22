@@ -8,14 +8,15 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { supabaseKeys } from '@/lib/env';
 import { Camera, CheckCircle, AlertCircle, Upload, X } from 'lucide-react';
 
 export default function MobileUploadPage({ params }) {
   const { sessionId } = params;
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [session, setSession] = useState(null);

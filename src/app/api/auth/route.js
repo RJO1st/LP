@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email' // your Brevo helper
+import { supabaseKeys } from '@/lib/env'
 
 export async function POST(request) {
   const requestUrl = new URL(request.url)
@@ -12,8 +13,8 @@ export async function POST(request) {
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeys.url(),
+    supabaseKeys.publishable(),
     {
       cookies: {
         getAll: () => cookieStore.getAll(),

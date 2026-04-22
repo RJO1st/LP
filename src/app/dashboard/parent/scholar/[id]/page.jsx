@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
+import { supabaseKeys } from "@/lib/env";
 import { CURRICULA, SUBJECTS_BY_CURRICULUM, getLevelInfo } from "@/lib/constants";
 import SkillHeatmap from "@/components/parent/SkillHeatmap";
 import ReadinessScore from "@/components/ReadinessScore";
@@ -100,8 +101,8 @@ export default function ScholarInsights({ params }) {
   const { id }   = React.use(params);
   const router   = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [scholar,   setScholar]   = useState(null);

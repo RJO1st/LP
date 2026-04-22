@@ -9,18 +9,15 @@
  *   where diagnosticResult = { topicScores, recommendedStart, estimatedLevel }
  */
 
-import { createClient }      from "@supabase/supabase-js";
-import { NextResponse }       from "next/server";
+import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import {
   generateLearningPath,
   generateCurriculumAwarePath,
   advanceLearningPath,
 } from "@/lib/learningPathEngine";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = getServiceRoleClient();
 
 // ── GET — fetch existing path (or generate one if missing) ────────────────────
 export async function GET(request) {

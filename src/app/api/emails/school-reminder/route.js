@@ -11,10 +11,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSchoolReminderEmail } from '@/lib/email';
+import { supabaseKeys } from '@/lib/env'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
 const supabaseAdmin = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseKeys.url(),
+  supabaseKeys.secret() // Use from env helpers,
 );
 
 export async function POST(request) {

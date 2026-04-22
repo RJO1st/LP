@@ -25,8 +25,8 @@ export default function QuestPanel({ scholarId, onBossBattle }) {
   const [loading, setLoading] = useState(true);
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   useEffect(() => {

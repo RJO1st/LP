@@ -1,19 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { scholarLoginSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request) {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!url || !key) {
-      return NextResponse.json(
-        { error: "Server configuration error — missing environment variables." },
-        { status: 500 }
-      );
-    }
-
     const raw = await request.json();
     const parsed = parseBody(scholarLoginSchema, { code: (raw?.code ?? "").trim().toUpperCase() });
     if (!parsed.success) {
@@ -21,7 +11,7 @@ export async function POST(request) {
     }
     const { code } = parsed.data;
 
-    const supabaseAdmin = createClient(url, key);
+    const supabaseAdmin = getServiceRoleClient();
 
     // Select every column the student dashboard needs.
     // Previously only 4 fields were selected — curriculum was missing,

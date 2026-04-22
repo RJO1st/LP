@@ -7,9 +7,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse }       from "next/server";
-import { createClient }       from "@supabase/supabase-js";
-import { cookies }            from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { cookies }            from "next/headers";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { supabaseKeys } from "@/lib/env";
 
 export async function POST(request) {
   try {
@@ -19,17 +20,14 @@ export async function POST(request) {
     if (claimSchoolId) {
       const cookieStore = await cookies();
       const userSupabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        supabaseKeys.url(),
+        supabaseKeys.publishable(),
         { cookies: { getAll: () => cookieStore.getAll() } },
       );
       const { data: { user } } = await userSupabase.auth.getUser();
       if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
-      const admin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-      );
+      const admin = getServiceRoleClient();
 
       // Verify the school exists
       const { data: school } = await admin.from("schools").select("id, name").eq("id", claimSchoolId).single();
@@ -51,8 +49,8 @@ export async function POST(request) {
     // ── Authenticate caller ────────────────────────────────────────────────────
     const cookieStore = await cookies();
     const userSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       { cookies: { getAll: () => cookieStore.getAll() } },
     );
     const { data: { user } } = await userSupabase.auth.getUser();
@@ -60,10 +58,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-    );
+    const admin = getServiceRoleClient();
 
     // ── Guard: user must not already own a school ──────────────────────────────
     const { data: existing } = await admin

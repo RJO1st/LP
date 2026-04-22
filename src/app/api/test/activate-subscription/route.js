@@ -1,38 +1,40 @@
-// Example fix for /api/test/activate-subscription
-import { createClient } from '@supabase/supabase-js';
+/**
+ * DISABLED — previously a public backdoor that accepted POST from anyone and
+ * created a privileged Supabase auth user with a hard-coded password plus an
+ * active `parents` row. Removed April 22 2026 as part of the security audit.
+ *
+ * This file is kept as a 410 Gone so anyone with a stale reference to this
+ * URL gets an explicit failure, not a surprising 404 that might be misread
+ * as "firewall did something". Delete the file and its parent directory in
+ * git when convenient:
+ *
+ *   git rm -r src/app/api/test
+ *
+ * Do NOT re-enable this endpoint. Use the Supabase dashboard or the
+ * admin-gated provisioning routes for any test-account creation.
+ */
 
-export async function POST(request) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+import { NextResponse } from 'next/server';
+
+function gone() {
+  return NextResponse.json(
+    { error: 'This endpoint has been permanently removed.' },
+    { status: 410 }
   );
+}
 
-  // 1. Create a test user in Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: 'test@example.com',
-    password: 'test123',
-    email_confirm: true, // auto‑confirm for testing
-  });
-
-  if (authError) throw authError;
-
-  // 2. Now insert parent with the real user ID
-  const trialEnd = new Date();
-  trialEnd.setDate(trialEnd.getDate() + 7);
-
-  const { error: parentError } = await supabase
-    .from('parents')
-    .insert({
-      id: authData.user.id,
-      full_name: 'Test User',
-      email: 'test@example.com',
-      subscription_status: 'trial',
-      trial_end: trialEnd.toISOString(),
-      max_children: 3,
-      billing_cycle: 'monthly'
-    });
-
-  if (parentError) throw parentError;
-
-  return Response.json({ success: true });
+export async function GET() {
+  return gone();
+}
+export async function POST() {
+  return gone();
+}
+export async function PUT() {
+  return gone();
+}
+export async function PATCH() {
+  return gone();
+}
+export async function DELETE() {
+  return gone();
 }

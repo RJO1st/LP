@@ -8,13 +8,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { supabaseKeys } from '@/lib/env';
 import QRCode from 'qrcode';
 import { Camera, Smartphone, Upload, X, CheckCircle } from 'lucide-react';
 
 export default function FlexibleWorkUpload({ sessionId, onPhotoUploaded }) {
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [uploadMethod, setUploadMethod] = useState(null); // 'camera' or 'qr'

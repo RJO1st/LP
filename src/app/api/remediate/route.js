@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
+import { supabaseKeys } from '@/lib/env';
 import { remediateSchema, parseBody } from '@/lib/validation';
 
 export async function POST(req) {
@@ -9,8 +10,8 @@ export async function POST(req) {
     // ── Authentication check ──────────────────────────────────────────────
     const cookieStore = await cookies();
     const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll: () => cookieStore.getAll()
@@ -28,10 +29,7 @@ export async function POST(req) {
     if (!parsed.success) return parsed.error;
     const { skill_topic, wrong_answer } = parsed.data;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = getServiceRoleClient();
 
     // 1. Find the skill ID
     const { data: skillData, error: skillError } = await supabase

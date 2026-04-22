@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import TopicPerformanceBreakdown from "@/components/TopicPerformanceBreakdown";
 import { apiFetch } from "@/lib/apiFetch";
+import { supabaseKeys } from "@/lib/env";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -99,8 +100,8 @@ function SkeletonStudentRow() {
 export default function TeacherDashboard() {
   const router = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   // State

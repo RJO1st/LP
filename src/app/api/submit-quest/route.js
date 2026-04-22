@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { submitQuestSchema, parseBody } from '@/lib/validation'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { supabaseKeys } from '@/lib/env'
+
 
 /**
  * Submit Mission API Route
@@ -16,7 +19,7 @@ export async function POST(req) {
     // ── Authentication check ──────────────────────────────────────────────
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.publishable(),
       {
         cookies: {
           get(name) { return cookieStore.get(name)?.value },
@@ -75,10 +78,7 @@ export async function POST(req) {
     // Fire-and-forget — never let analytics block the quest result response.
     try {
       // Fetch scholar metadata for denormalised event columns
-      const serviceClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      )
+      const serviceClient = getServiceRoleClient()
       const { data: scholar } = await serviceClient
         .from('scholars')
         .select('curriculum, year_level')

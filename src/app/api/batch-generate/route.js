@@ -14,6 +14,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse }  from 'next/server';
 import { getTopicsForSubjectYear } from '@/lib/topicDefinitions';
+import { supabaseKeys } from '@/lib/env'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
 // Vercel cron invocations need extended timeout (Pro plan: 60s max)
 export const maxDuration = 60;
@@ -743,10 +745,7 @@ async function handleBatch(req) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY not set' }, { status: 500 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = getServiceRoleClient();
 
     // Parse query params
     const { searchParams } = new URL(req.url);

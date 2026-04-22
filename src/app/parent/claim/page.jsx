@@ -6,10 +6,11 @@ import { createClient } from '@supabase/supabase-js'
 import { apiFetch } from '@/lib/apiFetch'
 import Link from 'next/link'
 import clsx from 'clsx'
+import { supabaseKeys } from '@/lib/env'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  supabaseKeys.url(),
+  supabaseKeys.publishable()
 )
 
 // Inner component uses useSearchParams — must be inside <Suspense>

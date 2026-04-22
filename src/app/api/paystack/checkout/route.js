@@ -1,13 +1,27 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+// ─── POST /api/paystack/checkout ────────────────────────────────────────────
+// Initialises a Paystack transaction for a Nigerian parent and returns an
+// authorisation URL the client can redirect to.
+//
+// Security posture (April 22 2026 audit):
+//   1. Rate-limited by IP (20/min) BEFORE body parse — a leaked checkout
+//      endpoint on a cheap rate limit is effectively a CPU DoS via the
+//      Paystack round-trip. Upstash-backed, falls back to in-memory in dev.
+//   2. Service-role access via `getServiceRoleClient()` — lazy, browser-
+//      guarded, resolves new `sb_secret_*` key with legacy fallback.
+//   3. SSR cookie client via shared `@/lib/supabase/server` — resolves new
+//      `sb_publishable_*` key with legacy fallback.
+//   4. Region-pinned: 403 if `parents.region !== 'NG'`. Billing region is set
+//      at signup from curriculum, NOT from geo-IP, so a GB parent spoofing
+//      `__geo_override=NG` can't buy a Nigerian plan at Nigerian prices.
+// ────────────────────────────────────────────────────────────────────────────
 
-// ─── Supabase service client (bypasses RLS for plan updates) ────────────────
-const serviceClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { NextResponse } from "next/server";
+import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { limit } from "@/lib/security/rateLimit";
+import { getClientIp } from "@/lib/security/clientIp";
+import { env } from "@/lib/env";
+import logger from "@/lib/logger";
 
 // ─── Amount table (all amounts in kobo — 1 NGN = 100 kobo) ──────────────────
 const PLAN_AMOUNTS = {
@@ -31,9 +45,28 @@ const VALID_ADDONS = new Set(Object.keys(ADDON_AMOUNTS));
  * Body: { plan: "ng_scholar", billing: "monthly"|"annual", addons?: string[] }
  *
  * Returns: { authorization_url, reference, amount_kobo }
- * Errors:  401 (not authenticated), 403 (region mismatch), 400 (bad input), 502 (Paystack error)
+ * Errors:  401 (not authenticated), 403 (region mismatch), 400 (bad input),
+ *          429 (rate limited), 502 (Paystack error)
  */
 export async function POST(request) {
+  // ── 0. Rate limit by IP ───────────────────────────────────────────────────
+  // 20/min is generous for a legitimate flow (a parent picking a plan rarely
+  // fires this more than once or twice) but cheap enough to absorb a burst.
+  // The real protection is upstream of the Paystack round-trip.
+  const ip = getClientIp(request);
+  const rl = await limit({
+    key: `paystack-checkout:${ip}`,
+    windowSec: 60,
+    max: 20,
+  });
+  if (!rl.success) {
+    logger.warn("paystack_checkout_rate_limited", { ip, backend: rl.backend });
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a minute." },
+      { status: 429 }
+    );
+  }
+
   // ── 1. Parse and validate request body ────────────────────────────────────
   let body;
   try {
@@ -55,24 +88,8 @@ export async function POST(request) {
   }
 
   // ── 2. Authenticate the requesting user ───────────────────────────────────
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
-          try {
-            toSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
+  // Shared SSR client uses `supabaseKeys.publishable()` (new or legacy).
+  const supabase = await createServerSupabase();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -81,6 +98,7 @@ export async function POST(request) {
   // ── 3. Anti-arbitrage: verify parent is Nigerian ──────────────────────────
   // Billing region is set at signup from curriculum — NOT from geo-IP.
   // This prevents GB users from purchasing NG plans at NG prices.
+  const serviceClient = getServiceRoleClient();
   const { data: parent, error: parentError } = await serviceClient
     .from("parents")
     .select("id, email, region, subscription_tier")
@@ -118,10 +136,10 @@ export async function POST(request) {
     billing,
     addons: addons.join(","),
     parent_id: parent.id,
-    cancel_action: `${process.env.APP_URL}/subscribe`,
+    cancel_action: `${env.APP_URL}/subscribe`,
   };
 
-  const callbackUrl = `${process.env.APP_URL}/api/paystack/callback`;
+  const callbackUrl = `${env.APP_URL}/api/paystack/callback`;
 
   // ── 6. Initialise Paystack transaction ────────────────────────────────────
   let paystackResponse;
@@ -129,7 +147,7 @@ export async function POST(request) {
     const res = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -146,7 +164,7 @@ export async function POST(request) {
 
     paystackResponse = await res.json();
   } catch (networkError) {
-    console.error("[paystack/checkout] Network error:", networkError);
+    logger.error("paystack_checkout_network_error", { error: networkError });
     return NextResponse.json(
       { error: "Could not reach Paystack. Please try again." },
       { status: 502 }
@@ -154,7 +172,10 @@ export async function POST(request) {
   }
 
   if (!paystackResponse.status) {
-    console.error("[paystack/checkout] Paystack error:", paystackResponse.message);
+    logger.error("paystack_checkout_init_failed", {
+      message: paystackResponse.message,
+      parent_id: parent.id,
+    });
     return NextResponse.json(
       { error: paystackResponse.message || "Paystack initialisation failed" },
       { status: 502 }

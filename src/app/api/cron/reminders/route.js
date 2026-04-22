@@ -6,31 +6,55 @@
 //   { "crons": [{ "path": "/api/cron/reminders", "schedule": "*/15 * * * *" }] }
 //
 // Requires env vars:
-//   CRON_SECRET          — shared secret to verify Vercel cron calls
-//   SUPABASE_URL         — Supabase project URL
-//   SUPABASE_SERVICE_KEY — service role key (bypasses RLS)
-//   RESEND_API_KEY       — Resend.com API key for email sending
-//   NEXT_PUBLIC_APP_URL  — e.g. https://launchpard.com
+//   CRON_SECRET                — shared secret to verify Vercel cron calls
+//   NEXT_PUBLIC_SUPABASE_URL   — Supabase project URL
+//   SUPABASE_SERVICE_ROLE_KEY  — service role key (bypasses RLS)
+//   RESEND_API_KEY             — Resend.com API key for email sending
+//   NEXT_PUBLIC_APP_URL        — e.g. https://launchpard.com
+//
+// NOTE (April 22 2026 security audit): previous version read
+// `process.env.SUPABASE_URL` and `process.env.SUPABASE_SERVICE_KEY` — neither
+// of which are defined in the Vercel project. The `createClient` call silently
+// produced a broken client with undefined URL/key, so this cron has been a
+// no-op in production. Now routed through the guarded service-role factory,
+// which reads the correct env names and throws loudly if they're missing.
 
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
 
-export const runtime = "edge"; // fast cold starts
+export const runtime = "nodejs"; // timingSafeEqual + service-role factory need Node runtime
 export const maxDuration = 30; // 30s max
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://launchpard.com";
 
+/**
+ * Constant-time compare for the cron bearer token. Length check is public;
+ * the token value itself is not compared with `===` which would leak timing.
+ */
+function authorizedCronRequest(req) {
+  const authHeader = req.headers.get("authorization") || "";
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+  const expected = `Bearer ${cronSecret}`;
+  if (authHeader.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(authHeader, "utf8"),
+      Buffer.from(expected, "utf8")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req) {
   // ── 1. Verify cron secret ──────────────────────────────────────────────
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!authorizedCronRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-  );
+  const supabase = getServiceRoleClient();
 
   // ── 2. Find due reminders ──────────────────────────────────────────────
   // Check which reminders are due RIGHT NOW based on their timezone + day + time

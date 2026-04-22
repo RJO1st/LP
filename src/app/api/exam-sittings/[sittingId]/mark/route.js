@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { markSitting } from '@/lib/markingEngine'
+import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { supabaseKeys } from '@/lib/env'
 
 /**
  * POST /api/exam-sittings/[sittingId]/mark
@@ -44,18 +45,15 @@ export async function POST(req, { params }) {
     // Auth client for user verification, service client for DB operations (bypasses RLS)
     const cookieStore = await cookies()
     const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll: () => cookieStore.getAll()
         }
       }
     )
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    const supabase = getServiceRoleClient()
 
     // Verify authenticated
     const { data: { user }, error: authError } = await authClient.auth.getUser()

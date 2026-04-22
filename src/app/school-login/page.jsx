@@ -26,6 +26,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
+import { supabaseKeys } from "@/lib/env";
 
 export default function SchoolLoginPage() {
   return (
@@ -70,8 +71,8 @@ function SchoolLoginForm() {
   const initialTab   = searchParams.get("tab") === "signup" ? "signup" : "signin";
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   // Tab state

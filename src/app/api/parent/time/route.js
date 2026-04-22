@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from 'next/headers';
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
+import { supabaseKeys } from '@/lib/env';
 
 const PERIOD_OFFSETS = {
   week:  (d) => { d.setDate(d.getDate() - 7);         return d; },
@@ -30,8 +31,8 @@ export async function GET(req) {
     // ── Authentication check ──────────────────────────────────────────────
     const cookieStore = await cookies();
     const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll: () => cookieStore.getAll()
@@ -44,10 +45,7 @@ export async function GET(req) {
     }
 
     // ── Verify scholar belongs to this parent ──────────────────────────────
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabaseAdmin = getServiceRoleClient();
     const { data: scholar, error: scholarError } = await supabaseAdmin
       .from('scholars')
       .select('id')
@@ -59,10 +57,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized: scholar not found or does not belong to you' }, { status: 403 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = getServiceRoleClient();
 
   const startDate = PERIOD_OFFSETS[period](new Date());
 

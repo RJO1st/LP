@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { apiFetch } from "@/lib/apiFetch";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
+import { supabaseKeys } from "@/lib/env";
 
 // ─── LOGO (uses correct brand SVG) ──────────────────────────────────────────
 const LogoIcon = ({ className = "w-8 h-8" }) => (
@@ -27,8 +28,8 @@ export default function SubscribePage() {
   const [region, setRegion] = useState('GB');
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const pseudoRandom = (seed, salt = 0) => {

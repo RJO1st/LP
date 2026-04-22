@@ -1,7 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from 'next/headers';
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
+import { supabaseKeys } from '@/lib/env';
+
 
 export async function GET(req) {
   try {
@@ -16,8 +18,8 @@ export async function GET(req) {
     // ── Authentication check ──────────────────────────────────────────────
     const cookieStore = await cookies();
     const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       {
         cookies: {
           getAll: () => cookieStore.getAll()
@@ -30,10 +32,7 @@ export async function GET(req) {
     }
 
     // ── Verify scholar belongs to this parent ──────────────────────────────
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabaseAdmin = getServiceRoleClient();
     const { data: scholar, error: scholarError } = await supabaseAdmin
       .from('scholars')
       .select('id')
@@ -46,14 +45,13 @@ export async function GET(req) {
     }
 
     // Guard against missing env vars — return empty rather than crash
-    const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      console.error("[accuracy] Missing Supabase env vars — NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    let supabase;
+    try {
+      supabase = getServiceRoleClient();
+    } catch (err) {
+      console.error("[accuracy] Missing Supabase service role key:", err.message);
       return NextResponse.json([], { status: 200 });
     }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
 
   // Calculate start date
   const now = new Date();

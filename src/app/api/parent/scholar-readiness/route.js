@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { supabaseKeys } from "@/lib/env";
 
 /**
  * GET /api/parent/scholar-readiness?scholar_id=<id>
@@ -34,8 +35,8 @@ export async function GET(request) {
 
     // Auth client — verify session
     const authSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
       { cookies: { getAll: () => cookieStore.getAll() } }
     );
 
@@ -45,10 +46,7 @@ export async function GET(request) {
     }
 
     // Service client — for reading scholar + mastery data
-    const serviceSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const serviceSupabase = getServiceRoleClient();
 
     // Verify scholar exists and belongs to this parent
     const { data: scholar, error: sErr } = await serviceSupabase

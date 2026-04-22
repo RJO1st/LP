@@ -4,8 +4,8 @@
 // Handles email verification redirect from Supabase
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
 
 function getSafeRedirectUrl(nextParam) {
   if (!nextParam || typeof nextParam !== 'string') return '/dashboard/student';
@@ -22,10 +22,7 @@ export async function GET(request) {
   const next = requestUrl.searchParams.get('next') || '/dashboard/student';
 
   if (code) {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = getServiceRoleClient();
 
     // Exchange code for session
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);

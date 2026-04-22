@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseKeys } from "@/lib/env";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -25,8 +26,8 @@ const BackIcon = ({ size = 18 }) => <Icon size={size} d={["M19 12H5","M12 19l-7-
 export default function AccountPage() {
   const router = useRouter();
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseKeys.url(),
+    supabaseKeys.publishable()
   );
 
   const [loading, setLoading] = useState(true);

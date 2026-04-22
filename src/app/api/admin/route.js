@@ -1,46 +1,15 @@
 // src/app/api/admin/fill/route.js
 // Thin server-side wrapper so the client never needs CRON_SECRET
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+//
+// NOTE (April 22 2026 security audit): previously carried its own ADMIN_EMAILS
+// array. Identity checks now go through requireAdmin() (env-driven).
 import { NextResponse } from 'next/server';
-
-// List of admin email addresses — extend as needed
-const ADMIN_EMAILS = [
-  'admin@launchpard.com',
-  'founder@launchpard.com',
-];
+import { requireAdmin } from '@/lib/security/admin';
 
 export async function GET(req) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
-        },
-      },
-    }
-  );
-
-  // ── Authentication check ──────────────────────────────────────────────
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // ── Admin role verification ───────────────────────────────────────────
-  const userEmail = session.user.email;
-  const isAdmin = ADMIN_EMAILS.includes(userEmail);
-
-  if (!isAdmin) {
-    return NextResponse.json(
-      { error: 'Access denied. Admin privileges required.' },
-      { status: 403 }
-    );
-  }
+  // ── Admin auth (401 if not signed in, 403 if email not in allow-list) ──
+  const { error: adminError } = await requireAdmin(req);
+  if (adminError) return adminError;
 
   const { searchParams } = new URL(req.url);
   const curriculum = searchParams.get('curriculum') || 'uk_11plus';
