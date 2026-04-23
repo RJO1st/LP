@@ -1,12 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { supabaseKeys } from '@/lib/env'
 import { getServiceRoleClient } from '@/lib/security/serviceRole'
-
-const supabase = createClient(
-  supabaseKeys.url(),
-  supabaseKeys.secret() // Use from env helpers
-);
 
 const DAILY_QUESTS = [
   {
@@ -44,10 +37,12 @@ export async function GET(req) {
     // Verify authorization
     const authHeader = req.headers.get('authorization');
     const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
-    
+
     if (authHeader !== expectedAuth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = getServiceRoleClient();
 
     // Get all scholars
     const { data: scholars, error: scholarsError } = await supabase

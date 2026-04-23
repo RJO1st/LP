@@ -9,15 +9,10 @@
 //   { batch: true }
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendSchoolReminderEmail } from '@/lib/email';
-import { supabaseKeys } from '@/lib/env'
 import { getServiceRoleClient } from '@/lib/security/serviceRole'
 
-const supabaseAdmin = () => createClient(
-  supabaseKeys.url(),
-  supabaseKeys.secret() // Use from env helpers,
-);
+const supabaseAdmin = () => getServiceRoleClient();
 
 export async function POST(request) {
   try {
