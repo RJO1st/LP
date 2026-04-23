@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
+import { supabaseKeys } from "@/lib/env";
 
 export default function LoginPage() {
   return (

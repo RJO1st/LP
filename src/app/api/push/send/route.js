@@ -9,9 +9,8 @@
  * Sends to all matching subscriptions in push_subscriptions.
  */
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
 
 // Minimal Web Push without the `web-push` npm package
 // Uses the VAPID JWT approach with native crypto
@@ -100,12 +99,7 @@ export async function POST(request) {
   }
 
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      supabaseKeys.secret() // Use from env helpers,
-      { cookies: { getAll: () => cookieStore.getAll() } }
-    );
+    const supabase = getServiceRoleClient();
 
     const { userId, scholarId, title, body, url = "/dashboard/parent", icon = "/icon-192.png" } = await request.json();
 

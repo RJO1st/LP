@@ -13,6 +13,7 @@ import { applyReferralCode } from "../../lib/referralSystem";
 import { passwordError } from "../../lib/passwordValidation";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 import { regionFromCurriculum, curriculumIsNigerian } from "@/lib/tierAccess";
+import { supabaseKeys } from "@/lib/env";
 
 const REGIONS = [
   { code: "uk", flag: "🇬🇧", label: "United Kingdom" },
