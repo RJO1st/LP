@@ -41,13 +41,18 @@ export async function GET(request) {
   if (verified) {
     // Webhook will have already updated the DB (or will shortly).
     // Send the user to the parent dashboard with a success banner.
+    // `provider=paystack` lets the dashboard branch copy per gateway once
+    // Stripe (GB) is wired; a missing provider param falls back to the
+    // neutral banner for backwards compat.
     return NextResponse.redirect(
-      new URL("/dashboard/parent?payment=success", appUrl)
+      new URL("/dashboard/parent?payment=success&provider=paystack", appUrl)
     );
   }
 
-  // Payment was abandoned or failed, back to subscribe page with error
+  // Payment was abandoned or failed, back to subscribe page with error.
+  // Tag provider so the subscribe page can surface gateway-specific guidance
+  // (e.g. "try another card" vs "check your bank app") in future.
   return NextResponse.redirect(
-    new URL("/subscribe?payment=failed", appUrl)
+    new URL("/subscribe?payment=failed&provider=paystack", appUrl)
   );
 }

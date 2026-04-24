@@ -24,6 +24,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from "@/lib/env";
 import logger from "@/lib/logger";
+import {
+  parentConsentGiveSchema,
+  parentConsentRevokeSchema,
+  parseBody,
+} from "@/lib/validation";
 
 function getClientIp(request) {
   return (
@@ -62,14 +67,10 @@ export async function POST(request) {
     }
     const parentId = session.user.id;
 
-    const body = await request.json();
-    const { scholar_id, school_id } = body || {};
-    if (!scholar_id || !school_id) {
-      return NextResponse.json(
-        { error: "Missing scholar_id or school_id" },
-        { status: 400 }
-      );
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(parentConsentGiveSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { scholar_id, school_id } = parsed.data;
 
     // Ownership check (RLS will also enforce, but fail fast with 403).
     const { data: scholar, error: scholarError } = await supabase
@@ -146,14 +147,10 @@ export async function DELETE(request) {
     }
     const parentId = session.user.id;
 
-    const body = await request.json();
-    const { scholar_id, school_id, reason } = body || {};
-    if (!scholar_id || !school_id) {
-      return NextResponse.json(
-        { error: "Missing scholar_id or school_id" },
-        { status: 400 }
-      );
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(parentConsentRevokeSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { scholar_id, school_id, reason } = parsed.data;
 
     const { data: scholar, error: scholarError } = await supabase
       .from("scholars")
@@ -171,12 +168,13 @@ export async function DELETE(request) {
     }
 
     // Revocation goes through RLS-scoped client; the policy scopes UPDATE to
-    // rows where parent_id = auth.uid().
+    // rows where parent_id = auth.uid(). Reason was already trimmed/capped by
+    // the Zod schema (max 500 chars).
     const { error: revokeError } = await supabase
       .from("scholar_school_consent")
       .update({
         revoked_at: new Date().toISOString(),
-        revoke_reason: typeof reason === "string" ? reason.slice(0, 500) : null,
+        revoke_reason: reason ?? null,
       })
       .eq("scholar_id", scholar_id)
       .eq("school_id", school_id)

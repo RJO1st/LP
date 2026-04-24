@@ -11,10 +11,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies }            from "next/headers";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { supabaseKeys } from "@/lib/env";
+import { schoolCreateSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request) {
   try {
-    const { name, schoolType, state, country, schoolId: claimSchoolId } = await request.json();
+    const rawBody = await request.json().catch(() => null);
+    const parsed = parseBody(schoolCreateSchema, rawBody);
+    if (!parsed.success) return parsed.error;
+    const { name, schoolType, state, country, schoolId: claimSchoolId } = parsed.data;
 
     // claimSchoolId mode: admin pre-created the school; just create the role.
     if (claimSchoolId) {

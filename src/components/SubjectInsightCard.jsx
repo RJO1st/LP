@@ -2,7 +2,7 @@
 // src/components/SubjectInsightCard.jsx
 // Tier 1 Feature 2 — Subject Time Insight Carousel
 // Shows contextual, data-driven motivational insights.
-// Rotates automatically. Inspired by Atom Learning's left-panel insight cards.
+// Rotates automatically. Mobile-first insight panel with per-subject focus rotation.
 //
 // Props:
 //   scholar      — scholar object { id, name }

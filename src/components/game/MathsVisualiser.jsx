@@ -5152,7 +5152,7 @@ function ParallelLinesVis({ knownAngle, angleType, label }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * NumberLineVis — Century Tech-style clean number line
+ * NumberLineVis — clean, minimal number line with a "?" marker for missing values
  *
  * Props:
  *   min, max          — range endpoints

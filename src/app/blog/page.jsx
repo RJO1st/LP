@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { headers } from "next/headers";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 import BlogHeroVisual from "@/components/blog/BlogHeroVisual";
 
@@ -96,7 +97,11 @@ const categoryColors = {
   Engagement: "bg-pink-100 dark:bg-pink-500/20 text-pink-900 dark:text-pink-300 border-pink-300 dark:border-pink-500/30",
 };
 
-export default function BlogPage() {
+export default async function BlogPage() {
+  // Per-request CSP nonce injected by proxy.ts. Required for <script> under
+  // nonce-based CSP once 'unsafe-inline' is dropped.
+  const nonce = (await headers()).get('x-nonce') || undefined;
+
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-[#080c15] font-sans overflow-hidden">
       {/* Star background - dark mode only */}
@@ -277,6 +282,7 @@ export default function BlogPage() {
       {/* Structured Data (JSON-LD) */}
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",

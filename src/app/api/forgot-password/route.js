@@ -23,6 +23,7 @@ import { limit } from "@/lib/security/rateLimit";
 import { getClientIp } from "@/lib/security/clientIp";
 import { env } from "@/lib/env";
 import logger from "@/lib/logger";
+import { forgotPasswordSchema } from "@/lib/validation";
 
 const GENERIC_RESPONSE = {
   message: "If that email is associated with an account, we've sent a reset link.",
@@ -47,16 +48,15 @@ export async function POST(request) {
       );
     }
 
-    const { email } = await request.json();
-    if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
-    }
-
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed.includes("@") || trimmed.length > 320) {
-      // Don't leak whether the format is valid either — generic response.
+    // Validate with Zod but SWALLOW shape errors into GENERIC_RESPONSE.
+    // Returning a structured 422 would leak format validity and let an
+    // attacker distinguish "no such account" from "bad email format".
+    const rawBody = await request.json().catch(() => null);
+    const parsed = forgotPasswordSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(GENERIC_RESPONSE);
     }
+    const trimmed = parsed.data.email; // already trimmed + lowercased by Zod
 
     // ── 0b. Email rate limit ───────────────────────────────────────────────
     // Blocks per-account enumeration across rotating IPs. 5/hour is one

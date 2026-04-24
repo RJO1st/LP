@@ -25,19 +25,20 @@ import { sendEmail }           from "@/lib/email";
 import { EMAIL_TEMPLATES }     from "@/lib/emailTemplates";
 import { requireAdmin }        from "@/lib/security/admin";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { adminSchoolProvisionSchema, parseBody } from "@/lib/validation";
 import crypto                  from "crypto";
 
 export async function POST(request) {
   try {
-    const { schoolName, schoolType, state, country, proprietorEmail } = await request.json();
-
-    if (!schoolName?.trim() || !proprietorEmail?.trim()) {
-      return NextResponse.json({ error: "schoolName and proprietorEmail are required." }, { status: 400 });
-    }
-
     // ── 1. Verify admin ────────────────────────────────────────────────────────
+    // Gate before parsing to avoid leaking schema details to unauthenticated callers.
     const { error: adminError } = await requireAdmin(request);
     if (adminError) return adminError;
+
+    const rawBody = await request.json().catch(() => null);
+    const parsed = parseBody(adminSchoolProvisionSchema, rawBody);
+    if (!parsed.success) return parsed.error;
+    const { schoolName, schoolType, state, country, proprietorEmail } = parsed.data;
 
     const admin = getServiceRoleClient();
 

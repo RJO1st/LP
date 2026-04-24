@@ -684,6 +684,39 @@ export default function ParentDashboard() {
   const [deletingScholar, setDeletingScholar] = useState(null); // { id, name } or null
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // ── Payment callback banner (gateway-aware) ──────────────────────────────
+  // Payment gateways redirect here with ?payment=success&provider=<gateway>
+  // on a verified charge. We surface an unambiguous banner so the parent
+  // knows the transaction actually landed (the webhook does the DB work;
+  // this is purely UX confirmation). The URL is cleaned up via
+  // history.replaceState so refresh doesn't re-trigger the banner.
+  //
+  // Why we gate on provider (added April 23 2026):
+  //   Paystack only charges Nigerian parents (₦ / NGN). Once Stripe is wired
+  //   for the GB tier, we need GBP-appropriate copy ("£", "card ending in..."
+  //   etc.). Rather than silently mutate the banner text based on the parent's
+  //   region (brittle — region could drift from the charge that actually
+  //   happened), we tag the redirect URL with the gateway that produced the
+  //   charge. Legacy URLs without `provider` fall back to the neutral banner.
+  //
+  // The banner state stores both status and provider so the render branch
+  // can render Paystack/Stripe copy independently.
+  const [paymentBanner, setPaymentBanner] = useState(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('payment');
+    const provider = params.get('provider'); // 'paystack' | 'stripe' | null (legacy)
+    if (status === 'success' || status === 'failed') {
+      setPaymentBanner({ status, provider });
+      params.delete('payment');
+      params.delete('provider');
+      const clean = params.toString();
+      const url = window.location.pathname + (clean ? `?${clean}` : '');
+      window.history.replaceState({}, '', url);
+    }
+  }, []);
+
   // Form state
   const [newName,     setNewName]     = useState("");
   // Default curriculum picks up the hint dropped during landing-page → signup
@@ -1187,6 +1220,117 @@ export default function ParentDashboard() {
         {/* SCROLLABLE CONTENT AREA */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24">
+
+            {/* Payment callback confirmation banner — gateway-aware */}
+            {/* Provider-specific copy: Paystack (NG, ₦) vs Stripe (GB, £). */}
+            {/* Legacy URLs without `provider` fall back to Paystack copy for */}
+            {/* backwards compat — NG is the only live gateway as of April 2026. */}
+            {paymentBanner?.status === 'success' && (paymentBanner.provider === 'paystack' || !paymentBanner.provider) && parent?.region === 'NG' && (
+              <div
+                role="status"
+                className="mb-4 sm:mb-6 rounded-xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 p-4 sm:p-5 flex items-start gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                  <CheckIcon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-emerald-900 dark:text-emerald-200 text-sm sm:text-base">
+                    Payment confirmed. Your subscription is live.
+                  </p>
+                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-semibold mt-0.5">
+                    It may take a few seconds for your new plan to reflect. A Paystack receipt has been emailed to you.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPaymentBanner(null)}
+                  className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 font-black text-lg flex-shrink-0"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {paymentBanner?.status === 'success' && paymentBanner.provider === 'stripe' && parent?.region === 'GB' && (
+              <div
+                role="status"
+                className="mb-4 sm:mb-6 rounded-xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 p-4 sm:p-5 flex items-start gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                  <CheckIcon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-emerald-900 dark:text-emerald-200 text-sm sm:text-base">
+                    Payment confirmed. Your subscription is live.
+                  </p>
+                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-semibold mt-0.5">
+                    It may take a few seconds for your new plan to reflect. A Stripe receipt has been emailed to you.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPaymentBanner(null)}
+                  className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 font-black text-lg flex-shrink-0"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {/* Fallback success banner: region or provider doesn't match. */}
+            {/* Someone landed with ?payment=success but can't be mapped to a gateway. */}
+            {/* Show a neutral confirmation rather than gateway-specific copy. */}
+            {paymentBanner?.status === 'success' && !(
+              (paymentBanner.provider === 'paystack' || !paymentBanner.provider) && parent?.region === 'NG'
+            ) && !(
+              paymentBanner.provider === 'stripe' && parent?.region === 'GB'
+            ) && (
+              <div
+                role="status"
+                className="mb-4 sm:mb-6 rounded-xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 p-4 sm:p-5 flex items-start gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                  <CheckIcon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-emerald-900 dark:text-emerald-200 text-sm sm:text-base">
+                    Payment confirmed.
+                  </p>
+                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-semibold mt-0.5">
+                    Your subscription will reflect shortly. A receipt has been emailed to you.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPaymentBanner(null)}
+                  className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 font-black text-lg flex-shrink-0"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {paymentBanner?.status === 'failed' && (
+              <div
+                role="alert"
+                className="mb-4 sm:mb-6 rounded-xl border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/10 p-4 sm:p-5 flex items-start gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center flex-shrink-0 font-black">
+                  !
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-rose-900 dark:text-rose-200 text-sm sm:text-base">
+                    Payment was not completed.
+                  </p>
+                  <p className="text-xs sm:text-sm text-rose-800 dark:text-rose-300 font-semibold mt-0.5">
+                    No charge was made. You can try again from the subscribe page.
+                  </p>
+                </div>
+                <Link
+                  href="/subscribe"
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-black text-xs px-3 py-2 rounded-lg flex-shrink-0"
+                >
+                  Try again
+                </Link>
+              </div>
+            )}
 
             {/* Welcome banner — warm gradient */}
             <div className="bg-gradient-to-r from-amber-50 dark:from-amber-500/5 to-orange-50 dark:to-orange-500/5 rounded-xl sm:rounded-2xl border border-amber-200 dark:border-amber-500/30 p-4 sm:p-8 mb-4 sm:mb-8">

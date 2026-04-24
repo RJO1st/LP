@@ -2,7 +2,7 @@
 // src/components/TopicPerformanceBreakdown.jsx
 // Tier 1 Feature 3 — Per-Topic Performance Breakdown
 // Shows horizontal mastery bars per topic within a subject.
-// Matches the visual pattern from Atom Learning's "performance by topic" panel.
+// Standard topic breakdown visual: subject title, mastery bars, per-topic CTAs.
 //
 // Props:
 //   scholarId   — string

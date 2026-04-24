@@ -4,8 +4,8 @@
  * ConceptCardRenderer
  *
  * Full-viewport teaching card shown once per topic per session,
- * before the first quiz question. Inspired by Century Tech's concept card
- * architecture but space-themed and age-adaptive.
+ * before the first quiz question. Space-themed, age-adaptive teaching
+ * surface that primes the scholar on the topic before practice begins.
  *
  * Props:
  *   card        — concept card object from /api/concept-cards

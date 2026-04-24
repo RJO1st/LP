@@ -11,18 +11,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies }       from "next/headers";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { supabaseKeys } from "@/lib/env";
+import { schoolOnboardSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { schoolId, className, curriculum, yearLevel } = body;
-
-    if (!schoolId || !className?.trim() || !curriculum || !yearLevel) {
-      return NextResponse.json(
-        { error: "schoolId, className, curriculum, and yearLevel are required." },
-        { status: 400 },
-      );
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(schoolOnboardSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { schoolId, className, curriculum, yearLevel } = parsed.data;
 
     // ── Verify caller is a proprietor/admin for this school ──────────────────
     const cookieStore = await cookies();

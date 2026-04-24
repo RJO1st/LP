@@ -16,14 +16,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies }           from "next/headers";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { supabaseKeys } from "@/lib/env";
+import { classJoinSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request) {
   try {
-    const { code, scholarId } = await request.json();
-
-    if (!code || !scholarId) {
-      return NextResponse.json({ error: "code and scholarId are required." }, { status: 400 });
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(classJoinSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { code, scholarId } = parsed.data;
 
     // ── Authenticate caller ───────────────────────────────────────────────────
     const cookieStore = await cookies();

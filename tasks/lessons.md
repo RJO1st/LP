@@ -191,7 +191,27 @@ User-stated preferences said "never agree by default" — the right version of t
 - Reject "hack-proof" framing entirely. Nothing is hack-proof. "Defensible under the realistic threat model" is.
 
 ### One PR per phase
-9 phases, 9 PRs — or at minimum 9 commits with clean boundaries. Auditable after the fact, revertable if something breaks, reviewable without drowning the reviewer.
+9 phases, 9 PRs, or at minimum 9 commits with clean boundaries. Auditable after the fact, revertable if something breaks, reviewable without drowning the reviewer.
+
+### Re-verify blocker status when resuming a session
+When picking up work from a compacted summary or prior session, do not inherit "externally blocked" labels from stale context. Ask or check: is the account live, is the key in prod, has the counterparty replied? A payment processor that was "pending activation" last week may be live today, and silently keeping it in the blocked column hides both actionable work and live production bugs that can now be hit by real customers.
+
+Triggered by: user having to flag "we have an active paystack account now, no longer a blocker" more than once. The fix is a status check at resume time, not a mental note.
+
+---
+
+## Payments
+
+### Annual billing plus monthly add-ons is a trap on one-time charges
+If the checkout is a one-time Paystack charge (no `subscription_code`, no stored `authorization_code`), there is no mechanism to bill add-ons monthly while the base plan runs annually. Either:
+- Bundle 12 months of add-ons into the upfront charge (sticker shock, refund complexity), or
+- Forbid add-ons on annual until subscriptions are wired, or
+- Wire proper Paystack Plans with `plan_code` and recurring charges.
+
+What you cannot do is set `ng_addons` for 12 months after a single base-plan charge and call it "add-ons bill monthly". That is a revenue leak and a truth-in-advertising bug at the same time.
+
+### Check UI copy against billing code, not against itself
+The subscribe page promised "Add-ons bill monthly so you can change them anytime." The checkout route explicitly skipped add-on charges for annual billing. Both files read fine in isolation. The bug lived in the gap between them. Reviews that read checkout, webhook, and UI copy in the same sitting would have caught it on merge.
 
 ---
 
@@ -201,3 +221,25 @@ User-stated preferences said "never agree by default" — the right version of t
 2. **Check Supabase rotation flow before writing rotation checklists**. I assumed "Regenerate" was still a button. User caught it. A `curl https://supabase.com/docs/...` call would have saved the round-trip.
 3. **Add Upstash in Phase 3, not as a bolt-on**. The in-memory limiter shipped for a few days while I deferred the real one. Every day it was live was a day the limiter wasn't actually limiting.
 4. **Write `tasks/verify.md` alongside implementation, not at the end**. Writing the test commands while writing the fix catches edge cases the fix missed.
+
+---
+
+## CSP Two-Stage Nonce Rollout
+
+### Two response headers for the same policy get AND-intersected
+If `next.config.js` emits a static `Content-Security-Policy` header AND `proxy.ts` emits a per-request nonce CSP, browsers intersect them. The static header's `'unsafe-inline'` does not relax the per-request policy; the per-request policy's `'nonce-…'` + `'strict-dynamic'` gets hollowed out by the static header's missing directives. Net effect: your own nonce'd scripts get silently blocked.
+
+Fix: delete the static CSP from `next.config.js` entirely and let `proxy.ts` be the sole CSP authority. Keep Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy as static headers (those do not conflict).
+
+### `<script type="application/ld+json">` counts as a script under `script-src`
+Even though it is not executable JS, the browser enforces `script-src` against it. If you remove `'unsafe-inline'` and do not add a `nonce`, structured data for SEO silently vanishes from the DOM. Four files in LaunchPard carry JSON-LD: `src/app/layout.jsx`, `src/app/learn/[slug]/page.jsx`, `src/app/blog/page.jsx`, `src/app/blog/[slug]/page.jsx`. All four now read `(await headers()).get('x-nonce')` and apply `nonce={nonce}`.
+
+### Blob URL scripts are a Stage 2 landmine
+`AdaptiveDashboardLayout.jsx` line 142 builds a printable report as an HTML string, wraps it in a `Blob`, and opens it via `window.open(blobUrl)`. That HTML contains an inline `<script>` that triggers `window.print()`. Under Stage 1 (Report-Only) this logs a violation but still runs. Under Stage 2 (`CSP_ENFORCE=true` + enforcing CSP) the inline script without a nonce will be blocked and printing will silently fail. There is no way to inject the parent document's nonce into a blob'd HTML string at render time, because the nonce is generated per-request by proxy.ts and the React tree does not expose it to Blob construction.
+
+Before flipping `CSP_ENFORCE=true`, refactor the print flow to either:
+- Render the report inline in the SPA and call `window.print()` on a hidden iframe, or
+- Use a dedicated print route (`/dashboard/student/report/print`) that serves full HTML with the right nonce, and have the button navigate to it.
+
+### Next.js 15+ `headers()` returns a Promise
+`const nonce = (await headers()).get('x-nonce')` requires the component or Route Handler to be `async`. `src/app/blog/page.jsx` was a sync function and needed `async` added when I wired the nonce. Sync server components that try to `await headers()` will fail type-check but not always at runtime, they just return a non-string. Worth checking explicitly when refactoring.

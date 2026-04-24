@@ -28,6 +28,7 @@ import { getServiceRoleClient } from "@/lib/security/serviceRole";
 import { limit } from "@/lib/security/rateLimit";
 import { getClientIp } from "@/lib/security/clientIp";
 import logger from "@/lib/logger";
+import { schoolInterestSchema } from "@/lib/validation";
 
 // ── Input caps ─────────────────────────────────────────────────────────────
 // These are comfortably above any legitimate value (longest registered school
@@ -93,24 +94,45 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const rawSchoolName = clip(body.schoolName, MAX_LEN.schoolName);
-    const rawContactName = clip(body.contactName, MAX_LEN.contactName);
-    const rawEmail = clip(body.email, MAX_LEN.email);
-    const rawPhone = clip(body.phone, MAX_LEN.phone);
-    const rawState = clip(body.state, MAX_LEN.state);
-    const rawStudentCount = body.studentCount;
+    // Defence-in-depth: clip fields BEFORE Zod so a 10 MB payload can't
+    // OOM the validator. Zod still enforces its own caps after, but the
+    // clip keeps us safe in the narrow window where a huge string reaches
+    // safeParse. If a field exceeds MAX_LEN we just truncate rather than
+    // reject — matches the pre-Zod behaviour callers depend on.
+    const prepped = {
+      schoolName: clip(body.schoolName, MAX_LEN.schoolName),
+      contactName: clip(body.contactName, MAX_LEN.contactName),
+      email: clip(body.email, MAX_LEN.email),
+      phone: clip(body.phone, MAX_LEN.phone),
+      state: clip(body.state, MAX_LEN.state),
+      studentCount: body.studentCount,
+    };
 
-    if (!rawSchoolName || !rawEmail) {
-      return NextResponse.json(
-        { error: "schoolName and email are required" },
-        { status: 400 }
-      );
+    const parsed = schoolInterestSchema.safeParse(prepped);
+    if (!parsed.success) {
+      // This is a public endpoint, returning field-level errors is fine here
+      // (the form UI relies on them) — no enumeration angle to protect.
+      const firstError = parsed.error.issues[0];
+      const field = firstError?.path?.[0];
+      const msg =
+        field === "email"
+          ? "Invalid email"
+          : field === "schoolName"
+            ? "schoolName and email are required"
+            : field === "studentCount"
+              ? "Invalid student count"
+              : "Invalid request";
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const email = String(rawEmail).trim().toLowerCase();
-    if (!email.includes("@")) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-    }
+    const {
+      schoolName: parsedSchoolName,
+      contactName: parsedContactName,
+      email,
+      phone: parsedPhone,
+      state: parsedState,
+      studentCount: parsedStudentCount,
+    } = parsed.data;
 
     // ── 0b. Per-recipient email rate limit ────────────────────────────────
     // Blocks using our Brevo sender to email-bomb a stranger. 3/hour per
@@ -130,24 +152,15 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    const schoolName = String(rawSchoolName).trim();
-    const contactName = rawContactName ? String(rawContactName).trim() : null;
-    const phone = rawPhone ? String(rawPhone).trim() : null;
-    const state = rawState ? String(rawState).trim() : null;
-
-    let studentCount = null;
-    if (rawStudentCount != null && rawStudentCount !== "") {
-      const n = parseInt(rawStudentCount, 10);
-      // Reject absurd values so an attacker can't DoS the DB column width
-      // or feed weird data to our ops team's visual scan.
-      if (!Number.isFinite(n) || n < 0 || n > 100_000) {
-        return NextResponse.json(
-          { error: "Invalid student count" },
-          { status: 400 }
-        );
-      }
-      studentCount = n;
-    }
+    // Zod already trimmed/normalised each string and coerced studentCount
+    // from the form's string or number. Normalise empties → null here so
+    // the DB insert and email builders see a consistent shape.
+    const schoolName = parsedSchoolName;
+    const contactName = parsedContactName ? parsedContactName : null;
+    const phone = parsedPhone ? parsedPhone : null;
+    const state = parsedState ? parsedState : null;
+    const studentCount =
+      typeof parsedStudentCount === "number" ? parsedStudentCount : null;
 
     // ── 2. Save to Supabase (graceful fail — table may not yet exist) ──────
     try {

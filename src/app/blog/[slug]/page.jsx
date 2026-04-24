@@ -3,6 +3,7 @@ import Image from "next/image";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 import BlogHeroVisual from "@/components/blog/BlogHeroVisual";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 
 /* ─── Article data ─────────────────────────────────────────────────────────── */
 
@@ -176,6 +177,10 @@ export default async function BlogPostPage({ params }) {
   const article = articles[slug];
   if (!article) notFound();
 
+  // Per-request CSP nonce injected by proxy.ts. Required for <script> under
+  // nonce-based CSP once 'unsafe-inline' is dropped.
+  const nonce = (await headers()).get('x-nonce') || undefined;
+
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-[#080c15] font-sans overflow-hidden">
       {/* ═══ NAV ═══ */}
@@ -295,6 +300,7 @@ export default async function BlogPostPage({ params }) {
       {/* Structured Data */}
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",

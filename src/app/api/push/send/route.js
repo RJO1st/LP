@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { pushSendSchema, parseBody } from "@/lib/validation";
 
 // Minimal Web Push without the `web-push` npm package
 // Uses the VAPID JWT approach with native crypto
@@ -101,17 +102,31 @@ export async function POST(request) {
   try {
     const supabase = getServiceRoleClient();
 
-    const { userId, scholarId, title, body, url = "/dashboard/parent", icon = "/icon-192.png" } = await request.json();
+    const rawBody = await request.json().catch(() => null);
+    const parsed = parseBody(pushSendSchema, rawBody);
+    if (!parsed.success) return parsed.error;
+    const {
+      userId,
+      scholarId,
+      title,
+      body,
+      url = "/dashboard/parent",
+      icon = "/icon-192.png",
+    } = parsed.data;
 
-    if (!title || !body) {
-      return NextResponse.json({ error: "title and body required" }, { status: 400 });
+    // Cross-field guard: Zod schema keeps userId/scholarId optional so callers
+    // get clear field-level errors on shape, and we enforce presence here.
+    if (!userId && !scholarId) {
+      return NextResponse.json(
+        { error: "userId or scholarId required" },
+        { status: 400 }
+      );
     }
 
     // Find subscriptions
     let query = supabase.from("push_subscriptions").select("*");
     if (scholarId) query = query.eq("scholar_id", scholarId);
-    else if (userId) query = query.eq("user_id", userId);
-    else return NextResponse.json({ error: "userId or scholarId required" }, { status: 400 });
+    else query = query.eq("user_id", userId);
 
     const { data: subs } = await query;
     if (!subs || subs.length === 0) {

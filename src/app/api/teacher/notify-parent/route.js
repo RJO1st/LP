@@ -11,6 +11,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from "@/lib/env";
+import { teacherNotifyParentSchema, parseBody } from "@/lib/validation";
 
 const APP_URL = process.env.APP_URL || "https://launchpard.com";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -47,12 +48,11 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { scholarId, classId, teacherNote = "" } = body;
-
-    if (!scholarId) {
-      return NextResponse.json({ error: "scholarId required" }, { status: 400 });
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(teacherNotifyParentSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { scholarId, classId } = parsed.data;
+    const teacherNote = parsed.data.teacherNote || "";
 
     // Verify teacher has access to this class
     const { data: assignment } = await supabase

@@ -40,6 +40,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from "@/lib/env";
 import logger from "@/lib/logger";
+import { claimScholarSchema, parseBody } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -109,16 +110,11 @@ export async function POST(request) {
     }
 
     const body = await request.json().catch(() => null);
-    const rawCode = body?.validation_code;
-    if (typeof rawCode !== "string" || rawCode.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Missing validation_code" },
-        { status: 400 }
-      );
-    }
+    const parsed = parseBody(claimScholarSchema, body);
+    if (!parsed.success) return parsed.error;
     // Normalise: codes are issued as uppercase alphanumerics by the import
-    // script; trim whitespace and reject pathological inputs early.
-    const validationCode = rawCode.trim().slice(0, 64);
+    // script; Zod already trimmed and capped length to 64.
+    const validationCode = parsed.data.validation_code;
 
     // Single atomic RPC — see 20260422_claim_scholar_rpc.sql.
     const { data, error } = await supabase.rpc("claim_scholar_invitation", {

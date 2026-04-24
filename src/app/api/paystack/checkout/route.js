@@ -87,6 +87,26 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid addon(s)" }, { status: 400 });
   }
 
+  // ── 1b. Block add-ons on annual billing (one-time charge model) ───────────
+  // Our current checkout is a one-time `transaction/initialize` charge with no
+  // stored `authorization_code` and no recurring billing infrastructure.
+  // If we accept an annual base plan plus add-ons, the webhook would set
+  // `ng_addons` for the full 12-month `subscription_end` with NO further
+  // charges. That is a silent revenue leak (₦12,000/yr per WAEC Boost user,
+  // ₦6,000/yr per AI Unlimited user, ₦12,000/yr per extra scholar).
+  // Fix: force parents to switch to monthly if they want add-ons. Re-enable
+  // when Paystack Plans (`plan_code` + `authorization_code` recurring charges)
+  // are wired. See tasks/lessons.md "Payments" section.
+  if (billing === "annual" && addons.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Add-ons are available on monthly billing only. Switch to monthly billing to customise your plan.",
+      },
+      { status: 400 }
+    );
+  }
+
   // ── 2. Authenticate the requesting user ───────────────────────────────────
   // Shared SSR client uses `supabaseKeys.publishable()` (new or legacy).
   const supabase = await createServerSupabase();
@@ -116,19 +136,14 @@ export async function POST(request) {
   }
 
   // ── 4. Calculate total amount in kobo ─────────────────────────────────────
+  // Annual + add-ons is rejected above (§1b), so at this point `addons` is
+  // either a non-empty list with `billing === "monthly"`, or an empty list
+  // with either billing cycle. Keep the reduce defensive.
   let totalKobo = PLAN_AMOUNTS[plan][billing];
-
-  // Add-ons are always monthly; on annual billing they are still charged monthly
-  // via a separate recurring charge, so we only add them here for monthly billing.
-  // For annual we include the first month's add-ons as a line in the metadata so
-  // the webhook can set ng_addons correctly — but the base charge is plan only.
   const addonMonthlyKobo = addons.reduce((sum, a) => sum + ADDON_AMOUNTS[a], 0);
-
   if (billing === "monthly") {
     totalKobo += addonMonthlyKobo;
   }
-  // Annual plan: add-ons billed separately each month — not bundled into the
-  // one-time annual charge. We still pass addons in metadata for the webhook.
 
   // ── 5. Build Paystack transaction metadata ────────────────────────────────
   const metadata = {

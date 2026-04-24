@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { apiFetch } from "@/lib/apiFetch";
@@ -26,6 +26,53 @@ export default function SubscribePage() {
   // (NOT from __geo cookie, which is client-overridable). Defaults to 'GB'
   // until the async fetch lands, which matches the current UK-only mock.
   const [region, setRegion] = useState('GB');
+
+  // ─── Add-on state (Nigerian tier only) ────────────────────────────────────
+  // Backend contract (src/app/api/paystack/checkout/route.js):
+  //   addons: string[]  where valid entries are 'waec_boost' | 'ai_unlimited' | 'family_child'
+  //   Duplicates of 'family_child' are the canonical way to encode multiple
+  //   extra siblings — each duplicate adds ₦1,000/mo.
+  // Cap extra siblings at 2 (base plan includes 1 scholar, so 3 total per CLAUDE.md).
+  const [waecBoost, setWaecBoost] = useState(false);
+  const [aiUnlimited, setAiUnlimited] = useState(false);
+  const [extraScholarCount, setExtraScholarCount] = useState(0);
+
+  // WAEC Boost already includes unlimited Tara AI, so the standalone
+  // ai_unlimited add-on is redundant (and billed) when Boost is selected.
+  // This derived flag is the single source of truth for charging.
+  const aiUnlimitedEffective = aiUnlimited && !waecBoost;
+
+  // Expand the three UI controls into the string[] contract the API expects.
+  // Annual billing: we force-empty the add-on list because our Paystack
+  // integration is one-time charges only (no recurring). The server enforces
+  // the same rule (see /api/paystack/checkout §1b) so a UI bypass still fails
+  // with a 400. Re-enable when Paystack Plans are wired.
+  const selectedAddons = useMemo(() => {
+    if (billingCycle === "annual") return [];
+    return [
+      ...(waecBoost ? ["waec_boost"] : []),
+      ...(aiUnlimitedEffective ? ["ai_unlimited"] : []),
+      ...Array(extraScholarCount).fill("family_child"),
+    ];
+  }, [billingCycle, waecBoost, aiUnlimitedEffective, extraScholarCount]);
+
+  // Monthly addon NGN total — mirrors ADDON_AMOUNTS in the checkout route
+  // (kobo / 100). Render time uses `toLocaleString` for the ₦ display.
+  // Zeroed on annual to match the checkout guard above.
+  const addonMonthlyNgn = useMemo(() => {
+    if (billingCycle === "annual") return 0;
+    let sum = 0;
+    if (waecBoost) sum += 1000;
+    if (aiUnlimitedEffective) sum += 500;
+    sum += extraScholarCount * 1000;
+    return sum;
+  }, [billingCycle, waecBoost, aiUnlimitedEffective, extraScholarCount]);
+
+  // Convenience flag for UI: annual + attempted-but-dropped add-ons.
+  // Used to show the "switch to monthly" notice banner on the add-ons panel.
+  const annualBlocksAddons = billingCycle === "annual";
+  const hasAttemptedAddons =
+    waecBoost || aiUnlimited || extraScholarCount > 0;
 
   const supabase = createBrowserClient(
     supabaseKeys.url(),
@@ -72,8 +119,9 @@ export default function SubscribePage() {
    * NG  → Paystack (kobo-denominated, hosted page redirect)
    * GB  → Stripe   (pending UK entity setup — shows coming-soon message)
    *
-   * addons is intentionally empty for now (add-on selection UI is a future sprint).
-   * The checkout API accepts addons[] if we want to pre-select them.
+   * addons comes from `selectedAddons` (memoised from the three UI controls).
+   * Duplicates of 'family_child' encode multiple extra siblings — the checkout
+   * route sums them via reduce, so two siblings = ['family_child','family_child'].
    */
   const handleCheckout = async () => {
     setLoading(true);
@@ -88,7 +136,7 @@ export default function SubscribePage() {
           body: JSON.stringify({
             plan: "ng_scholar",
             billing: billingCycle,
-            addons: [], // add-on selection UI coming in next sprint
+            addons: selectedAddons,
           }),
         });
 
@@ -344,30 +392,139 @@ export default function SubscribePage() {
                   No credit card required • Cancel anytime{region === 'NG' ? ' • 7-day free trial' : ' • 30-day free trial'}
                 </p>
 
-                {/* Nigerian add-ons panel */}
-                {region === 'NG' && (
-                  <div className="mb-6 border border-emerald-500/30 dark:border-emerald-400/30 rounded-2xl p-5 bg-emerald-50/50 dark:bg-emerald-900/10">
-                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-4">Optional Add-ons — buy only what you need</p>
-                    <div className="space-y-3">
-                      {[
-                        { icon:'👨‍👩‍👧', title:'Extra Scholar', price:'₦1,000/mo', desc:'Add a sibling. Full Scholar access.' },
-                        { icon:'🎯', title:'WAEC Intensive Boost', price:'₦1,000/mo', desc:'Unlimited Tara AI · full mock exams · A1–F9 grade predictions' },
-                        { icon:'🤖', title:'Unlimited AI Feedback', price:'₦500/mo', desc:'Remove the 50/month Tara cap' },
-                      ].map(a => (
-                        <div key={a.title} className="flex items-start justify-between gap-3 bg-white dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-white/10">
-                          <div className="flex items-start gap-2.5">
-                            <span className="text-xl flex-shrink-0 mt-0.5">{a.icon}</span>
-                            <div>
-                              <p className="text-sm font-bold text-slate-900 dark:text-white">{a.title}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">{a.desc}</p>
+                {/* Nigerian add-ons panel — interactive selection */}
+                {region === 'NG' && (() => {
+                  const baseMonthlyNgn = billingCycle === 'monthly' ? 2500 : 2083;
+                  const baseLabel = billingCycle === 'monthly' ? '₦2,500/mo' : '₦25,000/yr (₦2,083/mo)';
+                  const monthlyTotal = baseMonthlyNgn + addonMonthlyNgn;
+                  const disabledCls = annualBlocksAddons ? 'opacity-50 pointer-events-none' : '';
+                  return (
+                    <div className="mb-6 border border-emerald-500/30 dark:border-emerald-400/30 rounded-2xl p-5 bg-emerald-50/50 dark:bg-emerald-900/10">
+                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-4">Optional Add-ons — buy only what you need</p>
+
+                      {/* Annual billing blocks add-ons notice */}
+                      {annualBlocksAddons && (
+                        <div className="mb-4 p-3 rounded-xl border border-amber-400/50 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-500/30">
+                          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1.5">
+                            Add-ons are available on monthly billing
+                          </p>
+                          <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug mb-2">
+                            {hasAttemptedAddons
+                              ? 'Your add-on selections are paused. Switch to monthly billing to customise your plan, or continue with the annual Scholar plan on its own.'
+                              : 'Switch to monthly billing to add extra scholars, WAEC Boost, or Unlimited AI.'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setBillingCycle('monthly')}
+                            className="text-[11px] font-bold text-amber-900 dark:text-amber-200 underline hover:no-underline"
+                          >
+                            Switch to monthly billing →
+                          </button>
+                        </div>
+                      )}
+
+                      <div className={`space-y-3 ${disabledCls}`} aria-disabled={annualBlocksAddons}>
+                        {/* Extra Scholar — stepper 0–2 */}
+                        <div className="flex items-start justify-between gap-3 bg-white dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-white/10">
+                          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <span className="text-xl flex-shrink-0 mt-0.5">👨‍👩‍👧</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">Extra Scholar</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">₦1,000/mo per sibling. Full Scholar access for each child.</p>
                             </div>
                           </div>
-                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{a.price}</span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setExtraScholarCount(c => Math.max(0, c - 1))}
+                              disabled={extraScholarCount === 0}
+                              aria-label="Remove one sibling"
+                              className="w-7 h-7 rounded-lg border border-slate-300 dark:border-white/20 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >−</button>
+                            <span className="w-6 text-center text-sm font-black text-slate-900 dark:text-white">{extraScholarCount}</span>
+                            <button
+                              type="button"
+                              onClick={() => setExtraScholarCount(c => Math.min(2, c + 1))}
+                              disabled={extraScholarCount === 2}
+                              aria-label="Add one sibling"
+                              className="w-7 h-7 rounded-lg border border-slate-300 dark:border-white/20 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >+</button>
+                          </div>
                         </div>
-                      ))}
+
+                        {/* WAEC Intensive Boost — checkbox */}
+                        <label className={`flex items-start justify-between gap-3 rounded-xl p-3 border cursor-pointer transition-colors ${waecBoost ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500/50' : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-white/10 hover:border-emerald-300 dark:hover:border-emerald-500/40'}`}>
+                          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <span className="text-xl flex-shrink-0 mt-0.5">🎯</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">WAEC Intensive Boost</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">Unlimited Tara AI · full mock exams · A1–F9 grade predictions</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">₦1,000/mo</span>
+                            <input
+                              type="checkbox"
+                              checked={waecBoost}
+                              onChange={(e) => setWaecBoost(e.target.checked)}
+                              className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                            />
+                          </div>
+                        </label>
+
+                        {/* Unlimited AI Feedback — checkbox, hidden if WAEC Boost already included */}
+                        <label className={`flex items-start justify-between gap-3 rounded-xl p-3 border transition-colors ${waecBoost ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800/20 border-slate-200 dark:border-white/5' : aiUnlimited ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500/50 cursor-pointer' : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-white/10 hover:border-emerald-300 dark:hover:border-emerald-500/40 cursor-pointer'}`}>
+                          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <span className="text-xl flex-shrink-0 mt-0.5">🤖</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">Unlimited AI Feedback</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
+                                {waecBoost ? 'Already included in WAEC Boost' : 'Remove the 50/month Tara cap'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">₦500/mo</span>
+                            <input
+                              type="checkbox"
+                              checked={aiUnlimited && !waecBoost}
+                              onChange={(e) => setAiUnlimited(e.target.checked)}
+                              disabled={waecBoost}
+                              className="w-4 h-4 accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* Running total */}
+                      <div className="mt-4 pt-4 border-t border-emerald-300/50 dark:border-emerald-400/20 space-y-1.5">
+                        <div className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-400">
+                          <span>Scholar base</span>
+                          <span>{baseLabel}</span>
+                        </div>
+                        {addonMonthlyNgn > 0 && (
+                          <div className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-400">
+                            <span>Add-ons</span>
+                            <span>₦{addonMonthlyNgn.toLocaleString()}/mo</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-1.5 border-t border-emerald-300/30 dark:border-emerald-400/10">
+                          <span className="text-sm font-black text-slate-900 dark:text-white">
+                            {billingCycle === 'monthly' ? 'Monthly total' : 'Effective monthly'}
+                          </span>
+                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                            ₦{monthlyTotal.toLocaleString()}/mo
+                          </span>
+                        </div>
+                        {billingCycle === 'annual' && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-500 leading-snug pt-1">
+                            Annual plan is billed ₦25,000 upfront. Add-ons are only available on monthly billing.
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 <div className="flex justify-center gap-4 mb-8">
                   <button
                     onClick={() => router.push("/dashboard/parent")}
@@ -421,9 +578,9 @@ export default function SubscribePage() {
                         LaunchPard
                       </div>
                     </th>
-                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Atom</th>
-                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Prodigy</th>
-                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Tutor</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Typical 11+ app</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Gamified maths app</th>
+                    <th className="p-3 sm:p-6 text-center text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm">Private tutor</th>
                   </tr>
                 </thead>
                 <tbody>

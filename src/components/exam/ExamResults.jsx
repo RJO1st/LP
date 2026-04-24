@@ -7,7 +7,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 /**
  * ExamResults.jsx
  *
- * Professional exam results dashboard inspired by SaveMyExams.
+ * Professional exam results dashboard with score, grade, and topic breakdown.
  * Supports both GCSE (9-1) and WAEC (A1-F9) grading scales.
  * Displays:
  *   - Overall score with grade prediction

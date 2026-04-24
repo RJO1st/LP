@@ -33,6 +33,7 @@ import { limit } from "@/lib/security/rateLimit";
 import { getClientIp } from "@/lib/security/clientIp";
 import { env } from "@/lib/env";
 import logger from "@/lib/logger";
+import { forgotAccessCodeSchema } from "@/lib/validation";
 
 const GENERIC_RESPONSE = {
   message: "If that email is associated with an account, we've sent the access codes.",
@@ -58,16 +59,15 @@ export async function POST(request) {
       );
     }
 
-    const { parentEmail } = await request.json();
-    if (!parentEmail || typeof parentEmail !== "string") {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
-    }
-
-    const trimmed = parentEmail.trim().toLowerCase();
-    if (!trimmed.includes("@") || trimmed.length > 320) {
-      // Don't leak format validity either — generic 200.
+    // Validate with Zod but SWALLOW shape errors into GENERIC_RESPONSE.
+    // Same rationale as forgot-password: a structured 422 leaks format
+    // validity, letting an attacker fingerprint "known-good" formats.
+    const rawBody = await request.json().catch(() => null);
+    const parsed = forgotAccessCodeSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(GENERIC_RESPONSE);
     }
+    const trimmed = parsed.data.parentEmail; // already trimmed + lowercased
 
     // ── 0b. Email rate limit ───────────────────────────────────────────────
     // 5/hour matches forgot-password: one real request plus four retries is

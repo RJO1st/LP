@@ -14,6 +14,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import SampleQuiz from "../SampleQuiz";
 import DarkModeToggle from "@/components/theme/DarkModeToggle";
 
@@ -260,6 +261,10 @@ export default async function LearnPage({ params }) {
   const page = PAGE_MAP[slug];
   if (!page) notFound();
 
+  // Per-request CSP nonce injected by proxy.ts. Required for <script> under
+  // nonce-based CSP once 'unsafe-inline' is dropped.
+  const nonce = (await headers()).get('x-nonce') || undefined;
+
   const subjectLabel = page.subject ? SD[page.subject] : null;
   const sampleQs = page.subject ? getSampleQs(page.subject, page.year || 5) : null;
   const guide = page.subject ? getGuide(page.curriculum, page.subject, page.year) : null;
@@ -366,7 +371,7 @@ export default async function LearnPage({ params }) {
         </section>
       </main>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context":"https://schema.org","@type":"WebPage",name:page.metaTitle,description:page.metaDesc,
         url:`https://launchpard.com/learn/${page.slug}`,
         provider:{"@type":"EducationalOrganization",name:"LaunchPard",url:"https://launchpard.com"},

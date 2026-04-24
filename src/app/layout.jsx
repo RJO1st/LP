@@ -1,6 +1,7 @@
 
 import './globals.css'
 import Script from 'next/script';
+import { headers } from 'next/headers';
 import DarkModeProvider from '@/components/theme/DarkModeProvider';
 import PWAProvider from '@/components/pwa/PWAProvider';
 
@@ -89,7 +90,13 @@ export const metadata = {
   manifest: '/manifest.json',
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Per-request CSP nonce injected by proxy.ts. Attaching it here lets Next.js
+  // propagate the same nonce to its framework <script> tags automatically, and
+  // satisfies the nonce-based CSP for our own inline scripts. Falls back to
+  // undefined during static rendering, where no inline scripts execute.
+  const nonce = (await headers()).get('x-nonce') || undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -98,6 +105,7 @@ export default function RootLayout({ children }) {
         <link rel="manifest" href="/manifest.json" />
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <meta name="theme-color" content="#6366f1" />
@@ -112,12 +120,13 @@ export default function RootLayout({ children }) {
         <Script
           id="dark-mode-init"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var d=localStorage.getItem('lp-dark-mode');if(d==='true'||(d===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
           }}
         />
-        <Script src="https://www.googletagmanager.com/gtag/js?id=G-ZFZN7XZ36Y" strategy="afterInteractive" />
-        <Script id="gtag-init" strategy="afterInteractive">
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-ZFZN7XZ36Y" strategy="afterInteractive" nonce={nonce} />
+        <Script id="gtag-init" strategy="afterInteractive" nonce={nonce}>
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}

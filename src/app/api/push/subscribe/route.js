@@ -10,6 +10,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from "@/lib/env";
+import {
+  pushSubscribeSchema,
+  pushUnsubscribeSchema,
+  parseBody,
+} from "@/lib/validation";
 
 export async function POST(request) {
   try {
@@ -23,12 +28,10 @@ export async function POST(request) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-    const body = await request.json();
-    const { subscription, scholarId } = body; // subscription = PushSubscription JSON
-
-    if (!subscription?.endpoint) {
-      return NextResponse.json({ error: "Invalid subscription object" }, { status: 400 });
-    }
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(pushSubscribeSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { subscription, scholarId } = parsed.data;
 
     // Upsert by endpoint (unique per browser/device)
     const { error } = await supabase.from("push_subscriptions").upsert(
@@ -67,8 +70,10 @@ export async function DELETE(request) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-    const { endpoint } = await request.json();
-    if (!endpoint) return NextResponse.json({ error: "endpoint required" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = parseBody(pushUnsubscribeSchema, body);
+    if (!parsed.success) return parsed.error;
+    const { endpoint } = parsed.data;
 
     await supabase
       .from("push_subscriptions")
