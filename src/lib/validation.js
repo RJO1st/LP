@@ -19,7 +19,7 @@ export const taraRequestSchema = z.object({
   text: z.string().min(1).max(4000),
   subject: z.string().max(50).optional(),
   correctAnswer: z.string().max(500).optional(),
-  question: z.string().max(2000).optional(),
+  question: z.unknown().optional(), // question_bank object — not a plain string
   scholarName: z.string().max(100).optional(),
   scholarYear: yearLevelSchema.optional(),
   mode: z.enum(['eib', 'followup']).optional(),

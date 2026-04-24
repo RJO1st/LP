@@ -910,6 +910,7 @@ const rewardInfo  = useMemo(() => getRewardLabel(student?.year_level, XP_PER_QUE
       && taraEnabled !== false
     ) ? (
       <TaraEIB
+        key={q?.id || qIdx}
         student={student}
         subject={subject}
         currentQ={q}
