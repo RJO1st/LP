@@ -53,7 +53,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 // ─── Parse CLI args ────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let limit = 300;
+let limit = 300000;
 const dryRun = args.includes('--dry-run');
 const curriculumFilter = (() => {
   const f = args.find(a => a.startsWith('--curriculum='));
@@ -119,7 +119,6 @@ async function loadStubQuestions() {
       .select('id, question_text, options, correct_index, explanation, year_level, subject, topic, curriculum')
       .eq('is_active', true)
       .not('explanation', 'is', null)
-      .lt('explanation', '\x7f') // rough proxy — actual filter below
       .order('curriculum, subject, year_level')
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
