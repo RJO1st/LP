@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getAgeBand, getBandConfig, getTaraSystemPrompt } from '@/lib/ageBandConfig';
 import { taraRequestSchema, parseBody } from '@/lib/validation';
 import { checkAndIncrementTaraQuota } from '@/lib/taraQuotaCheck';
+import { classifyIntent } from '@/lib/taraClassifier';
+import { SAFEGUARDING_RESPONSES, SAFEGUARDING_LOG_ENABLED } from '@/lib/safeguardingConfig';
+import { supabaseKeys } from '@/lib/env';
 
 // ─── Deploy to: src/app/api/tara/route.js ────────────────────────────────────
 // Updated to use ageBandConfig for age-adaptive Tara personality.
@@ -156,6 +160,51 @@ async function isSafe(text) {
   }
 }
 
+// ─── SAFEGUARDING LOG ────────────────────────────────────────────────────────
+// Logs safeguarding events to DB (persistent audit trail) + console (Vercel logs).
+// Non-blocking: does not wait for DB write or let it fail the response.
+function logSafeguardingEvent(type, scholarId, text, band) {
+  if (!SAFEGUARDING_LOG_ENABLED) return;
+
+  const preview = (text || '').slice(0, 80);
+
+  // 1. Console log (existing — keep for Vercel log alerts)
+  console.warn('[SAFEGUARDING]', JSON.stringify({
+    type,          // 'crisis' | 'concerning' | 'off_topic'
+    scholarId,     // may be null for unauthenticated
+    band,          // age band for context
+    textPreview: preview, // first 80 chars only
+    timestamp: new Date().toISOString(),
+  }));
+
+  // 2. DB write (non-blocking — don't await, don't let it fail the response)
+  try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseKeys.secret(),
+      { auth: { persistSession: false } }
+    );
+
+    supabaseAdmin
+      .from('safeguarding_events')
+      .insert({
+        event_type: type,
+        scholar_id: scholarId,
+        age_band: band,
+        text_preview: preview,
+      })
+      .then(() => {
+        // Success — logged to DB
+      })
+      .catch((err) => {
+        // Fail silently — don't break the Tara response if DB write fails
+        console.warn('[SAFEGUARDING] DB write failed:', err?.message);
+      });
+  } catch (_) {
+    // Fail silently — don't break the Tara response if Supabase client fails
+  }
+}
+
 // ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 export async function POST(req) {
   let body;
@@ -253,19 +302,121 @@ export async function POST(req) {
     return NextResponse.json({ feedback: minPrompt[band] || minPrompt.ks2 });
   }
 
+  // ── 0b. Session turn limit (server-side tracking) ─────────────────────────────
+  // Track turn count on the server to prevent malicious clients from sending
+  // turnCount: 0 repeatedly to bypass the 20-turn session limit.
+  // For authenticated scholars: use tara_turns table; for anonymous: fall back to body.turnCount.
+  let serverTurnCount = Number(body.turnCount) || 0;
+  let sessionId = body.sessionId || null;
+
+  if (scholarId) {
+    try {
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        supabaseKeys.secret(),
+        { auth: { persistSession: false } }
+      );
+
+      if (sessionId) {
+        // Existing session — fetch, increment, and update atomically
+        const { data: existing, error: fetchErr } = await supabaseAdmin
+          .from('tara_turns')
+          .select('turn_count')
+          .eq('session_id', sessionId)
+          .single();
+
+        if (fetchErr) {
+          console.warn('[Tara] Failed to fetch session:', fetchErr?.message);
+        } else if (existing) {
+          const newCount = existing.turn_count + 1;
+          const { error: updateErr } = await supabaseAdmin
+            .from('tara_turns')
+            .update({ turn_count: newCount, last_seen: new Date().toISOString() })
+            .eq('session_id', sessionId);
+
+          if (updateErr) {
+            console.warn('[Tara] Failed to update turn count:', updateErr?.message);
+          } else {
+            serverTurnCount = newCount;
+          }
+        }
+      } else {
+        // First turn in a new session — create a new session row
+        const newSessionId = crypto.randomUUID();
+        const { data: inserted, error: insertErr } = await supabaseAdmin
+          .from('tara_turns')
+          .insert({
+            session_id: newSessionId,
+            scholar_id: scholarId,
+            turn_count: 1,
+          })
+          .select('session_id')
+          .single();
+
+        if (insertErr) {
+          console.warn('[Tara] Failed to create session:', insertErr?.message);
+        } else if (inserted?.session_id) {
+          sessionId = inserted.session_id;
+          serverTurnCount = 1;
+        }
+      }
+    } catch (err) {
+      console.warn('[Tara] Session tracking error:', err?.message);
+      // Fall back to body.turnCount if Supabase client fails
+    }
+  }
+
+  if (serverTurnCount >= 20) {
+    const limitMsg = (SAFEGUARDING_RESPONSES.session_limit[band] || SAFEGUARDING_RESPONSES.session_limit.ks2)
+      .replace('${name}', scholarName);
+    return NextResponse.json({ feedback: limitMsg, session_ended: true, sessionId });
+  }
+
+  // ── 0c. Intent classification (fast path — no LLM cost) ──────────────────────
+  const intent = classifyIntent(text, question?.topic || subject, subject);
+
+  if (intent === 'safeguarding_flag') {
+    const crisisMsg = SAFEGUARDING_RESPONSES.crisis[band] || SAFEGUARDING_RESPONSES.crisis.ks3;
+    logSafeguardingEvent('crisis', scholarId, text, band);
+    const payload = { feedback: crisisMsg, safeguarding: true };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
+  }
+
+  if (intent === 'off_topic_concerning') {
+    const concernMsg = SAFEGUARDING_RESPONSES.off_topic_concerning[band] || SAFEGUARDING_RESPONSES.off_topic_concerning.ks3;
+    logSafeguardingEvent('concerning', scholarId, text, band);
+    const payload = { feedback: concernMsg, safeguarding: true };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
+  }
+
+  if (intent === 'off_topic_innocent') {
+    // Redirect without burning an AI call or quota
+    const redirectMsg = SAFEGUARDING_RESPONSES.off_topic_redirect[band] || SAFEGUARDING_RESPONSES.off_topic_redirect.ks2;
+    const payload = { feedback: redirectMsg, off_topic: true };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
+  }
+  // intent === 'on_topic' → continue normal flow
+
   // ── 1. Server-side profanity guard ──────────────────────────────────────────
   if (containsProfanity(text)) {
-    return NextResponse.json({
+    const payload = {
       feedback: `${tara.name}: Let's keep things respectful! Rephrase that and try again. 🌟`
-    });
+    };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
   }
 
   // ── 2. Llama Guard on student input ─────────────────────────────────────────
   const inputSafe = await isSafe(text);
   if (!inputSafe) {
-    return NextResponse.json({
+    const payload = {
       feedback: `${tara.name}: That's an interesting thought. Let's keep our focus on learning! 🌟`
-    });
+    };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
   }
 
   // ── 3. Local fallback if no API key OR free tier (no paid AI feedback) ─────
@@ -278,7 +429,9 @@ export async function POST(req) {
     const fallback = mode === "followup"
       ? localFallbackFollowup(scholarName, scholarYear)
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
-    return NextResponse.json({ feedback: fallback, tier_note: degradeToLocalOnly ? 'free_tier_local_only' : undefined });
+    const payload = { feedback: fallback, tier_note: degradeToLocalOnly ? 'free_tier_local_only' : undefined };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
   }
 
   // ── 4. Build system prompt with age-band personality ────────────────────────
@@ -471,7 +624,9 @@ INSTRUCTIONS:
       const fallback = mode === "followup"
         ? localFallbackFollowup(scholarName, scholarYear)
         : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
-      return NextResponse.json({ feedback: fallback });
+      const payload = { feedback: fallback };
+      if (sessionId) payload.sessionId = sessionId;
+      return NextResponse.json(payload);
     }
 
     const taraPrefix = `${tara.name}:`;
@@ -481,6 +636,7 @@ INSTRUCTIONS:
 
     const responsePayload = { feedback: normalised };
     if (diagramSpec) responsePayload.diagram_spec = diagramSpec;
+    if (sessionId) responsePayload.sessionId = sessionId;
     return NextResponse.json(responsePayload);
 
   } catch (err) {
@@ -490,6 +646,8 @@ INSTRUCTIONS:
     const fallback = mode === "followup"
       ? localFallbackFollowup(scholarName, scholarYear)
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
-    return NextResponse.json({ feedback: fallback });
+    const payload = { feedback: fallback };
+    if (sessionId) payload.sessionId = sessionId;
+    return NextResponse.json(payload);
   }
 }

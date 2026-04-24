@@ -154,6 +154,72 @@ export async function POST(request) {
       );
     }
 
+    // ── School leads capture (non-blocking) ──
+    // If the scholar belongs to a non-partner school, record the lead for sales outreach.
+    // Fail-open: any error here must not break the claim success response.
+    (async () => {
+      try {
+        const { getServiceRoleClient } = await import("@/lib/security/serviceRole");
+        const serviceRole = getServiceRoleClient();
+
+        // Query scholar's school_id and check if is_partner
+        const { data: scholarData, error: scholarErr } = await serviceRole
+          .from("scholars")
+          .select("school_id")
+          .eq("id", row.scholar_id)
+          .single();
+
+        if (scholarErr) {
+          logger.warn("school_leads_scholar_lookup_failed", {
+            scholarId: row.scholar_id,
+            error: scholarErr,
+          });
+          return;
+        }
+
+        if (!scholarData?.school_id) {
+          // Scholar not linked to a school; no lead to capture
+          return;
+        }
+
+        // Check if school is a partner
+        const { data: schoolData, error: schoolErr } = await serviceRole
+          .from("schools")
+          .select("is_partner")
+          .eq("id", scholarData.school_id)
+          .single();
+
+        if (schoolErr || schoolData?.is_partner === true) {
+          // School is partner or lookup failed; skip lead capture
+          return;
+        }
+
+        // Upsert into school_leads (ignore if already exists for this scholar)
+        const { error: leadsErr } = await serviceRole
+          .from("school_leads")
+          .insert({
+            school_id: scholarData.school_id,
+            parent_id: session.user.id,
+            scholar_id: row.scholar_id,
+            lead_status: "new",
+          })
+          .select(); // Dummy select to force write
+
+        if (leadsErr && leadsErr.code !== "23505") {
+          // 23505 = unique constraint violation (already exists)
+          logger.warn("school_leads_insert_failed", {
+            scholarId: row.scholar_id,
+            error: leadsErr,
+          });
+        }
+      } catch (leadsErr) {
+        logger.warn("school_leads_capture_failed", {
+          scholarId: row.scholar_id,
+          error: leadsErr,
+        });
+      }
+    })();
+
     return NextResponse.json({
       success: true,
       scholar: {
