@@ -2,19 +2,21 @@
 /**
  * scripts/rewriteExplanations.mjs
  *
- * Rewrite stub explanations (< 80 chars) via OpenRouter claude-haiku-4-5.
- * Queries the DB directly for active questions with short explanations —
- * no external audit CSV required.
+ * Rewrite stub explanations (< 80 chars) via OpenRouter.
+ * Default model: deepseek/deepseek-chat:free (DeepSeek V3 — free tier).
+ * Use --paid to switch to claude-haiku-4-5 for guaranteed JSON compliance.
  *
  * Usage
  * ─────
- * node scripts/rewriteExplanations.mjs [--limit=N] [--dry-run]
+ * node scripts/rewriteExplanations.mjs [--limit=N] [--dry-run] [--paid]
  *
  * Examples
  * ────────
  *   node scripts/rewriteExplanations.mjs --limit=300
  *   node scripts/rewriteExplanations.mjs --limit=10 --dry-run
  *   node scripts/rewriteExplanations.mjs --curriculum=ng_primary --limit=500
+ *   node scripts/rewriteExplanations.mjs --limit=100 --paid   # haiku fallback
+ *   node scripts/rewriteExplanations.mjs --model=meta-llama/llama-3.3-70b-instruct:free
  *
  * Output
  * ──────
@@ -54,10 +56,17 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // ─── Parse CLI args ────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 let limit = 300000;
-const dryRun = args.includes('--dry-run');
+const dryRun  = args.includes('--dry-run');
+const usePaid = args.includes('--paid');
+
 const curriculumFilter = (() => {
   const f = args.find(a => a.startsWith('--curriculum='));
   return f ? f.split('=')[1] : null;
+})();
+
+const modelOverride = (() => {
+  const f = args.find(a => a.startsWith('--model='));
+  return f ? f.split('=').slice(1).join('=') : null;
 })();
 
 for (const arg of args) {
@@ -65,19 +74,29 @@ for (const arg of args) {
   if (match) limit = parseInt(match[1], 10);
 }
 
+// ─── Model selection ────────────────────────────────────────────────────────
+// Free tier (default): DeepSeek V3 — solid JSON compliance, strong English.
+// Free models have ~20 RPM rate limits; batch delay is 2 000 ms.
+// Use --paid for haiku-4-5 if free model produces malformed JSON.
+const FREE_MODEL  = 'deepseek/deepseek-chat:free';
+const PAID_MODEL  = 'anthropic/claude-haiku-4-5';
+const MODEL       = modelOverride ?? (usePaid ? PAID_MODEL : FREE_MODEL);
+const BATCH_DELAY = usePaid ? 200 : 2000; // ms — free tier ~20 RPM
+
+// ─── Cost tracking (only meaningful for paid runs) ─────────────────────────
+const PAID_INPUT_COST  = 0.25 / 1_000_000;   // haiku-4-5
+const PAID_OUTPUT_COST = 1.25 / 1_000_000;
+
+let totalInputTokens  = 0;
+let totalOutputTokens = 0;
+let processedCount    = 0;
+
 console.log('=== Explanation Rewriter ===');
+console.log(`Model:       ${MODEL}`);
 console.log(`Limit:       ${limit}`);
 console.log(`Dry Run:     ${dryRun ? 'YES' : 'NO'}`);
 if (curriculumFilter) console.log(`Curriculum:  ${curriculumFilter}`);
 console.log('');
-
-// ─── Pricing (claude-haiku-4-5 via OpenRouter) ─────────────────────────────
-const HAIKU_INPUT_COST = 0.25 / 1_000_000;
-const HAIKU_OUTPUT_COST = 1.25 / 1_000_000;
-
-let totalInputTokens = 0;
-let totalOutputTokens = 0;
-let processedCount = 0;
 
 // ─── Output paths ──────────────────────────────────────────────────────────
 const outputDir = path.join(__dirname, 'output');
@@ -161,53 +180,73 @@ Return a JSON array ONLY — no markdown fences, no extra text.
 Each element: {"id": "...", "explanation": "..."}
 Keep explanations under 300 words. British English. No LaTeX.`;
 
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'anthropic/claude-haiku-4-5',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: JSON.stringify(batchJson) },
-        ],
-        temperature: 0,
-        top_p: 1,
-      }),
-    });
+  const MAX_RETRIES = 4;
+  let attempt = 0;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errText}`);
-    }
-
-    const data = await response.json();
-    if (data.usage) {
-      totalInputTokens += data.usage.prompt_tokens ?? 0;
-      totalOutputTokens += data.usage.completion_tokens ?? 0;
-    }
-
-    const raw = data.choices?.[0]?.message?.content ?? '[]';
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    let rewrites = [];
+  while (attempt < MAX_RETRIES) {
     try {
-      rewrites = JSON.parse(cleaned);
-    } catch (e) {
-      console.error(`  ⚠ Failed to parse LLM response: ${e.message}`);
-      return {};
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: JSON.stringify(batchJson) },
+          ],
+          temperature: 0,
+          top_p: 1,
+        }),
+      });
+
+      // Rate-limited — back off and retry
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('retry-after') ?? '0', 10);
+        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.pow(2, attempt + 2) * 1000;
+        console.warn(`\n  ⏳ Rate limited (attempt ${attempt + 1}). Waiting ${wait / 1000}s...`);
+        await new Promise(r => setTimeout(r, wait));
+        attempt++;
+        continue;
+      }
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText}`);
+      }
+
+      const data = await response.json();
+      if (data.usage) {
+        totalInputTokens  += data.usage.prompt_tokens ?? 0;
+        totalOutputTokens += data.usage.completion_tokens ?? 0;
+      }
+
+      const raw = data.choices?.[0]?.message?.content ?? '[]';
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      let rewrites = [];
+      try {
+        rewrites = JSON.parse(cleaned);
+      } catch (e) {
+        console.error(`  ⚠ Failed to parse LLM response: ${e.message}`);
+        if (!usePaid) console.error(`  💡 Tip: re-run with --paid to use haiku-4-5 for this batch`);
+        return {};
+      }
+
+      const result = {};
+      for (const r of rewrites) result[r.id] = r;
+      return result;
+
+    } catch (err) {
+      console.error(`  ⚠ LLM batch failed (attempt ${attempt + 1}): ${err.message}`);
+      attempt++;
+      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
     }
-
-    const result = {};
-    for (const r of rewrites) result[r.id] = r;
-    return result;
-
-  } catch (err) {
-    console.error(`  ⚠ LLM batch failed: ${err.message}`);
-    return {};
   }
+
+  console.error(`  ✖ Batch abandoned after ${MAX_RETRIES} attempts`);
+  return {};
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────
@@ -250,9 +289,9 @@ async function runRewrite() {
     const done = Math.min(i + BATCH_SIZE, toProcess.length);
     process.stdout.write(`\r  ${done}/${toProcess.length} questions processed...`);
 
-    // Rate limit: 150ms between batches
+    // Rate limit pause — free tier needs ~2 s to stay under 20 RPM
     if (i + BATCH_SIZE < toProcess.length) {
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, BATCH_DELAY));
     }
   }
 
@@ -282,12 +321,19 @@ async function runRewrite() {
   console.log(`📁 SQL written  → ${sqlOutputPath}`);
 
   // ── Cost summary ───────────────────────────────────────────────────────
-  const inputCost = totalInputTokens * HAIKU_INPUT_COST;
-  const outputCost = totalOutputTokens * HAIKU_OUTPUT_COST;
   console.log(`\n=== Cost ===`);
-  console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($${inputCost.toFixed(4)})`);
-  console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($${outputCost.toFixed(4)})`);
-  console.log(`Total:         $${(inputCost + outputCost).toFixed(4)}`);
+  console.log(`Model:         ${MODEL}`);
+  if (usePaid) {
+    const inputCost  = totalInputTokens  * PAID_INPUT_COST;
+    const outputCost = totalOutputTokens * PAID_OUTPUT_COST;
+    console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($${inputCost.toFixed(4)})`);
+    console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($${outputCost.toFixed(4)})`);
+    console.log(`Total:         $${(inputCost + outputCost).toFixed(4)}`);
+  } else {
+    console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($0.0000 — free tier)`);
+    console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($0.0000 — free tier)`);
+    console.log(`Total:         $0.0000`);
+  }
 }
 
 runRewrite().catch(err => {
