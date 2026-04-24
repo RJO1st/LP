@@ -3,8 +3,9 @@
  * scripts/rewriteExplanations.mjs
  *
  * Rewrite stub explanations (< 80 chars) via OpenRouter.
- * Default model: deepseek/deepseek-chat:free (DeepSeek V3 — free tier).
- * Use --paid to switch to claude-haiku-4-5 for guaranteed JSON compliance.
+ * Rotates across a pool of free models automatically — 429s and JSON
+ * failures cause an immediate switch to the next model in the ring.
+ * Paid (haiku-4-5) is the last-resort fallback only.
  *
  * Usage
  * ─────
@@ -15,8 +16,7 @@
  *   node scripts/rewriteExplanations.mjs --limit=300
  *   node scripts/rewriteExplanations.mjs --limit=10 --dry-run
  *   node scripts/rewriteExplanations.mjs --curriculum=ng_primary --limit=500
- *   node scripts/rewriteExplanations.mjs --limit=100 --paid   # haiku fallback
- *   node scripts/rewriteExplanations.mjs --model=meta-llama/llama-3.3-70b-instruct:free
+ *   node scripts/rewriteExplanations.mjs --paid          # force haiku-4-5 only
  *
  * Output
  * ──────
@@ -38,9 +38,9 @@ const __dirname = path.dirname(__filename);
 
 config({ path: path.join(__dirname, '..', '.env.local') });
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_KEY  = process.env.OPENROUTER_API_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error('❌ Missing SUPABASE_URL or SERVICE_ROLE_KEY in .env.local');
@@ -54,19 +54,14 @@ if (!OPENROUTER_KEY) {
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 // ─── Parse CLI args ────────────────────────────────────────────────────────
-const args = process.argv.slice(2);
-let limit = 300000;
+const args    = process.argv.slice(2);
+let   limit   = 300000;
 const dryRun  = args.includes('--dry-run');
-const usePaid = args.includes('--paid');
+const usePaid = args.includes('--paid'); // skip free rotation, use haiku only
 
 const curriculumFilter = (() => {
   const f = args.find(a => a.startsWith('--curriculum='));
   return f ? f.split('=')[1] : null;
-})();
-
-const modelOverride = (() => {
-  const f = args.find(a => a.startsWith('--model='));
-  return f ? f.split('=').slice(1).join('=') : null;
 })();
 
 for (const arg of args) {
@@ -74,38 +69,76 @@ for (const arg of args) {
   if (match) limit = parseInt(match[1], 10);
 }
 
-// ─── Model selection ────────────────────────────────────────────────────────
-// Free models ranked for this task (structured JSON + curriculum-aware prose):
-//   meta-llama/llama-3.3-70b-instruct:free   — 876M tok/wk, proven JSON compliance  ✅ DEFAULT
-//   openai/gpt-oss-120b:free                 — 68.2B tok/wk, highest quality
-//   nousresearch/hermes-3-405b-instruct:free — 88.7M tok/wk, tuned for JSON
-//   nvidia/nemotron-3-nano-30b-a3b:free      — 45.5B tok/wk, 256K context
-//   qwen/qwen3-next-80b-a3b:free             — 778M tok/wk, strong multilingual
-//   deepseek/deepseek-chat:free              — solid fallback
-//
-// Avoid for this task: image models (FLUX, Seedream), <4B models (LFM 1.2B, Gemma 3n 2B)
-//
-// Use --paid for haiku-4-5 if free model produces malformed JSON.
-// Use --model=<id> to override without editing this file.
-const FREE_MODEL  = 'meta-llama/llama-3.3-70b-instruct:free';
-const PAID_MODEL  = 'anthropic/claude-haiku-4-5';
-const MODEL       = modelOverride ?? (usePaid ? PAID_MODEL : FREE_MODEL);
-const BATCH_DELAY = usePaid ? 200 : 2000; // ms — free tier ~20 RPM
+// ─── Model pool ────────────────────────────────────────────────────────────
+// Ordered by preference (quality + reliability for structured JSON output).
+// Ring rotates after each successful batch to spread load evenly.
+// 429 → model enters 60 s cooloff; next model in ring is tried immediately.
+// JSON parse fail → next model tried for the same batch.
+// If every free model is cooling off → PAID_MODEL is the emergency fallback.
+const FREE_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',    // 876M tok/wk — proven JSON
+  'openai/gpt-oss-120b:free',                  // 68.2B tok/wk — highest quality
+  'nousresearch/hermes-3-405b-instruct:free',  // 88.7M tok/wk — JSON-tuned
+  'nvidia/nemotron-3-nano-30b-a3b:free',       // 45.5B tok/wk — 256 K ctx
+  'qwen/qwen3-next-80b-a3b:free',             // 778M tok/wk — strong multilingual
+  'deepseek/deepseek-chat:free',               // solid general fallback
+];
+const PAID_MODEL = 'anthropic/claude-haiku-4-5';
 
-// ─── Cost tracking (only meaningful for paid runs) ─────────────────────────
-const PAID_INPUT_COST  = 0.25 / 1_000_000;   // haiku-4-5
+// Ring state
+let ringIndex = 0;                      // advances after each successful batch
+const cooloff = new Map();              // model → Date.now() when cooloff expires
+const COOLOFF_MS  = 60_000;            // 60 s after a 429
+const BATCH_DELAY = usePaid ? 200 : 500; // ms between batches (free pool ~120 RPM)
+
+// Cost tracking (only haiku uses paid tokens)
+const PAID_INPUT_COST  = 0.25 / 1_000_000;
 const PAID_OUTPUT_COST = 1.25 / 1_000_000;
-
-let totalInputTokens  = 0;
-let totalOutputTokens = 0;
-let processedCount    = 0;
+let paidInputTokens  = 0;
+let paidOutputTokens = 0;
+let paidBatches      = 0;
+let processedCount   = 0;
 
 console.log('=== Explanation Rewriter ===');
-console.log(`Model:       ${MODEL}`);
+if (usePaid) {
+  console.log(`Model:       ${PAID_MODEL} (--paid flag)`);
+} else {
+  console.log(`Models:      ${FREE_MODELS.length}-model free rotation + ${PAID_MODEL} emergency fallback`);
+}
 console.log(`Limit:       ${limit}`);
 console.log(`Dry Run:     ${dryRun ? 'YES' : 'NO'}`);
 if (curriculumFilter) console.log(`Curriculum:  ${curriculumFilter}`);
 console.log('');
+
+// ─── Model ring helpers ─────────────────────────────────────────────────────
+function activeModels() {
+  const now = Date.now();
+  return FREE_MODELS.filter(m => {
+    const exp = cooloff.get(m);
+    return !exp || now > exp;
+  });
+}
+
+/** Returns the pool to try for one batch: active free models in ring order, then paid. */
+function batchCandidates() {
+  if (usePaid) return [PAID_MODEL];
+  const active = activeModels();
+  if (active.length === 0) {
+    console.warn('\n  ⚠ All free models cooling off — using paid fallback');
+    return [PAID_MODEL];
+  }
+  // Start from ringIndex, wrap around, dedup with paid at end
+  const ordered = [];
+  for (let i = 0; i < active.length; i++) {
+    ordered.push(active[(ringIndex + i) % active.length]);
+  }
+  ordered.push(PAID_MODEL); // last resort
+  return ordered;
+}
+
+function advanceRing() {
+  ringIndex = (ringIndex + 1) % FREE_MODELS.length;
+}
 
 // ─── Output paths ──────────────────────────────────────────────────────────
 const outputDir = path.join(__dirname, 'output');
@@ -167,16 +200,42 @@ async function loadStubQuestions() {
   return all;
 }
 
-// ─── Rewrite a batch of questions via LLM ─────────────────────────────────
+// ─── Call one model ─────────────────────────────────────────────────────────
+async function callModel(model, messages) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model, messages, temperature: 0, top_p: 1 }),
+  });
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '0', 10);
+    const exp = Date.now() + (retryAfter > 0 ? retryAfter * 1000 : COOLOFF_MS);
+    cooloff.set(model, exp);
+    throw Object.assign(new Error(`429 rate-limited`), { code: 429 });
+  }
+
+  if (!response.ok) {
+    const txt = await response.text();
+    throw new Error(`HTTP ${response.status}: ${txt.slice(0, 200)}`);
+  }
+
+  return response.json();
+}
+
+// ─── Rewrite a batch of questions via LLM (with model rotation) ────────────
 async function rewriteBatch(questions) {
   const batchJson = questions.map(q => ({
-    id: q.id,
-    question_text: q.question_text ?? '',
-    correct_answer: Array.isArray(q.options) ? (q.options[q.correct_index] ?? '') : '',
+    id:                  q.id,
+    question_text:       q.question_text ?? '',
+    correct_answer:      Array.isArray(q.options) ? (q.options[q.correct_index] ?? '') : '',
     current_explanation: q.explanation ?? '',
-    year_level: q.year_level ?? '',
-    subject: q.subject ?? '',
-    topic: q.topic ?? '',
+    year_level:          q.year_level ?? '',
+    subject:             q.subject ?? '',
+    topic:               q.topic ?? '',
   }));
 
   const systemPrompt = `You are an expert UK/Nigerian school teacher (KS1–SSS). Rewrite each explanation to score 5/5 on all criteria:
@@ -189,72 +248,54 @@ Return a JSON array ONLY — no markdown fences, no extra text.
 Each element: {"id": "...", "explanation": "..."}
 Keep explanations under 300 words. British English. No LaTeX.`;
 
-  const MAX_RETRIES = 4;
-  let attempt = 0;
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user',   content: JSON.stringify(batchJson) },
+  ];
 
-  while (attempt < MAX_RETRIES) {
+  const candidates = batchCandidates();
+
+  for (const model of candidates) {
+    const isPaid = model === PAID_MODEL;
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: JSON.stringify(batchJson) },
-          ],
-          temperature: 0,
-          top_p: 1,
-        }),
-      });
+      const data = await callModel(model, messages);
 
-      // Rate-limited — back off and retry
-      if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('retry-after') ?? '0', 10);
-        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.pow(2, attempt + 2) * 1000;
-        console.warn(`\n  ⏳ Rate limited (attempt ${attempt + 1}). Waiting ${wait / 1000}s...`);
-        await new Promise(r => setTimeout(r, wait));
-        attempt++;
-        continue;
+      // Track tokens
+      if (isPaid && data.usage) {
+        paidInputTokens  += data.usage.prompt_tokens ?? 0;
+        paidOutputTokens += data.usage.completion_tokens ?? 0;
+        paidBatches++;
       }
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText}`);
-      }
-
-      const data = await response.json();
-      if (data.usage) {
-        totalInputTokens  += data.usage.prompt_tokens ?? 0;
-        totalOutputTokens += data.usage.completion_tokens ?? 0;
-      }
-
-      const raw = data.choices?.[0]?.message?.content ?? '[]';
+      const raw     = data.choices?.[0]?.message?.content ?? '[]';
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      let rewrites = [];
+
+      let rewrites;
       try {
         rewrites = JSON.parse(cleaned);
       } catch (e) {
-        console.error(`  ⚠ Failed to parse LLM response: ${e.message}`);
-        if (!usePaid) console.error(`  💡 Tip: re-run with --paid to use haiku-4-5 for this batch`);
-        return {};
+        console.warn(`\n  ⚠ ${model} — bad JSON, trying next model...`);
+        continue; // try next candidate
       }
+
+      // Success — advance ring for even load distribution
+      if (!isPaid) advanceRing();
 
       const result = {};
       for (const r of rewrites) result[r.id] = r;
       return result;
 
     } catch (err) {
-      console.error(`  ⚠ LLM batch failed (attempt ${attempt + 1}): ${err.message}`);
-      attempt++;
-      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
+      if (err.code === 429) {
+        console.warn(`\n  ⏳ ${model} rate-limited (60 s cooloff) — switching model...`);
+      } else {
+        console.warn(`\n  ⚠ ${model} error: ${err.message.slice(0, 120)} — trying next...`);
+      }
+      // loop continues to next candidate
     }
   }
 
-  console.error(`  ✖ Batch abandoned after ${MAX_RETRIES} attempts`);
+  console.error('  ✖ All candidates failed for this batch — skipping');
   return {};
 }
 
@@ -273,12 +314,12 @@ async function runRewrite() {
     return;
   }
 
-  const results = [];
+  const results    = [];
   const sqlUpdates = [];
   const BATCH_SIZE = 5;
 
   for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
-    const batch = toProcess.slice(i, i + BATCH_SIZE);
+    const batch   = toProcess.slice(i, i + BATCH_SIZE);
     const rewrites = await rewriteBatch(batch);
 
     for (const q of batch) {
@@ -287,18 +328,16 @@ async function runRewrite() {
         console.warn(`  ⚠ No rewrite returned for ${q.id}`);
         continue;
       }
-
       results.push({ question_id: q.id, new_explanation: rewrite.explanation });
-
       const escaped = rewrite.explanation.replace(/'/g, "''");
       sqlUpdates.push(`UPDATE question_bank SET explanation = '${escaped}' WHERE id = '${q.id}';`);
       processedCount++;
     }
 
     const done = Math.min(i + BATCH_SIZE, toProcess.length);
-    process.stdout.write(`\r  ${done}/${toProcess.length} questions processed...`);
+    const active = usePaid ? [PAID_MODEL] : activeModels();
+    process.stdout.write(`\r  ${done}/${toProcess.length} processed | ring[${ringIndex % (active.length || 1)}] active free: ${active.length}`);
 
-    // Rate limit pause — free tier needs ~2 s to stay under 20 RPM
     if (i + BATCH_SIZE < toProcess.length) {
       await new Promise(r => setTimeout(r, BATCH_DELAY));
     }
@@ -330,19 +369,16 @@ async function runRewrite() {
   console.log(`📁 SQL written  → ${sqlOutputPath}`);
 
   // ── Cost summary ───────────────────────────────────────────────────────
-  console.log(`\n=== Cost ===`);
-  console.log(`Model:         ${MODEL}`);
-  if (usePaid) {
-    const inputCost  = totalInputTokens  * PAID_INPUT_COST;
-    const outputCost = totalOutputTokens * PAID_OUTPUT_COST;
-    console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($${inputCost.toFixed(4)})`);
-    console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($${outputCost.toFixed(4)})`);
-    console.log(`Total:         $${(inputCost + outputCost).toFixed(4)}`);
+  const freeBatches = Math.ceil(processedCount / BATCH_SIZE) - paidBatches;
+  const paidCost    = paidInputTokens * PAID_INPUT_COST + paidOutputTokens * PAID_OUTPUT_COST;
+  console.log('\n=== Cost ===');
+  console.log(`Free batches:  ${freeBatches}  ($0.0000)`);
+  if (paidBatches > 0) {
+    console.log(`Paid batches:  ${paidBatches}  (${paidInputTokens.toLocaleString()} in + ${paidOutputTokens.toLocaleString()} out = $${paidCost.toFixed(4)})`);
   } else {
-    console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($0.0000 — free tier)`);
-    console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($0.0000 — free tier)`);
-    console.log(`Total:         $0.0000`);
+    console.log(`Paid batches:  0  (emergency fallback never triggered)`);
   }
+  console.log(`Total:         $${paidCost.toFixed(4)}`);
 }
 
 runRewrite().catch(err => {
