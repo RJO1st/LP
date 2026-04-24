@@ -2,9 +2,9 @@
 /**
  * scripts/rewriteExplanations.mjs
  *
- * Rewrite explanations for flagged questions (avg_score < 3.0) using Claude Haiku via OpenRouter.
- * Reads flagged questions from the explanation quality audit CSV.
- * Resumes from existing results to avoid re-processing.
+ * Rewrite stub explanations (< 80 chars) via OpenRouter claude-haiku-4-5.
+ * Queries the DB directly for active questions with short explanations —
+ * no external audit CSV required.
  *
  * Usage
  * ─────
@@ -14,14 +14,15 @@
  * ────────
  *   node scripts/rewriteExplanations.mjs --limit=300
  *   node scripts/rewriteExplanations.mjs --limit=10 --dry-run
+ *   node scripts/rewriteExplanations.mjs --curriculum=ng_primary --limit=500
  *
  * Output
  * ──────
- * CSV: scripts/output/explanation_rewrites.csv
- * SQL: scripts/output/explanation_rewrites.sql
+ * CSV: scripts/output/explanation_rewrites.csv   (appended — resume-safe)
+ * SQL: scripts/output/explanation_rewrites.sql   (overwritten each run)
  *
- * Columns (CSV): question_id, new_explanation
- * Prints cost estimate to stdout (tokens × Haiku rate).
+ * Requires: .env.local with NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY,
+ *           OPENROUTER_API_KEY
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -29,7 +30,6 @@ import { config } from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import csv from 'csv-parse/sync';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,20 +41,24 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error('Missing SUPABASE_URL or SERVICE_ROLE_KEY in .env.local');
+  console.error('❌ Missing SUPABASE_URL or SERVICE_ROLE_KEY in .env.local');
   process.exit(1);
 }
 if (!OPENROUTER_KEY) {
-  console.error('Missing OPENROUTER_API_KEY in .env.local');
+  console.error('❌ Missing OPENROUTER_API_KEY in .env.local');
   process.exit(1);
 }
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// Parse CLI args
+// ─── Parse CLI args ────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 let limit = 300;
 const dryRun = args.includes('--dry-run');
+const curriculumFilter = (() => {
+  const f = args.find(a => a.startsWith('--curriculum='));
+  return f ? f.split('=')[1] : null;
+})();
 
 for (const arg of args) {
   const match = arg.match(/--limit=(\d+)/);
@@ -62,140 +66,101 @@ for (const arg of args) {
 }
 
 console.log('=== Explanation Rewriter ===');
-console.log(`Limit: ${limit}`);
-console.log(`Dry Run: ${dryRun ? 'YES' : 'NO'}`);
+console.log(`Limit:       ${limit}`);
+console.log(`Dry Run:     ${dryRun ? 'YES' : 'NO'}`);
+if (curriculumFilter) console.log(`Curriculum:  ${curriculumFilter}`);
 console.log('');
 
-// Pricing for Claude Haiku
+// ─── Pricing (claude-haiku-4-5 via OpenRouter) ─────────────────────────────
 const HAIKU_INPUT_COST = 0.25 / 1_000_000;
 const HAIKU_OUTPUT_COST = 1.25 / 1_000_000;
 
-// Track totals
 let totalInputTokens = 0;
 let totalOutputTokens = 0;
 let processedCount = 0;
-let skippedCount = 0;
 
-// Load existing results to support resume
+// ─── Output paths ──────────────────────────────────────────────────────────
 const outputDir = path.join(__dirname, 'output');
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-}
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
 const csvOutputPath = path.join(outputDir, 'explanation_rewrites.csv');
 const sqlOutputPath = path.join(outputDir, 'explanation_rewrites.sql');
-const auditPath = path.join('/sessions/sleepy-serene-hopper/mnt/uploads', 'explanation_quality_audit.csv');
 
+// ─── Resume: load IDs already processed ────────────────────────────────────
 const existingIds = new Set();
-
 if (fs.existsSync(csvOutputPath)) {
-  const content = fs.readFileSync(csvOutputPath, 'utf-8');
-  const lines = content.split('\n');
+  const lines = fs.readFileSync(csvOutputPath, 'utf-8').split('\n');
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim()) {
-      const parts = lines[i].split(',');
-      if (parts[0]) existingIds.add(parts[0]);
-    }
+    const id = lines[i].split(',')[0]?.trim();
+    if (id && id.length === 36) existingIds.add(id); // UUID length guard
   }
-  console.log(`Found ${existingIds.size} existing rewrites, will resume from there.`);
+  console.log(`Found ${existingIds.size} existing rewrites — will skip these.`);
 }
 
-// CSV header for output
-const csvHeader = 'question_id,new_explanation\n';
-
-// Escape CSV value
+// ─── Escape CSV ────────────────────────────────────────────────────────────
 function escapeCsv(val) {
-  if (!val) return '';
-  const str = String(val);
+  const str = String(val ?? '');
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
 }
 
-/**
- * Load flagged questions from audit CSV
- */
-function loadFlaggedQuestions() {
-  if (!fs.existsSync(auditPath)) {
-    throw new Error(`Audit CSV not found: ${auditPath}`);
+// ─── Load stub questions directly from DB ──────────────────────────────────
+async function loadStubQuestions() {
+  console.log('📖 Querying DB for stub explanations (< 80 chars)...');
+  const all = [];
+  let page = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    let query = supabase
+      .from('question_bank')
+      .select('id, question_text, options, correct_index, explanation, year_level, subject, topic, curriculum')
+      .eq('is_active', true)
+      .not('explanation', 'is', null)
+      .lt('explanation', '\x7f') // rough proxy — actual filter below
+      .order('curriculum, subject, year_level')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (curriculumFilter) query = query.eq('curriculum', curriculumFilter);
+
+    const { data, error } = await query;
+    if (error) { console.error('❌ DB error:', error.message); process.exit(1); }
+    if (!data || data.length === 0) break;
+
+    // Client-side length filter — Supabase JS doesn't expose LENGTH() in filters
+    const stubs = data.filter(q => (q.explanation ?? '').trim().length < 80);
+    all.push(...stubs);
+    page++;
+    process.stdout.write(`\r  Scanned ${page * pageSize} rows, found ${all.length} stubs...`);
   }
 
-  const content = fs.readFileSync(auditPath, 'utf-8');
-  const records = csv.parse(content, {
-    columns: true,
-    skip_empty_lines: true,
-  });
-
-  // Filter: flagged=true AND avg_score >= 1.5
-  const flagged = records.filter(
-    r => r.flagged === 'true' && parseFloat(r.avg_score) >= 1.5
-  );
-
-  console.log(`Loaded ${records.length} total questions from audit`);
-  console.log(`Found ${flagged.length} flagged with avg_score >= 1.5`);
-
-  return flagged;
+  console.log(`\n✅ Found ${all.length} stub explanations\n`);
+  return all;
 }
 
-/**
- * Fetch full question details from Supabase
- */
-async function fetchQuestionDetails(questionIds) {
-  const { data, error } = await supabase
-    .from('question_bank')
-    .select('id, question_text, options, correct_index, explanation, year_level, subject, topic')
-    .in('id', questionIds);
+// ─── Rewrite a batch of questions via LLM ─────────────────────────────────
+async function rewriteBatch(questions) {
+  const batchJson = questions.map(q => ({
+    id: q.id,
+    question_text: q.question_text ?? '',
+    correct_answer: Array.isArray(q.options) ? (q.options[q.correct_index] ?? '') : '',
+    current_explanation: q.explanation ?? '',
+    year_level: q.year_level ?? '',
+    subject: q.subject ?? '',
+    topic: q.topic ?? '',
+  }));
 
-  if (error) {
-    throw new Error(`Supabase error: ${error.message}`);
-  }
-
-  // Index by ID for quick lookup
-  const byId = {};
-  for (const q of data) {
-    byId[q.id] = q;
-  }
-
-  return byId;
-}
-
-/**
- * Call OpenRouter API for batch rewrite
- */
-async function rewriteBatch(questions, detailsMap) {
-  const batchJson = questions.map(q => {
-    const full = detailsMap[q.question_id];
-    if (!full) {
-      console.warn(`Question ${q.question_id} not found in DB, skipping`);
-      return null;
-    }
-
-    return {
-      id: q.question_id,
-      question_text: full.question_text || '',
-      correct_answer: (full.options || [])[full.correct_index] || '',
-      current_explanation: full.explanation || '',
-      year_level: full.year_level || '',
-      subject: full.subject || '',
-      topic: full.topic || '',
-    };
-  }).filter(Boolean);
-
-  if (batchJson.length === 0) {
-    return {};
-  }
-
-  const systemPrompt = `You are an expert UK/Nigerian school teacher (KS1-SSS). Rewrite each explanation to score 5/5 on these criteria:
+  const systemPrompt = `You are an expert UK/Nigerian school teacher (KS1–SSS). Rewrite each explanation to score 5/5 on all criteria:
 1. METHOD_CLARITY: Show the method, not just the answer. Include step-by-step working.
 2. MISCONCEPTION_ADDRESS: Name common wrong approaches and explain why they fail.
-3. AGE_APPROPRIATE: Match the language to year_level (Y1-2: very simple; Y7-9: clear prose; Y10-13: precise terminology).
+3. AGE_APPROPRIATE: Match language to year_level (Y1–2: very simple; Y7–9: clear prose; Y10–13: precise terminology).
 4. WORKED_EXAMPLE: Include a concrete worked example if not already present.
 
-Return JSON array only. Each element: {"id": "...", "explanation": "..."}
-Keep explanations under 300 words. British English.`;
-
-  const userMessage = JSON.stringify(batchJson);
+Return a JSON array ONLY — no markdown fences, no extra text.
+Each element: {"id": "...", "explanation": "..."}
+Keep explanations under 300 words. British English. No LaTeX.`;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -208,7 +173,7 @@ Keep explanations under 300 words. British English.`;
         model: 'anthropic/claude-haiku-4-5',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
+          { role: 'user', content: JSON.stringify(batchJson) },
         ],
         temperature: 0,
         top_p: 1,
@@ -216,143 +181,117 @@ Keep explanations under 300 words. British English.`;
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorData}`);
+      const errText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
-
-    // Track token usage
     if (data.usage) {
-      totalInputTokens += data.usage.prompt_tokens || 0;
-      totalOutputTokens += data.usage.completion_tokens || 0;
+      totalInputTokens += data.usage.prompt_tokens ?? 0;
+      totalOutputTokens += data.usage.completion_tokens ?? 0;
     }
 
-    const raw = data.choices?.[0]?.message?.content || '[]';
-    // Strip markdown code fences the model sometimes adds despite instructions
-    const content = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const raw = data.choices?.[0]?.message?.content ?? '[]';
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     let rewrites = [];
     try {
-      rewrites = JSON.parse(content);
+      rewrites = JSON.parse(cleaned);
     } catch (e) {
-      console.error(`Failed to parse LLM response: ${e.message}`);
+      console.error(`  ⚠ Failed to parse LLM response: ${e.message}`);
       return {};
     }
 
-    // Index by question ID
     const result = {};
-    for (const rewrite of rewrites) {
-      result[rewrite.id] = rewrite;
-    }
+    for (const r of rewrites) result[r.id] = r;
     return result;
+
   } catch (err) {
-    console.error(`LLM batch failed: ${err.message}`);
+    console.error(`  ⚠ LLM batch failed: ${err.message}`);
     return {};
   }
 }
 
-/**
- * Main rewrite loop
- */
+// ─── Main ──────────────────────────────────────────────────────────────────
 async function runRewrite() {
-  const flaggedQuestions = loadFlaggedQuestions();
-  const toProcess = flaggedQuestions
-    .filter(q => !existingIds.has(q.question_id))
+  const stubs = await loadStubQuestions();
+
+  const toProcess = stubs
+    .filter(q => !existingIds.has(q.id))
     .slice(0, limit);
 
-  console.log(`\nWill process ${toProcess.length} new questions`);
+  console.log(`Will process: ${toProcess.length} questions (limit=${limit}, already done=${existingIds.size})\n`);
 
-  const results = [];
-  const sqlUpdates = [];
-  const llmBatchSize = 5; // Questions per LLM call
-
-  for (let i = 0; i < toProcess.length; i += llmBatchSize) {
-    const batchQuestions = toProcess.slice(i, i + llmBatchSize);
-    const questionIds = batchQuestions.map(q => q.question_id);
-
-    // Fetch full details
-    const detailsMap = await fetchQuestionDetails(questionIds);
-
-    // Rewrite
-    const rewrites = await rewriteBatch(batchQuestions, detailsMap);
-
-    for (const q of batchQuestions) {
-      const rewrite = rewrites[q.question_id];
-      if (!rewrite) {
-        console.warn(`No rewrite for question ${q.question_id}`);
-        continue;
-      }
-
-      results.push({
-        question_id: q.question_id,
-        new_explanation: rewrite.explanation || '',
-      });
-
-      // Generate SQL UPDATE for this question
-      const escaped = rewrite.explanation.replace(/'/g, "''");
-      sqlUpdates.push(
-        `UPDATE question_bank SET explanation = '${escaped}' WHERE id = '${q.question_id}';`
-      );
-
-      processedCount++;
-      if (processedCount % 10 === 0) {
-        console.log(`  Processed ${processedCount}/${toProcess.length}...`);
-      }
-    }
-
-    // Rate limiting: 150ms between batches
-    if (i + llmBatchSize < toProcess.length) {
-      await new Promise(resolve => setTimeout(resolve, 150));
-    }
-  }
-
-  skippedCount = flaggedQuestions.length - toProcess.length;
-  console.log(`\nProcessed: ${processedCount}, Skipped (already done): ${skippedCount}`);
-
-  if (dryRun) {
-    console.log('\n=== DRY RUN: Would write the following results ===');
-    console.log(results.slice(0, 3));
-    console.log('\n=== DRY RUN: Would write the following SQL ===');
-    console.log(sqlUpdates.slice(0, 3).join('\n'));
+  if (toProcess.length === 0) {
+    console.log('Nothing to do — all stub explanations already rewritten.');
     return;
   }
 
-  // Write CSV
-  if (!fs.existsSync(csvOutputPath) || fs.statSync(csvOutputPath).size === 0) {
-    fs.writeFileSync(csvOutputPath, csvHeader);
+  const results = [];
+  const sqlUpdates = [];
+  const BATCH_SIZE = 5;
+
+  for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+    const batch = toProcess.slice(i, i + BATCH_SIZE);
+    const rewrites = await rewriteBatch(batch);
+
+    for (const q of batch) {
+      const rewrite = rewrites[q.id];
+      if (!rewrite?.explanation) {
+        console.warn(`  ⚠ No rewrite returned for ${q.id}`);
+        continue;
+      }
+
+      results.push({ question_id: q.id, new_explanation: rewrite.explanation });
+
+      const escaped = rewrite.explanation.replace(/'/g, "''");
+      sqlUpdates.push(`UPDATE question_bank SET explanation = '${escaped}' WHERE id = '${q.id}';`);
+      processedCount++;
+    }
+
+    const done = Math.min(i + BATCH_SIZE, toProcess.length);
+    process.stdout.write(`\r  ${done}/${toProcess.length} questions processed...`);
+
+    // Rate limit: 150ms between batches
+    if (i + BATCH_SIZE < toProcess.length) {
+      await new Promise(r => setTimeout(r, 150));
+    }
   }
 
-  const csvLines = results
-    .map(r => `${r.question_id},${escapeCsv(r.new_explanation)}`)
-    .join('\n');
+  console.log(`\n\n✅ Done: ${processedCount} explanations rewritten\n`);
 
+  if (dryRun) {
+    console.log('=== DRY RUN: sample output ===');
+    console.log(JSON.stringify(results.slice(0, 2), null, 2));
+    return;
+  }
+
+  // ── Write CSV (append for resume safety) ──────────────────────────────
+  if (!fs.existsSync(csvOutputPath) || fs.statSync(csvOutputPath).size === 0) {
+    fs.writeFileSync(csvOutputPath, 'question_id,new_explanation\n');
+  }
+  const csvLines = results.map(r => `${r.question_id},${escapeCsv(r.new_explanation)}`).join('\n');
   fs.appendFileSync(csvOutputPath, csvLines + '\n');
-  console.log(`\nResults appended to ${csvOutputPath}`);
+  console.log(`📁 CSV appended → ${csvOutputPath}`);
 
-  // Write SQL in batches (100 per batch)
+  // ── Write SQL (batched in transactions of 100) ─────────────────────────
   const sqlBatches = [];
   for (let i = 0; i < sqlUpdates.length; i += 100) {
     const batch = sqlUpdates.slice(i, i + 100);
     sqlBatches.push('BEGIN;\n' + batch.join('\n') + '\nCOMMIT;');
   }
-
   fs.writeFileSync(sqlOutputPath, sqlBatches.join('\n\n') + '\n');
-  console.log(`SQL updates written to ${sqlOutputPath}`);
+  console.log(`📁 SQL written  → ${sqlOutputPath}`);
 
-  // Cost estimate
+  // ── Cost summary ───────────────────────────────────────────────────────
   const inputCost = totalInputTokens * HAIKU_INPUT_COST;
   const outputCost = totalOutputTokens * HAIKU_OUTPUT_COST;
-  const totalCost = inputCost + outputCost;
-
-  console.log(`\n=== Token Usage & Cost ===`);
-  console.log(`Input tokens: ${totalInputTokens.toLocaleString()}`);
-  console.log(`Output tokens: ${totalOutputTokens.toLocaleString()}`);
-  console.log(`Input cost: $${inputCost.toFixed(4)}`);
-  console.log(`Output cost: $${outputCost.toFixed(4)}`);
-  console.log(`Total cost: $${totalCost.toFixed(4)}`);
+  console.log(`\n=== Cost ===`);
+  console.log(`Input tokens:  ${totalInputTokens.toLocaleString()} ($${inputCost.toFixed(4)})`);
+  console.log(`Output tokens: ${totalOutputTokens.toLocaleString()} ($${outputCost.toFixed(4)})`);
+  console.log(`Total:         $${(inputCost + outputCost).toFixed(4)}`);
 }
 
 runRewrite().catch(err => {
-  console.error('Rewrite failed:', err);
+  console.error('❌ Rewrite failed:', err);
   process.exit(1);
 });
