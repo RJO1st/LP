@@ -75,10 +75,19 @@ for (const arg of args) {
 }
 
 // ─── Model selection ────────────────────────────────────────────────────────
-// Free tier (default): DeepSeek V3 — solid JSON compliance, strong English.
-// Free models have ~20 RPM rate limits; batch delay is 2 000 ms.
+// Free models ranked for this task (structured JSON + curriculum-aware prose):
+//   meta-llama/llama-3.3-70b-instruct:free   — 876M tok/wk, proven JSON compliance  ✅ DEFAULT
+//   openai/gpt-oss-120b:free                 — 68.2B tok/wk, highest quality
+//   nousresearch/hermes-3-405b-instruct:free — 88.7M tok/wk, tuned for JSON
+//   nvidia/nemotron-3-nano-30b-a3b:free      — 45.5B tok/wk, 256K context
+//   qwen/qwen3-next-80b-a3b:free             — 778M tok/wk, strong multilingual
+//   deepseek/deepseek-chat:free              — solid fallback
+//
+// Avoid for this task: image models (FLUX, Seedream), <4B models (LFM 1.2B, Gemma 3n 2B)
+//
 // Use --paid for haiku-4-5 if free model produces malformed JSON.
-const FREE_MODEL  = 'deepseek/deepseek-chat:free';
+// Use --model=<id> to override without editing this file.
+const FREE_MODEL  = 'meta-llama/llama-3.3-70b-instruct:free';
 const PAID_MODEL  = 'anthropic/claude-haiku-4-5';
 const MODEL       = modelOverride ?? (usePaid ? PAID_MODEL : FREE_MODEL);
 const BATCH_DELAY = usePaid ? 200 : 2000; // ms — free tier ~20 RPM
