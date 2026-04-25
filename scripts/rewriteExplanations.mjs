@@ -330,24 +330,36 @@ async function runRewrite() {
     return;
   }
 
-  const results    = [];
   const sqlUpdates = [];
   const BATCH_SIZE = 5;
+
+  // ── Initialise CSV header once, before the loop ────────────────────────
+  if (!dryRun) {
+    if (!fs.existsSync(csvOutputPath) || fs.statSync(csvOutputPath).size === 0) {
+      fs.writeFileSync(csvOutputPath, 'question_id,new_explanation\n');
+    }
+  }
 
   for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
     const batch   = toProcess.slice(i, i + BATCH_SIZE);
     const rewrites = await rewriteBatch(batch);
 
+    const batchCsvLines = [];
     for (const q of batch) {
       const rewrite = rewrites[q.id];
       if (!rewrite?.explanation) {
         console.warn(`  ⚠ No rewrite returned for ${q.id}`);
         continue;
       }
-      results.push({ question_id: q.id, new_explanation: rewrite.explanation });
       const escaped = rewrite.explanation.replace(/'/g, "''");
       sqlUpdates.push(`UPDATE question_bank SET explanation = '${escaped}' WHERE id = '${q.id}';`);
+      batchCsvLines.push(`${q.id},${escapeCsv(rewrite.explanation)}`);
       processedCount++;
+    }
+
+    // Flush this batch to CSV immediately so Ctrl+C loses nothing
+    if (!dryRun && batchCsvLines.length > 0) {
+      fs.appendFileSync(csvOutputPath, batchCsvLines.join('\n') + '\n');
     }
 
     const done = Math.min(i + BATCH_SIZE, toProcess.length);
@@ -362,17 +374,10 @@ async function runRewrite() {
   console.log(`\n\n✅ Done: ${processedCount} explanations rewritten\n`);
 
   if (dryRun) {
-    console.log('=== DRY RUN: sample output ===');
-    console.log(JSON.stringify(results.slice(0, 2), null, 2));
+    console.log('=== DRY RUN: no files written (resume state unchanged)');
     return;
   }
 
-  // ── Write CSV (append for resume safety) ──────────────────────────────
-  if (!fs.existsSync(csvOutputPath) || fs.statSync(csvOutputPath).size === 0) {
-    fs.writeFileSync(csvOutputPath, 'question_id,new_explanation\n');
-  }
-  const csvLines = results.map(r => `${r.question_id},${escapeCsv(r.new_explanation)}`).join('\n');
-  fs.appendFileSync(csvOutputPath, csvLines + '\n');
   console.log(`📁 CSV appended → ${csvOutputPath}`);
 
   // ── Write SQL (batched in transactions of 100) ─────────────────────────
