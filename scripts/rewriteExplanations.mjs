@@ -78,18 +78,21 @@ for (const arg of args) {
 const FREE_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',    // 876M tok/wk — proven JSON
   'openai/gpt-oss-120b:free',                  // 68.2B tok/wk — highest quality
-  'nousresearch/hermes-3-405b-instruct:free',  // 88.7M tok/wk — JSON-tuned
+  'nousresearch/hermes-3-llama-3.1-405b:free',  // 88.7M tok/wk — JSON-tuned
   'nvidia/nemotron-3-nano-30b-a3b:free',       // 45.5B tok/wk — 256 K ctx
-  'qwen/qwen3-next-80b-a3b:free',             // 778M tok/wk — strong multilingual
-  'deepseek/deepseek-chat:free',               // solid general fallback
+  'qwen/qwen3-next-80b-a3b-instruct:free',             // 778M tok/wk — strong multilingual
+  'google/gemma-4-31b-it:free',               // solid general fallback
 ];
 const PAID_MODEL = 'anthropic/claude-haiku-4-5';
 
 // Ring state
 let ringIndex = 0;                      // advances after each successful batch
-const cooloff = new Map();              // model → Date.now() when cooloff expires
-const COOLOFF_MS  = 60_000;            // 60 s after a 429
-const BATCH_DELAY = usePaid ? 200 : 500; // ms between batches (free pool ~120 RPM)
+const cooloff  = new Map();             // model → Date.now() when cooloff expires
+const failCount = new Map();            // model → consecutive non-429 failure count
+const COOLOFF_MS      = 60_000;        // 60 s after a 429
+const NET_COOLOFF_MS  = 30_000;        // 30 s after 3 consecutive network errors
+const NET_FAIL_THRESH = 3;             // failures before network cooloff kicks in
+const BATCH_DELAY = usePaid ? 200 : 700; // ms between batches (free pool ~120 RPM)
 
 // Cost tracking (only haiku uses paid tokens)
 const PAID_INPUT_COST  = 0.25 / 1_000_000;
@@ -215,6 +218,7 @@ async function callModel(model, messages) {
     const retryAfter = parseInt(response.headers.get('retry-after') ?? '0', 10);
     const exp = Date.now() + (retryAfter > 0 ? retryAfter * 1000 : COOLOFF_MS);
     cooloff.set(model, exp);
+    failCount.set(model, 0); // 429 is its own signal — reset network fail counter
     throw Object.assign(new Error(`429 rate-limited`), { code: 429 });
   }
 
@@ -223,6 +227,8 @@ async function callModel(model, messages) {
     throw new Error(`HTTP ${response.status}: ${txt.slice(0, 200)}`);
   }
 
+  // Success — reset network failure counter
+  failCount.set(model, 0);
   return response.json();
 }
 
@@ -289,7 +295,17 @@ Keep explanations under 300 words. British English. No LaTeX.`;
       if (err.code === 429) {
         console.warn(`\n  ⏳ ${model} rate-limited (60 s cooloff) — switching model...`);
       } else {
-        console.warn(`\n  ⚠ ${model} error: ${err.message.slice(0, 120)} — trying next...`);
+        // Network/connection error — track consecutive failures
+        const prev = failCount.get(model) ?? 0;
+        const next = prev + 1;
+        failCount.set(model, next);
+        if (next >= NET_FAIL_THRESH) {
+          cooloff.set(model, Date.now() + NET_COOLOFF_MS);
+          failCount.set(model, 0);
+          console.warn(`\n  ⏳ ${model} — ${next} consecutive errors, 30 s cooloff — switching model...`);
+        } else {
+          console.warn(`\n  ⚠ ${model} error (${next}/${NET_FAIL_THRESH}): ${err.message.slice(0, 100)} — trying next...`);
+        }
       }
       // loop continues to next candidate
     }
