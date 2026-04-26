@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from '@/lib/env'
+import { parentGoalSchema, parseBody } from '@/lib/validation'
 
 async function getClient() {
   const cookieStore = await cookies();
@@ -55,21 +56,11 @@ export async function POST(req) {
   }
   const parentId = session.user.id;
 
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const rawBody = await req.json().catch(() => null);
+  const parsed = parseBody(parentGoalSchema, rawBody);
+  if (!parsed.success) return parsed.error;
 
-  const { scholar_id, goal_type, target_value } = body;
-
-  if (!scholar_id || !goal_type || target_value == null) {
-    return NextResponse.json(
-      { error: "Missing required fields: scholar_id, goal_type, target_value" },
-      { status: 400 }
-    );
-  }
+  const { scholar_id, goal_type, target_value } = parsed.data;
 
   const { data, error } = await supabase
     .from("scholar_goals")
@@ -77,7 +68,7 @@ export async function POST(req) {
       scholar_id,
       parent_id:    parentId,
       goal_type,
-      target_value: Number(target_value),
+      target_value,
       achieved:     false,
       achieved_at:  null,
     })

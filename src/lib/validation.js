@@ -263,6 +263,32 @@ export const adminSchoolProvisionSchema = z.object({
   proprietorEmail: z.string().trim().toLowerCase().email().max(320),
 })
 
+// POST /api/parent/goals — create a learning goal for a scholar.
+// target_value is coerced from string to number so HTML form posts work.
+export const parentGoalSchema = z.object({
+  scholar_id:   scholarIdSchema,
+  goal_type:    z.string().trim().min(1).max(80),
+  target_value: z.union([
+    z.number().min(0).max(1_000_000),
+    z.string().regex(/^\d+(\.\d+)?$/, 'target_value must be numeric').transform(Number),
+  ]),
+})
+
+// POST /api/scholar/advance-subject — parent bumps a subject year level.
+export const advanceSubjectSchema = z.object({
+  scholar_id: scholarIdSchema,
+  subject:    z.string().trim().min(1).max(80),
+})
+
+// POST /api/tts — text-to-speech synthesis request.
+// text is truncated server-side to MAX_TEXT_LENGTH; we cap here to 8 KB so
+// the full body is rejected before any processing begins.
+export const ttsSchema = z.object({
+  text:  z.string().min(1).max(8192),
+  voice: z.string().max(60).optional(),
+  speed: z.number().min(0.1).max(10).optional(),
+})
+
 // Helper to parse and validate request body
 export function parseBody(schema, body) {
   const result = schema.safeParse(body)

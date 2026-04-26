@@ -18,6 +18,7 @@
 // so the same phrase is never re-fetched in the same session.
 
 import { NextResponse } from "next/server";
+import { ttsSchema } from "@/lib/validation";
 
 // Map from curriculum-specific voice names to OpenAI voice IDs.
 // (useReadAloud passes these through from VOICE_MAP)
@@ -42,12 +43,12 @@ const MAX_TEXT_LENGTH = 4096; // OpenAI limit
 
 export async function POST(req) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { text, voice: rawVoice = "nova", speed = 0.9 } = body;
-
-    if (!text || typeof text !== "string" || text.trim().length === 0) {
+    const rawBody = await req.json().catch(() => ({}));
+    const parsed = ttsSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
+    const { text, voice: rawVoice = "nova", speed = 0.9 } = parsed.data;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {

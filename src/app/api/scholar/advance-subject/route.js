@@ -9,6 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseKeys } from '@/lib/env'
+import { advanceSubjectSchema, parseBody } from '@/lib/validation'
 
 export async function POST(req) {
   const cookieStore = await cookies();
@@ -20,10 +21,10 @@ export async function POST(req) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { scholar_id, subject } = await req.json();
-  if (!scholar_id || !subject) {
-    return NextResponse.json({ error: "scholar_id and subject required" }, { status: 400 });
-  }
+  const rawBody = await req.json().catch(() => null);
+  const parsed = parseBody(advanceSubjectSchema, rawBody);
+  if (!parsed.success) return parsed.error;
+  const { scholar_id, subject } = parsed.data;
 
   // Verify parent owns this scholar
   const { data: scholar } = await supabase
