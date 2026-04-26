@@ -156,6 +156,21 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 26, 2026 (session 3) — Security Hardening Continued + School Leads Admin View
+
+**School leads pipeline (commit 7aa2d5d):**
+- `GET /api/admin/school-leads` — paginated list (50/page), status filter, joins `schools+scholars`, batch-resolves parent emails via `supabase.auth.admin.getUserById` (parallel, non-fatal on miss).
+- `PATCH /api/admin/school-leads` — update `lead_status` or `notes`; auto-stamps `contacted_at`/`converted_at`.
+- `/admin/school-leads` page — dark admin table: status tabs, inline status transitions, expandable notes panel, one-click email copy, direct mailto link. Auth: `requireAdmin()` on both endpoints.
+
+**Critical security fix — unprotected admin route (commit 8588d16):**
+- `api/admin/flag-question` had **no auth guard** — anyone could bulk-delete the question bank. Added `requireAdmin()` to both GET and POST. Added Zod schema (uuid array, action enum, reason max-500). Max 500 IDs per bulk op.
+- `api/auth/route.js` — legacy signup handler with two issues: (1) no input validation, (2) leaked `access_token` in URL query param. Route unreferenced. Replaced with 410 Gone.
+
+**Zod coverage sweep — email trigger routes (commit e9be895):**
+- Added 4 schemas to `validation.js`: `brevoSyncContactSchema`, `welcomeEmailSchema`, `firstQuizEmailSchema`, `scholarCreatedEmailSchema`.
+- Wired to: `brevo/sync-contact`, `emails/welcome`, `emails/scholar-created`, `resend-verification/send-first-quiz-email`. Prevents spam-relay abuse (arbitrary email triggers) without breaking no-session caller flow.
+
 ### April 26, 2026 (session 2) — Security Audit + Performance Sprint
 
 **Security — all critical + high-priority items resolved:**
@@ -313,7 +328,7 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Parent engagement panel — complete (proprietor dashboard, unclaimed list + copy-code chips)
 - ✅ Resend expired invitations — complete (April 26 session 3): Resend button per unclaimed scholar in `ParentEngagementPanel`; calls `POST /api/teacher/notify-parent` which refreshes expired code + re-sends claim email; per-scholar loading/success/retry states.
 - PDF export: teacher class report (print CSS exists; proper PDF generation TBD)
-- school_leads pipeline view: internal LaunchPard admin page for sales team (non-partner school demand captured in DB, no UI yet)
+- ✅ school_leads pipeline view — complete (April 26 session 3): `/admin/school-leads` + `GET/PATCH /api/admin/school-leads`
 
 ### 🟡 Security
 - ✅ Secrets rotated (April 2026)
@@ -323,9 +338,11 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Tara classifier homoglyph hardening (April 26 session 2)
 - ✅ Anonymous Tara turnCount bypass closed — HttpOnly session cookie (April 26 session 2)
 - ✅ CSP nonce-based script loading (April 26 session 3): proxy.ts generates per-request nonce → x-nonce header → layout.jsx applies to all <Script> tags; script-src uses nonce + strict-dynamic (no unsafe-inline); currently Report-Only. **User action**: set `CSP_ENFORCE=true` in Vercel env vars after 48h of clean violations.
-- ✅ Zod validation extended (April 26 session 3): 22 routes now covered — added parentGoalSchema, advanceSubjectSchema, ttsSchema; confirmed forgot-password/forgot-access-code already wired.
-- ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql` — tara_turns deny-all policy + scholar_readiness_snapshot three-policy replacement. **User action**: paste into Supabase SQL editor + run verification query.
-- Extend Zod validation to remaining lower-priority API routes (63 uncovered, none high-risk)
+- ✅ Zod validation extended (April 26 session 3): 22+ routes now covered — parentGoalSchema, advanceSubjectSchema, ttsSchema, brevoSyncContactSchema, welcomeEmailSchema, firstQuizEmailSchema, scholarCreatedEmailSchema.
+- ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql`. **User action**: paste into Supabase SQL editor + run verification query.
+- ✅ `api/admin/flag-question` auth guard (April 26 session 3): was fully unprotected, anyone could bulk-delete question bank. Now gated behind `requireAdmin()`.
+- ✅ Legacy `api/auth/route.js` disabled (April 26 session 3): replaced with 410 Gone (had token-in-URL leak + no validation).
+- Extend Zod validation to remaining lower-priority API routes (~55 uncovered, none critical)
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
