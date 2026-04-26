@@ -1,19 +1,17 @@
-// Deploy to: src/app/api/emails/first-quiz/route.js
-import { NextResponse } from 'next/server';
-import { sendFirstQuizEmail } from '@/lib/email';
-
+// src/app/api/emails/first-quiz/route.js
 // POST body: { parentEmail, parentName, scholarName, subject, score, totalQuestions, xpEarned }
 // Called from: quizUtils.js saveQuizResult after first quiz completion
-export async function POST(req) {
-  let body;
-  try { body = await req.json(); } catch {
-    return NextResponse.json({ error: 'invalid json' }, { status: 400 });
-  }
+import { NextResponse } from 'next/server';
+import { sendFirstQuizEmail } from '@/lib/email';
+import { firstQuizEmailSchema } from '@/lib/validation';
 
-  const { parentEmail, parentName, scholarName, score, totalQuestions, subject, xpEarned } = body;
-  if (!parentEmail || !scholarName) {
-    return NextResponse.json({ error: 'parentEmail and scholarName required' }, { status: 400 });
+export async function POST(req) {
+  const rawBody = await req.json().catch(() => null);
+  const parsed  = firstQuizEmailSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'parentEmail is required and must be valid' }, { status: 400 });
   }
+  const { parentEmail, parentName, scholarName, subject, score, totalQuestions, xpEarned } = parsed.data;
 
   try {
     await sendFirstQuizEmail({ parentEmail, parentName, scholarName, score, total: totalQuestions, subject, xpEarned });

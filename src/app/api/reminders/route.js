@@ -1,4 +1,4 @@
-// ─── Deploy to: src/app/api/reminders/route.js ──────────────────────────────
+// src/app/api/reminders/route.js
 // CRUD for scholar practice reminders
 // GET    /api/reminders?scholar_id=xxx     → get reminder config
 // POST   /api/reminders                    → create/update reminder
@@ -7,7 +7,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { supabaseKeys } from '@/lib/env'
+import { supabaseKeys } from '@/lib/env';
+import { remindersUpsertSchema } from '@/lib/validation';
 
 async function getClient() {
   const cookieStore = await cookies();
@@ -59,10 +60,15 @@ export async function POST(req) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const { scholar_id, days_of_week, reminder_time, timezone, method, is_active } = body;
-
-  if (!scholar_id) return NextResponse.json({ error: "scholar_id required" }, { status: 400 });
+  const rawBody = await req.json().catch(() => null);
+  const parsed  = remindersUpsertSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'scholar_id (UUID) is required', details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+  const { scholar_id, days_of_week, reminder_time, timezone, method, is_active } = parsed.data;
 
   // Verify parent owns this scholar
   const { data: scholar } = await supabase
@@ -79,10 +85,10 @@ export async function POST(req) {
     .upsert({
       scholar_id,
       parent_id: user.id,
-      days_of_week: days_of_week || ["monday", "wednesday", "friday"],
-      reminder_time: reminder_time || "16:00",
-      timezone: timezone || "Europe/London",
-      method: method || "email",
+      days_of_week: days_of_week ?? ["monday", "wednesday", "friday"],
+      reminder_time: reminder_time ?? "16:00",
+      timezone: timezone ?? "Europe/London",
+      method: method ?? "email",
       is_active: is_active !== false,
       updated_at: new Date().toISOString(),
     }, { onConflict: "scholar_id" })

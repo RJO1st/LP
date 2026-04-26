@@ -1,4 +1,4 @@
-// Deploy to: src/app/api/emails/school-reminder/route.js
+// src/app/api/emails/school-reminder/route.js
 // Sends school-missing reminder emails to parents.
 // Can be called manually, from admin dashboard, or from a cron/scheduled task.
 //
@@ -10,13 +10,23 @@
 
 import { NextResponse } from 'next/server';
 import { sendSchoolReminderEmail } from '@/lib/email';
-import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
+import { schoolReminderSchema } from '@/lib/validation';
 
 const supabaseAdmin = () => getServiceRoleClient();
 
 export async function POST(request) {
+  const rawBody = await request.json().catch(() => null);
+  const parsed  = schoolReminderSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Provide { batch: true } or { parentEmail, parentName, scholars: [...] }' },
+      { status: 400 }
+    );
+  }
+  const body = parsed.data;
+
   try {
-    const body = await request.json();
 
     // ── Batch mode: query all scholars missing school_id, group by parent ──
     if (body.batch) {
@@ -76,10 +86,8 @@ export async function POST(request) {
     }
 
     // ── Single parent mode ──────────────────────────────────────────────────
+    // Schema guarantees parentEmail + scholars[] are present at this point
     const { parentEmail, parentName, scholars } = body;
-    if (!parentEmail || !scholars?.length) {
-      return NextResponse.json({ error: 'parentEmail and scholars[] required' }, { status: 400 });
-    }
     await sendSchoolReminderEmail({ parentEmail, parentName, scholarNames: scholars });
     return NextResponse.json({ sent: true });
 

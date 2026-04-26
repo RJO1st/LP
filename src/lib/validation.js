@@ -325,7 +325,7 @@ export const firstQuizEmailSchema = z.object({
   xpEarned:       z.number().int().min(0).max(10_000).optional(),
 });
 
-// POST /api/emails/scholar-created  (also api/send-scholar-created-email)
+// POST /api/emails/scholar-created  (accessCode field — new path)
 export const scholarCreatedEmailSchema = z.object({
   parentEmail:   safeEmail,
   parentName:    safeName.optional().or(z.literal('')),
@@ -333,6 +333,46 @@ export const scholarCreatedEmailSchema = z.object({
   accessCode:    z.string().trim().max(20).optional().or(z.literal('')),
   yearLevel:     z.number().int().min(1).max(13).optional(),
   curriculum:    z.string().trim().max(50).optional().or(z.literal('')),
+});
+
+// POST /api/send-scholar-created-email  +  /api/resend-verification/send-scholar-created-email
+// Legacy routes that use questCode instead of accessCode
+export const legacyScholarCreatedEmailSchema = z.object({
+  parentEmail:   safeEmail,
+  parentName:    safeName.optional().or(z.literal('')),
+  scholarName:   safeName,
+  questCode:     z.string().trim().max(20).optional().or(z.literal('')),
+  yearLevel:     z.number().int().min(1).max(13).optional(),
+  curriculum:    z.string().trim().max(50).optional().or(z.literal('')),
+});
+
+// POST /api/emails/weekly-digest  (cron-called; scholars is an opaque array of objects)
+export const weeklyDigestSchema = z.object({
+  parentEmail: safeEmail,
+  parentName:  safeName.optional().or(z.literal('')),
+  scholars:    z.array(z.record(z.unknown())).max(20).optional().default([]),
+});
+
+// POST /api/emails/school-reminder  — two modes: batch sweep or single-parent send
+export const schoolReminderSchema = z.union([
+  z.object({ batch: z.literal(true) }),
+  z.object({
+    parentEmail: safeEmail,
+    parentName:  safeName.optional().or(z.literal('')),
+    scholars:    z.array(z.string().trim().max(120)).min(1).max(50),
+  }),
+]);
+
+// POST /api/reminders  — create/update practice reminder (auth-gated)
+export const remindersUpsertSchema = z.object({
+  scholar_id:    z.string().uuid(),
+  days_of_week:  z.array(
+    z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
+  ).min(1).max(7).optional(),
+  reminder_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM').optional(),
+  timezone:      z.string().trim().max(64).optional(),
+  method:        z.enum(['email', 'push', 'whatsapp']).optional(),
+  is_active:     z.boolean().optional(),
 });
 
 // Helper to parse and validate request body
