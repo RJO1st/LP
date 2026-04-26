@@ -856,6 +856,52 @@ const validateAndFixQuestion = (question, questionIndex) => {
   return validated;
 };
 
+// ─── CONCEPT SNAPSHOT — compact inline teaching card (wrong-answer panel) ────
+// Lighter than ConceptCardRenderer; shows key concept + one worked example.
+const ConceptSnapshot = ({ card, loading }) => {
+  if (loading) {
+    return (
+      <div className="p-3 bg-violet-50 rounded-xl border border-violet-100 animate-pulse">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="h-3 w-3 bg-violet-200 rounded-full"/>
+          <div className="h-2.5 bg-violet-200 rounded w-20"/>
+        </div>
+        <div className="h-2.5 bg-violet-100 rounded w-full mb-1.5"/>
+        <div className="h-2.5 bg-violet-100 rounded w-5/6 mb-1.5"/>
+        <div className="h-2.5 bg-violet-100 rounded w-3/4"/>
+      </div>
+    );
+  }
+  if (!card) return null;
+
+  const topicLabel = card.topic_label
+    || (card.topic_slug || '').replace(/_/g, ' ');
+  const ex = card.best_example;
+
+  return (
+    <div className="p-3 bg-violet-50 rounded-xl border border-violet-100">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-xs">💡</span>
+        <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Quick Concept</span>
+        {topicLabel && (
+          <span className="ml-auto text-[10px] font-bold text-violet-400 capitalize truncate max-w-[120px]">
+            {topicLabel}
+          </span>
+        )}
+      </div>
+      {card.key_concept && (
+        <p className="text-xs font-bold text-slate-700 leading-relaxed mb-2">{card.key_concept}</p>
+      )}
+      {ex && (
+        <div className="bg-white rounded-lg p-2 border border-violet-100 space-y-0.5">
+          <p className="text-[11px] font-black text-slate-600">{ex.problem}</p>
+          <p className="text-[11px] font-bold text-violet-700">{ex.solution}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function QuizEngine({
   world = "test",
@@ -910,9 +956,13 @@ export default function QuizEngine({
   const [hintsUsed, setHintsUsed] = useState(0);
 
   // ── Quiz lesson loop ────────────────────────────────────────────────────────
-  const [missedQuestions, setMissedQuestions] = useState([]); // mistake re-queue (cap 3)
-  const [levelUpMsg,      setLevelUpMsg]      = useState(null); // level-up flash message
-  const [streakPop,       setStreakPop]       = useState(false); // streak bump animation
+  const [missedQuestions,   setMissedQuestions]   = useState([]); // mistake re-queue (cap 3)
+  const [levelUpMsg,        setLevelUpMsg]        = useState(null); // level-up flash message
+  const [streakPop,         setStreakPop]         = useState(false); // streak bump animation
+
+  // ── Concept card (wrong-answer panel) ───────────────────────────────────────
+  const [conceptCard,       setConceptCard]       = useState(null);
+  const [conceptCardLoading,setConceptCardLoading] = useState(false);
 
   const timerRef          = useRef(null);
   const seenIdsRef        = useRef(new Set(previousQuestionIds));
@@ -958,6 +1008,42 @@ export default function QuizEngine({
     });
   }, []);
 
+  // ── Concept card fetch (fires on wrong answer) ───────────────────────────────
+  const fetchConceptCard = useCallback(async (topic, qSubject) => {
+    if (!topic) return;
+    setConceptCardLoading(true);
+    setConceptCard(null);
+    try {
+      const year = parseInt(student?.year_level || student?.year, 10) || 4;
+      const cur  = (curriculumProp || student?.curriculum || 'uk_national').toLowerCase();
+      // Map year + curriculum to year_band
+      let yearBand = '';
+      if      (cur.startsWith('ng_jss'))     yearBand = 'jss';
+      else if (cur.startsWith('ng_sss'))     yearBand = 'sss';
+      else if (cur.startsWith('ng_primary')) yearBand = year <= 3 ? 'ks1' : 'ks2';
+      else if (year <= 2)                    yearBand = 'ks1';
+      else if (year <= 6)                    yearBand = 'ks2';
+      else if (year <= 9)                    yearBand = 'ks3';
+      else                                   yearBand = 'ks4';
+
+      const slug = (topic || '').toLowerCase().replace(/[\s-]+/g, '_');
+      const params = new URLSearchParams({
+        topic_slug: slug,
+        curriculum: cur,
+        subject:    qSubject || subject || 'mathematics',
+        year_band:  yearBand,
+      });
+      const res = await fetch(`/api/concept-cards?${params}`);
+      if (res.status === 204 || !res.ok) return; // no card — fail silently
+      const data = await res.json();
+      setConceptCard(data.card || null);
+    } catch {
+      // fail silently — never block the scholar
+    } finally {
+      setConceptCardLoading(false);
+    }
+  }, [student, curriculumProp, subject]);
+
   const resetQuestionState = useCallback(() => {
     setSelected(null);       setTimeLeft(45);
     setEibText("");          setEibFeedback("");       setEibLocked(false);
@@ -968,6 +1054,7 @@ export default function QuizEngine({
     setHintIdx(-1);          setHintsUsed(0);
     setExplanationData(null); setShowInteractiveExplanation(false); setExplanationStep(0);
     setAdvancedResult(null);
+    setConceptCard(null);    setConceptCardLoading(false);
   }, []);
 
   const fetchQuestions = useCallback(async () => {
@@ -1139,10 +1226,11 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      fetchConceptCard(currQ.topic, currQ.subject);
       try { const e = getExplanationForQuestion?.(currQ); if (e) setExplanationData(e); } catch {}
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult, queueMistake]);
+  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult, queueMistake, fetchConceptCard]);
 
   const handleFreeTextSubmit = useCallback(() => {
     if (freeTextSubmitted || !freeTextInput.trim()) return;
@@ -1171,9 +1259,10 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      fetchConceptCard(currQ.topic, currQ.subject);
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake]);
+  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard]);
 
   const handleMultiSubmit = useCallback(() => {
     if (multiSubmitted) return;
@@ -1200,9 +1289,10 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      fetchConceptCard(currQ.topic, currQ.subject);
     }
     recordTopicResult(currQ.topic, allCorrect);
-  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake]);
+  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard]);
 
   // Timer: when time expires, auto-advance to next question (don't lock or reveal answer)
   const timeExpiredRef = useRef(false);
@@ -1995,6 +2085,11 @@ export default function QuizEngine({
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
                   </div>
+
+                  {/* Concept Snapshot — fetched on wrong answer, skipped gracefully on 204 */}
+                  {!isCorrectAnswer && (conceptCardLoading || conceptCard) && (
+                    <ConceptSnapshot card={conceptCard} loading={conceptCardLoading} />
+                  )}
 
                   {/* Step-by-step explainer */}
                   {!isCorrectAnswer && !showInteractiveExplanation && explanationData && (
