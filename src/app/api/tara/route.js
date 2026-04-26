@@ -168,16 +168,16 @@ function logSafeguardingEvent(type, scholarId, text, band) {
 
   const preview = (text || '').slice(0, 80);
 
-  // 1. Console log (existing — keep for Vercel log alerts)
+  // 1. Console log — always; Vercel log drain can alert on '[SAFEGUARDING]'
   console.warn('[SAFEGUARDING]', JSON.stringify({
     type,          // 'crisis' | 'concerning' | 'off_topic'
     scholarId,     // may be null for unauthenticated
     band,          // age band for context
-    textPreview: preview, // first 80 chars only
+    textPreview: preview,
     timestamp: new Date().toISOString(),
   }));
 
-  // 2. DB write (non-blocking — don't await, don't let it fail the response)
+  // 2. DB write (non-blocking)
   try {
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -193,15 +193,68 @@ function logSafeguardingEvent(type, scholarId, text, band) {
         age_band: band,
         text_preview: preview,
       })
-      .then(() => {
-        // Success — logged to DB
-      })
+      .then(() => {})
       .catch((err) => {
-        // Fail silently — don't break the Tara response if DB write fails
         console.warn('[SAFEGUARDING] DB write failed:', err?.message);
       });
+
+    // 3. Parent notification email — crisis events only (#30)
+    // "concerning" (e.g. single mention of "fight") is too noisy; crisis
+    // (self-harm, abuse language) warrants immediate parent awareness.
+    if (type === 'crisis' && scholarId) {
+      notifyParentOfSafeguardingEvent(supabaseAdmin, scholarId, band, preview);
+    }
   } catch (_) {
-    // Fail silently — don't break the Tara response if Supabase client fails
+    // Fail silently — don't break the Tara response
+  }
+}
+
+/**
+ * Look up the parent email for a scholar and send a brief safeguarding alert.
+ * Fire-and-forget — never throws, never blocks the Tara response.
+ */
+async function notifyParentOfSafeguardingEvent(supabaseAdmin, scholarId, band, textPreview) {
+  try {
+    // Resolve scholar → parent → email
+    const { data: scholar } = await supabaseAdmin
+      .from('scholars')
+      .select('name, parent_id')
+      .eq('id', scholarId)
+      .single();
+
+    if (!scholar?.parent_id) return;
+
+    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(scholar.parent_id);
+    const parentEmail = user?.email;
+    if (!parentEmail) return;
+
+    const { sendEmail } = await import('@/lib/email.js');
+    const scholarName = scholar.name?.split(' ')[0] || 'your child';
+
+    await sendEmail({
+      to: parentEmail,
+      subject: `Important: LaunchPard safeguarding alert for ${scholarName}`,
+      html: `
+        <p>Hello,</p>
+        <p>We wanted to let you know that during a recent session with Tara, our AI tutor,
+        <strong>${scholarName}</strong> typed something that our safeguarding system flagged
+        as potentially concerning.</p>
+        <p>Tara provided an appropriate, caring response and offered crisis helpline details.</p>
+        <p>We recommend having a gentle conversation with ${scholarName} about how they are feeling.</p>
+        <p>If you have any concerns, please contact us at
+        <a href="mailto:safeguarding@launchpard.com">safeguarding@launchpard.com</a>.</p>
+        <p>The LaunchPard Team</p>
+        <hr>
+        <p style="font-size:12px;color:#666">
+          This notification is sent automatically when our safeguarding classifier detects
+          crisis-level language. It does not include the full text of your child's message.
+          Age band: ${band}.
+        </p>
+      `,
+    });
+  } catch (err) {
+    // Non-fatal — log but don't re-throw
+    console.warn('[SAFEGUARDING] Parent notification failed:', err?.message);
   }
 }
 
