@@ -171,6 +171,11 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 - Added 4 schemas to `validation.js`: `brevoSyncContactSchema`, `welcomeEmailSchema`, `firstQuizEmailSchema`, `scholarCreatedEmailSchema`.
 - Wired to: `brevo/sync-contact`, `emails/welcome`, `emails/scholar-created`, `resend-verification/send-first-quiz-email`. Prevents spam-relay abuse (arbitrary email triggers) without breaking no-session caller flow.
 
+**Zod coverage sweep — remaining routes (commits 024190d, 2661541):**
+- Added 6 schemas to `validation.js`: `legacyScholarCreatedEmailSchema` (questCode variant), `weeklyDigestSchema`, `schoolReminderSchema` (union: batch | single), `remindersUpsertSchema` (day enum + HH:MM), `goalToggleSchema`, `examSittingActionSchema` (discriminatedUnion on action).
+- Wired to 10 routes: `send-welcome-email`, `send-first-quiz-email`, `send-scholar-created-email`, `resend-verification/send-scholar-created-email`, `emails/first-quiz`, `emails/weekly-digest`, `emails/school-reminder`, `reminders POST`, `parent/goals/[id] PUT`, `exam-sittings/[sittingId] PATCH`.
+- **All body-reading POST/PUT/PATCH routes now validated.** Only intentional exception: `paystack/checkout` (inline domain-logic checks for plan/billing/addon combinations).
+
 ### April 26, 2026 (session 2) — Security Audit + Performance Sprint
 
 **Security — all critical + high-priority items resolved:**
@@ -338,11 +343,11 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Tara classifier homoglyph hardening (April 26 session 2)
 - ✅ Anonymous Tara turnCount bypass closed — HttpOnly session cookie (April 26 session 2)
 - ✅ CSP nonce-based script loading (April 26 session 3): proxy.ts generates per-request nonce → x-nonce header → layout.jsx applies to all <Script> tags; script-src uses nonce + strict-dynamic (no unsafe-inline); currently Report-Only. **User action**: set `CSP_ENFORCE=true` in Vercel env vars after 48h of clean violations.
-- ✅ Zod validation extended (April 26 session 3): 22+ routes now covered — parentGoalSchema, advanceSubjectSchema, ttsSchema, brevoSyncContactSchema, welcomeEmailSchema, firstQuizEmailSchema, scholarCreatedEmailSchema.
+- ✅ Zod validation extended (April 26 session 3): 22+ routes covered — parentGoalSchema, advanceSubjectSchema, ttsSchema, brevoSyncContactSchema, welcomeEmailSchema, firstQuizEmailSchema, scholarCreatedEmailSchema.
+- ✅ Zod validation sweep complete (April 26 session 4): ALL body-reading routes now validated. Legacy email routes, weekly-digest, school-reminder, reminders upsert, goals toggle, exam-sittings action dispatch. Only exception: paystack/checkout (intentional inline domain checks).
 - ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql`. **User action**: paste into Supabase SQL editor + run verification query.
 - ✅ `api/admin/flag-question` auth guard (April 26 session 3): was fully unprotected, anyone could bulk-delete question bank. Now gated behind `requireAdmin()`.
 - ✅ Legacy `api/auth/route.js` disabled (April 26 session 3): replaced with 410 Gone (had token-in-URL leak + no validation).
-- Extend Zod validation to remaining lower-priority API routes (~55 uncovered, none critical)
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
