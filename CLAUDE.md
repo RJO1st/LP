@@ -156,6 +156,22 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 26, 2026 (session 5) — Quiz Lesson Loop
+
+**`src/components/game/QuizEngine.jsx` — 4 features added:**
+
+1. **Mistake re-queue** (highest-leverage): When a scholar answers wrong, the question is pushed to `missedQuestions` (cap 3, no duplicates, retries excluded). When `next()` reaches the last question, it injects the missed questions into `sessionQuestions` before calling `finishQuest()`, gated by `retriesInjectedRef` to prevent double-injection. Retry questions carry `_isRetry: true` and show a "🔄 2nd chance" badge in the quiz header. "Next Mission" button resets `retriesInjectedRef.current = false` for a clean new session.
+
+2. **Session wrap-up screen**: `finished` block now shows per-topic accuracy bars (up to 4 topics, sorted weakest-first), a "Focus tomorrow" recommendation (weakest topic), adaptive headline emoji (`🚀/🌟/🪐/💪` based on accuracy), and XP earned. Accuracy is calculated on original questions only (not retries) so retry successes don't inflate the headline score.
+
+3. **Live streak bar during quiz**: Header streak display replaced with a styled pill that scales up (`scale-125`) briefly via `streakPop` state when streak increments. Pill colour is amber-50/amber-200 when on a streak, slate when at zero — gives a clear visual signal without being distracting.
+
+4. **Difficulty level-up signal**: `useEffect` on `streak` fires a `levelUpMsg` ("🔥 On Fire!" at 3, "⚡ Level Up!" at 5, "🌟 Unstoppable!" at 7, "💫 Legendary!" at 10). Message renders as a bouncing overlay pill inside the quiz card, auto-dismissed after 2.2 s via `setTimeout`.
+
+**State added:** `missedQuestions`, `levelUpMsg`, `streakPop` + `retriesInjectedRef`.
+**Callbacks modified:** `handlePick`, `handleFreeTextSubmit`, `handleMultiSubmit` all call `queueMistake(currQ)` on wrong answer; `next()` injects retries before finishing.
+**No new API calls, no DB schema changes.**
+
 ### April 26, 2026 (session 3) — Security Hardening Continued + School Leads Admin View
 
 **School leads pipeline (commit 7aa2d5d):**
@@ -348,6 +364,16 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql`. **User action**: paste into Supabase SQL editor + run verification query.
 - ✅ `api/admin/flag-question` auth guard (April 26 session 3): was fully unprotected, anyone could bulk-delete question bank. Now gated behind `requireAdmin()`.
 - ✅ Legacy `api/auth/route.js` disabled (April 26 session 3): replaced with 410 Gone (had token-in-URL leak + no validation).
+
+### 🟢 Quiz Experience — Next Enhancements
+- ✅ Mistake re-queue — complete (session 5): wrong questions injected before finish, cap 3, retry badge shown
+- ✅ Session wrap-up screen — complete (session 5): per-topic bars, "Focus tomorrow", adaptive headline, XP display
+- ✅ Live streak bar — complete (session 5): animated pill, scales on increment
+- ✅ Level-up flash — complete (session 5): overlay at streak 3/5/7/10, auto-dismiss 2.2 s
+- Concept cards wiring: link `ConceptCard` component into QuizEngine's wrong-answer explanation panel
+- Formula/equation input: `<MathInput>` component for algebraic questions (KS3+)
+- Question palette: numbered grid for exam navigation (exam runner only, not quiz)
+- KS1 accessibility: voice readout of question text (Web Speech API, opt-in)
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority

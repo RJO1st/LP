@@ -909,16 +909,52 @@ export default function QuizEngine({
   const [hintIdx,   setHintIdx]   = useState(-1);
   const [hintsUsed, setHintsUsed] = useState(0);
 
-  const timerRef     = useRef(null);
-  const seenIdsRef   = useRef(new Set(previousQuestionIds));
-  const seenTextsRef = useRef(new Set());
-  const fetchingRef  = useRef(false);
+  // ── Quiz lesson loop ────────────────────────────────────────────────────────
+  const [missedQuestions, setMissedQuestions] = useState([]); // mistake re-queue (cap 3)
+  const [levelUpMsg,      setLevelUpMsg]      = useState(null); // level-up flash message
+  const [streakPop,       setStreakPop]       = useState(false); // streak bump animation
+
+  const timerRef          = useRef(null);
+  const seenIdsRef        = useRef(new Set(previousQuestionIds));
+  const seenTextsRef      = useRef(new Set());
+  const fetchingRef       = useRef(false);
+  const retriesInjectedRef = useRef(false); // prevent double-injection
 
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
     setTopicSummary(prev => {
       const entry = prev[topic] || { correct: 0, total: 0 };
       return { ...prev, [topic]: { correct: entry.correct + (isCorrect ? 1 : 0), total: entry.total + 1 } };
+    });
+  }, []);
+
+  // ── Level-up flash: fires on streak milestones ─────────────────────────────
+  useEffect(() => {
+    const MILESTONES = { 3: "🔥 On Fire!", 5: "⚡ Level Up!", 7: "🌟 Unstoppable!", 10: "💫 Legendary!" };
+    if (MILESTONES[streak]) setLevelUpMsg(MILESTONES[streak]);
+    if (streak > 1) setStreakPop(true);
+  }, [streak]);
+
+  useEffect(() => {
+    if (!levelUpMsg) return;
+    const t = setTimeout(() => setLevelUpMsg(null), 2200);
+    return () => clearTimeout(t);
+  }, [levelUpMsg]);
+
+  useEffect(() => {
+    if (!streakPop) return;
+    const t = setTimeout(() => setStreakPop(false), 500);
+    return () => clearTimeout(t);
+  }, [streakPop]);
+
+  // ── Mistake re-queue helper ─────────────────────────────────────────────────
+  const queueMistake = useCallback((currQ) => {
+    if (currQ?._isRetry) return; // never re-queue a retry
+    setMissedQuestions(prev => {
+      if (prev.length >= 3) return prev;
+      const alreadyQueued = prev.some(q => q.id ? q.id === currQ.id : q.q === currQ.q);
+      if (alreadyQueued) return prev;
+      return [...prev, { ...currQ, _isRetry: true }];
     });
   }, []);
 
@@ -1102,10 +1138,11 @@ export default function QuizEngine({
     } else {
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
+      queueMistake(currQ);
       try { const e = getExplanationForQuestion?.(currQ); if (e) setExplanationData(e); } catch {}
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult]);
+  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult, queueMistake]);
 
   const handleFreeTextSubmit = useCallback(() => {
     if (freeTextSubmitted || !freeTextInput.trim()) return;
@@ -1133,9 +1170,10 @@ export default function QuizEngine({
     } else {
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
+      queueMistake(currQ);
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult]);
+  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake]);
 
   const handleMultiSubmit = useCallback(() => {
     if (multiSubmitted) return;
@@ -1161,9 +1199,10 @@ export default function QuizEngine({
     } else {
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
+      queueMistake(currQ);
     }
     recordTopicResult(currQ.topic, allCorrect);
-  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult]);
+  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake]);
 
   // Timer: when time expires, auto-advance to next question (don't lock or reveal answer)
   const timeExpiredRef = useRef(false);
@@ -1299,6 +1338,13 @@ export default function QuizEngine({
 
   const next = () => {
     if (qIdx < sessionQuestions.length - 1) {
+      setQIdx(p => p + 1);
+      resetQuestionState();
+    } else if (missedQuestions.length > 0 && !retriesInjectedRef.current) {
+      // ── Mistake re-queue: inject up to 3 missed questions before finishing ──
+      retriesInjectedRef.current = true;
+      setSessionQuestions(prev => [...prev, ...missedQuestions]);
+      setMissedQuestions([]);
       setQIdx(p => p + 1);
       resetQuestionState();
     } else {
@@ -1443,31 +1489,87 @@ export default function QuizEngine({
   );
 
   if (finished) {
-    const finalScore = results.answers.filter(a => a.isCorrect).length;
-    const accuracy   = sessionQuestions.length > 0
-      ? Math.round((finalScore / sessionQuestions.length) * 100) : 0;
+    const finalScore    = results.answers.filter(a => a.isCorrect).length;
+    // Count only original questions (not retries) for headline accuracy
+    const origTotal     = sessionQuestions.filter(q => !q._isRetry).length || sessionQuestions.length;
+    const origCorrect   = results.answers.filter(a => {
+      const q = sessionQuestions.find(sq => sq.q === a.q);
+      return a.isCorrect && !q?._isRetry;
+    }).length;
+    const accuracy      = origTotal > 0 ? Math.round((origCorrect / origTotal) * 100) : 0;
+
+    // Per-topic breakdown for wrap-up
+    const topicEntries  = Object.entries(topicSummary)
+      .sort((a, b) => (a[1].correct / (a[1].total || 1)) - (b[1].correct / (b[1].total || 1)));
+    const weakestTopic  = topicEntries[0]?.[0]; // lowest accuracy topic
+
+    const headline =
+      accuracy >= 90 ? { emoji: "🚀", text: "Orbit Achieved!" } :
+      accuracy >= 70 ? { emoji: "🌟", text: "Stellar Work!" } :
+      accuracy >= 50 ? { emoji: "🪐", text: "Keep Climbing!" } :
+                       { emoji: "💪", text: "You Got This!" };
+
     return (
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[5000] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl sm:rounded-[40px] p-4 sm:p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200">
-          <PlanetIcon size={56} className="mx-auto text-indigo-500 mb-3" />
-          <h2 className="text-2xl font-black text-slate-800 mb-1">Orbit Achieved!</h2>
-          <p className="text-slate-500 font-bold text-sm mb-1">{finalScore}/{sessionQuestions.length} Correct</p>
-          <div className={`inline-block px-4 py-1.5 rounded-full font-black text-sm mb-2 ${
+        <div className="bg-white rounded-2xl sm:rounded-[40px] p-4 sm:p-6 text-center max-w-sm w-full shadow-2xl border-b-4 border-slate-200 overflow-y-auto max-h-[90vh]">
+          <div className="text-4xl mb-2">{headline.emoji}</div>
+          <h2 className="text-2xl font-black text-slate-800 mb-1">{headline.text}</h2>
+          <p className="text-slate-500 font-bold text-sm mb-1">{origCorrect}/{origTotal} Correct</p>
+
+          {/* Accuracy badge */}
+          <div className={`inline-block px-4 py-1.5 rounded-full font-black text-sm mb-3 ${
             accuracy >= 80 ? "bg-emerald-50 text-emerald-600" :
             accuracy >= 50 ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-500"
           }`}>{accuracy}% accuracy</div>
-          <p className="text-indigo-600 font-black mb-3">+{totalScore} Stardust</p>
-          <div className="flex justify-center gap-3 mb-3">
-            <div className="bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-              <FlameIcon size={14} className="text-amber-500"/>
-              <span className="font-black text-amber-700 text-sm">{streak}</span>
+
+          {/* XP + streak row */}
+          <div className="flex justify-center gap-2 mb-4">
+            <div className="bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-200 flex items-center gap-1.5">
+              <StarIcon size={15} className="text-indigo-500"/>
+              <span className="font-black text-indigo-700 text-sm">+{totalScore} XP</span>
             </div>
-            <div className="bg-purple-50 px-3 py-1 rounded-lg border border-purple-200 flex items-center gap-1">
-              <StarIcon size={14} className="text-purple-500"/>
-              <span className="font-black text-purple-700 text-sm">{totalScore}</span>
-            </div>
+            {streak > 0 && (
+              <div className="bg-amber-50 px-3 py-2 rounded-xl border border-amber-200 flex items-center gap-1.5">
+                <FlameIcon size={15} className="text-amber-500"/>
+                <span className="font-black text-amber-700 text-sm">{streak} streak</span>
+              </div>
+            )}
           </div>
+
+          {/* Per-topic performance */}
+          {topicEntries.length > 0 && (
+            <div className="mb-4 text-left">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Topics this session</p>
+              <div className="space-y-1.5">
+                {topicEntries.slice(0, 4).map(([topic, data]) => {
+                  const pct = Math.round((data.correct / data.total) * 100);
+                  const barColor = pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-rose-400";
+                  return (
+                    <div key={topic}>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-xs font-bold text-slate-600 truncate max-w-[70%]">{topic.replace(/_/g, " ")}</span>
+                        <span className="text-xs font-black text-slate-500">{data.correct}/{data.total}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tomorrow's focus */}
+          {weakestTopic && (
+            <div className="mb-4 bg-indigo-50 rounded-xl p-3 text-left border border-indigo-100">
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Focus tomorrow</p>
+              <p className="text-sm font-black text-slate-700">{weakestTopic.replace(/_/g, " ")}</p>
+            </div>
+          )}
+
           <TopicSummaryCard topicSummary={topicSummary} />
+
           <div className="flex flex-col gap-2 mt-4">
             <button
               onClick={() => {
@@ -1476,6 +1578,8 @@ export default function QuizEngine({
                 setTopicSummary({});
                 setTotalScore(0);
                 setStreak(0);
+                setMissedQuestions([]);
+                retriesInjectedRef.current = false;
                 fetchQuestions();
               }}
               className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm shadow border-b-4 border-indigo-800 flex items-center justify-center gap-2"
@@ -1557,7 +1661,7 @@ export default function QuizEngine({
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[4000] flex items-center justify-center p-2">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border-b-4 border-slate-200 max-h-[90vh] flex flex-col">
+      <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border-b-4 border-slate-200 max-h-[90vh] flex flex-col">
 
         {/* Progress bar */}
         <div className="h-1.5 bg-slate-100">
@@ -1572,11 +1676,24 @@ export default function QuizEngine({
               <RocketIcon size={12}/> Mission {qIdx + 1}/{sessionQuestions.length}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs font-black">
-              <FlameIcon size={14} className="text-amber-500"/> {streak}
-              <StarIcon  size={14} className="text-purple-500"/> {totalScore}
+          <div className="flex items-center gap-2">
+            {/* ── Live streak bar ── */}
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-transform duration-300 ${
+              streak > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-100 border-slate-200"
+            } ${streakPop ? "scale-125" : "scale-100"}`}>
+              <FlameIcon size={13} className={streak > 0 ? "text-amber-500" : "text-slate-400"}/>
+              <span className={`font-black text-xs tabular-nums ${streak > 0 ? "text-amber-700" : "text-slate-400"}`}>{streak}</span>
             </div>
+            <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg border border-purple-200">
+              <StarIcon size={13} className="text-purple-500"/>
+              <span className="font-black text-purple-700 text-xs tabular-nums">{totalScore}</span>
+            </div>
+            {/* Retry badge */}
+            {q._isRetry && (
+              <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-200">
+                🔄 2nd chance
+              </span>
+            )}
             <div className={`text-base font-black tabular-nums ${timeLeft < 6 ? "text-rose-500 animate-pulse" : "text-slate-800"}`}>
               00:{timeLeft.toString().padStart(2, "0")}
             </div>
@@ -1585,6 +1702,15 @@ export default function QuizEngine({
             </button>
           </div>
         </div>
+
+        {/* Level-up flash overlay */}
+        {levelUpMsg && (
+          <div className="absolute inset-x-0 top-16 flex justify-center z-50 pointer-events-none">
+            <div className="bg-indigo-600 text-white font-black px-5 py-2.5 rounded-2xl shadow-2xl text-base animate-bounce">
+              {levelUpMsg}
+            </div>
+          </div>
+        )}
 
         {/* Body */}
         <div className="p-4 overflow-y-auto flex-1">
