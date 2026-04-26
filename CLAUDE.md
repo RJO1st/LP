@@ -311,8 +311,8 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Consent indicator in teacher UI — complete (dot + banner + gated subject scores)
 - ✅ Parent readiness view — complete (`ScholarSchoolReadiness.jsx`, free teaser + Scholar full view)
 - ✅ Parent engagement panel — complete (proprietor dashboard, unclaimed list + copy-code chips)
+- ✅ Resend expired invitations — complete (April 26 session 3): Resend button per unclaimed scholar in `ParentEngagementPanel`; calls `POST /api/teacher/notify-parent` which refreshes expired code + re-sends claim email; per-scholar loading/success/retry states.
 - PDF export: teacher class report (print CSS exists; proper PDF generation TBD)
-- Resend expired invitations: re-upload CSV regenerates codes; could add a resend-by-scholar endpoint
 - school_leads pipeline view: internal LaunchPard admin page for sales team (non-partner school demand captured in DB, no UI yet)
 
 ### 🟡 Security
@@ -322,8 +322,10 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ RLS on `scholar_readiness_snapshot` — scoped + FORCE + write revoke (April 26 session 2)
 - ✅ Tara classifier homoglyph hardening (April 26 session 2)
 - ✅ Anonymous Tara turnCount bypass closed — HttpOnly session cookie (April 26 session 2)
-- CSP nonce-based script loading (remove `unsafe-inline`)
-- Extend Zod validation to remaining API routes
+- ✅ CSP nonce-based script loading (April 26 session 3): proxy.ts generates per-request nonce → x-nonce header → layout.jsx applies to all <Script> tags; script-src uses nonce + strict-dynamic (no unsafe-inline); currently Report-Only. **User action**: set `CSP_ENFORCE=true` in Vercel env vars after 48h of clean violations.
+- ✅ Zod validation extended (April 26 session 3): 22 routes now covered — added parentGoalSchema, advanceSubjectSchema, ttsSchema; confirmed forgot-password/forgot-access-code already wired.
+- ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql` — tara_turns deny-all policy + scholar_readiness_snapshot three-policy replacement. **User action**: paste into Supabase SQL editor + run verification query.
+- Extend Zod validation to remaining lower-priority API routes (63 uncovered, none high-risk)
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
