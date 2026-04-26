@@ -710,25 +710,34 @@ export async function computeSchoolReadiness(schoolId, supabase) {
     schoolAverage: 0, totalScholars: 0, classes: [], placementPrediction: 0, subjectAverages: {},
   };
 
-  // Compute readiness for each class (parallelised)
-  const classResults = await Promise.all(
+  // Compute readiness for each class (parallelised).
+  // We temporarily keep `students` on each result so we can derive subjectAverages
+  // below without an extra round of DB queries.
+  const classData = await Promise.all(
     classes.map(async c => {
       const r = await computeClassReadiness(c.id, supabase);
       return {
-        id:             c.id,
-        name:           c.name,
-        year_level:     c.year_level,
-        join_code:      c.join_code,
-        avgReadiness:   r.classAverage,
-        percentReady:   r.students.length
-          ? Math.round((r.readyList.length / r.students.length) * 100) : 0,
-        scholarCount:   r.students.length,
-        gradeDistribution: r.gradeDistribution,
-        topicWeaknesses:   r.topicWeaknesses.slice(0, 3),
-        placementPrediction: r.placementPrediction,
+        // Summary shape exposed to callers (no individual student data)
+        summary: {
+          id:             c.id,
+          name:           c.name,
+          year_level:     c.year_level,
+          join_code:      c.join_code,
+          avgReadiness:   r.classAverage,
+          percentReady:   r.students.length
+            ? Math.round((r.readyList.length / r.students.length) * 100) : 0,
+          scholarCount:   r.students.length,
+          gradeDistribution: r.gradeDistribution,
+          topicWeaknesses:   r.topicWeaknesses.slice(0, 3),
+          placementPrediction: r.placementPrediction,
+        },
+        // Full student rows retained temporarily for in-memory subject aggregation
+        students: r.students,
       };
     })
   );
+
+  const classResults = classData.map(d => d.summary);
 
   const totalScholars = classResults.reduce((s, c) => s + c.scholarCount, 0);
   const schoolAverage = totalScholars > 0
@@ -737,42 +746,16 @@ export async function computeSchoolReadiness(schoolId, supabase) {
       )
     : 0;
 
-  // Aggregate subject averages across all classes
+  // Aggregate subject averages from already-computed student scores — zero extra DB queries.
+  // (Previously this loop re-fetched enrolments + mastery for every class, 3N extra queries.)
   const subjectTotals = {};
   const subjectCounts = {};
 
-  for (const classResult of classResults) {
-    // Re-compute subject scores for this class by re-fetching mastery data
-    const weightMap = await _loadExamWeights(supabase);
-    const { data: enrolments } = await supabase
-      .from('enrolments')
-      .select('scholar_id')
-      .eq('class_id', classResult.id);
-
-    const scholarIds = (enrolments ?? []).map(e => e.scholar_id);
-    if (scholarIds.length > 0) {
-      const { data: mastery } = await supabase
-        .from('scholar_topic_mastery')
-        .select('scholar_id, subject, mastery_score, stability, updated_at')
-        .in('scholar_id', scholarIds)
-        .in('subject', ENTRANCE_SUBJECTS);
-
-      if (mastery) {
-        const masteryByScholar = {};
-        for (const row of mastery) {
-          if (!masteryByScholar[row.scholar_id]) masteryByScholar[row.scholar_id] = [];
-          masteryByScholar[row.scholar_id].push(row);
-        }
-
-        for (const scholarId in masteryByScholar) {
-          const scores = _scholarSubjectScores(masteryByScholar[scholarId], weightMap);
-          for (const [subject, score] of Object.entries(scores)) {
-            if (!subjectTotals[subject]) subjectTotals[subject] = 0;
-            if (!subjectCounts[subject]) subjectCounts[subject] = 0;
-            subjectTotals[subject] += score;
-            subjectCounts[subject] += 1;
-          }
-        }
+  for (const { students } of classData) {
+    for (const student of students ?? []) {
+      for (const [subject, score] of Object.entries(student.subjectScores ?? {})) {
+        subjectTotals[subject] = (subjectTotals[subject] ?? 0) + score;
+        subjectCounts[subject] = (subjectCounts[subject] ?? 0) + 1;
       }
     }
   }
