@@ -1,75 +1,112 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { supabaseKeys } from '@/lib/env'
-import { getServiceRoleClient } from '@/lib/security/serviceRole'
+// src/app/api/admin/flag-question/route.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin-only endpoint for flagging or deleting questions from the bank.
+// SECURITY (April 26 2026): requireAdmin() guard added — previously this route
+// had no auth, allowing unauthenticated bulk deletion of the question bank.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const supabase = getServiceRoleClient();
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requireAdmin } from "@/lib/security/admin";
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+
+// ── Validation ────────────────────────────────────────────────────────────────
+const uuidSchema = z.string().uuid();
+
+const flagQuestionSchema = z.object({
+  // Accept either a single ID or an array
+  questionId:  uuidSchema.optional(),
+  questionIds: z.array(uuidSchema).max(500).optional(),
+  action:      z.enum(["flag", "delete"]),
+  reason:      z.string().max(500).optional(),
+}).refine(d => d.questionId || (d.questionIds && d.questionIds.length > 0), {
+  message: "At least one question ID is required",
+});
 
 /**
  * POST /api/admin/flag-question
- * Flag or delete a bad question from the question bank.
- * Body: { questionId, action: "flag" | "delete", reason?: string }
- *
- * Also supports bulk flagging:
- * Body: { questionIds: [...], action: "flag" | "delete", reason?: string }
+ * Flag or delete a bad question from the question bank (admin only).
+ * Body: { questionId?, questionIds?: [...], action: "flag"|"delete", reason? }
  */
 export async function POST(req) {
+  const { error: adminError } = await requireAdmin(req);
+  if (adminError) return adminError;
+
+  let rawBody;
   try {
-    const { questionId, questionIds, action, reason } = await req.json();
-    const ids = questionIds || (questionId ? [questionId] : []);
+    rawBody = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-    if (!ids.length) {
-      return NextResponse.json({ error: "No question IDs provided" }, { status: 400 });
-    }
-    if (!["flag", "delete"].includes(action)) {
-      return NextResponse.json({ error: 'Action must be "flag" or "delete"' }, { status: 400 });
-    }
+  const parsed = flagQuestionSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.flatten() },
+      { status: 422 }
+    );
+  }
 
-    if (action === "delete") {
-      const { error } = await supabase
-        .from("questions")
-        .delete()
-        .in("id", ids);
-      if (error) throw error;
-      return NextResponse.json({ deleted: ids.length });
-    }
+  const { questionId, questionIds, action, reason } = parsed.data;
+  const ids = questionIds?.length ? questionIds : [questionId];
 
-    // Flag — mark as flagged with reason so they can be reviewed
+  const supabase = getServiceRoleClient();
+
+  if (action === "delete") {
     const { error } = await supabase
       .from("questions")
-      .update({ flagged: true, flag_reason: reason || "quality", updated_at: new Date().toISOString() })
+      .delete()
       .in("id", ids);
-    if (error) throw error;
-    return NextResponse.json({ flagged: ids.length });
-  } catch (err) {
-    console.error("[admin/flag-question]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    if (error) {
+      console.error("[admin/flag-question] delete error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ deleted: ids.length });
   }
+
+  // Flag — mark as flagged with reason so they can be reviewed
+  const { error } = await supabase
+    .from("questions")
+    .update({
+      flagged:    true,
+      flag_reason: reason || "quality",
+      updated_at: new Date().toISOString(),
+    })
+    .in("id", ids);
+
+  if (error) {
+    console.error("[admin/flag-question] flag error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ flagged: ids.length });
 }
 
 /**
  * GET /api/admin/flag-question?subject=english&limit=50
- * List flagged questions for review.
+ * List flagged questions for review (admin only).
  */
 export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const subject = searchParams.get("subject");
-    const limit = parseInt(searchParams.get("limit") || "50");
+  const { error: adminError } = await requireAdmin(req);
+  if (adminError) return adminError;
 
-    let query = supabase
-      .from("questions")
-      .select("*")
-      .eq("flagged", true)
-      .order("updated_at", { ascending: false })
-      .limit(limit);
+  const { searchParams } = new URL(req.url);
+  const subject   = searchParams.get("subject");
+  const limitVal  = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
 
-    if (subject) query = query.eq("subject", subject);
-    const { data, error } = await query;
-    if (error) throw error;
-    return NextResponse.json(data || []);
-  } catch (err) {
-    console.error("[admin/flag-question]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  const supabase = getServiceRoleClient();
+  let query = supabase
+    .from("questions")
+    .select("*")
+    .eq("flagged", true)
+    .order("updated_at", { ascending: false })
+    .limit(limitVal);
+
+  if (subject) query = query.eq("subject", subject);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[admin/flag-question] list error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data || []);
 }
