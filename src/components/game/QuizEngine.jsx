@@ -427,6 +427,22 @@ const XIcon = ({ size = 24 }) => (
   </svg>
 );
 
+const VolumeIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+  </svg>
+);
+
+const VolumeOffIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+    <line x1="23" y1="9" x2="17" y2="15"/>
+    <line x1="17" y1="9" x2="23" y2="15"/>
+  </svg>
+);
+
 // ─── TARA FEEDBACK ────────────────────────────────────────────────────────────
 const LOCAL_TARA_FEEDBACK = (text, subject, scholarName, scholarYear) => {
   const name    = scholarName || "Cadet";
@@ -856,6 +872,73 @@ const validateAndFixQuestion = (question, questionIndex) => {
   return validated;
 };
 
+// ─── MATH INPUT — symbol toolbar for KS3+ algebraic free-text questions ─────
+const MATH_SYMBOLS = [
+  { label: "x²",  val: "²" },
+  { label: "x³",  val: "³" },
+  { label: "√",   val: "√" },
+  { label: "π",   val: "π" },
+  { label: "×",   val: "×" },
+  { label: "÷",   val: "÷" },
+  { label: "±",   val: "±" },
+  { label: "≤",   val: "≤" },
+  { label: "≥",   val: "≥" },
+  { label: "≠",   val: "≠" },
+  { label: "∞",   val: "∞" },
+  { label: "°",   val: "°" },
+];
+
+const MathInput = ({ value, onChange, onSubmit, disabled }) => {
+  const inputRef = useRef(null);
+
+  const insertSymbol = (sym) => {
+    const el = inputRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? value.length;
+    const end   = el.selectionEnd   ?? value.length;
+    const next  = value.slice(0, start) + sym + value.slice(end);
+    onChange(next);
+    // Restore cursor after React re-renders the controlled input
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.selectionStart = inputRef.current.selectionEnd = start + sym.length;
+        inputRef.current.focus();
+      }
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Symbol toolbar */}
+      <div className="flex flex-wrap gap-1 p-2 bg-indigo-50 rounded-xl border border-indigo-100">
+        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest self-center mr-1">Insert</span>
+        {MATH_SYMBOLS.map(s => (
+          <button
+            key={s.val}
+            type="button"
+            disabled={disabled}
+            onClick={() => insertSymbol(s.val)}
+            className="px-2 py-1 text-sm font-bold text-indigo-700 bg-white rounded-lg border border-indigo-200 hover:bg-indigo-100 hover:border-indigo-400 transition-colors disabled:opacity-40"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") onSubmit(); }}
+        disabled={disabled}
+        className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800 font-mono tracking-wide"
+        placeholder="Type or use symbols above…"
+        autoFocus
+      />
+    </div>
+  );
+};
+
 // ─── CONCEPT SNAPSHOT — compact inline teaching card (wrong-answer panel) ────
 // Lighter than ConceptCardRenderer; shows key concept + one worked example.
 const ConceptSnapshot = ({ card, loading }) => {
@@ -964,6 +1047,13 @@ export default function QuizEngine({
   const [conceptCard,       setConceptCard]       = useState(null);
   const [conceptCardLoading,setConceptCardLoading] = useState(false);
 
+  // ── Accessibility / input mode ───────────────────────────────────────────────
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const scholarYear   = parseInt(student?.year_level || student?.year, 10) || 4;
+  const isKS1         = scholarYear <= 2;                     // voice readout
+  const isKS3Plus     = scholarYear >= 7;                     // MathInput toolbar
+  const isMathsSubj   = (subject || "").toLowerCase().includes("math");
+
   const timerRef          = useRef(null);
   const seenIdsRef        = useRef(new Set(previousQuestionIds));
   const seenTextsRef      = useRef(new Set());
@@ -1043,6 +1133,22 @@ export default function QuizEngine({
       setConceptCardLoading(false);
     }
   }, [student, curriculumProp, subject]);
+
+  // ── KS1 voice readout ────────────────────────────────────────────────────────
+  const speakQuestion = useCallback((text) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang  = 'en-GB';
+    utt.rate  = 0.88;
+    utt.pitch = 1.05;
+    window.speechSynthesis.speak(utt);
+  }, []);
+
+  // Cancel speech when question changes or component unmounts
+  useEffect(() => {
+    return () => { if (typeof window !== 'undefined') window.speechSynthesis?.cancel(); };
+  }, [qIdx]);
 
   const resetQuestionState = useCallback(() => {
     setSelected(null);       setTimeLeft(45);
@@ -1787,6 +1893,16 @@ export default function QuizEngine({
             <div className={`text-base font-black tabular-nums ${timeLeft < 6 ? "text-rose-500 animate-pulse" : "text-slate-800"}`}>
               00:{timeLeft.toString().padStart(2, "0")}
             </div>
+            {/* KS1 voice toggle */}
+            {isKS1 && (
+              <button
+                onClick={() => setVoiceEnabled(v => !v)}
+                title={voiceEnabled ? "Turn off read-aloud" : "Read question aloud"}
+                className={`p-1 rounded-lg transition-colors ${voiceEnabled ? "text-sky-600 bg-sky-100" : "text-slate-400 hover:text-sky-500"}`}
+              >
+                {voiceEnabled ? <VolumeIcon size={18}/> : <VolumeOffIcon size={18}/>}
+              </button>
+            )}
             <button onClick={() => onClose?.()} className="text-slate-400 hover:text-rose-500 p-0.5">
               <XIcon size={20}/>
             </button>
@@ -1877,17 +1993,36 @@ export default function QuizEngine({
           ) : qType === "free_text" ? (
             <div className="space-y-3">
               <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
+              {/* KS1 voice read button */}
+              {isKS1 && (
+                <button
+                  onClick={() => speakQuestion(q.q)}
+                  className="mb-1 flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-full text-xs font-bold text-sky-700 hover:bg-sky-100 transition-colors"
+                >
+                  <VolumeIcon size={13}/> Read to me
+                </button>
+              )}
               {!freeTextSubmitted ? (
                 <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={freeTextInput}
-                    onChange={e => setFreeTextInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleFreeTextSubmit(); }}
-                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800"
-                    placeholder="Type your answer…"
-                    autoFocus
-                  />
+                  {/* MathInput for KS3+ maths; plain input otherwise */}
+                  {isKS3Plus && isMathsSubj ? (
+                    <MathInput
+                      value={freeTextInput}
+                      onChange={setFreeTextInput}
+                      onSubmit={handleFreeTextSubmit}
+                      disabled={false}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={freeTextInput}
+                      onChange={e => setFreeTextInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleFreeTextSubmit(); }}
+                      className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800"
+                      placeholder="Type your answer…"
+                      autoFocus
+                    />
+                  )}
                   <button
                     onClick={handleFreeTextSubmit}
                     disabled={!freeTextInput.trim()}
@@ -2014,6 +2149,16 @@ export default function QuizEngine({
                 ? <FillBlankDisplay text={q.q} />
                 : <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
               }
+
+              {/* KS1 voice read button */}
+              {isKS1 && (
+                <button
+                  onClick={() => speakQuestion(q.q)}
+                  className="mb-3 flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-full text-xs font-bold text-sky-700 hover:bg-sky-100 transition-colors"
+                >
+                  <VolumeIcon size={13}/> Read to me
+                </button>
+              )}
 
               {/* Hints */}
               {selected === null && q.hints && q.hints.length > 0 && (
