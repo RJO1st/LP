@@ -134,6 +134,34 @@ export async function GET(req) {
     }
   }
 
+  // ── Prefetch mastery + streaks for ALL active scholars in two queries ──────
+  // Previously: two queries PER scholar inside the nested parent→scholar loop
+  // (N+1). Now: one IN-list query each, results merged into Maps.
+  const [masteryRes, streakRes] = await Promise.all([
+    supabase
+      .from("scholar_topic_mastery")
+      .select("scholar_id, topic, mastery_score, subject")
+      .in("scholar_id", scholarIds)
+      .order("mastery_score", { ascending: false }),
+    supabase
+      .from("scholars")
+      .select("id, streak_days")
+      .in("id", scholarIds),
+  ]);
+
+  // Group mastery rows by scholar_id
+  const masteryByScholar = {};
+  for (const row of masteryRes.data ?? []) {
+    if (!masteryByScholar[row.scholar_id]) masteryByScholar[row.scholar_id] = [];
+    masteryByScholar[row.scholar_id].push(row);
+  }
+
+  // Map streak_days by scholar id
+  const streakByScholar = {};
+  for (const row of streakRes.data ?? []) {
+    streakByScholar[row.id] = row.streak_days ?? 0;
+  }
+
   // ── Send per parent ───────────────────────────────────────────────────────
   let sent = 0;
 
@@ -153,28 +181,19 @@ export async function GET(req) {
         const lwAccuracy    = lw.questions > 0 ? Math.round((lw.correct / lw.questions) * 100) : 0;
         const accuracyDelta = twAccuracy - lwAccuracy;
 
-        // Mastery topics
-        const { data: mastery } = await supabase
-          .from("scholar_topic_mastery")
-          .select("topic, mastery_score, subject")
-          .eq("scholar_id", sid)
-          .order("mastery_score", { ascending: false });
-
-        const strengths  = (mastery || []).slice(0, 3).map(m => ({
+        // Mastery topics — from prefetched map
+        const mastery    = masteryByScholar[sid] ?? [];
+        const strengths  = mastery.slice(0, 3).map(m => ({
           topic: m.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           score: Math.round((m.mastery_score || 0) * 100),
         }));
-        const weaknesses = (mastery || []).filter(m => (m.mastery_score || 0) < 0.7).slice(-3).reverse().map(m => ({
+        const weaknesses = mastery.filter(m => (m.mastery_score || 0) < 0.7).slice(-3).reverse().map(m => ({
           topic: m.topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           score: Math.round((m.mastery_score || 0) * 100),
         }));
 
-        // Streak
-        const { data: streakRow } = await supabase
-          .from("scholars")
-          .select("streak_days")
-          .eq("id", sid)
-          .single();
+        // Streak — from prefetched map
+        const streakDays = streakByScholar[sid] ?? 0;
 
         // School readiness (if enrolled)
         const readiness = readinessByScholar[sid] || null;
@@ -189,7 +208,7 @@ export async function GET(req) {
           xp:            tw.xp,
           sessions:      tw.sessions,
           subjects:      [...(tw.subjects || [])].map(s => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())),
-          streak:        streakRow?.streak_days || 0,
+          streak:        streakDays,
           strengths,
           weaknesses,
           prevQuestions: lw.questions,
