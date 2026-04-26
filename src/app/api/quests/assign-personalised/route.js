@@ -1,8 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { generatePersonalisedQuests } from "@/lib/personalisedQuests";
-import { supabaseKeys } from '@/lib/env'
-import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { getServiceRoleClient } from '@/lib/security/serviceRole';
 
 const supabase = getServiceRoleClient();
 
@@ -14,6 +12,13 @@ const supabase = getServiceRoleClient();
  * quests based on their mastery gaps, interests, and unexplored subjects.
  *
  * Auth: Bearer token via CRON_SECRET env var.
+ *
+ * Performance notes:
+ *  - Expired quests are cleared in a single bulk UPDATE before the loop,
+ *    not one UPDATE per scholar (was N+1 → 1 query).
+ *  - Per-scholar quest generation (generatePersonalisedQuests) still requires
+ *    individual DB reads — unavoidable until mastery is bulk-prefetched.
+ *  - Inserts are batched per scholar (2-3 rows each, not serialised).
  */
 export async function GET(req) {
   try {
@@ -28,21 +33,31 @@ export async function GET(req) {
 
     if (scholarsError) throw scholarsError;
 
+    const now = new Date().toISOString();
+
+    // ── Bulk expire old personalised quests in one query ─────────────────────
+    // Previously: one UPDATE per scholar → N round-trips to the DB.
+    // Now: single UPDATE scoped to quest_type + status + expiry condition.
+    const { error: expireErr } = await supabase
+      .from("scholar_quests")
+      .update({ status: "expired" })
+      .eq("quest_type", "personalised")
+      .eq("status", "active")
+      .lt("expires_at", now);
+
+    if (expireErr) {
+      console.error("[assign-personalised] Bulk expire failed:", expireErr.message);
+      // Non-fatal — proceed with generation so scholars aren't blocked
+    }
+
+    // ── Per-scholar quest generation ─────────────────────────────────────────
+    // generatePersonalisedQuests reads mastery data per scholar — still sequential.
+    // TODO: prefetch all mastery rows in one query and pass the slice in.
     let successCount = 0;
-    let errorCount = 0;
+    let errorCount   = 0;
 
-    for (const scholar of scholars || []) {
+    for (const scholar of scholars ?? []) {
       try {
-        // Expire any old personalised quests
-        await supabase
-          .from("scholar_quests")
-          .update({ status: "expired" })
-          .eq("scholar_id", scholar.id)
-          .eq("quest_type", "personalised")
-          .eq("status", "active")
-          .lt("expires_at", new Date().toISOString());
-
-        // Generate new personalised quests from mastery data
         const quests = await generatePersonalisedQuests(scholar.id, supabase);
 
         if (quests.length > 0) {
@@ -55,20 +70,20 @@ export async function GET(req) {
 
         successCount++;
       } catch (err) {
-        console.error(`Error assigning personalised quests to scholar ${scholar.id}:`, err);
+        console.error(`[assign-personalised] scholar ${scholar.id}:`, err.message);
         errorCount++;
       }
     }
 
     return NextResponse.json({
       success: true,
-      totalScholars: scholars?.length || 0,
+      totalScholars: scholars?.length ?? 0,
       successCount,
       errorCount,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     });
   } catch (error) {
-    console.error("Error in assign-personalised:", error);
+    console.error("[assign-personalised] fatal:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
