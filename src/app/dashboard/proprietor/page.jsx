@@ -28,7 +28,10 @@ const ChevronRight  = ({ size = 16 }) => <Icon size={size} d="m9 18 6-6-6-6" />;
 const ArrowLeftIcon = ({ size = 16 }) => <Icon size={size} d={["M19 12H5","M12 5l-7 7 7 7"]} />;
 const AlertIcon     = ({ size = 20 }) => <Icon size={size} d={["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z","M12 9v6m0 3v.01"]} />;
 const ShieldIcon    = ({ size = 16 }) => <Icon size={size} d={["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]} />;
-const LogOutIcon    = ({ size = 16 }) => <Icon size={size} d={["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"]} />;
+const LogOutIcon      = ({ size = 16 }) => <Icon size={size} d={["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"]} />;
+const MailIcon        = ({ size = 16 }) => <Icon size={size} d={["M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z","M22 6l-10 7L2 6"]} />;
+const ClockIcon       = ({ size = 14 }) => <Icon size={size} d={["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 6v6l4 2"]} />;
+const ChevronDownIcon = ({ size = 16 }) => <Icon size={size} d="m6 9 6 6 6-6" />;
 
 // ═══════════════════════════════════════════════════════════════════
 // READINESS HELPERS
@@ -349,6 +352,274 @@ function ClassDetailPanel({ classInfo, data, loading, onBack }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PARENT ENGAGEMENT PANEL
+// Shows unclaimed scholars grouped by class so proprietors can share
+// validation codes or plan reminder campaigns.
+// ═══════════════════════════════════════════════════════════════════
+function ValidationCodeChip({ code }) {
+  const [copied, setCopied] = useState(false);
+  if (!code) return <span className="text-slate-600 text-xs italic">No code</span>;
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(code).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      title="Click to copy validation code"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded
+        bg-slate-700/60 border border-white/10 hover:border-indigo-400/40
+        text-xs font-mono text-indigo-300 hover:text-indigo-200 transition-colors"
+    >
+      {code}
+      <span className="text-[10px] text-slate-500">{copied ? "✓" : "⎘"}</span>
+    </button>
+  );
+}
+
+function ParentEngagementPanel({ schoolId }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [open,    setOpen]    = useState(false);   // collapsed by default
+  const [filter,  setFilter]  = useState("all");   // "all" | class_id
+
+  useEffect(() => {
+    if (!schoolId) return;
+    fetch(`/api/schools/${schoolId}/parent-engagement`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [schoolId]);
+
+  if (loading) {
+    return (
+      <div className="bg-slate-800/50 border border-white/10 rounded-lg p-4 animate-pulse">
+        <div className="h-4 bg-slate-700/50 rounded w-48 mb-2" />
+        <div className="h-3 bg-slate-700/30 rounded w-32" />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { summary, byClass, unclaimed } = data;
+
+  // If everyone has claimed, show a success state — no need to expand
+  if (summary.unclaimed === 0) {
+    return (
+      <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
+        <CheckIcon size={16} className="text-emerald-400 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-emerald-300">All parents have activated their accounts</p>
+          <p className="text-xs text-slate-400 mt-0.5">{summary.total} scholars · 100% claim rate</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter unclaimed list by class
+  const visibleUnclaimed = filter === "all"
+    ? unclaimed
+    : unclaimed.filter(s => s.class_id === filter);
+
+  // Expiry helper
+  const isExpired = (expiresAt) => expiresAt && new Date(expiresAt) < new Date();
+  const daysLeft  = (expiresAt) => {
+    if (!expiresAt) return null;
+    const diff = Math.ceil((new Date(expiresAt) - Date.now()) / 86_400_000);
+    return diff;
+  };
+
+  return (
+    <div className="bg-slate-800/50 border border-white/10 rounded-lg overflow-hidden">
+      {/* Header — always visible, click to expand */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-4 px-4 py-4 hover:bg-slate-700/20 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-amber-500/15 rounded-lg flex-shrink-0">
+            <MailIcon size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Parent Activation</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {summary.claimed} of {summary.total} parents have linked their account
+              {summary.unclaimed > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                  {summary.unclaimed} pending
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Progress bar + chevron */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-28 h-2 bg-slate-700/50 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${summary.claimRate}%`,
+                  background: summary.claimRate >= 75 ? "#34d399"
+                            : summary.claimRate >= 40 ? "#f59e0b"
+                            : "#ef4444",
+                }}
+              />
+            </div>
+            <span className={`text-sm font-bold tabular-nums ${
+              summary.claimRate >= 75 ? "text-emerald-400"
+              : summary.claimRate >= 40 ? "text-amber-400"
+              : "text-red-400"
+            }`}>{summary.claimRate}%</span>
+          </div>
+          <ChevronDownIcon
+            size={16}
+            className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </div>
+      </button>
+
+      {/* Expandable body */}
+      {open && (
+        <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-4">
+
+          {/* Per-class breakdown pills */}
+          {byClass.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFilter("all")}
+                className={`px-2.5 py-1 text-xs rounded-full transition-all ${
+                  filter === "all"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                All classes
+              </button>
+              {byClass.map(cls => (
+                <button
+                  key={cls.class_id ?? cls.class_name}
+                  onClick={() => setFilter(cls.class_id ?? "all")}
+                  className={`px-2.5 py-1 text-xs rounded-full transition-all ${
+                    filter === (cls.class_id ?? "all")
+                      ? "bg-indigo-600 text-white"
+                      : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  {cls.class_name}
+                  {cls.unclaimed > 0 && (
+                    <span className="ml-1 text-amber-300">({cls.unclaimed})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Per-class summary row (only in "all" view) */}
+          {filter === "all" && byClass.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {byClass.map(cls => (
+                <div
+                  key={cls.class_id ?? cls.class_name}
+                  className="flex items-center gap-3 bg-slate-700/20 rounded-lg px-3 py-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate">{cls.class_name}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {cls.claimed}/{cls.total} claimed
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="w-14 h-1.5 bg-slate-600/50 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${cls.claimRate}%`,
+                          background: cls.claimRate >= 75 ? "#34d399"
+                                    : cls.claimRate >= 40 ? "#f59e0b"
+                                    : "#ef4444",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold tabular-nums text-slate-300 w-8 text-right">
+                      {cls.claimRate}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Unclaimed scholar list */}
+          <div>
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+              Unclaimed scholars — share these codes with parents to activate their accounts
+            </p>
+            <div className="max-h-64 overflow-y-auto divide-y divide-white/5 rounded-lg border border-white/8">
+              {visibleUnclaimed.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-slate-400">
+                  {filter === "all" ? "No unclaimed scholars." : "All parents in this class have activated."}
+                </p>
+              ) : (
+                visibleUnclaimed.map(s => {
+                  const expired = isExpired(s.invitation_expires_at);
+                  const days    = daysLeft(s.invitation_expires_at);
+                  return (
+                    <div key={s.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-700/20 transition-colors">
+                      {/* Name + class */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{s.name}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{s.class_name}</p>
+                      </div>
+
+                      {/* Expiry indicator */}
+                      {s.invitation_expires_at && (
+                        <div className={`hidden sm:flex items-center gap-1 text-[11px] flex-shrink-0 ${
+                          expired        ? "text-red-400"
+                          : days <= 2    ? "text-amber-400"
+                          : "text-slate-500"
+                        }`}>
+                          <ClockIcon size={11} />
+                          {expired ? "Expired" : days === 0 ? "Expires today" : `${days}d left`}
+                        </div>
+                      )}
+
+                      {/* Email */}
+                      {s.invitation_email && (
+                        <span className="hidden md:block text-[11px] text-slate-500 truncate max-w-[140px]">
+                          {s.invitation_email}
+                        </span>
+                      )}
+
+                      {/* Validation code chip */}
+                      <ValidationCodeChip code={s.validation_code} />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Tip */}
+          <div className="flex items-start gap-2 bg-slate-700/20 rounded-lg p-3 text-xs text-slate-400">
+            <AlertIcon size={14} className="text-slate-500 flex-shrink-0 mt-0.5" />
+            <span>
+              Share each scholar&apos;s validation code with their parent — they enter it at{" "}
+              <span className="text-indigo-400">launchpard.com/parent/claim</span>.
+              Codes expire after 7 days; re-upload the CSV to regenerate expired ones.
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -703,6 +974,9 @@ export default function ProprietorDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Parent Engagement — unclaimed scholars */}
+                <ParentEngagementPanel schoolId={school?.id} />
 
                 {/* Classes Table */}
                 <div>
