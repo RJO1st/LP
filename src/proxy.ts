@@ -31,12 +31,16 @@ const forgotLimiter   = new EdgeRateLimiter({ windowMs: 60 * 60 * 1000,  maxRequ
 const authLimiter     = new EdgeRateLimiter({ windowMs: 15 * 60 * 1000,  maxRequests: 10 });  // 10/15min
 const taraLimiter     = new EdgeRateLimiter({ windowMs: 60 * 1000,        maxRequests: 30 });  // 30/min
 const generateLimiter = new EdgeRateLimiter({ windowMs: 60 * 1000,        maxRequests: 5  });  // 5/min
+const drawingLimiter  = new EdgeRateLimiter({ windowMs: 60 * 1000,        maxRequests: 10 });  // 10/min — vision model
+const scholarLimiter  = new EdgeRateLimiter({ windowMs: 15 * 60 * 1000,  maxRequests: 10 });  // 10/15min — brute-force guard
 
 function getRateLimiter(pathname: string): EdgeRateLimiter | null {
   if (pathname === '/api/forgot-password' || pathname === '/api/forgot-access-code') return forgotLimiter;
-  if (pathname.startsWith('/api/auth/'))       return authLimiter;
+  if (pathname.startsWith('/api/auth/'))          return authLimiter;
   if (pathname === '/api/tara' || pathname === '/api/chat') return taraLimiter;
   if (pathname === '/api/generate' || pathname === '/api/generate-visuals') return generateLimiter;
+  if (pathname === '/api/validate-drawing')        return drawingLimiter;
+  if (pathname === '/api/scholar')                 return scholarLimiter;
   return null;
 }
 

@@ -1,10 +1,31 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { supabaseKeys } from '@/lib/env';
 import { chatRequestSchema, parseBody } from '@/lib/validation';
 
 // Chat uses Claude via OpenRouter — quality matters for student-facing conversation
 const CHAT_MODEL = 'anthropic/claude-3.5-haiku';  // $0.80/$4.00 per 1M — fast + cheap Claude
 
 export async function POST(req) {
+  // ── Auth guard — Claude Haiku costs money; require a valid session ─────────
+  try {
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
+      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+    );
+    const { data: { user } } = await authClient.auth.getUser();
+    // Scholar sessions are tracked via cookie set at scholar login
+    const scholarId = cookieStore.get('scholar_id')?.value;
+    if (!user && !scholarId) {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
+
   try {
     const raw = await req.json();
     const parsed = parseBody(chatRequestSchema, raw);

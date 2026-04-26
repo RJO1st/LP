@@ -5,6 +5,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { supabaseKeys } from "@/lib/env";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -15,6 +18,8 @@ const VISION_MODEL = "openai/gpt-4o-mini"; // supports image input, cost-effecti
 /**
  * Validates a scholar's drawing against question criteria using AI vision.
  *
+ * Requires: authenticated session (parent or scholar session).
+ *
  * Accepts:
  *   - pngDataUrl: base64-encoded PNG of the drawing (preferred)
  *   - sceneData: Excalidraw scene JSON (fallback for element-based analysis)
@@ -23,6 +28,24 @@ const VISION_MODEL = "openai/gpt-4o-mini"; // supports image input, cost-effecti
  *   - subject, topic: for context
  */
 export async function POST(request) {
+  // ── Auth guard — vision model is expensive; require a valid session ────────
+  try {
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      supabaseKeys.url(),
+      supabaseKeys.publishable(),
+      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+    );
+    const { data: { user } } = await authClient.auth.getUser();
+    // Also accept scholar sessions stored in client cookie (scholars don't use Supabase auth)
+    const scholarId = cookieStore.get("scholar_id")?.value;
+    if (!user && !scholarId) {
+      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  }
+
   try {
     const {
       questionText,
