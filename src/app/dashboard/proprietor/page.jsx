@@ -32,6 +32,7 @@ const LogOutIcon      = ({ size = 16 }) => <Icon size={size} d={["M9 21H5a2 2 0 
 const MailIcon        = ({ size = 16 }) => <Icon size={size} d={["M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z","M22 6l-10 7L2 6"]} />;
 const ClockIcon       = ({ size = 14 }) => <Icon size={size} d={["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 6v6l4 2"]} />;
 const ChevronDownIcon = ({ size = 16 }) => <Icon size={size} d="m6 9 6 6 6-6" />;
+const SendIcon        = ({ size = 14 }) => <Icon size={size} d={["M22 2L11 13","M22 2l-7 20-4-9-9-4 20-7"]} />;
 
 // ═══════════════════════════════════════════════════════════════════
 // READINESS HELPERS
@@ -385,10 +386,29 @@ function ValidationCodeChip({ code }) {
 }
 
 function ParentEngagementPanel({ schoolId }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [open,    setOpen]    = useState(false);   // collapsed by default
-  const [filter,  setFilter]  = useState("all");   // "all" | class_id
+  const [data,      setData]      = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [open,      setOpen]      = useState(false);   // collapsed by default
+  const [filter,    setFilter]    = useState("all");   // "all" | class_id
+  const [sendingId, setSendingId] = useState(null);    // scholar id currently being re-invited
+  const [sentIds,   setSentIds]   = useState({});      // { [scholarId]: 'ok' | 'err' }
+
+  async function resendInvite(scholar) {
+    if (!scholar.class_id) return; // no class = can't call notify-parent
+    setSendingId(scholar.id);
+    try {
+      const res = await fetchWithCsrf("/api/teacher/notify-parent", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ scholarId: scholar.id, classId: scholar.class_id }),
+      });
+      setSentIds(prev => ({ ...prev, [scholar.id]: res.ok ? "ok" : "err" }));
+    } catch {
+      setSentIds(prev => ({ ...prev, [scholar.id]: "err" }));
+    } finally {
+      setSendingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!schoolId) return;
@@ -602,6 +622,34 @@ function ParentEngagementPanel({ schoolId }) {
 
                       {/* Validation code chip */}
                       <ValidationCodeChip code={s.validation_code} />
+
+                      {/* Resend invite button — only when parent email is on file */}
+                      {s.invitation_email && (
+                        <button
+                          onClick={e => { e.stopPropagation(); resendInvite(s); }}
+                          disabled={sendingId === s.id || sentIds[s.id] === "ok"}
+                          title={
+                            sentIds[s.id] === "ok"  ? "Invitation sent"
+                            : sentIds[s.id] === "err" ? "Send failed — try again"
+                            : "Re-send invitation email"
+                          }
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                            sentIds[s.id] === "ok"
+                              ? "bg-emerald-900/30 border border-emerald-500/30 text-emerald-400 cursor-default"
+                            : sentIds[s.id] === "err"
+                              ? "bg-red-900/30 border border-red-500/30 text-red-400"
+                            : "bg-slate-700/50 border border-white/10 text-slate-300 hover:bg-indigo-600/20 hover:border-indigo-500/30 hover:text-indigo-300"
+                          }`}
+                        >
+                          {sendingId === s.id ? (
+                            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : sentIds[s.id] === "ok" ? (
+                            <><CheckIcon size={11} /> Sent</>
+                          ) : (
+                            <><SendIcon size={11} /> {sentIds[s.id] === "err" ? "Retry" : "Resend"}</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   );
                 })
@@ -613,9 +661,11 @@ function ParentEngagementPanel({ schoolId }) {
           <div className="flex items-start gap-2 bg-slate-700/20 rounded-lg p-3 text-xs text-slate-400">
             <AlertIcon size={14} className="text-slate-500 flex-shrink-0 mt-0.5" />
             <span>
-              Share each scholar&apos;s validation code with their parent — they enter it at{" "}
+              Share each scholar&apos;s code with their parent, or use{" "}
+              <span className="text-indigo-400">Resend</span> to email the invitation directly.
+              Parents enter their code at{" "}
               <span className="text-indigo-400">launchpard.com/parent/claim</span>.
-              Codes expire after 7 days; re-upload the CSV to regenerate expired ones.
+              Codes expire after 7 days — Resend issues a fresh code automatically.
             </span>
           </div>
         </div>
