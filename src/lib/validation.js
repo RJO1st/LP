@@ -289,6 +289,52 @@ export const ttsSchema = z.object({
   speed: z.number().min(0.1).max(10).optional(),
 })
 
+// ─── Email trigger schemas ────────────────────────────────────────────────────
+// Fire-and-forget routes called from the client right after signup.
+// These don't require auth (no session exists yet) but DO need length caps
+// and email format checks to prevent spam relay abuse.
+
+const safeEmail   = z.string().trim().toLowerCase().email().max(320);
+const safeName    = z.string().trim().max(120);
+const safeSubject = z.string().trim().max(100);
+
+// POST /api/brevo/sync-contact
+export const brevoSyncContactSchema = z.object({
+  email:       safeEmail,
+  firstName:   safeName.optional().or(z.literal('')),
+  lastName:    safeName.optional().or(z.literal('')),
+  curriculum:  z.string().trim().max(50).optional().or(z.literal('')),
+  country:     z.string().trim().max(80).optional().or(z.literal('')),
+  source:      z.string().trim().max(80).optional().or(z.literal('')),
+});
+
+// POST /api/emails/welcome
+export const welcomeEmailSchema = z.object({
+  email: safeEmail,
+  name:  safeName.optional().or(z.literal('')),
+});
+
+// POST /api/resend-verification/send-first-quiz-email (and /api/emails/first-quiz)
+export const firstQuizEmailSchema = z.object({
+  parentEmail:    safeEmail,
+  parentName:     safeName.optional().or(z.literal('')),
+  scholarName:    safeName.optional().or(z.literal('')),
+  subject:        safeSubject.optional().or(z.literal('')),
+  score:          z.number().int().min(0).max(200).optional(),
+  totalQuestions: z.number().int().min(1).max(200).optional(),
+  xpEarned:       z.number().int().min(0).max(10_000).optional(),
+});
+
+// POST /api/emails/scholar-created  (also api/send-scholar-created-email)
+export const scholarCreatedEmailSchema = z.object({
+  parentEmail:   safeEmail,
+  parentName:    safeName.optional().or(z.literal('')),
+  scholarName:   safeName,
+  accessCode:    z.string().trim().max(20).optional().or(z.literal('')),
+  yearLevel:     z.number().int().min(1).max(13).optional(),
+  curriculum:    z.string().trim().max(50).optional().or(z.literal('')),
+});
+
 // Helper to parse and validate request body
 export function parseBody(schema, body) {
   const result = schema.safeParse(body)

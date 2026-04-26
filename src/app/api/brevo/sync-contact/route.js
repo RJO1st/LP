@@ -12,6 +12,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { brevoSyncContactSchema } from "@/lib/validation";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const BREVO_API_URL = "https://api.brevo.com/v3";
@@ -27,12 +28,12 @@ export async function POST(request) {
       return NextResponse.json({ error: "Brevo not configured" }, { status: 500 });
     }
 
-    const body = await request.json();
-    const { email, firstName, lastName, curriculum, country, source } = body;
-
-    if (!email) {
-      return NextResponse.json({ error: "email required" }, { status: 400 });
+    const rawBody = await request.json().catch(() => null);
+    const parsed  = brevoSyncContactSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "email is required and must be valid" }, { status: 400 });
     }
+    const { email, firstName, lastName, curriculum, country, source } = parsed.data;
 
     // Create or update contact in Brevo
     const contactPayload = {
