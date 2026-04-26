@@ -101,14 +101,15 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ### API Routes
 - `POST /api/schools/import-scholars` — CSV bulk import (inline parser, no csv-parse dep), generates validation codes, sends claim emails via Resend
-- `POST /api/parent/claim-scholar` — validates code, links parent to scholar
+- `POST /api/parent/claim-scholar` — validates code, links parent to scholar; fail-open `school_leads` write for non-partner schools
 - `POST/DELETE /api/parent/consent` — NDPR consent give/revoke
-- `GET /api/class/[classId]/readiness` — full class analytics with consent indicators
+- `GET /api/class/[classId]/readiness` — full class analytics with consent indicators per student
 - `GET /api/schools/[schoolId]/overview` — school-wide analytics via `computeSchoolReadiness`
+- `GET /api/schools/[schoolId]/parent-engagement` — claim summary, per-class breakdown, unclaimed scholar list with validation codes + expiry
 
 ### Dashboard Pages
-- `/dashboard/teacher` — class selector, 4 stat cards, grade distribution, student list, topic gaps, export
-- `/dashboard/proprietor` — placement prediction banner, classes table, subject breakdown, CSV upload, no commission shown
+- `/dashboard/teacher` — class selector, 4 stat cards, grade distribution, student list with consent dots + gated subject scores, topic gaps, export
+- `/dashboard/proprietor` — placement prediction banner, KPI cards, grade bands, parent engagement panel (collapsible unclaimed list with copy-code chips), classes table, subject breakdown, CSV upload
 - `/parent/claim` — auth tabs (create/login) + NDPR consent modal + 7-day trial banner (wrapped in `<Suspense>`)
 
 ### NDPR Compliance
@@ -154,6 +155,24 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 - `scripts/ingestExamPaper.mjs` — exam paper PDF → DB
 
 ## Recent Session Work (Last 3)
+
+### April 26, 2026 — School Dashboard Sprint Completion + Script Hardening
+
+**rewriteExplanations.mjs — two fixes (commits 9b2ffaa, aad78fe):**
+- Consecutive-failure cooloff: `failCount` Map per model — 3 consecutive non-429 network errors (terminated/fetch failed) → 30 s cooloff + reset. Prevents flaky models from being retried every batch without backoff.
+- Per-batch CSV flush: header written before loop; each batch appended to CSV immediately after processing. Ctrl+C now loses at most the 5 in-flight questions, not the entire run. Resume detection (`Found N existing rewrites — will skip`) now works correctly on restart.
+- Batch delay bumped 500 ms → 700 ms (free rotation); free model ring: Llama 3.3 70B / GPT-OSS 120B / Hermes 3 405B / Nemotron 30B / Qwen3 80B / Gemma 4 31B.
+
+**School dashboard sprint — all three items shipped:**
+1. **Teacher consent UI** — confirmed already complete in `teacher/page.jsx`: aggregate NDPR banner (green/amber/red pill counts), per-student consent dot, expanded row shows subject scores only when `consentStatus === 'granted'` (ShieldIcon + message otherwise).
+2. **Parent readiness view** — confirmed already complete via `ScholarSchoolReadiness.jsx`: free tier shows circular score gauge + grade band badge + blurred/locked subject bars + upgrade CTA; Scholar tier shows full subject bars + topic weakness chips. Wired into parent dashboard at `scholar.school_id` check.
+3. **Parent Engagement Panel** (commit d3a13da) — new collapsible section in proprietor dashboard:
+   - `GET /api/schools/[schoolId]/parent-engagement`: queries scholars → enrolments → classes + latest invitation per scholar via service role; returns `{summary, byClass, unclaimed}`. Auth: proprietor/admin only.
+   - `ParentEngagementPanel` component: collapsed by default, header shows claim rate + progress bar + pending badge. Expanded: per-class filter pills, class-level progress bars, scrollable unclaimed-scholar list with `ValidationCodeChip` (one-click copy), expiry indicator (red if expired, amber if ≤ 2 days). 100% claim rate shows success state.
+   - Inserted between "Parent Activation" funnel and Classes table.
+
+**Note on school_leads vs parent-engagement split:**
+`school_leads` captures demand from non-partner schools (written in `claim-scholar` hook when `is_partner=false`). Partner school proprietors (who have dashboard access) won't have entries there, so the engagement view queries `scholars.parent_id IS NULL` directly, which is the actionable surface for them.
 
 ### April 15, 2026 — School Dashboard B2B2C + NDPR + Pricing Simplification
 **School dashboard system (full B2B2C channel):**
@@ -242,7 +261,9 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Full DB audit complete (April 24 2026) — 79,681 active questions, zero structural/tier/index issues
 - ✅ `20260420_waec_exam_fields.sql` migration applied
 - ✅ `demo_greenfield_academy.sql` seed applied (Greenfield Academy demo live)
-- Paystack checkout server route (awaiting account activation before live transactions — build now, gate on env)
+- ✅ Paystack checkout + webhook routes built (awaiting account activation for live transactions)
+- ✅ Security secrets rotated (April 2026)
+- Paystack account activation: test end-to-end once activated — see `PAYSTACK_SMOKE_TEST.md`
 - Stripe server route for GB tier checkout + webhook (awaiting UK entity setup — see corporate structure notes)
 - Webhook: updates `parents.subscription_tier` + `subscription_end` on payment success
 - Anti-arbitrage: Paystack endpoint 403s if `parent.region !== 'NG'`; Stripe 403s for NG parents
@@ -257,9 +278,11 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - Full plan: `WAEC_NECO_INGESTION_PLAN.md`
 
 ### 🟡 Content — Explanation Quality (15,330 stubs)
-- Run explanation rewriter: `node scripts/rewriteExplanations.mjs --limit=300` (British English, 300-word cap, resume-safe)
-- After run: apply `scripts/output/explanation_rewrites.sql` to DB
-- Remaining stub explanations (< 80 chars): 15,330 — rewriteExplanations.mjs targets avg_score < 2.9 queue first
+- Script running: `node scripts/rewriteExplanations.mjs --limit=300` (British English, 300-word cap)
+- Resume safety fixed (April 26): per-batch CSV flush — Ctrl+C loses ≤ 5 questions; restart correctly skips already-done IDs
+- Consecutive-failure cooloff fixed: 3 network errors → 30 s cooloff per model; prevents flaky models looping
+- After run completes: apply `scripts/output/explanation_rewrites.sql` to DB via Supabase SQL editor
+- Remaining stubs: ~15,330 (< 80 chars); script targets avg_score < 2.9 queue first
 
 ### 🟡 Content — Nigerian Question Bank
 - Run concept card generation: `node scripts/generateConceptCards.mjs --ng-only` (JSS + SSS localised cards with ₦ examples)
@@ -267,14 +290,16 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - Apply salvage CSV edits (`scripts/output/audit_v3_salvage.csv` — 2,459 fixable rows)
 - Run full bank audit for Nigerian coverage gaps: `node scripts/fullBankAudit.mjs --curriculum=ng_primary` (+ ng_jss, ng_sss)
 
-### 🟡 School Dashboard — Next Sprint (P1)
-- Consent indicator visible in teacher UI (API returns `consentStatus` per student — not yet surfaced in table)
-- Parent dashboard dedicated readiness view (free: overall score teaser; premium: topic detail)
-- School lead management view (non-partner schools captured in `school_leads`)
-- PDF export for teacher class report + proprietor termly report
+### 🟡 School Dashboard — Next Sprint (P2)
+- ✅ Consent indicator in teacher UI — complete (dot + banner + gated subject scores)
+- ✅ Parent readiness view — complete (`ScholarSchoolReadiness.jsx`, free teaser + Scholar full view)
+- ✅ Parent engagement panel — complete (proprietor dashboard, unclaimed list + copy-code chips)
+- PDF export: teacher class report (print CSS exists; proper PDF generation TBD)
+- Resend expired invitations: re-upload CSV regenerates codes; could add a resend-by-scholar endpoint
+- school_leads pipeline view: internal LaunchPard admin page for sales team (non-partner school demand captured in DB, no UI yet)
 
 ### 🟡 Security
-- Rotate exposed secrets: OPENROUTER_API_KEY, CRON_SECRET, BREVO_API_KEY, RESEND_API_KEY
+- ✅ Secrets rotated (April 2026)
 - CSP nonce-based script loading (remove `unsafe-inline`)
 - Extend Zod validation to remaining API routes
 
