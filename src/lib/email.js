@@ -11,8 +11,37 @@ const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 const BREVO_SENDER  = { email: 'hello@launchpard.com', name: 'LaunchPard' };
 const BREVO_REPLY   = 'support@launchpard.com';
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://launchpard.com';
+
 /**
- * sendEmail({ to, subject, html, htmlContent, from, replyTo })
+ * Standard List-Unsubscribe headers for bulk/digest emails.
+ *
+ * Gmail's bulk-sender rules (enforced April 2024) require:
+ *   - `List-Unsubscribe` with an https: one-click URL *and* a mailto: fallback
+ *   - `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058)
+ *
+ * Pass these as `headers` in any sendEmail call for digest / newsletter sends.
+ * Do NOT add to OTP / password-reset / safeguarding emails (they are
+ * transactional and must always reach the recipient).
+ */
+export const BULK_UNSUBSCRIBE_HEADERS = {
+  'List-Unsubscribe':
+    `<${APP_URL}/dashboard/parent?tab=settings&unsubscribe=digest>, ` +
+    `<mailto:unsubscribe@launchpard.com?subject=unsubscribe>`,
+  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+};
+
+/**
+ * sendEmail({ to, subject, html, htmlContent, from, replyTo, headers })
+ *
+ * @param {object}  options
+ * @param {string|string[]|{email:string,name?:string}[]} options.to
+ * @param {string}  options.subject
+ * @param {string}  [options.html]         — alias for htmlContent
+ * @param {string}  [options.htmlContent]  — preferred; wins over html
+ * @param {string}  [options.from]         — defaults to hello@launchpard.com
+ * @param {string}  [options.replyTo]      — defaults to support@launchpard.com
+ * @param {object}  [options.headers]      — custom email headers (e.g. List-Unsubscribe)
  */
 export async function sendEmail({
   to,
@@ -21,6 +50,7 @@ export async function sendEmail({
   htmlContent,
   from    = BREVO_SENDER.email,
   replyTo = BREVO_REPLY,
+  headers = {},
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY is not set in Vercel env vars.');
@@ -37,6 +67,9 @@ export async function sendEmail({
     replyTo:     { email: replyTo },
     subject,
     htmlContent: body,
+    // Brevo SMTP API accepts arbitrary custom headers under the `headers` key.
+    // Only include the key if the caller actually supplied headers.
+    ...(Object.keys(headers).length > 0 ? { headers } : {}),
   };
 
   const res = await fetch(BREVO_API_URL, {

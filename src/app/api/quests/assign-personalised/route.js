@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { generatePersonalisedQuests } from "@/lib/personalisedQuests";
-import { getServiceRoleClient } from '@/lib/security/serviceRole';
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { authorizedCronRequest } from "@/lib/security/cronAuth";
+
+export const runtime = "nodejs"; // timingSafeEqual requires Node runtime
 
 const supabase = getServiceRoleClient();
 
@@ -21,11 +24,11 @@ const supabase = getServiceRoleClient();
  *  - Inserts are batched per scholar (2-3 rows each, not serialised).
  */
 export async function GET(req) {
+  // ── 1. Auth (constant-time) ────────────────────────────────────────────────
+  if (!authorizedCronRequest(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { data: scholars, error: scholarsError } = await supabase
       .from("scholars")
@@ -53,11 +56,35 @@ export async function GET(req) {
     // ── Per-scholar quest generation ─────────────────────────────────────────
     // generatePersonalisedQuests reads mastery data per scholar — still sequential.
     // TODO: prefetch all mastery rows in one query and pass the slice in.
-    let successCount = 0;
-    let errorCount   = 0;
+    let successCount  = 0;
+    let skippedCount  = 0;
+    let errorCount    = 0;
+
+    // Lower bound for the idempotency preflight — start of today.
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayStartIso = dayStart.toISOString();
 
     for (const scholar of scholars ?? []) {
       try {
+        // ── Idempotency preflight ─────────────────────────────────────────
+        // If this scholar already has active personalised quests expiring
+        // in the future (assigned today or earlier, still live), skip.
+        // Prevents Vercel retry from doubling the quest queue.
+        const { count, error: countErr } = await supabase
+          .from("scholar_quests")
+          .select("id", { count: "exact", head: true })
+          .eq("scholar_id", scholar.id)
+          .eq("quest_type", "personalised")
+          .eq("status", "active")
+          .gte("expires_at", dayStartIso);
+
+        if (countErr) throw countErr;
+        if ((count ?? 0) > 0) {
+          skippedCount++;
+          continue;
+        }
+
         const quests = await generatePersonalisedQuests(scholar.id, supabase);
 
         if (quests.length > 0) {
@@ -79,6 +106,7 @@ export async function GET(req) {
       success: true,
       totalScholars: scholars?.length ?? 0,
       successCount,
+      skippedCount,
       errorCount,
       timestamp: now,
     });

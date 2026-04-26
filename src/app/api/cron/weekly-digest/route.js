@@ -10,7 +10,7 @@
 
 import { NextResponse }  from "next/server";
 import { getServiceRoleClient } from "@/lib/security/serviceRole";
-import { sendEmail }     from "@/lib/email";
+import { sendEmail, BULK_UNSUBSCRIBE_HEADERS } from "@/lib/email";
 
 export const runtime    = "nodejs";   // edge doesn't support supabase admin API
 export const maxDuration = 60;
@@ -338,6 +338,7 @@ async function sendWeeklyDigestEmail(toEmail, scholars) {
   await sendEmail({
     to:      toEmail,
     subject: `📊 Weekly progress: ${allNames}`,
+    headers: BULK_UNSUBSCRIBE_HEADERS,
     html: `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

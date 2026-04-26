@@ -1,8 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { assignBossBattle } from "@/lib/bossBattleEngine";
-import { supabaseKeys } from '@/lib/env'
-import { getServiceRoleClient } from '@/lib/security/serviceRole'
+import { getServiceRoleClient } from "@/lib/security/serviceRole";
+import { authorizedCronRequest } from "@/lib/security/cronAuth";
+
+export const runtime = "nodejs"; // timingSafeEqual requires Node runtime
 
 const supabase = getServiceRoleClient();
 
@@ -16,11 +17,11 @@ const supabase = getServiceRoleClient();
  * Auth: Bearer token via CRON_SECRET env var.
  */
 export async function GET(req) {
+  // ── 1. Auth (constant-time) ────────────────────────────────────────────────
+  if (!authorizedCronRequest(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { data: scholars, error: scholarsError } = await supabase
       .from("scholars")

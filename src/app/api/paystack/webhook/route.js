@@ -317,6 +317,19 @@ async function handleChargeSuccess(supabase, data) {
 
   addons = sanitiseAddons(addons, ALLOWED_ADDONS);
 
+  // ── Defense in depth: annual billing must not carry add-ons ─────────────
+  // The checkout route already rejects this combo at purchase time (§1b).
+  // Enforce the same rule here so a tampered or manually crafted webhook
+  // payload can't activate add-ons on an annual subscription.
+  if (billing === "annual" && addons.length > 0) {
+    logger.warn("paystack_webhook_annual_addon_rejected", {
+      reference,
+      billing,
+      addons,
+    });
+    addons = [];
+  }
+
   // ── Resolve parent_id if missing ────────────────────────────────────────
   if (!parentId) {
     const customerEmail = extractCustomerEmail(data);
