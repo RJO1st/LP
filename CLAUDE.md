@@ -156,6 +156,17 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 26, 2026 (session 6) — Concept Cards Wiring
+
+**`src/components/game/QuizEngine.jsx` — concept card in wrong-answer panel:**
+
+- **`ConceptSnapshot` component** (defined above `QuizEngine`): compact inline teaching card — renders topic label, `key_concept` text, and `best_example` (problem + solution) from `concept_cards` API. Animated loading skeleton while fetching. Silently skips if the API returns 204 (no card for this topic).
+- **`fetchConceptCard` callback**: maps scholar year + curriculum to `year_band` (ks1/ks2/ks3/ks4/jss/sss), calls `GET /api/concept-cards?topic_slug=&curriculum=&subject=&year_band=`, fail-open on network errors. State: `conceptCard`, `conceptCardLoading`.
+- **Wired into all three wrong-answer branches**: `handlePick`, `handleFreeTextSubmit`, `handleMultiSubmit` all call `fetchConceptCard(currQ.topic, currQ.subject)` on incorrect answer.
+- **`resetQuestionState` updated**: clears `conceptCard` and `conceptCardLoading` so card doesn't bleed between questions.
+- **Render position**: between the explanation div (indigo left-border) and the Tara EIB textarea — visible only on wrong answers, invisible on correct.
+- Commit: `6652de2`. No new API routes or DB schema changes.
+
 ### April 26, 2026 (session 5) — Quiz Lesson Loop
 
 **`src/components/game/QuizEngine.jsx` — 4 features added:**
@@ -370,7 +381,7 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Session wrap-up screen — complete (session 5): per-topic bars, "Focus tomorrow", adaptive headline, XP display
 - ✅ Live streak bar — complete (session 5): animated pill, scales on increment
 - ✅ Level-up flash — complete (session 5): overlay at streak 3/5/7/10, auto-dismiss 2.2 s
-- Concept cards wiring: link `ConceptCard` component into QuizEngine's wrong-answer explanation panel
+- ✅ Concept cards wiring — complete (session 6): `ConceptSnapshot` inline component fetches GET `/api/concept-cards` on wrong answer (all 3 question types); shows loading skeleton then key_concept + best_example; silent 204 skip; cleared on question advance. Renders between explanation div and Tara EIB textarea.
 - Formula/equation input: `<MathInput>` component for algebraic questions (KS3+)
 - Question palette: numbered grid for exam navigation (exam runner only, not quiz)
 - KS1 accessibility: voice readout of question text (Web Speech API, opt-in)
