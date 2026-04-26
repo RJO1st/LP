@@ -156,6 +156,23 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 26, 2026 (session 2) — Security Audit + Performance Sprint
+
+**Security — all critical + high-priority items resolved:**
+1. **Auth guards on AI endpoints** (7e02d83): `POST /api/chat` and `POST /api/validate-drawing` now require authenticated user OR `scholar_id` cookie; 401 before any OpenRouter call.
+2. **Rate limits added** (7e02d83): `drawingLimiter` 10/min on `/api/validate-drawing` (vision model), `scholarLimiter` 10/15min on `/api/scholar` (brute-force guard).
+3. **RLS on `scholar_readiness_snapshot`** (7e02d83): three scoped SELECT policies — teacher via `teacher_assignments`, proprietor/admin via `school_roles`, parent via `scholars→parents` join. Migration `20260426_readiness_snapshot_rls.sql`.
+4. **RLS hardening** (d79bd14): `FORCE ROW LEVEL SECURITY` on `scholar_readiness_snapshot`; explicit `REVOKE INSERT, UPDATE, DELETE FROM authenticated, anon` (service-role-only writes). Migration `20260426_readiness_snapshot_rls_hardening.sql`.
+5. **Tara classifier homoglyph bypass** (3f96a69): three-form matching in `taraClassifier.js` — raw-lower, normalised (leetspeak → latin), compact (spaces stripped). Catches "k i l l", "d3ath", etc. 11/11 tests pass.
+6. **Safeguarding parent notification** (600024b): crisis-level Tara events fire-and-forget `notifyParentOfSafeguardingEvent()` in `tara/route.js` via Brevo.
+7. **Anonymous Tara turnCount bypass** (b62f8f5): anonymous sessions now tracked in `tara_turns` (scholar_id=NULL) via HttpOnly `tara_session_id` cookie. `addCookie()` helper wraps all returns after session tracking.
+
+**Performance — N+1 eliminations + bundle reduction:**
+- **Quest expiry N+1** (3f96a69): `assign-personalised` cron bulk-expires in one UPDATE before the scholar loop.
+- **Weekly-digest N+1** (9f146e1): prefetch mastery + streaks with `Promise.all([.in(scholarIds), .in(scholarIds)])` before parent send loop.
+- **School overview N+1** (00ac953): `computeSchoolReadiness` second loop was re-fetching enrolments + mastery + exam weights per class (3N extra queries). Fixed: thread `students` (with pre-computed `subjectScores`) through `classData`; aggregate in-memory. Response shape unchanged.
+- **Recharts bundle** (5804e15): `MasteryProgressChart`, `ProgressChart`, `TimeChart` converted to `next/dynamic` with `ssr:false` + skeleton; ~200KB deferred from initial bundle.
+
 ### April 26, 2026 — School Dashboard Sprint Completion + Script Hardening
 
 **rewriteExplanations.mjs — two fixes (commits 9b2ffaa, aad78fe):**
@@ -300,6 +317,11 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 
 ### 🟡 Security
 - ✅ Secrets rotated (April 2026)
+- ✅ Auth guards on `/api/chat` + `/api/validate-drawing` (April 26 session 2)
+- ✅ Rate limits: drawing (10/min), scholar brute-force (10/15min) (April 26 session 2)
+- ✅ RLS on `scholar_readiness_snapshot` — scoped + FORCE + write revoke (April 26 session 2)
+- ✅ Tara classifier homoglyph hardening (April 26 session 2)
+- ✅ Anonymous Tara turnCount bypass closed — HttpOnly session cookie (April 26 session 2)
 - CSP nonce-based script loading (remove `unsafe-inline`)
 - Extend Zod validation to remaining API routes
 
