@@ -156,6 +156,18 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 7) — Quiz Polish: MathInput + KS1 Voice + Palette Confirmed
+
+**`src/components/game/QuizEngine.jsx` — 3 features added (commit `39ade20`):**
+
+1. **MathInput component** (KS3+ maths free-text): `<MathInput>` defined above `QuizEngine`. 12-symbol toolbar (², ³, √, π, ×, ÷, ±, ≤, ≥, ≠, ∞, °) inserts at cursor position via `selectionStart`/`selectionEnd` + `requestAnimationFrame`. Active when `qType === "free_text"` AND `isKS3Plus` (year ≥ 7) AND `isMathsSubj`. Falls back to plain `<input>` otherwise.
+
+2. **KS1 voice readout** (year ≤ 2 only): `speakQuestion` callback wraps `SpeechSynthesisUtterance` (en-GB, rate 0.88, pitch 1.05). Speech cancelled on question change via `useEffect` cleanup on `qIdx`. Toggle button (VolumeIcon / VolumeOffIcon inline SVGs) in quiz header, visible to KS1 scholars only. "Read to me" pill added in both MCQ and free_text branches below the question h3. Both SSR-safe (`typeof window !== 'undefined'` guards).
+
+3. **Question palette** — confirmed already complete in `ExamRunner.jsx`: desktop sidebar (w-64, grid-cols-5) + mobile modal (grid-cols-6). Color states: blue=current, amber=flagged, green=answered, slate=unanswered. No new code needed.
+
+**New state/constants**: `voiceEnabled`, `scholarYear`, `isKS1`, `isKS3Plus`, `isMathsSubj`. New SVGs: `VolumeIcon`, `VolumeOffIcon`. No new API calls, no DB schema changes.
+
 ### April 26, 2026 (session 6) — Concept Cards Wiring
 
 **`src/components/game/QuizEngine.jsx` — concept card in wrong-answer panel:**
@@ -382,9 +394,9 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Live streak bar — complete (session 5): animated pill, scales on increment
 - ✅ Level-up flash — complete (session 5): overlay at streak 3/5/7/10, auto-dismiss 2.2 s
 - ✅ Concept cards wiring — complete (session 6): `ConceptSnapshot` inline component fetches GET `/api/concept-cards` on wrong answer (all 3 question types); shows loading skeleton then key_concept + best_example; silent 204 skip; cleared on question advance. Renders between explanation div and Tara EIB textarea.
-- Formula/equation input: `<MathInput>` component for algebraic questions (KS3+)
-- Question palette: numbered grid for exam navigation (exam runner only, not quiz)
-- KS1 accessibility: voice readout of question text (Web Speech API, opt-in)
+- ✅ Formula/equation input — complete (session 7): `MathInput` component with 12-symbol toolbar; active for KS3+ maths free-text questions; cursor-position insert via selectionStart + rAF; falls back to plain input.
+- ✅ Question palette — confirmed complete (session 7): already in `ExamRunner.jsx` — desktop sidebar (grid-cols-5) + mobile modal (grid-cols-6); blue/amber/green/slate states.
+- ✅ KS1 accessibility — complete (session 7): voice readout via Web Speech API (en-GB); toggle in quiz header; "Read to me" pill on MCQ + free_text; speech cancelled on question change; SSR-safe guards.
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
