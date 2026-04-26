@@ -13,7 +13,10 @@ import {
 } from "../../../lib/gamificationEngine";
 import { EXAM_MODES } from "../../../lib/examModes";
 import SkillHeatmap  from "../../../components/parent/SkillHeatmap";
-import ProgressChart from "../../../components/game/ProgressChart";
+const ProgressChart = dynamic(() => import("../../../components/game/ProgressChart"), {
+  ssr: false,
+  loading: () => <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />,
+});
 import QuestPanel from "../../../components/QuestPanel";
 import { getTrialStatus } from "../../../lib/trialTracking";
 import { getEffectiveTier, checkQuestAccess, getFeatureAccess } from "../../../lib/freeTierGating";

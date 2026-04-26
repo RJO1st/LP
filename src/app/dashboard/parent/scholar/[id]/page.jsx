@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
@@ -10,8 +11,13 @@ import { supabaseKeys } from "@/lib/env";
 import { CURRICULA, SUBJECTS_BY_CURRICULUM, getLevelInfo } from "@/lib/constants";
 import SkillHeatmap from "@/components/parent/SkillHeatmap";
 import ReadinessScore from "@/components/ReadinessScore";
-import TimeChart from "./TimeChart";
 import Goals from "./Goals";
+
+// Dynamic: TimeChart uses recharts — defer to avoid pulling ~200KB into initial bundle
+const TimeChart = dynamic(() => import("./TimeChart"), {
+  ssr: false,
+  loading: () => <div className="h-48 bg-slate-50 rounded-xl animate-pulse" />,
+});
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const ArrowLeftIcon = ({ size = 18 }) => (

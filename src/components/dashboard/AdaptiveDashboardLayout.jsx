@@ -75,7 +75,11 @@ import { getSubjectLabel } from "@/lib/subjectDisplay";
 import TaraFloatingBlurb from "./TaraFloatingBlurb";
 
 // ── KS4 Phase 1 Visualizations + Analytics Charts ──────────────────────────
-import MasteryProgressChart from "./ProgressChart";
+// Dynamic: ProgressChart pulls ~200KB of recharts; defer until needed.
+const MasteryProgressChart = dynamic(() => import("./ProgressChart"), {
+  ssr: false,
+  loading: () => <div className="h-48 bg-slate-800/30 rounded-xl animate-pulse" />,
+});
 import TopicHeatmap from "./TopicHeatmap";
 import RetentionHealthRing from "./RetentionHealthRing";
 import StudySessionMetrics from "./StudySessionMetrics";
