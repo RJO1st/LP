@@ -375,6 +375,27 @@ export const remindersUpsertSchema = z.object({
   is_active:     z.boolean().optional(),
 });
 
+// PUT /api/parent/goals/[id]  — toggle achieved status
+export const goalToggleSchema = z.object({
+  achieved: z.boolean(),
+});
+
+// PATCH /api/exam-sittings/[sittingId]  — action dispatch (auth + scholar ownership gated)
+export const examSittingActionSchema = z.discriminatedUnion('action', [
+  z.object({
+    action:             z.literal('submit_answer'),
+    question_id:        z.string().uuid(),
+    answer_text:        z.string().max(10_000).optional().or(z.literal('')),
+    working:            z.string().max(10_000).optional().or(z.literal('')),
+    marks_available:    z.number().int().min(0).max(100).optional(),
+    time_spent_seconds: z.number().int().min(0).max(86_400).optional(),
+  }),
+  z.object({
+    action:             z.literal('finish'),
+    time_used_seconds:  z.number().int().min(0).max(86_400).optional(),
+  }),
+]);
+
 // Helper to parse and validate request body
 export function parseBody(schema, body) {
   const result = schema.safeParse(body)

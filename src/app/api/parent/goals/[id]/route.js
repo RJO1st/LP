@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { supabaseKeys } from '@/lib/env'
+import { supabaseKeys } from '@/lib/env';
+import { goalToggleSchema } from '@/lib/validation';
 
 async function getClient() {
   const cookieStore = await cookies();
@@ -32,21 +33,15 @@ export async function PUT(req, { params }) {
 
   const { id } = await params;
 
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const { achieved } = body;
-
-  if (typeof achieved !== "boolean") {
+  const rawBody = await req.json().catch(() => null);
+  const parsed  = goalToggleSchema.safeParse(rawBody);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "Field 'achieved' must be a boolean" },
       { status: 400 }
     );
   }
+  const { achieved } = parsed.data;
 
   // ── Verify goal ownership ────────────────────────────────────────────────
   const { data: goal, error: fetchError } = await supabase

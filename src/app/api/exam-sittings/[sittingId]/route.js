@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/security/serviceRole'
 import { supabaseKeys } from '@/lib/env'
+import { examSittingActionSchema } from '@/lib/validation'
 
 /**
  * Helper: create auth-aware client (for verifying user identity via cookies)
@@ -219,25 +220,20 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Forbidden', details: scholarError?.message || 'Scholar not linked to auth user' }, { status: 403 })
     }
 
-    let body
-    try {
-      body = await req.json()
-    } catch (parseErr) {
-      return NextResponse.json({ error: 'Invalid request body', details: parseErr?.message }, { status: 400 })
+    const rawBody = await req.json().catch(() => null)
+    const parsed  = examSittingActionSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid action body', details: parsed.error.flatten() },
+        { status: 400 }
+      )
     }
+    const body = parsed.data
     const { action } = body
-
-    if (!action) {
-      return NextResponse.json({ error: 'action required' }, { status: 400 })
-    }
 
     // Handle action: submit_answer — upsert (allows re-answering)
     if (action === 'submit_answer') {
       const { question_id, answer_text, working, marks_available, time_spent_seconds } = body
-
-      if (!question_id) {
-        return NextResponse.json({ error: 'question_id required for submit_answer' }, { status: 400 })
-      }
 
       const now = new Date().toISOString()
 
