@@ -358,20 +358,42 @@ export async function POST(req) {
   // ── 0b. Session turn limit (server-side tracking) ─────────────────────────────
   // Track turn count on the server to prevent malicious clients from sending
   // turnCount: 0 repeatedly to bypass the 20-turn session limit.
-  // For authenticated scholars: use tara_turns table; for anonymous: fall back to body.turnCount.
+  //
+  // Authenticated scholars  → tara_turns table keyed by sessionId in request body.
+  // Anonymous visitors      → tara_turns table keyed by HttpOnly `tara_session_id`
+  //                           cookie; cookie is set in the response on first turn.
+  //                           This closes the body.turnCount bypass for anonymous
+  //                           sessions while keeping the proxy rate-limit (30/min)
+  //                           as the outer guard.
   let serverTurnCount = Number(body.turnCount) || 0;
   let sessionId = body.sessionId || null;
 
-  if (scholarId) {
-    try {
-      const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        supabaseKeys.secret(),
-        { auth: { persistSession: false } }
-      );
+  // Track whether we issued a new anonymous session cookie this request.
+  // addCookie() attaches it to any NextResponse before returning.
+  let _newAnonCookieId = null;
+  const addCookie = (response) => {
+    if (_newAnonCookieId) {
+      response.cookies.set('tara_session_id', _newAnonCookieId, {
+        httpOnly:  true,
+        sameSite:  'strict',
+        secure:    process.env.NODE_ENV === 'production',
+        maxAge:    60 * 60 * 24, // 1 day
+        path:      '/',
+      });
+    }
+    return response;
+  };
 
+  try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseKeys.secret(),
+      { auth: { persistSession: false } }
+    );
+
+    if (scholarId) {
+      // ── Authenticated path: session ID is in the request body ──────────────
       if (sessionId) {
-        // Existing session — fetch, increment, and update atomically
         const { data: existing, error: fetchErr } = await supabaseAdmin
           .from('tara_turns')
           .select('turn_count')
@@ -394,15 +416,11 @@ export async function POST(req) {
           }
         }
       } else {
-        // First turn in a new session — create a new session row
+        // First turn — create a new session row for this scholar
         const newSessionId = crypto.randomUUID();
         const { data: inserted, error: insertErr } = await supabaseAdmin
           .from('tara_turns')
-          .insert({
-            session_id: newSessionId,
-            scholar_id: scholarId,
-            turn_count: 1,
-          })
+          .insert({ session_id: newSessionId, scholar_id: scholarId, turn_count: 1 })
           .select('session_id')
           .single();
 
@@ -413,16 +431,58 @@ export async function POST(req) {
           serverTurnCount = 1;
         }
       }
-    } catch (err) {
-      console.warn('[Tara] Session tracking error:', err?.message);
-      // Fall back to body.turnCount if Supabase client fails
+    } else {
+      // ── Anonymous path: session ID is in an HttpOnly cookie ────────────────
+      // Client cannot manipulate an HttpOnly cookie, so this closes the
+      // body.turnCount: 0 bypass that was available to unauthenticated visitors.
+      const cookieStore2 = await cookies();
+      const anonCookieId = cookieStore2.get('tara_session_id')?.value || null;
+
+      if (anonCookieId) {
+        // Existing anon session — verify it's actually an anon row (scholar_id IS NULL)
+        const { data: existing } = await supabaseAdmin
+          .from('tara_turns')
+          .select('turn_count')
+          .eq('session_id', anonCookieId)
+          .is('scholar_id', null)
+          .maybeSingle();
+
+        if (existing) {
+          const newCount = existing.turn_count + 1;
+          const { error: updateErr } = await supabaseAdmin
+            .from('tara_turns')
+            .update({ turn_count: newCount, last_seen: new Date().toISOString() })
+            .eq('session_id', anonCookieId);
+
+          if (!updateErr) serverTurnCount = newCount;
+        }
+        // If row not found (expired/pruned), fall through — treat as new session below
+      }
+
+      if (!anonCookieId || serverTurnCount === 0) {
+        // First turn (or stale cookie) — create a new anonymous session row
+        const newSessionId = crypto.randomUUID();
+        const { data: inserted } = await supabaseAdmin
+          .from('tara_turns')
+          .insert({ session_id: newSessionId, scholar_id: null, turn_count: 1 })
+          .select('session_id')
+          .single();
+
+        if (inserted?.session_id) {
+          _newAnonCookieId = inserted.session_id; // addCookie() will set this
+          serverTurnCount  = 1;
+        }
+      }
     }
+  } catch (err) {
+    console.warn('[Tara] Session tracking error:', err?.message);
+    // Fall back to body.turnCount on any Supabase failure
   }
 
   if (serverTurnCount >= 20) {
     const limitMsg = (SAFEGUARDING_RESPONSES.session_limit[band] || SAFEGUARDING_RESPONSES.session_limit.ks2)
       .replace('${name}', scholarName);
-    return NextResponse.json({ feedback: limitMsg, session_ended: true, sessionId });
+    return addCookie(NextResponse.json({ feedback: limitMsg, session_ended: true, sessionId }));
   }
 
   // ── 0c. Intent classification (fast path — no LLM cost) ──────────────────────
@@ -433,7 +493,7 @@ export async function POST(req) {
     logSafeguardingEvent('crisis', scholarId, text, band);
     const payload = { feedback: crisisMsg, safeguarding: true };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 
   if (intent === 'off_topic_concerning') {
@@ -441,7 +501,7 @@ export async function POST(req) {
     logSafeguardingEvent('concerning', scholarId, text, band);
     const payload = { feedback: concernMsg, safeguarding: true };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 
   if (intent === 'off_topic_innocent') {
@@ -449,7 +509,7 @@ export async function POST(req) {
     const redirectMsg = SAFEGUARDING_RESPONSES.off_topic_redirect[band] || SAFEGUARDING_RESPONSES.off_topic_redirect.ks2;
     const payload = { feedback: redirectMsg, off_topic: true };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
   // intent === 'on_topic' → continue normal flow
 
@@ -459,7 +519,7 @@ export async function POST(req) {
       feedback: `${tara.name}: Let's keep things respectful! Rephrase that and try again. 🌟`
     };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 
   // ── 2. Llama Guard on student input ─────────────────────────────────────────
@@ -469,7 +529,7 @@ export async function POST(req) {
       feedback: `${tara.name}: That's an interesting thought. Let's keep our focus on learning! 🌟`
     };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 
   // ── 3. Local fallback if no API key OR free tier (no paid AI feedback) ─────
@@ -484,7 +544,7 @@ export async function POST(req) {
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
     const payload = { feedback: fallback, tier_note: degradeToLocalOnly ? 'free_tier_local_only' : undefined };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 
   // ── 4. Build system prompt with age-band personality ────────────────────────
@@ -679,7 +739,7 @@ INSTRUCTIONS:
         : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
       const payload = { feedback: fallback };
       if (sessionId) payload.sessionId = sessionId;
-      return NextResponse.json(payload);
+      return addCookie(NextResponse.json(payload));
     }
 
     const taraPrefix = `${tara.name}:`;
@@ -690,7 +750,7 @@ INSTRUCTIONS:
     const responsePayload = { feedback: normalised };
     if (diagramSpec) responsePayload.diagram_spec = diagramSpec;
     if (sessionId) responsePayload.sessionId = sessionId;
-    return NextResponse.json(responsePayload);
+    return addCookie(NextResponse.json(responsePayload));
 
   } catch (err) {
     clearTimeout(timeoutId);
@@ -701,6 +761,6 @@ INSTRUCTIONS:
       : localFallbackEIB(text, subject, scholarName, scholarYear, correctAnswer, question);
     const payload = { feedback: fallback };
     if (sessionId) payload.sessionId = sessionId;
-    return NextResponse.json(payload);
+    return addCookie(NextResponse.json(payload));
   }
 }
