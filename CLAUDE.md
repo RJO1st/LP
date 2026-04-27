@@ -156,6 +156,32 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 12) — Authoring Pipeline for Interactive Question Types
+
+**`scripts/generateQuestionsV2.mjs` — full generator support for `ordering`, `number_line`, `fraction_bar` question types.**
+
+**New additions:**
+- `MATHS_INTERACTIVE_WEIGHTS` — per-band probability maps: ks1 (ordering 6%, number_line 6%, fraction_bar 4%), ks2 (5%/5%/4%), ks3 (4%/3%/2%), ks4 empty (no interactive types at GCSE/senior level).
+- `pickQuestionTypeForContext(subject, band)` — replaces direct `pickQuestionType()` call in main loop. Returns an interactive type for maths subjects at ks1–ks3 based on weighted random; falls back to the standard type pool (probability-scaled to fill the remaining weight). Non-maths subjects always use the standard pool.
+- `typeInstructions` in `buildPrompt` extended with 3 new entries (ordering, number_line, fraction_bar) — each specifies the exact JSON fields, constraints, and valid use cases.
+- JSON output schema in prompt updated: `question_type` union includes 3 new values; `items`, `correct_order`, `number_line`, `fraction` fields documented.
+
+**New D-series validation guards in `validateQuestion`:**
+- `ordering` case: items 3–8, correct_order length matches items, no duplicate indices, all in-range, items must NOT already be in correct order (trivial case rejected).
+- `number_line` case: all 4 fields required; min < max; D37: tick count = (max−min)/step ≤ 20 (mobile UX); correct must be exactly reachable via step (epsilon check); correct in [min, max].
+- `fraction_bar` case: numerator + denominator both numbers; denominator 2–12; numerator in [0, denominator]; D38: rejects numerator === denominator (all-filled) and numerator === 0 (empty).
+- D36: `ordering`/`number_line`/`fraction_bar` rejected for non-maths/non-science subjects.
+
+**`toDbRow` updates:**
+- `answer_type` now returns `"interactive"` for the 3 new types (previously only `"choice"` or `"text"`).
+- `question_data` spread includes type-specific fields: `items`+`correct_order` for ordering; `number_line`+`answer` (mirrors `number_line.correct`) for number_line; `fraction`+`answer` (mirrors `fraction.numerator`) for fraction_bar. QuizEngine's `q.answer` fallback path works without code changes.
+
+**Main loop updated:** `pickQuestionType()` call replaced with `pickQuestionTypeForContext(subject, ctx.band)` — the only call site. Gap-fill path (`buildGapFillPrompt`/`generateForStandards`) intentionally not changed (MCQ/text types appropriate for standards-targeted gap-fill).
+
+**No new API routes. No DB schema changes. No migrations.**
+
+---
+
 ### April 27, 2026 (session 11) — Interactive Question Types + Misconception Selector
 
 **`src/components/game/QuizEngine.jsx` — 3 new question type renderers + misconception-targeted retry queue.**
@@ -509,7 +535,7 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Interactive question types — complete (session 11): `OrderingQuestion` (tap-swap, Fisher-Yates shuffle), `NumberLineWidget` (click-to-snap, ε comparison), `FractionBarWidget` (click-to-toggle segments). All 3 follow standard wrong-answer pipeline (queueMistake + promoteMisconceptionQuestions + fetchConceptCard). Timer skipped for all 3. Data schema: ordering uses `q.items`+`q.correct_order`; number_line uses `q.number_line.{min,max,step,correct}`; fraction_bar uses `q.fraction.{numerator,denominator}`.
 - ✅ Misconception selector — complete (session 11): `misconceptionMapRef` loaded from `question_misconceptions` table in background after session questions populate. `promoteMisconceptionQuestions` reorders remaining unasked questions sharing a misconception to immediately after current position on wrong answer. Wired into all 6 wrong-answer handlers. Fail-open — no effect until generator tags questions with misconception_ids.
 - ✅ Pre-exam briefing card — complete (session 11): `ExamBriefing.jsx` shown between lobby and timer start. Stats, topic distribution, mode tips. Review mode skips briefing. `ExamOrchestrator` wired.
-- Authoring pipeline for interactive types: generator (`generateQuestionsV2.mjs`) needs `ordering`/`number_line`/`fraction_bar` schema support in prompts + validation guards
+- ✅ Authoring pipeline for interactive types — complete (session 12): `generateQuestionsV2.mjs` extended with `ordering`/`number_line`/`fraction_bar` schema support. See session 12 notes below.
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
