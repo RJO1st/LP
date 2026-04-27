@@ -1160,6 +1160,143 @@ function FractionBarWidget({ denominator, shaded, onToggle, submitted, correct }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST-QUESTION MICRO-MOMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Tara one-liners shown above the explanation on wrong answers (cycling by qIdx)
+const TARA_WHISPERS = [
+  "Not this time — let's unlock why! 🔍",
+  "Tricky one! Here's the key idea ✨",
+  "Almost there — check the thinking 💭",
+  "Good effort! The concept is just below 📚",
+  "Let's crack this together 🚀",
+  "Every mistake is a mission clue 🌟",
+  "Close! Here's what to remember 💡",
+];
+
+// Avatar reaction corner — fades in/out with a mood emoji (no Canvas needed at this size)
+function AvatarMomentWidget({ mood }) {
+  if (!mood) return null;
+  const isCorrect = mood === "correct";
+  return (
+    <div
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all duration-300 ${
+        isCorrect
+          ? "bg-emerald-50 border-emerald-200 text-emerald-700 animate-bounce"
+          : "bg-amber-50 border-amber-200 text-amber-700"
+      }`}
+    >
+      <span className="text-base">{isCorrect ? "🚀" : "💪"}</span>
+      <span>{isCorrect ? "Brilliant!" : "Keep going!"}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRE-TEACH SCREEN — surfaces concept card before first question when mastery < 30%
+// ─────────────────────────────────────────────────────────────────────────────
+function PreTeachScreen({ card, loading, topic, onDismiss }) {
+  return (
+    <div className="flex flex-col gap-3 py-2">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+          <span className="text-base">🛸</span>
+        </div>
+        <div>
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Pre-Mission Briefing</p>
+          <p className="text-xs font-black text-slate-700 capitalize">
+            {topic ? topic.replace(/_/g, " ") : "Concept Overview"}
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2 animate-pulse">
+          <div className="h-3 bg-indigo-100 rounded-full w-3/4" />
+          <div className="h-3 bg-indigo-100 rounded-full w-full" />
+          <div className="h-3 bg-indigo-100 rounded-full w-5/6" />
+          <div className="h-8 bg-indigo-50 rounded-xl w-full mt-3" />
+        </div>
+      ) : card ? (
+        <>
+          <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+            <p className="text-xs font-black text-indigo-800 mb-1">Key Concept</p>
+            <p className="text-xs font-bold text-slate-700 leading-relaxed">{card.key_concept}</p>
+          </div>
+          {card.best_example && (
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Worked Example</p>
+              <p className="text-xs font-bold text-slate-700">{card.best_example.problem}</p>
+              {card.best_example.solution && (
+                <p className="text-xs font-bold text-indigo-700 mt-1">→ {card.best_example.solution}</p>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-xs font-bold text-slate-500">
+          Quick heads up: this topic is new for you. Take your time!
+        </p>
+      )}
+
+      <button
+        onClick={onDismiss}
+        className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700 flex items-center justify-center gap-2 mt-1"
+      >
+        Got it — Let&apos;s Go! 🚀
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MASTERY UNLOCK CEREMONY — 5-second overlay when topic crosses 80% threshold
+// ─────────────────────────────────────────────────────────────────────────────
+function MasteryUnlockOverlay({ topic, subject, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  const topicLabel = topic ? topic.replace(/_/g, " ") : "this topic";
+
+  return (
+    <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-slate-900/60 backdrop-blur-md">
+      <div className="bg-white rounded-3xl shadow-2xl border-4 border-amber-400 p-8 max-w-sm w-full mx-4 text-center relative overflow-hidden">
+        {/* Animated background pulse */}
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 opacity-70" />
+
+        {/* Stars decoration */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+          {["top-2 left-4", "top-8 right-6", "top-4 right-16", "bottom-8 left-8", "bottom-4 right-4"].map((pos, i) => (
+            <span key={i} className={`absolute text-yellow-400 text-xl animate-spin ${pos}`} style={{ animationDuration: `${2 + i * 0.4}s` }}>✦</span>
+          ))}
+        </div>
+
+        <div className="relative z-10">
+          <div className="text-6xl mb-4 animate-bounce">🏆</div>
+          <h2 className="text-xl font-black text-slate-900 mb-1">Topic Mastered!</h2>
+          <p className="text-sm font-bold text-amber-700 capitalize mb-4">
+            {topicLabel} unlocked ✨
+          </p>
+          <div className="bg-amber-50 rounded-xl border-2 border-amber-200 px-4 py-3 mb-4">
+            <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Achievement Unlocked</p>
+            <p className="text-sm font-black text-slate-800 capitalize">{topicLabel} — 80%+ Mastery</p>
+          </div>
+          <p className="text-xs font-bold text-slate-500 mb-4">
+            Your parent will be notified about this milestone 🎉
+          </p>
+          <div className="w-full bg-slate-100 rounded-full h-1.5">
+            <div className="bg-amber-400 h-1.5 rounded-full animate-pulse" style={{ width: "100%" }} />
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold mt-1">Auto-closing in 5 seconds…</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export default function QuizEngine({
   world = "test",
   student = { id: "123", name: "Test Cadet", year: 4, proficiency: 50 },
@@ -1231,11 +1368,26 @@ export default function QuizEngine({
   const [fractionSubmitted,   setFractionSubmitted]   = useState(false);
 
   // ── Accessibility / input mode ───────────────────────────────────────────────
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  // KS1 voice auto-on: year ≤ 2 scholars get read-aloud on by default
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    const yr = parseInt(student?.year_level || student?.year, 10) || 4;
+    return yr <= 2;
+  });
   const scholarYear   = parseInt(student?.year_level || student?.year, 10) || 4;
   const isKS1         = scholarYear <= 2;                     // voice readout
   const isKS3Plus     = scholarYear >= 7;                     // MathInput toolbar
   const isMathsSubj   = (subject || "").toLowerCase().includes("math");
+
+  // ── Post-question micro-moment ───────────────────────────────────────────────
+  const [avatarMood, setAvatarMood] = useState(null); // "correct" | "wrong" | null
+
+  // ── Concept card pre-question (pre-teach for mastery < 30%) ─────────────────
+  const [showPreTeach,    setShowPreTeach]    = useState(false);
+  const [preTeachCard,    setPreTeachCard]    = useState(null);
+  const [preTeachLoading, setPreTeachLoading] = useState(false);
+
+  // ── Mastery unlock ceremony ──────────────────────────────────────────────────
+  const [masteryUnlock, setMasteryUnlock] = useState(null); // { topic, subject }
 
   const timerRef          = useRef(null);
   const seenIdsRef        = useRef(new Set(previousQuestionIds));
@@ -1243,6 +1395,7 @@ export default function QuizEngine({
   const fetchingRef       = useRef(false);
   const retriesInjectedRef   = useRef(false); // prevent double-injection
   const misconceptionMapRef  = useRef({});    // { questionId: Set<misconceptionUuid> }
+  const preTaughtTopicsRef   = useRef(new Set()); // topics pre-taught this session
 
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
@@ -1296,6 +1449,50 @@ export default function QuizEngine({
     })();
     return () => { cancelled = true; };
   }, [sessionQuestions]);
+
+  // ── Pre-teach: surface concept card before first question on any topic < 30% mastery ──
+  useEffect(() => {
+    if (!sessionQuestions.length || qIdx >= sessionQuestions.length) return;
+    const q = sessionQuestions[qIdx];
+    if (!q?.topic || !student?.id) return;
+    if (preTaughtTopicsRef.current.has(q.topic)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("scholar_topic_mastery")
+          .select("p_mastery")
+          .eq("scholar_id", student.id)
+          .eq("topic_slug", q.topic)
+          .maybeSingle();
+
+        if (cancelled) return;
+        const mastery = data?.p_mastery ?? 0;
+        if (mastery < 0.3) {
+          preTaughtTopicsRef.current.add(q.topic);
+          setPreTeachLoading(true);
+          setShowPreTeach(true);
+          try {
+            const yr  = parseInt(student?.year_level || student?.year, 10) || 4;
+            const cur = (curriculumProp || student?.curriculum || 'uk_national').toLowerCase();
+            let yb = yr <= 2 ? 'ks1' : yr <= 6 ? 'ks2' : yr <= 9 ? 'ks3' : 'ks4';
+            if (cur.startsWith('ng_jss'))     yb = 'jss';
+            else if (cur.startsWith('ng_sss')) yb = 'sss';
+            const r = await apiFetch(
+              `/api/concept-cards?topic_slug=${encodeURIComponent(q.topic)}&curriculum=${encodeURIComponent(cur)}&subject=${encodeURIComponent(q.subject || subject || '')}&year_band=${yb}`
+            );
+            if (!cancelled && r.ok) {
+              const d = await r.json();
+              setPreTeachCard(d || null);
+            }
+          } catch (_) { /* fail-open — show pre-teach loading state if card unavailable */ }
+          if (!cancelled) setPreTeachLoading(false);
+        }
+      } catch (_) { /* best-effort — mastery data may not exist for new scholars */ }
+    })();
+    return () => { cancelled = true; };
+  }, [qIdx, sessionQuestions, student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Misconception promotion: reorders remaining unasked questions on wrong answer ──
   // When the scholar answers Q wrong, any not-yet-asked question that targets the same
@@ -1396,6 +1593,7 @@ export default function QuizEngine({
       topic:    currQ.topic   ?? "general",
     };
     setSelected(isCorrect ? true : false);
+    setAvatarMood(isCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (isCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -1426,6 +1624,7 @@ export default function QuizEngine({
       topic:    currQ.topic   ?? "general",
     };
     setSelected(isCorrect ? true : false);
+    setAvatarMood(isCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (isCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -1457,6 +1656,7 @@ export default function QuizEngine({
       topic:    currQ.topic   ?? "general",
     };
     setSelected(isCorrect ? true : false);
+    setAvatarMood(isCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (isCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -1502,6 +1702,9 @@ export default function QuizEngine({
     setOrderingItems([]);    setOrderingSelectedIdx(null); setOrderingSubmitted(false);
     setNumberLineValue(null); setNumberLineSubmitted(false);
     setFractionShaded(new Set()); setFractionSubmitted(false);
+    // Micro-moment + pre-teach
+    setAvatarMood(null);
+    setShowPreTeach(false);  setPreTeachCard(null);    setPreTeachLoading(false);
   }, []);
 
   const fetchQuestions = useCallback(async () => {
@@ -1680,6 +1883,7 @@ export default function QuizEngine({
       subject:  currQ.subject ?? subject,
       topic:    currQ.topic   ?? "general",
     };
+    setAvatarMood(isCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (isCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -1714,6 +1918,7 @@ export default function QuizEngine({
       topic:    currQ.topic   ?? "general",
     };
     setSelected(isCorrect ? true : false);
+    setAvatarMood(isCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (isCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -1745,6 +1950,7 @@ export default function QuizEngine({
       topic:   currQ.topic   ?? "general",
     };
     setSelected(allCorrect ? true : false);
+    setAvatarMood(allCorrect ? "correct" : "wrong"); setTimeout(() => setAvatarMood(null), 1800);
     if (allCorrect) {
       setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
       setTotalScore(p => p + 10);
@@ -2014,6 +2220,24 @@ export default function QuizEngine({
               .from("scholar_topic_mastery")
               .upsert(masteryUpdates, { onConflict: "scholar_id,curriculum,subject,topic" })
               .catch(e => console.error("[finishQuest] mastery upsert:", e.message));
+
+            // ── Mastery unlock ceremony: detect first crossing of 80% threshold ──
+            for (const update of masteryUpdates) {
+              const key = `${update.curriculum}|${update.subject}|${update.topic_slug ?? update.topic}`;
+              const prev = masteryMap[key];
+              const prevMastery = prev?.p_mastery ?? 0;
+              const newMastery  = update.p_mastery ?? 0;
+              if (prevMastery < 0.8 && newMastery >= 0.8) {
+                setMasteryUnlock({ topic: update.topic_slug ?? update.topic, subject: update.subject });
+                // Fire-and-forget parent notification — non-fatal
+                if (student?.id) {
+                  supabase.functions.invoke("notify-parent-mastery", {
+                    body: { scholarId: student.id, topic: update.topic_slug ?? update.topic, subject: update.subject, mastery: Math.round(newMastery * 100) },
+                  }).catch(() => {});
+                }
+                break; // show one ceremony at a time
+              }
+            }
           }
         } catch {
           // masteryEngine not bundled — fall back to server RPC
@@ -2250,6 +2474,8 @@ export default function QuizEngine({
               <StarIcon size={13} className="text-purple-500"/>
               <span className="font-black text-purple-700 text-xs tabular-nums">{totalScore}</span>
             </div>
+            {/* Avatar micro-moment */}
+            <AvatarMomentWidget mood={avatarMood} />
             {/* Retry badge */}
             {q._isRetry && (
               <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-200">
@@ -2284,8 +2510,29 @@ export default function QuizEngine({
           </div>
         )}
 
+        {/* Mastery unlock ceremony overlay — rendered over the whole quiz card */}
+        {masteryUnlock && (
+          <MasteryUnlockOverlay
+            topic={masteryUnlock.topic}
+            subject={masteryUnlock.subject}
+            onDismiss={() => setMasteryUnlock(null)}
+          />
+        )}
+
         {/* Body */}
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="p-4 overflow-y-auto flex-1 relative">
+
+          {/* Pre-teach overlay — shown before first question on low-mastery topic */}
+          {showPreTeach && selected === null && (
+            <div className="absolute inset-0 z-30 bg-white dark:bg-slate-900 rounded-b-3xl overflow-y-auto">
+              <PreTeachScreen
+                card={preTeachCard}
+                loading={preTeachLoading}
+                topic={q?.topic || ""}
+                onDismiss={() => setShowPreTeach(false)}
+              />
+            </div>
+          )}
 
           {/* Passage */}
           {q.passage && (
@@ -2550,6 +2797,11 @@ export default function QuizEngine({
                   <div className={`p-3 rounded-xl border-2 ${isCorrectAnswer ? "bg-emerald-50 border-emerald-400" : "bg-rose-50 border-rose-400"}`}>
                     <p className="font-black text-sm">{isCorrectAnswer ? "✅ Perfect sequence!" : "✗ Not quite right"}</p>
                   </div>
+                  {!isCorrectAnswer && (
+                    <p className="text-[11px] font-bold text-indigo-500 italic px-1">
+                      💫 {TARA_WHISPERS[qIdx % TARA_WHISPERS.length]}
+                    </p>
+                  )}
                   <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
@@ -2611,6 +2863,11 @@ export default function QuizEngine({
                       <p className="text-xs font-bold text-emerald-700">Correct answer: <strong>{correctAnswerText}</strong></p>
                     )}
                   </div>
+                  {!isCorrectAnswer && (
+                    <p className="text-[11px] font-bold text-indigo-500 italic px-1">
+                      💫 {TARA_WHISPERS[qIdx % TARA_WHISPERS.length]}
+                    </p>
+                  )}
                   <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
@@ -2676,6 +2933,11 @@ export default function QuizEngine({
                       <p className="text-xs font-bold text-emerald-700">Correct answer: <strong>{correctAnswerText}</strong></p>
                     )}
                   </div>
+                  {!isCorrectAnswer && (
+                    <p className="text-[11px] font-bold text-indigo-500 italic px-1">
+                      💫 {TARA_WHISPERS[qIdx % TARA_WHISPERS.length]}
+                    </p>
+                  )}
                   <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
@@ -2790,6 +3052,13 @@ export default function QuizEngine({
               {/* Post-answer panel */}
               {selected !== null && (
                 <div className="space-y-3 border-t border-slate-100 pt-3">
+
+                  {/* Tara whisper — one-liner on wrong answer */}
+                  {!isCorrectAnswer && (
+                    <p className="text-[11px] font-bold text-indigo-500 italic px-1">
+                      💫 {TARA_WHISPERS[qIdx % TARA_WHISPERS.length]}
+                    </p>
+                  )}
 
                   {/* Explanation */}
                   <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">

@@ -19,6 +19,7 @@ import ValueReport from "@/components/dashboard/ValueReport";
 import PushNotificationPrompt from "@/components/pwa/PushNotificationPrompt";
 import MultiChildComparison from "@/components/dashboard/MultiChildComparison";
 import ScholarSchoolReadiness from "@/components/dashboard/ScholarSchoolReadiness";
+import PracticeTrajectory from "@/components/dashboard/PracticeTrajectory";
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS
@@ -683,6 +684,7 @@ export default function ParentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deletingScholar, setDeletingScholar] = useState(null); // { id, name } or null
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(null); // scholarId being downloaded
 
   // ── Payment callback banner (gateway-aware) ──────────────────────────────
   // Payment gateways redirect here with ?payment=success&provider=<gateway>
@@ -1007,6 +1009,26 @@ export default function ParentDashboard() {
       setError(`Something went wrong: ${err?.message || "Please try again."}`);
     } finally {
       setDeletingScholar(null);
+    }
+  };
+
+  const handleDownloadReport = async (scholarId, scholarName) => {
+    if (downloadingReport) return;
+    setDownloadingReport(scholarId);
+    try {
+      const res = await fetch(`/api/parent/termly-report?scholarId=${scholarId}`);
+      if (!res.ok) throw new Error("Failed to generate report");
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `${(scholarName || "Report").replace(/[^a-z0-9]/gi, "_")}_Progress_Report.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silent fail — report not critical
+    } finally {
+      setDownloadingReport(null);
     }
   };
 
@@ -1840,6 +1862,11 @@ export default function ParentDashboard() {
                               <div className="w-full flex justify-center mb-2">
                                 <div className="w-full max-w-sm">
                                   <ReadinessScore scholarId={scholar.id} supabase={supabase} />
+                                  <PracticeTrajectory
+                                    scholarId={scholar.id}
+                                    supabase={supabase}
+                                    currentScore={scholar._readinessScore ?? null}
+                                  />
                                 </div>
                               </div>
                             )}
@@ -1882,6 +1909,17 @@ export default function ParentDashboard() {
                               className="flex-1 block text-center bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-300 dark:border-indigo-500/40"
                             >
                               Scholar Dashboard
+                            </button>
+                            <button
+                              onClick={() => handleDownloadReport(scholar.id, scholar.name)}
+                              disabled={downloadingReport === scholar.id}
+                              title="Download termly progress report"
+                              className="p-2 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors disabled:opacity-50"
+                            >
+                              {downloadingReport === scholar.id
+                                ? <Icon size={14} d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                : <Icon size={14} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]} />
+                              }
                             </button>
                           </>
                         )}

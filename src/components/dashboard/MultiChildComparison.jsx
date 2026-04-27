@@ -255,6 +255,9 @@ export default function MultiChildComparison({ scholars = [], supabase }) {
     return aStreak - bStreak;
   });
 
+  // ── Build Tara's family observation ──────────────────────────────────────
+  const taraObs = buildTaraObservation(sorted);
+
   return (
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
@@ -271,6 +274,78 @@ export default function MultiChildComparison({ scholars = [], supabase }) {
           <ScholarCard key={sc.id} scholar={sc} />
         ))}
       </div>
+
+      {/* Tara observation */}
+      {taraObs && (
+        <div className="mt-3 flex items-start gap-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/25 rounded-xl px-3 py-2.5">
+          <span className="text-base shrink-0 mt-0.5">🤖</span>
+          <p className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 leading-relaxed">
+            <span className="font-black">Tara: </span>{taraObs}
+          </p>
+        </div>
+      )}
     </div>
   );
+}
+
+// ── Tara observation builder ────────────────────────────────────────────────
+// Produces one contextual sentence comparing 2–3 siblings.
+// Prioritises actionable insight: who needs attention, shared subject gap,
+// or a motivating comparison when both are performing well.
+function buildTaraObservation(scholars) {
+  if (!scholars?.length) return null;
+  const withStats = scholars.filter(s => s.stats);
+  if (!withStats.length) return null;
+
+  // Single scholar edge-case (shouldn't happen but guard anyway)
+  if (withStats.length === 1) {
+    const s = withStats[0];
+    const mastery = Math.round((s.stats.avgMastery ?? 0) * 100);
+    return `${s.name} is at ${mastery}% average mastery — keep the sessions consistent! 🚀`;
+  }
+
+  // Find most and least active by streak
+  const sorted = [...withStats].sort((a, b) => (b.stats.streak ?? 0) - (a.stats.streak ?? 0));
+  const leader = sorted[0];
+  const lagging = sorted[sorted.length - 1];
+
+  // Both inactive?
+  const allInactive = withStats.every(s => (s.stats.streak ?? 0) === 0);
+  if (allInactive) {
+    const names = withStats.map(s => s.name).join(" and ");
+    return `${names} haven't been active recently — a little nudge from you could get both back on track! 💬`;
+  }
+
+  // Big streak gap — encourage without comparing negatively
+  const streakGap = (leader.stats.streak ?? 0) - (lagging.stats.streak ?? 0);
+  if (streakGap >= 3 && (lagging.stats.streak ?? 0) === 0) {
+    const leaderMastery = Math.round((leader.stats.avgMastery ?? 0) * 100);
+    return `${leader.name} is on a ${leader.stats.streak}-day streak at ${leaderMastery}% mastery — brilliant momentum! ${lagging.name} hasn't been active recently; a gentle nudge today could make a big difference. 💬`;
+  }
+
+  // Find a shared subject weakness
+  const subjectSets = withStats.map(s =>
+    new Set((s.stats.subjectMastery || []).filter(sm => sm.avg < 0.5).map(sm => sm.subject))
+  );
+  const sharedWeak = [...subjectSets[0]].filter(sub => subjectSets.every(set => set.has(sub)));
+  if (sharedWeak.length) {
+    const sub = subjectLabel(sharedWeak[0]);
+    const names = withStats.map(s => s.name).join(" and ");
+    return `${names} both have room to grow in ${sub} — practising together or in friendly competition could supercharge both of them! 🎯`;
+  }
+
+  // Both doing well
+  const avgMasteries = withStats.map(s => Math.round((s.stats.avgMastery ?? 0) * 100));
+  const familyAvg = Math.round(avgMasteries.reduce((a, b) => a + b, 0) / avgMasteries.length);
+  if (familyAvg >= 60) {
+    return `The whole family is making strong progress — ${familyAvg}% average mastery across all scholars. Consistent daily sessions are the secret. Keep it up! 🌟`;
+  }
+
+  // Default: simple encouragement with top subject
+  const topSubject = leader.stats.subjectMastery?.[0];
+  if (topSubject) {
+    return `${leader.name} is leading in ${subjectLabel(topSubject.subject)} (${Math.round(topSubject.avg * 100)}%). Sharing that energy with ${lagging.name} could lift the whole family! ✨`;
+  }
+
+  return null;
 }
