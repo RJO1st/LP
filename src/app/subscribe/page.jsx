@@ -157,11 +157,35 @@ export default function SubscribePage() {
         setLoading(false);
       }
     } else {
-      // ── UK checkout via Stripe (pending UK entity setup) ─────────────────
-      // Stripe integration is built but awaiting UK Ltd entity + Stripe account.
-      // Show an informative message rather than silently failing.
-      setCheckoutError("UK subscriptions are launching soon. We'll email you as soon as they're available.");
-      setLoading(false);
+      // ── UK checkout via Stripe ────────────────────────────────────────────
+      // Routes to /api/stripe/checkout which returns a Stripe-hosted checkout
+      // URL. The route itself returns 503 if STRIPE_SECRET_KEY is not set
+      // (UK entity not yet live), surfacing the "coming soon" message below.
+      try {
+        const res = await apiFetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plan:    "uk_pro",
+            billing: billingCycle,
+          }),
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          setCheckoutError(json.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Redirect to Stripe hosted checkout — loading stays true as user leaves
+        window.location.href = json.checkout_url;
+      } catch (err) {
+        console.error("[subscribe] Stripe checkout error:", err);
+        setCheckoutError("Could not reach the payment provider. Check your connection and try again.");
+        setLoading(false);
+      }
     }
   };
 

@@ -116,6 +116,7 @@ export default function TeacherDashboard() {
   const [sortStudentsBy, setSortStudentsBy] = useState("readiness");
   const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [printing, setPrinting] = useState(false);
+  const [downloadingClassReport, setDownloadingClassReport] = useState(false);
   const [notifyingParentId, setNotifyingParentId] = useState(null);
   const [notifySuccess, setNotifySuccess] = useState({});
   const [downloadingReportId, setDownloadingReportId] = useState(null);
@@ -272,11 +273,26 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Handle export/print
-  const handleExport = () => {
-    setPrinting(true);
-    setTimeout(() => window.print(), 100);
-    setTimeout(() => setPrinting(false), 1000);
+  // Handle export — downloads the class-level HTML progress report
+  const handleExport = async () => {
+    if (!selectedClassId) return;
+    setDownloadingClassReport(true);
+    try {
+      const res = await fetch(`/api/teacher/class-report?classId=${selectedClassId}`);
+      if (!res.ok) { alert("Failed to generate class report."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cls = classes.find((c) => c.id === selectedClassId);
+      a.download = `${(cls?.name ?? "Class").replace(/\s+/g, "_")}_Progress_Report.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Network error — please try again.");
+    } finally {
+      setDownloadingClassReport(false);
+    }
   };
 
   if (loading) {
@@ -668,10 +684,11 @@ export default function TeacherDashboard() {
             <div className="flex justify-end">
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-medium transition-colors"
+                disabled={downloadingClassReport}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 rounded-lg text-white font-medium transition-colors"
               >
                 <DownloadIcon size={16} />
-                Export Report
+                {downloadingClassReport ? "Generating…" : "Download Class Report"}
               </button>
             </div>
           </>

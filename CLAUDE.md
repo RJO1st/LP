@@ -156,6 +156,61 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 10) — Stripe GB Integration
+
+**Full Stripe checkout + webhook + callback pipeline built (awaiting UK entity + Stripe account to go live).**
+
+**New files:**
+- `src/app/api/stripe/checkout/route.js` — POST handler: rate-limit (20/min) → auth → anti-arbitrage (region === 'GB') → resolve price ID from env → create Stripe Checkout Session (mode: subscription) via `fetch` (no SDK) → store pending row in `stripe_sessions` → return `{ checkout_url, session_id }`. Feature-flagged: returns 503 if `STRIPE_SECRET_KEY` absent.
+- `src/app/api/stripe/webhook/route.js` — POST handler (Node runtime): rate-limit → `verifyStripeSignature()` (timing-safe, 300 s replay window) → idempotency via `claimWebhookEvent(supabase, 'stripe_events', ...)` → dispatch to 4 handlers:
+  - `checkout.session.completed` → activate parent (DB row > session metadata fallback), anti-arbitrage GB check, sets `stripe_subscription_id`
+  - `customer.subscription.updated` → extend `subscription_end` from `current_period_end`, sync `subscription_status`
+  - `customer.subscription.deleted` → downgrade to free, clear `stripe_subscription_id`
+  - `invoice.payment_failed` → flip to `past_due` (subscription ID lookup → email ilike fallback)
+- `src/app/api/stripe/callback/route.js` — GET redirect handler: verifies session via `GET /v1/checkout/sessions/:id`, redirects to `/dashboard/parent?payment=success&provider=stripe` on success or `/subscribe?payment=failed&provider=stripe` on failure.
+
+**Migration:**
+- `supabase/migrations/20260427_parents_stripe_fields.sql` — adds `stripe_subscription_id TEXT` column + sparse index on `parents`.
+
+**Subscribe page wired:**
+- `src/app/subscribe/page.jsx`: GB else-branch now calls `/api/stripe/checkout` and redirects to `json.checkout_url`. Error messaging falls through from the route (503 = "coming soon" when keys not set, 502 = Stripe network error, etc.).
+
+**Subscription metadata strategy:** `metadata.{parent_id,plan,billing}` set on both session and `subscription_data` so all subscription events can resolve the parent without secondary lookups.
+
+**Stripe not yet live — user actions required before testing:**
+1. Create UK Ltd entity + Stripe account
+2. Create 4 subscription price objects in Stripe dashboard (uk_pro monthly/annual, uk_pro_exam monthly/annual)
+3. Set env vars in Vercel: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_UK_PRO_MONTHLY`, `STRIPE_PRICE_UK_PRO_ANNUAL`, `STRIPE_PRICE_UK_PRO_EXAM_MONTHLY`, `STRIPE_PRICE_UK_PRO_EXAM_ANNUAL`
+4. Apply migration: `supabase/migrations/20260427_parents_stripe_fields.sql`
+5. Register `/api/stripe/webhook` in Stripe dashboard → copy signing secret → set `STRIPE_WEBHOOK_SECRET`
+
+**Also (logo + header polish for PDF reports):**
+- `sample_teacher_class_report.html` + `sample_proprietor_termly_report.html`: rocket emoji replaced with base64 `logo192.png`; header redesigned from split two-column to fully centred single-column layout.
+- `src/app/api/schools/[schoolId]/termly-report/route.js` + `src/app/api/teacher/class-report/route.js`: same logo embed + centred header applied. Footer emojis cleared.
+
+### April 27, 2026 (session 9) — PDF Reports (#42 + #43)
+
+**Two new report API routes (zero external dependencies — self-contained HTML, printable to PDF via browser):**
+
+1. **`GET /api/teacher/class-report?classId=`** (`src/app/api/teacher/class-report/route.js`):
+   - Auth: `teacher_assignments` OR `school_roles` (proprietor/admin)
+   - Calls `computeClassReadiness(classId, svc)` — the same engine used by the class readiness API
+   - Consent gating: subject scores shown per-student only when NDPR consent granted (falls back to "—")
+   - Sections: class name/school/term header, 4 summary cards (class avg, on-target count, needs support count, placement probability), grade distribution bars, class focus areas (topic weakness chips), full student table (rank, name, readiness bar, score, grade band, up to 4 subject scores), NDPR footnote
+   - `Content-Disposition: attachment; filename="ClassName_Progress_Report.html"`
+
+2. **`GET /api/schools/[schoolId]/termly-report`** (`src/app/api/schools/[schoolId]/termly-report/route.js`):
+   - Auth: `school_roles` with `proprietor` or `admin` role + matching `school_id`
+   - Calls `computeSchoolReadiness(schoolId, svc)` — parallelises `computeClassReadiness` across all classes
+   - Sections: school name/term header, 4 summary cards (school avg, % on target, total scholars, placement probability), placement narrative banner (contextual text based on score range), grade distribution bars (aggregated across all classes), subject performance averages, per-class breakdown table (name, year, scholars, readiness bar, score, band, % ready, placement %), school-wide focus area chips (deduplicated weaknesses, cross-class count shown)
+   - `Content-Disposition: attachment; filename="SchoolName_Autumn_Term_Report.html"`
+
+**Dashboard wiring:**
+- `src/app/dashboard/teacher/page.jsx`: `handleExport` rewritten from `window.print()` to async fetch → blob → anchor download. New `downloadingClassReport` state drives `disabled` + "Generating…" label on button.
+- `src/app/dashboard/proprietor/page.jsx`: `handleExport` rewritten similarly. New `downloadingTermly` state. Button label changed to "Download Termly Report".
+
+**No DB schema changes. No new migrations.**
+
 ### April 27, 2026 (session 8, continued) — Test Infrastructure (#51) + CI (#52)
 
 **Test runner: Vitest 2.x + @vitest/coverage-v8. Run: `npm test` / `npm run test:coverage`.**
@@ -370,9 +425,10 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Paystack checkout + webhook routes built (awaiting account activation for live transactions)
 - ✅ Security secrets rotated (April 2026)
 - Paystack account activation: test end-to-end once activated — see `PAYSTACK_SMOKE_TEST.md`
-- Stripe server route for GB tier checkout + webhook (awaiting UK entity setup — see corporate structure notes)
-- Webhook: updates `parents.subscription_tier` + `subscription_end` on payment success
-- Anti-arbitrage: Paystack endpoint 403s if `parent.region !== 'NG'`; Stripe 403s for NG parents
+- ✅ Stripe checkout + webhook + callback routes built (April 27 session 10) — `src/app/api/stripe/` directory. Subscribe page wired. Feature-flagged on `STRIPE_SECRET_KEY`. Anti-arbitrage GB guard matches Paystack NG pattern.
+- ✅ `supabase/migrations/20260427_parents_stripe_fields.sql` — adds `stripe_subscription_id TEXT` to parents. **Apply in Supabase SQL editor.**
+- Paystack account activation: test end-to-end once activated — see `PAYSTACK_SMOKE_TEST.md`
+- Stripe go-live checklist (see session 10 notes above): UK entity → Stripe account → 4 price objects → 6 env vars → webhook endpoint registration → apply `20260427_parents_stripe_fields.sql`
 
 ### 🟡 WAEC/NECO Exam Papers
 - Purchase Phase 1 papers from waecdirect.org (33 papers, ~₦33,000): Maths + English + Bio + Physics + Chemistry, 2019–2024
@@ -383,12 +439,36 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - After QA: remove `--dry-run` and run overnight; ~$6 total LLM cost
 - Full plan: `WAEC_NECO_INGESTION_PLAN.md`
 
+### 🟡 Content — Visual Requirement Gaps (#34, April 27 2026)
+- **311 questions** where the stem references a visual (diagram/figure/table/graph) but none is attached — student cannot answer. `visual_gap_fix.sql` Phase 1 sets `needs_visual = true` + `visual_status = 'needed'` on these.
+- **591 questions** where only the explanation references a missing visual ("The diagram shows..."). Phase 2 of `visual_gap_fix.sql` stamps `question_data.explanation_visual_ref = true` so `rewriteExplanations.mjs` can target them with `--filter=explanation_visual_ref`.
+- **Run order**: paste `scripts/output/visual_gap_fix.sql` into Supabase SQL editor. Run Phase 1, verify UPDATE count ≈ 311. Then run Phase 2, verify ≈ 591.
+- **Diagnostic** (live DB): `scripts/output/visual_gap_diagnostic.sql` — 4 queries: summary, by-subject breakdown, spot-check sample, pipeline queue health.
+- Source audit: `scripts/output/visual_reference_audit.csv` (1,678 rows, 1,013 unique questions).
+
 ### 🟡 Content — Explanation Quality (15,330 stubs)
 - Script running: `node scripts/rewriteExplanations.mjs --limit=300` (British English, 300-word cap)
 - Resume safety fixed (April 26): per-batch CSV flush — Ctrl+C loses ≤ 5 questions; restart correctly skips already-done IDs
 - Consecutive-failure cooloff fixed: 3 network errors → 30 s cooloff per model; prevents flaky models looping
 - After run completes: apply `scripts/output/explanation_rewrites.sql` to DB via Supabase SQL editor
 - Remaining stubs: ~15,330 (< 80 chars); script targets avg_score < 2.9 queue first
+
+### ✅ Generator Hardening (#53, April 27 2026)
+- Migration: `supabase/migrations/20260427_generator_hardening.sql` — adds `content_hash TEXT` column + partial unique index on `question_bank`; creates `generation_runs` audit table (run_id, started_at, tokens, cost, models_used, etc.).
+- `callAI()` now captures `json.usage` and returns `{ content, model, usage }`.
+- `toDbRow()` computes a 32-char SHA-256 hash (`content_hash`) from normalised question_text + sorted options — stored as a DB column for cross-run dedup.
+- `insertBatch()` uses `.upsert(chunk, { onConflict: "content_hash", ignoreDuplicates: true })` — Vercel retries and re-runs no longer produce duplicate rows. Returns `{ inserted, skipped }`. Skipped count logged ("♻ N duplicate(s) skipped").
+- Token accumulation in `generateForSubjectYear()` + `generateForStandards()` — `runPromptTokens`, `runCompletionTokens`, `runModels` Set propagated up through result objects.
+- `main()`: stats objects now carry token fields; final summary prints token counts + estimated cost (using $0.15/M prompt + $0.60/M completion as rough baseline). Writes one `generation_runs` row at completion (fail-open warn on DB error). Run ID logged to console.
+- **Run order**: paste `supabase/migrations/20260427_generator_hardening.sql` into Supabase SQL editor before next generation run. Existing rows remain unaffected (content_hash IS NULL initially).
+
+### 🟡 Content — Phase 2 Expunge Runner (#38, April 27 2026)
+- Script: `scripts/expungeRunnerPhase2.mjs` — consumes 6 audit CSVs, outputs kill/fix/review artefacts
+- Dry-run: `node scripts/expungeRunnerPhase2.mjs` (default) | Generate files: `node scripts/expungeRunnerPhase2.mjs --write`
+- **Kill** (79 deactivations): V3 J3 encoding artefacts (15) + H7 NOT/EXCEPT multi-valid (4) + KS1 circular/banned_words explanations (67)
+- **Fix** (1,028 auto-corrections): difficulty tier under_labelled_developing→developing (312) + under_labelled_foundation→foundation (293) + V2 E4 missing question mark (423)
+- **Review** (4,250 items): `scripts/output/expunge_phase2_review.csv` — sorted by `suggested_action`, highest-volume: G1 double-barrelled (1,355), B6 keyword bleed (1,015), B5 length bias (447)
+- **Run order**: paste `expunge_phase2_kill.sql` into Supabase SQL editor first, then `expunge_phase2_fix.sql`
 
 ### 🟡 Content — Nigerian Question Bank
 - Run concept card generation: `node scripts/generateConceptCards.mjs --ng-only` (JSS + SSS localised cards with ₦ examples)
@@ -401,7 +481,7 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Parent readiness view — complete (`ScholarSchoolReadiness.jsx`, free teaser + Scholar full view)
 - ✅ Parent engagement panel — complete (proprietor dashboard, unclaimed list + copy-code chips)
 - ✅ Resend expired invitations — complete (April 26 session 3): Resend button per unclaimed scholar in `ParentEngagementPanel`; calls `POST /api/teacher/notify-parent` which refreshes expired code + re-sends claim email; per-scholar loading/success/retry states.
-- PDF export: teacher class report (print CSS exists; proper PDF generation TBD)
+- ✅ PDF reports — complete (April 27 session 9): `GET /api/teacher/class-report?classId=` + `GET /api/schools/[schoolId]/termly-report` — zero-dep self-contained HTML (printable to PDF via browser). Teacher "Download Class Report" button upgraded from `window.print()` to async download with loading state. Proprietor "Download Termly Report" button wired to termly route. Both gated by existing auth (teacher_assignments / school_roles).
 - ✅ school_leads pipeline view — complete (April 26 session 3): `/admin/school-leads` + `GET/PATCH /api/admin/school-leads`
 
 ### 🟡 Security

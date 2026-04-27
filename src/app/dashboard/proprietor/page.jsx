@@ -691,8 +691,9 @@ export default function ProprietorDashboard() {
   const [schoolData,   setSchoolData]   = useState(null);
   const [claimFunnel,  setClaimFunnel]  = useState(null);
   const [sortBy,       setSortBy]       = useState("readiness");
-  const [uploadingCSV, setUploadingCSV] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState("");
+  const [uploadingCSV,         setUploadingCSV]         = useState(false);
+  const [copyFeedback,         setCopyFeedback]         = useState("");
+  const [downloadingTermly,    setDownloadingTermly]    = useState(false);
 
   // ── Class drill-down state ────────────────────────────────────────
   const [drillClassId,   setDrillClassId]   = useState(null); // null = school view
@@ -785,7 +786,31 @@ export default function ProprietorDashboard() {
     catch { /* ignore */ }
   };
 
-  const handleExport = () => { setTimeout(() => window.print(), 100); };
+  const handleExport = async () => {
+    if (!school?.id) return;
+    setDownloadingTermly(true);
+    try {
+      const res = await fetch(`/api/schools/${school.id}/termly-report`);
+      if (!res.ok) { alert("Failed to generate termly report."); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      const term = (() => {
+        const m = new Date().getMonth() + 1;
+        if (m >= 9) return "Autumn_Term";
+        if (m >= 5) return "Summer_Term";
+        return "Spring_Term";
+      })();
+      a.download = `${(school.name ?? "School").replace(/\s+/g, "_")}_${term}_Report.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Network error — please try again.");
+    } finally {
+      setDownloadingTermly(false);
+    }
+  };
 
   // ── Derived data ──────────────────────────────────────────────────
   const getGradeBands = () => {
@@ -1162,8 +1187,13 @@ export default function ProprietorDashboard() {
                     {uploadingCSV ? "Uploading…" : "Upload Scholar CSV"}
                     <input type="file" accept=".csv" onChange={handleCSVUpload} disabled={uploadingCSV} className="absolute inset-0 opacity-0 cursor-pointer" />
                   </label>
-                  <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors">
-                    <DownloadIcon size={16} /> Download Report
+                  <button
+                    onClick={handleExport}
+                    disabled={downloadingTermly}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-60 rounded-lg text-white text-sm font-medium transition-colors"
+                  >
+                    <DownloadIcon size={16} />
+                    {downloadingTermly ? "Generating…" : "Download Termly Report"}
                   </button>
                   <button onClick={handleCopyClaim} className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors">
                     <LinkIcon size={16} /> {copyFeedback || "Copy Parent Claim Link"}

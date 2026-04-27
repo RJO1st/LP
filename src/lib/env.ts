@@ -161,6 +161,14 @@ const serverSchemaShape = z.object({
     }),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
 
+  // Stripe Price IDs — created in the Stripe dashboard once UK entity is live.
+  // Format: price_live_... (prod) or price_test_... (test mode).
+  // Set all four before flipping stripeEnabled().
+  STRIPE_PRICE_UK_PRO_MONTHLY:       z.string().optional().default(''),
+  STRIPE_PRICE_UK_PRO_ANNUAL:        z.string().optional().default(''),
+  STRIPE_PRICE_UK_PRO_EXAM_MONTHLY:  z.string().optional().default(''),
+  STRIPE_PRICE_UK_PRO_EXAM_ANNUAL:   z.string().optional().default(''),
+
   // ── URLs
   APP_URL: z.string().url().or(z.literal('')).optional().default(''),
 
