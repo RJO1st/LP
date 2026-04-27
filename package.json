@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.19",
@@ -53,12 +57,14 @@
   },
   "devDependencies": {
     "@types/react": "19.2.14",
+    "@vitest/coverage-v8": "^2.2.0",
     "autoprefixer": "^10.4.27",
     "dotenv": "^17.4.2",
     "postcss": "^8.5.6",
     "puppeteer-core": "^24.41.0",
     "supabase": "^2.91.3",
     "tailwindcss": "^3.4.19",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^2.2.0"
   }
 }

@@ -156,6 +156,22 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 8, continued) — Test Infrastructure (#51) + CI (#52)
+
+**Test runner: Vitest 2.x + @vitest/coverage-v8. Run: `npm test` / `npm run test:coverage`.**
+
+**Files created:**
+- `vitest.config.js` — `@/` alias mapped to `./src`; coverage for 5 key lib files (tierAccess, taraClassifier, markingEngine, security/webhook, security/cronAuth); line ≥60%, function ≥70% thresholds.
+- `src/lib/__tests__/taraClassifier.test.js` — 35 tests: 16 safeguarding_flag (plain + homoglyph obfuscation including k1ll/s3lf/@-variants/spaced-letters/KMS!), 11 off_topic_concerning (plain + homoglyph p0rn/s3x/spaced drugs), 9 on_topic (maths/english/WAEC), 3 off_topic_innocent, 2 priority-order edge cases.
+- `src/lib/__tests__/tierAccess.test.js` — 60 tests: hasFeature across all tier combos (freeGB, freeNG, ng_scholar, +waec_boost, +ai_unlimited, +family_child, uk_pro, uk_pro_exam); getLimit; canAddScholar (boundary checks); checkQuota (cap enforcement, unlimited detection, negative used guard); curriculumIsNigerian (case-insensitive, null-safe); regionFromCurriculum.
+- `src/lib/security/__tests__/webhook.test.js` — 28 tests: verifyHmac (valid/tampered body/wrong sig/wrong secret/null sig/empty sig/bad secret/non-string body/length mismatch/sha256); validateEnumValue (allowed/trimmed/disallowed/null/empty/non-string/case-sensitive); sanitiseAddons (clean/drops unknown/logs warn/dedupes/null input/empty/whitespace trim/non-string/no warn on all-valid).
+- `src/lib/__tests__/markingEngine.test.js` — 40 tests: levenshtein (0/empty/substitution/insertion/deletion/kitten→sitting); normalizeAnswer (lowercase/trim/collapse/punctuation/null/non-string); parseNumericAnswer (integer/decimal/percentage/fraction/scientific/null/non-numeric/division-by-zero/negative); isNumericMatch (exact/within-tolerance/outside/zero/negative/NaN/Infinity/custom-tolerance); markDeterministic MCQ (correct/wrong/string-index/null-correct-index/no-mark-scheme) + numeric (exact/within-tolerance/out-of-tolerance/non-parseable).
+- `.github/workflows/ci.yml` — 3 jobs: `test` (vitest run + coverage on push/PR), `lint` (next lint, continue-on-error), `build` (next build with placeholder env vars, gated on test passing). Node 22, npm ci cache.
+
+**`package.json` updated**: added `"test"`, `"test:watch"`, `"test:coverage"`, `"lint"` scripts; added `vitest` and `@vitest/coverage-v8` to devDependencies.
+
+**After cloning on a fresh machine**: `npm install` picks up vitest automatically. CI installs via `npm ci`.
+
 ### April 27, 2026 (session 8) — Security + Reliability Audit: Critical + High Items
 
 **Commit `955a448` — 4 verified bugs closed:**
@@ -405,6 +421,8 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Duplicate quest idempotency (April 27 session 8): preflight count check in `assign-daily`, `assign-weekly`, `assign-personalised` — skips scholar if active quests already exist for today/this week. Guards Vercel cron retries. `skippedCount` in response.
 - ✅ Webhook annual+addon defense (April 27 session 8): after `sanitiseAddons()`, clear addons and log warn if `billing === 'annual'`. Defense in depth alongside checkout guard.
 - ✅ List-Unsubscribe headers (April 27 session 8): `sendEmail()` accepts optional `headers` param. `BULK_UNSUBSCRIBE_HEADERS` constant exported with RFC 8058 one-click unsubscribe. Wired into weekly-digest cron send (Gmail bulk-sender compliance).
+- ✅ Test infrastructure (#51, April 27 session 8 cont.): Vitest 2.x + coverage-v8. 163 tests across 4 files — taraClassifier (35), tierAccess (60), security/webhook (28), markingEngine (40). `npm test` / `npm run test:coverage`. Thresholds: lines ≥60%, functions ≥70%.
+- ✅ CI pipeline (#52, April 27 session 8 cont.): `.github/workflows/ci.yml` — test + lint + build jobs on push/PR to main. Build job gated on test passing. Lint continue-on-error (advisory). Node 22 + npm ci cache.
 
 ### 🟢 Quiz Experience — Next Enhancements
 - ✅ Mistake re-queue — complete (session 5): wrong questions injected before finish, cap 3, retry badge shown
