@@ -156,6 +156,44 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 13) — Quiz Micro-Moments, Mastery Ceremony, Pre-Teach, Termly Report, Trajectory Widget, Sibling Tara
+
+**`src/components/game/QuizEngine.jsx` — 4 features added:**
+
+1. **Pre-teach overlay**: On each new question, if scholar's `p_mastery < 0.3` for that topic (queried from `scholar_topic_mastery`), the `PreTeachScreen` overlay shows before the question. Fetches concept card from `/api/concept-cards` using year-band derived from `student.year_level` + curriculum. `preTaughtTopicsRef` (Set) ensures each topic pre-taught at most once per session. Cancel-safe async useEffect (`let cancelled = false` + cleanup). Fail-open on all network errors.
+
+2. **Avatar mood feedback (`AvatarMomentWidget`)**: Emoji-based pill shown in quiz header — 🚀 "Brilliant!" on correct, 💪 "Keep going!" on wrong. Auto-clears after 1.8 s. `setAvatarMood` wired into all 6 answer handlers: `handlePick`, `handleFreeTextSubmit`, `handleMultiSubmit`, `handleOrderingSubmit`, `handleNumberLineSubmit`, `handleFractionSubmit`.
+
+3. **Mastery unlock ceremony**: In `finishQuest`, after upsert, loops `masteryUpdates` vs pre-session `masteryMap`. First topic crossing 0.8 threshold sets `masteryUnlock` state → `MasteryUnlockOverlay` renders (topic + subject + confetti-style animation). Also fires `supabase.functions.invoke("notify-parent-mastery", ...)` fire-and-forget. One ceremony per `finishQuest` call.
+
+4. **Tara whispers**: `TARA_WHISPERS` static array of 7 motivational strings, cycled by `qIdx % 7`. Shown above explanation div in all 4 wrong-answer panels (MCQ/free-text, ordering, number_line, fraction_bar). Zero API cost.
+
+**NEW `src/app/api/parent/termly-report/route.js`** — `GET /api/parent/termly-report?scholarId=`:
+- Auth: `createServerClient` + session + `parent_id` ownership check on scholar
+- `fetchScholarReport()`: queries `scholars`, `scholar_topic_mastery`, `scholar_readiness_snapshot`, `exam_answers`, `quiz_results`, computes streak
+- `buildHTML()`: self-contained branded HTML — 6 KPI cards, subject progress bars, mastered topic chips, focus area list, motivational headline
+- Returns `Content-Disposition: attachment` HTML file; filename `${name}_${term}_${year}_Report.html`
+
+**NEW `src/components/dashboard/PracticeTrajectory.jsx`**:
+- Props: `{ scholarId, supabase, currentScore }`
+- Reads last 8 `scholar_readiness_snapshot` rows, computes linear regression slope (`weeklyDelta`), projects `current + weeklyDelta * 4` capped 0–100
+- SVG sparkline (80×36 px): indigo historical polyline + dashed projection line in band colour + projected dot
+- Shows projected score, band label, `±N pts over 4 weeks` trend label, conditional "On track!" / "At risk!" if band changes
+- Falls back to simple current-band label when no snapshot history
+
+**`src/app/dashboard/parent/page.jsx`** (wiring):
+- `PracticeTrajectory` mounted below `<ReadinessScore>` in scholar card
+- `handleDownloadReport`: async fetch → blob → anchor download with per-scholar `downloadingReport` spinner
+- Download Report button (emerald) added to scholar actions row alongside Insights + Scholar Dashboard
+
+**`src/components/dashboard/MultiChildComparison.jsx`**:
+- `buildTaraObservation(scholars)` added: 5-branch heuristic — all inactive → nudge both; streak gap ≥ 3 + lagging at 0 → celebrate leader + nudge lagging; shared subject weakness (avg < 0.5) → suggest co-practice; family avg ≥ 60 → celebrate all; default → top subject nudge from leader
+- Observation rendered as indigo pill below sibling card grid with 🤖 Tara label
+
+**No new DB migrations. No new API routes beyond termly-report. Commit: `d9224c7`.**
+
+---
+
 ### April 27, 2026 (session 12) — Authoring Pipeline for Interactive Question Types
 
 **`scripts/generateQuestionsV2.mjs` — full generator support for `ordering`, `number_line`, `fraction_bar` question types.**
@@ -536,6 +574,13 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Misconception selector — complete (session 11): `misconceptionMapRef` loaded from `question_misconceptions` table in background after session questions populate. `promoteMisconceptionQuestions` reorders remaining unasked questions sharing a misconception to immediately after current position on wrong answer. Wired into all 6 wrong-answer handlers. Fail-open — no effect until generator tags questions with misconception_ids.
 - ✅ Pre-exam briefing card — complete (session 11): `ExamBriefing.jsx` shown between lobby and timer start. Stats, topic distribution, mode tips. Review mode skips briefing. `ExamOrchestrator` wired.
 - ✅ Authoring pipeline for interactive types — complete (session 12): `generateQuestionsV2.mjs` extended with `ordering`/`number_line`/`fraction_bar` schema support. See session 12 notes below.
+- ✅ Pre-teach overlay — complete (session 13): `PreTeachScreen` shown on questions where `p_mastery < 0.3`; concept card fetched from `/api/concept-cards`; `preTaughtTopicsRef` prevents repeat per session; cancel-safe useEffect.
+- ✅ Avatar mood feedback — complete (session 13): `AvatarMomentWidget` pill (🚀/💪) shown in quiz header on every answer; 1.8 s auto-clear; wired into all 6 answer handlers.
+- ✅ Mastery unlock ceremony — complete (session 13): `MasteryUnlockOverlay` on first topic crossing 80% in `finishQuest`; fires `notify-parent-mastery` Edge Function fire-and-forget.
+- ✅ Tara whispers — complete (session 13): 7-string static array cycled by `qIdx % 7`; shown in all 4 wrong-answer panels; zero API cost.
+- ✅ Parent termly report — complete (session 13): `GET /api/parent/termly-report?scholarId=` → self-contained branded HTML (6 KPI cards, subject bars, mastered topics, focus areas); ownership-gated; async blob download wired in parent dashboard.
+- ✅ Practice trajectory widget — complete (session 13): `PracticeTrajectory.jsx` — linear regression over last 8 snapshots, 4-week projection, SVG sparkline; mounted below ReadinessScore in parent dashboard.
+- ✅ Sibling Tara observation — complete (session 13): `buildTaraObservation()` 5-branch heuristic in `MultiChildComparison.jsx`; rendered as indigo pill below sibling grid.
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
