@@ -1,9 +1,5 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-// __dirname is not available in ESM — derive it from import.meta.url.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Vitest configuration for LaunchPard.
@@ -14,6 +10,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  *
  * The `@/` alias maps to `./src/` to match Next.js jsconfig paths.
  * Tests live in `src/**/__tests__/*.test.js`.
+ *
+ * Note: `import.meta.url` / `__dirname` are intentionally avoided here.
+ * Vite's CJS bundle loader transforms `import.meta` in ways that break at
+ * runtime. `path.resolve('./src')` is equivalent and resolves correctly from
+ * the project root where vitest is invoked.
  */
 export default defineConfig({
   test: {
@@ -38,7 +39,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve('./src'),
     },
   },
 });
