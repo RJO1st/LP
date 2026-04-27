@@ -156,6 +156,20 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 8) — Security + Reliability Audit: Critical + High Items
+
+**Commit `955a448` — 4 verified bugs closed:**
+
+1. **Cron timing attack (#48)**: `src/lib/security/cronAuth.js` — new shared helper `authorizedCronRequest()` using `crypto.timingSafeEqual`. Replaces naive `===` string comparison in all four assign-* cron routes (`assign-daily`, `assign-weekly`, `assign-personalised`, `assign-boss-battle`). Added `export const runtime = "nodejs"` to each (required for Node crypto module).
+
+2. **Duplicate quests on Vercel retry (#49)**: Added idempotency preflight to `assign-daily`, `assign-weekly`, `assign-personalised`. Pattern: count active quests for scholar within today's window before inserting; skip with `skippedCount++` if already assigned. `assign-boss-battle` had this guard already. `assign-daily` also improved: bulk expire now targets `expires_at < today_start` (not inline per scholar), plus `export const runtime = "nodejs"`.
+
+3. **Webhook annual+addon defense gap (#50)**: In `paystack/webhook/route.js`, after `sanitiseAddons()`, if `billing === 'annual' && addons.length > 0`: clear array, log `paystack_webhook_annual_addon_rejected` warning. Defense in depth alongside the checkout §1b guard (400 at purchase time).
+
+4. **Weekly digest Gmail spam (#54)**: `sendEmail()` in `src/lib/email.js` now accepts optional `headers` param; Brevo API `headers` key only included when non-empty. `BULK_UNSUBSCRIBE_HEADERS` constant exported: `List-Unsubscribe` (https one-click + mailto fallback) + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). Wired into weekly-digest cron `sendEmail()` call.
+
+**No DB schema changes. No new API routes.**
+
 ### April 27, 2026 (session 7) — Quiz Polish: MathInput + KS1 Voice + Palette Confirmed
 
 **`src/components/game/QuizEngine.jsx` — 3 features added (commit `39ade20`):**
@@ -387,6 +401,10 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ RLS corrective migration (April 26 session 3): `20260426_corrective_rls_fix.sql`. **User action**: paste into Supabase SQL editor + run verification query.
 - ✅ `api/admin/flag-question` auth guard (April 26 session 3): was fully unprotected, anyone could bulk-delete question bank. Now gated behind `requireAdmin()`.
 - ✅ Legacy `api/auth/route.js` disabled (April 26 session 3): replaced with 410 Gone (had token-in-URL leak + no validation).
+- ✅ Cron timing attack closed (April 27 session 8, commit `955a448`): `src/lib/security/cronAuth.js` exports `authorizedCronRequest()` using `crypto.timingSafeEqual`. All four assign-* cron routes updated.
+- ✅ Duplicate quest idempotency (April 27 session 8): preflight count check in `assign-daily`, `assign-weekly`, `assign-personalised` — skips scholar if active quests already exist for today/this week. Guards Vercel cron retries. `skippedCount` in response.
+- ✅ Webhook annual+addon defense (April 27 session 8): after `sanitiseAddons()`, clear addons and log warn if `billing === 'annual'`. Defense in depth alongside checkout guard.
+- ✅ List-Unsubscribe headers (April 27 session 8): `sendEmail()` accepts optional `headers` param. `BULK_UNSUBSCRIBE_HEADERS` constant exported with RFC 8058 one-click unsubscribe. Wired into weekly-digest cron send (Gmail bulk-sender compliance).
 
 ### 🟢 Quiz Experience — Next Enhancements
 - ✅ Mistake re-queue — complete (session 5): wrong questions injected before finish, cap 3, retry badge shown
