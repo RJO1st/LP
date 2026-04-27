@@ -985,6 +985,180 @@ const ConceptSnapshot = ({ card, loading }) => {
   );
 };
 
+// ─── ORDERING QUESTION ────────────────────────────────────────────────────────
+// Tap-to-select-then-swap. Works on desktop + mobile without drag events.
+// items: [{text, origIdx}, ...], submitted: bool, correctOrder: int[] | null
+function OrderingQuestion({ items, selectedIdx, onTap, submitted, correctOrder }) {
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => {
+        let cls = "bg-white border-slate-200 hover:border-indigo-400 text-slate-700";
+        if (!submitted && selectedIdx === i)
+          cls = "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-100 text-indigo-800";
+        if (submitted && correctOrder) {
+          cls = correctOrder[i] === item.origIdx
+            ? "bg-emerald-50 border-emerald-500 text-emerald-700"
+            : "bg-rose-50 border-rose-400 text-rose-700";
+        }
+        return (
+          <button
+            key={`ord-${item.origIdx}-${i}`}
+            disabled={submitted}
+            onClick={() => onTap(i)}
+            className={`w-full p-3 rounded-xl font-bold border-2 transition-all text-sm text-left flex items-center gap-3 ${cls}`}
+          >
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+              !submitted && selectedIdx === i ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
+            }`}>{i + 1}</span>
+            <span className="flex-1">{item.text}</span>
+            {submitted && correctOrder && (
+              correctOrder[i] === item.origIdx
+                ? <span className="text-emerald-500 text-lg shrink-0">✓</span>
+                : <span className="text-rose-400 text-lg shrink-0">✗</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── NUMBER LINE ──────────────────────────────────────────────────────────────
+// Click/touch the rail to snap to the nearest valid tick value.
+function NumberLineWidget({ min, max, step, value, onSelect, submitted, correct }) {
+  const railRef = React.useRef(null);
+  const ticks   = [];
+  for (let v = min; v <= max + 1e-9; v = Math.round((v + step) * 1e9) / 1e9) ticks.push(v);
+
+  const pickValue = (clientX) => {
+    if (submitted || !railRef.current) return;
+    const rect = railRef.current.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const raw  = min + pct * (max - min);
+    const nearest = ticks.reduce((a, b) => Math.abs(b - raw) < Math.abs(a - raw) ? b : a);
+    onSelect(nearest);
+  };
+
+  const toX = (v) => `${((v - min) / (max - min)) * 100}%`;
+  // Show labels only when ticks are sparse enough
+  const labelStride = ticks.length <= 11 ? 1 : Math.ceil(ticks.length / 11);
+
+  return (
+    <div className="px-4 py-4 select-none">
+      <div
+        ref={railRef}
+        onClick={e => pickValue(e.clientX)}
+        onTouchStart={e => { e.preventDefault(); pickValue(e.touches[0].clientX); }}
+        className="relative h-12 cursor-pointer"
+        role="slider"
+        aria-valuemin={min} aria-valuemax={max} aria-valuenow={value ?? min}
+      >
+        {/* Track */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-2 bg-slate-200 rounded-full" />
+        {/* Filled portion */}
+        {value !== null && (
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 h-2 bg-indigo-400 rounded-full pointer-events-none"
+            style={{ width: toX(value) }} />
+        )}
+        {/* Ticks */}
+        {ticks.map((t, idx) => (
+          <div key={t} className="absolute pointer-events-none"
+            style={{ left: toX(t), top: "50%", transform: "translate(-50%, -50%)" }}>
+            <div className="w-0.5 h-3 bg-slate-400" />
+            {idx % labelStride === 0 && (
+              <div className="text-[10px] font-bold text-slate-500 text-center mt-3 -translate-x-1/2 absolute whitespace-nowrap">
+                {t % 1 === 0 ? t : t.toFixed(1)}
+              </div>
+            )}
+          </div>
+        ))}
+        {/* Selected handle */}
+        {value !== null && (
+          <div className={`absolute top-1/2 w-5 h-5 rounded-full border-2 shadow-md pointer-events-none transition-all ${
+            submitted
+              ? Math.abs(value - (correct ?? value)) < 1e-9
+                ? "bg-emerald-500 border-emerald-600"
+                : "bg-rose-500 border-rose-600"
+              : "bg-indigo-600 border-indigo-700"
+          }`} style={{ left: toX(value), transform: "translate(-50%, -50%)" }} />
+        )}
+        {/* Correct marker shown after wrong submit */}
+        {submitted && correct !== null && value !== null && Math.abs(value - correct) > 1e-9 && (
+          <div className="absolute top-1/2 w-5 h-5 rounded-full bg-emerald-500 border-2 border-emerald-700 shadow-md pointer-events-none"
+            style={{ left: toX(correct), transform: "translate(-50%, -50%)" }} />
+        )}
+      </div>
+      {/* Value readout */}
+      <div className="mt-8 text-center">
+        {value !== null ? (
+          <span className={`inline-block px-4 py-1.5 rounded-full font-black text-sm ${
+            submitted
+              ? Math.abs(value - (correct ?? value)) < 1e-9
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-rose-50 text-rose-600 border border-rose-200"
+              : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+          }`}>
+            Selected: {value % 1 === 0 ? value : value.toFixed(2)}
+          </span>
+        ) : (
+          <span className="text-xs font-bold text-slate-400">Tap the line to select a value</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── FRACTION BAR ─────────────────────────────────────────────────────────────
+// Click segments to shade them. Number of shaded segments = numerator answer.
+function FractionBarWidget({ denominator, shaded, onToggle, submitted, correct }) {
+  const n = Math.min(Math.max(parseInt(denominator) || 4, 2), 12);
+  return (
+    <div className="space-y-3">
+      <div className="flex rounded-xl overflow-hidden border-2 border-slate-300 h-14 shadow-inner">
+        {Array.from({ length: n }, (_, i) => {
+          const isShaded      = shaded.has(i);
+          const isCorrectSlot = submitted && correct !== null && i < correct;
+          const isWrongShade  = submitted && isShaded && !isCorrectSlot;
+          let bg = isShaded ? "bg-indigo-500" : "bg-white hover:bg-indigo-50";
+          if (submitted) {
+            if (isCorrectSlot && isShaded)  bg = "bg-emerald-500";
+            else if (isCorrectSlot)          bg = "bg-emerald-200";
+            else if (isWrongShade)           bg = "bg-rose-400";
+            else                             bg = "bg-white";
+          }
+          return (
+            <button key={i} disabled={submitted} onClick={() => onToggle(i)}
+              className={`flex-1 transition-colors border-r last:border-r-0 border-slate-200 ${bg}`}
+              aria-label={`Segment ${i + 1}`}
+            />
+          );
+        })}
+      </div>
+      {/* Fraction notation */}
+      <div className="flex items-center justify-center gap-6">
+        <div className="text-center leading-none">
+          <div className="text-2xl font-black text-slate-800">{shaded.size}</div>
+          <div className="w-8 h-0.5 bg-slate-700 mx-auto my-0.5" />
+          <div className="text-2xl font-black text-slate-800">{n}</div>
+        </div>
+        {submitted && correct !== null && shaded.size !== correct && (
+          <div className="text-center leading-none opacity-70">
+            <div className="text-xs font-bold text-slate-400 mb-1">Correct</div>
+            <div className="text-2xl font-black text-emerald-600">{correct}</div>
+            <div className="w-8 h-0.5 bg-emerald-600 mx-auto my-0.5" />
+            <div className="text-2xl font-black text-emerald-600">{n}</div>
+          </div>
+        )}
+      </div>
+      {!submitted && (
+        <p className="text-xs font-bold text-slate-400 text-center">
+          Tap segments to shade — shade <strong>{correct ?? "?"}</strong> out of {n}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function QuizEngine({
   world = "test",
@@ -1047,6 +1221,15 @@ export default function QuizEngine({
   const [conceptCard,       setConceptCard]       = useState(null);
   const [conceptCardLoading,setConceptCardLoading] = useState(false);
 
+  // ── Interactive question types ───────────────────────────────────────────────
+  const [orderingItems,       setOrderingItems]       = useState([]); // [{text, origIdx}]
+  const [orderingSelectedIdx, setOrderingSelectedIdx] = useState(null);
+  const [orderingSubmitted,   setOrderingSubmitted]   = useState(false);
+  const [numberLineValue,     setNumberLineValue]     = useState(null);
+  const [numberLineSubmitted, setNumberLineSubmitted] = useState(false);
+  const [fractionShaded,      setFractionShaded]      = useState(new Set());
+  const [fractionSubmitted,   setFractionSubmitted]   = useState(false);
+
   // ── Accessibility / input mode ───────────────────────────────────────────────
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const scholarYear   = parseInt(student?.year_level || student?.year, 10) || 4;
@@ -1058,7 +1241,8 @@ export default function QuizEngine({
   const seenIdsRef        = useRef(new Set(previousQuestionIds));
   const seenTextsRef      = useRef(new Set());
   const fetchingRef       = useRef(false);
-  const retriesInjectedRef = useRef(false); // prevent double-injection
+  const retriesInjectedRef   = useRef(false); // prevent double-injection
+  const misconceptionMapRef  = useRef({});    // { questionId: Set<misconceptionUuid> }
 
   const recordTopicResult = useCallback((topic, isCorrect) => {
     if (!topic) return;
@@ -1086,6 +1270,63 @@ export default function QuizEngine({
     const t = setTimeout(() => setStreakPop(false), 500);
     return () => clearTimeout(t);
   }, [streakPop]);
+
+  // ── Misconception map: background load after session questions populate ───────
+  // Queries question_misconceptions for all current session IDs (fail-open).
+  // Populates misconceptionMapRef: { questionId → Set<misconceptionUuid> }.
+  // Used by promoteMisconceptionQuestions to reorder upcoming questions on wrong answer.
+  useEffect(() => {
+    const ids = sessionQuestions.map(q => q.id).filter(Boolean);
+    if (!ids.length) { misconceptionMapRef.current = {}; return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("question_misconceptions")
+          .select("question_id, misconception_id")
+          .in("question_id", ids);
+        if (cancelled || !data?.length) return;
+        const map = {};
+        for (const row of data) {
+          if (!map[row.question_id]) map[row.question_id] = new Set();
+          map[row.question_id].add(row.misconception_id);
+        }
+        misconceptionMapRef.current = map;
+      } catch (_) { /* best-effort — misconception data absent for most questions */ }
+    })();
+    return () => { cancelled = true; };
+  }, [sessionQuestions]);
+
+  // ── Misconception promotion: reorders remaining unasked questions on wrong answer ──
+  // When the scholar answers Q wrong, any not-yet-asked question that targets the same
+  // misconception(s) is moved to immediately after the current position so the scholar
+  // practises the misconception while it is fresh — before the raw missedQuestions retry.
+  const promoteMisconceptionQuestions = useCallback((wrongQId) => {
+    const map = misconceptionMapRef.current;
+    const wrongMisconceptions = map[wrongQId];
+    if (!wrongMisconceptions?.size) return; // no misconception data for this question
+
+    setSessionQuestions(prev => {
+      // Split into already-asked (≤ qIdx) and upcoming (> qIdx)
+      const answered  = prev.slice(0, qIdx + 1);
+      const upcoming  = prev.slice(qIdx + 1);
+
+      // Partition upcoming: those that share a misconception vs the rest
+      const promoted  = [];
+      const remainder = [];
+      for (const q of upcoming) {
+        if (q._isRetry) { remainder.push(q); continue; } // don't reorder retries
+        const qMiscs = map[q.id];
+        const shares = qMiscs && [...qMiscs].some(m => wrongMisconceptions.has(m));
+        if (shares) promoted.push(q);
+        else        remainder.push(q);
+      }
+
+      if (!promoted.length) return prev; // nothing to reorder
+      console.log(`[QuizEngine] Misconception promotion: moving ${promoted.length} question(s) forward`);
+      return [...answered, ...promoted, ...remainder];
+    });
+  }, [qIdx]);
 
   // ── Mistake re-queue helper ─────────────────────────────────────────────────
   const queueMistake = useCallback((currQ) => {
@@ -1134,6 +1375,102 @@ export default function QuizEngine({
     }
   }, [student, curriculumProp, subject]);
 
+  // ── Interactive question type submit handlers ────────────────────────────────
+
+  const handleOrderingSubmit = useCallback(() => {
+    if (orderingSubmitted) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setOrderingSubmitted(true);
+    const currQ       = sessionQuestions[qIdx];
+    const correctOrder = Array.isArray(currQ.correct_order) ? currQ.correct_order
+      : Array.isArray(currQ.answer) ? currQ.answer : null;
+    const userOrder   = orderingItems.map(item => item.origIdx);
+    const isCorrect   = correctOrder !== null &&
+      JSON.stringify(userOrder) === JSON.stringify(correctOrder);
+    const rec = {
+      q: currQ.q, isCorrect,
+      correct:  (correctOrder || []).join("→"),
+      myAnswer: userOrder.join("→"),
+      exp:      currQ.exp ?? "",
+      subject:  currQ.subject ?? subject,
+      topic:    currQ.topic   ?? "general",
+    };
+    setSelected(isCorrect ? true : false);
+    if (isCorrect) {
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
+      setTotalScore(p => p + 10);
+      setStreak(p => p + 1);
+    } else {
+      setResults(r => ({ ...r, answers: [...r.answers, rec] }));
+      setStreak(0);
+      queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
+      fetchConceptCard(currQ.topic, currQ.subject);
+    }
+    recordTopicResult(currQ.topic, isCorrect);
+  }, [orderingSubmitted, orderingItems, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
+
+  const handleNumberLineSubmit = useCallback(() => {
+    if (numberLineSubmitted || numberLineValue === null) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setNumberLineSubmitted(true);
+    const currQ    = sessionQuestions[qIdx];
+    const correct  = parseFloat(currQ.number_line?.correct ?? currQ.answer ?? 0);
+    const isCorrect = Math.abs(numberLineValue - correct) < 1e-9;
+    const rec = {
+      q: currQ.q, isCorrect,
+      correct:  String(correct),
+      myAnswer: String(numberLineValue),
+      exp:      currQ.exp ?? "",
+      subject:  currQ.subject ?? subject,
+      topic:    currQ.topic   ?? "general",
+    };
+    setSelected(isCorrect ? true : false);
+    if (isCorrect) {
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
+      setTotalScore(p => p + 10);
+      setStreak(p => p + 1);
+    } else {
+      setResults(r => ({ ...r, answers: [...r.answers, rec] }));
+      setStreak(0);
+      queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
+      fetchConceptCard(currQ.topic, currQ.subject);
+    }
+    recordTopicResult(currQ.topic, isCorrect);
+  }, [numberLineSubmitted, numberLineValue, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
+
+  const handleFractionSubmit = useCallback(() => {
+    if (fractionSubmitted) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setFractionSubmitted(true);
+    const currQ          = sessionQuestions[qIdx];
+    const correctNumer   = parseInt(currQ.fraction?.numerator ?? currQ.answer ?? 0);
+    const isCorrect      = fractionShaded.size === correctNumer;
+    const denominator    = currQ.fraction?.denominator ?? currQ.question_data?.denominator ?? 4;
+    const rec = {
+      q: currQ.q, isCorrect,
+      correct:  `${correctNumer}/${denominator}`,
+      myAnswer: `${fractionShaded.size}/${denominator}`,
+      exp:      currQ.exp ?? "",
+      subject:  currQ.subject ?? subject,
+      topic:    currQ.topic   ?? "general",
+    };
+    setSelected(isCorrect ? true : false);
+    if (isCorrect) {
+      setResults(r => ({ ...r, score: r.score + 1, answers: [...r.answers, rec] }));
+      setTotalScore(p => p + 10);
+      setStreak(p => p + 1);
+    } else {
+      setResults(r => ({ ...r, answers: [...r.answers, rec] }));
+      setStreak(0);
+      queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
+      fetchConceptCard(currQ.topic, currQ.subject);
+    }
+    recordTopicResult(currQ.topic, isCorrect);
+  }, [fractionSubmitted, fractionShaded, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
+
   // ── KS1 voice readout ────────────────────────────────────────────────────────
   const speakQuestion = useCallback((text) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -1161,6 +1498,10 @@ export default function QuizEngine({
     setExplanationData(null); setShowInteractiveExplanation(false); setExplanationStep(0);
     setAdvancedResult(null);
     setConceptCard(null);    setConceptCardLoading(false);
+    // Interactive types — items re-initialised in the qIdx/sessionQuestions useEffect
+    setOrderingItems([]);    setOrderingSelectedIdx(null); setOrderingSubmitted(false);
+    setNumberLineValue(null); setNumberLineSubmitted(false);
+    setFractionShaded(new Set()); setFractionSubmitted(false);
   }, []);
 
   const fetchQuestions = useCallback(async () => {
@@ -1307,6 +1648,21 @@ export default function QuizEngine({
     setRemediationShown(false);  setRemediationData(null);
     setRemediationAnswered(false); setRemediationResult(null);
     setHintIdx(-1); setHintsUsed(0);
+    // Interactive type initialisation
+    setOrderingSubmitted(false);  setOrderingSelectedIdx(null);
+    setNumberLineValue(null);     setNumberLineSubmitted(false);
+    setFractionShaded(new Set()); setFractionSubmitted(false);
+    if (q?.type === "ordering") {
+      // Shuffle items for display; preserve origIdx for marking
+      const items = (q.items || []).map((text, origIdx) => ({ text, origIdx }));
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      setOrderingItems(items);
+    } else {
+      setOrderingItems([]);
+    }
   }, [qIdx, sessionQuestions]);
 
   const handlePick = useCallback((idx) => {
@@ -1332,11 +1688,12 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
       fetchConceptCard(currQ.topic, currQ.subject);
       try { const e = getExplanationForQuestion?.(currQ); if (e) setExplanationData(e); } catch {}
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult, queueMistake, fetchConceptCard]);
+  }, [selected, qIdx, sessionQuestions, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
 
   const handleFreeTextSubmit = useCallback(() => {
     if (freeTextSubmitted || !freeTextInput.trim()) return;
@@ -1365,10 +1722,11 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
       fetchConceptCard(currQ.topic, currQ.subject);
     }
     recordTopicResult(currQ.topic, isCorrect);
-  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard]);
+  }, [freeTextInput, freeTextSubmitted, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
 
   const handleMultiSubmit = useCallback(() => {
     if (multiSubmitted) return;
@@ -1395,10 +1753,11 @@ export default function QuizEngine({
       setResults(r => ({ ...r, answers: [...r.answers, rec] }));
       setStreak(0);
       queueMistake(currQ);
+      promoteMisconceptionQuestions(currQ.id);
       fetchConceptCard(currQ.topic, currQ.subject);
     }
     recordTopicResult(currQ.topic, allCorrect);
-  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard]);
+  }, [multiSubmitted, multiSelected, sessionQuestions, qIdx, subject, recordTopicResult, queueMistake, fetchConceptCard, promoteMisconceptionQuestions]);
 
   // Timer: when time expires, auto-advance to next question (don't lock or reveal answer)
   const timeExpiredRef = useRef(false);
@@ -1410,7 +1769,8 @@ export default function QuizEngine({
       timerRef.current = null;
     }
     const currQType = sessionQuestions[qIdx]?.type;
-    if (selected !== null || finished || !sessionQuestions.length || generating || currQType === 'numerical_input') return;
+    const NO_TIMER_TYPES = ['numerical_input', 'ordering', 'number_line', 'fraction_bar'];
+    if (selected !== null || finished || !sessionQuestions.length || generating || NO_TIMER_TYPES.includes(currQType)) return;
     timeExpiredRef.current = false;
     timerRef.current = setInterval(() => {
       setTimeLeft(p => {
@@ -1842,9 +2202,12 @@ export default function QuizEngine({
 
   const qType           = q.type || "mcq";
   const isMultiStep     = !!q.steps;
+  const INTERACTIVE_TYPES = ["ordering", "number_line", "fraction_bar"];
+  const isInteractive   = INTERACTIVE_TYPES.includes(qType);
   const isCorrectAnswer =
-    qType === "free_text"    ? selected === true :
-    qType === "multi_select" ? selected === true :
+    isInteractive               ? selected === true :
+    qType === "free_text"       ? selected === true :
+    qType === "multi_select"    ? selected === true :
     !isMultiStep && selected === q.a;
   const canProceed =
     (isMultiStep && selected === true) ||
@@ -1853,6 +2216,9 @@ export default function QuizEngine({
   const correctAnswerText =
     qType === "free_text"    ? (q.answer ?? "") :
     qType === "multi_select" ? (Array.isArray(q.a) ? q.a.map(i => q.opts?.[i]).join(", ") : "") :
+    qType === "ordering"     ? "items in the correct sequence" :
+    qType === "number_line"  ? String(q.number_line?.correct ?? q.answer ?? "") :
+    qType === "fraction_bar" ? `${q.fraction?.numerator ?? q.answer}/${q.fraction?.denominator ?? "?"}` :
     (q.opts?.[q.a] ?? "");
 
   return (
@@ -2131,6 +2497,206 @@ export default function QuizEngine({
                     <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
                     <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
                   </div>
+                  {canProceed && (
+                    <button onClick={next} disabled={savingResult}
+                      className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                      {!savingResult && <ArrowRightIcon size={16}/>}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          /* ── ORDERING ── */
+          ) : qType === "ordering" ? (
+            <div className="space-y-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-1">{q.q}</h3>
+              {!orderingSubmitted && (
+                <p className="text-xs font-bold text-slate-400 mb-2">
+                  Tap an item to select it (it highlights), then tap another to swap positions.
+                </p>
+              )}
+              <OrderingQuestion
+                items={orderingItems}
+                selectedIdx={orderingSelectedIdx}
+                submitted={orderingSubmitted}
+                correctOrder={orderingSubmitted ? (q.correct_order ?? (Array.isArray(q.answer) ? q.answer : null)) : null}
+                onTap={(i) => {
+                  if (orderingSubmitted) return;
+                  if (orderingSelectedIdx === null) {
+                    setOrderingSelectedIdx(i);
+                  } else if (orderingSelectedIdx === i) {
+                    setOrderingSelectedIdx(null);
+                  } else {
+                    setOrderingItems(prev => {
+                      const next = [...prev];
+                      [next[orderingSelectedIdx], next[i]] = [next[i], next[orderingSelectedIdx]];
+                      return next;
+                    });
+                    setOrderingSelectedIdx(null);
+                  }
+                }}
+              />
+              {!orderingSubmitted ? (
+                <button
+                  onClick={handleOrderingSubmit}
+                  className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700"
+                >
+                  Confirm Order ✓
+                </button>
+              ) : (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className={`p-3 rounded-xl border-2 ${isCorrectAnswer ? "bg-emerald-50 border-emerald-400" : "bg-rose-50 border-rose-400"}`}>
+                    <p className="font-black text-sm">{isCorrectAnswer ? "✅ Perfect sequence!" : "✗ Not quite right"}</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
+                    <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
+                  </div>
+                  {!isCorrectAnswer && (conceptCardLoading || conceptCard) && (
+                    <ConceptSnapshot card={conceptCard} loading={conceptCardLoading} />
+                  )}
+                  {!isCorrectAnswer && (
+                    <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      <p className="text-amber-800 font-bold text-xs mb-2">
+                        <span className="font-black">Tara's Challenge:</span> Why does that order matter?
+                      </p>
+                      <textarea value={eibText} onChange={e => setEibText(e.target.value)} onKeyDown={handleKeyDown} disabled={eibLocked}
+                        className="w-full p-2 rounded-lg border border-amber-100 font-bold text-xs bg-white mb-2 resize-none focus:outline-none focus:border-amber-400" rows={2} placeholder="Type your reasoning…" />
+                      <button disabled={loadingEIB || !eibText.trim() || eibLocked} onClick={handleEIB}
+                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                        <ZapIcon size={12}/> {loadingEIB ? "Thinking…" : "Tell Tara ✨"}
+                      </button>
+                      {eibFeedback && <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">{eibFeedback}</div>}
+                    </div>
+                  )}
+                  {canProceed && (
+                    <button onClick={next} disabled={savingResult}
+                      className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                      {!savingResult && <ArrowRightIcon size={16}/>}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          /* ── NUMBER LINE ── */
+          ) : qType === "number_line" ? (
+            <div className="space-y-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
+              <NumberLineWidget
+                min={q.number_line?.min ?? 0}
+                max={q.number_line?.max ?? 10}
+                step={q.number_line?.step ?? 1}
+                value={numberLineValue}
+                correct={numberLineSubmitted ? parseFloat(q.number_line?.correct ?? q.answer ?? 0) : null}
+                submitted={numberLineSubmitted}
+                onSelect={setNumberLineValue}
+              />
+              {!numberLineSubmitted ? (
+                <button
+                  onClick={handleNumberLineSubmit}
+                  disabled={numberLineValue === null}
+                  className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Confirm Answer ✓
+                </button>
+              ) : (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className={`p-3 rounded-xl border-2 ${isCorrectAnswer ? "bg-emerald-50 border-emerald-400" : "bg-rose-50 border-rose-400"}`}>
+                    <p className="font-black text-sm mb-0.5">{isCorrectAnswer ? "✅ Correct!" : "✗ Not quite"}</p>
+                    {!isCorrectAnswer && (
+                      <p className="text-xs font-bold text-emerald-700">Correct answer: <strong>{correctAnswerText}</strong></p>
+                    )}
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
+                    <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
+                  </div>
+                  {!isCorrectAnswer && (conceptCardLoading || conceptCard) && (
+                    <ConceptSnapshot card={conceptCard} loading={conceptCardLoading} />
+                  )}
+                  {!isCorrectAnswer && (
+                    <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      <p className="text-amber-800 font-bold text-xs mb-2">
+                        <span className="font-black">Tara's Challenge:</span> Why is <span className="underline font-black">{correctAnswerText}</span> the right position?
+                      </p>
+                      <textarea value={eibText} onChange={e => setEibText(e.target.value)} onKeyDown={handleKeyDown} disabled={eibLocked}
+                        className="w-full p-2 rounded-lg border border-amber-100 font-bold text-xs bg-white mb-2 resize-none focus:outline-none focus:border-amber-400" rows={2} placeholder="Type your reasoning…" />
+                      <button disabled={loadingEIB || !eibText.trim() || eibLocked} onClick={handleEIB}
+                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                        <ZapIcon size={12}/> {loadingEIB ? "Thinking…" : "Tell Tara ✨"}
+                      </button>
+                      {eibFeedback && <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">{eibFeedback}</div>}
+                    </div>
+                  )}
+                  {canProceed && (
+                    <button onClick={next} disabled={savingResult}
+                      className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">
+                      {savingResult ? "Saving…" : qIdx === sessionQuestions.length - 1 ? "Complete Mission" : "Continue"}
+                      {!savingResult && <ArrowRightIcon size={16}/>}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          /* ── FRACTION BAR ── */
+          ) : qType === "fraction_bar" ? (
+            <div className="space-y-3">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-3">{q.q}</h3>
+              <FractionBarWidget
+                denominator={q.fraction?.denominator ?? q.question_data?.denominator ?? 4}
+                shaded={fractionShaded}
+                submitted={fractionSubmitted}
+                correct={fractionSubmitted ? parseInt(q.fraction?.numerator ?? q.answer ?? 0) : null}
+                onToggle={(i) => {
+                  if (fractionSubmitted) return;
+                  setFractionShaded(prev => {
+                    const next = new Set(prev);
+                    next.has(i) ? next.delete(i) : next.add(i);
+                    return next;
+                  });
+                }}
+              />
+              {!fractionSubmitted ? (
+                <button
+                  onClick={handleFractionSubmit}
+                  className="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm border-b-4 border-indigo-800 hover:bg-indigo-700"
+                >
+                  Submit Fraction ✓
+                </button>
+              ) : (
+                <div className="space-y-3 border-t border-slate-100 pt-3">
+                  <div className={`p-3 rounded-xl border-2 ${isCorrectAnswer ? "bg-emerald-50 border-emerald-400" : "bg-rose-50 border-rose-400"}`}>
+                    <p className="font-black text-sm mb-0.5">{isCorrectAnswer ? "✅ Correct!" : "✗ Not quite"}</p>
+                    {!isCorrectAnswer && (
+                      <p className="text-xs font-bold text-emerald-700">Correct answer: <strong>{correctAnswerText}</strong></p>
+                    )}
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border-l-4 border-indigo-500 flex gap-2 items-start">
+                    <BrainIcon size={18} className="text-indigo-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">{q.exp}</p>
+                  </div>
+                  {!isCorrectAnswer && (conceptCardLoading || conceptCard) && (
+                    <ConceptSnapshot card={conceptCard} loading={conceptCardLoading} />
+                  )}
+                  {!isCorrectAnswer && (
+                    <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      <p className="text-amber-800 font-bold text-xs mb-2">
+                        <span className="font-black">Tara's Challenge:</span> Why does <span className="underline font-black">{correctAnswerText}</span> represent that fraction?
+                      </p>
+                      <textarea value={eibText} onChange={e => setEibText(e.target.value)} onKeyDown={handleKeyDown} disabled={eibLocked}
+                        className="w-full p-2 rounded-lg border border-amber-100 font-bold text-xs bg-white mb-2 resize-none focus:outline-none focus:border-amber-400" rows={2} placeholder="Type your reasoning…" />
+                      <button disabled={loadingEIB || !eibText.trim() || eibLocked} onClick={handleEIB}
+                        className="w-full bg-amber-500 text-white font-black py-2 rounded-lg text-xs uppercase tracking-widest border-b-2 border-amber-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                        <ZapIcon size={12}/> {loadingEIB ? "Thinking…" : "Tell Tara ✨"}
+                      </button>
+                      {eibFeedback && <div className="mt-2 p-2 bg-white rounded-lg border border-amber-100 text-amber-900 font-bold italic text-xs">{eibFeedback}</div>}
+                    </div>
+                  )}
                   {canProceed && (
                     <button onClick={next} disabled={savingResult}
                       className="w-full bg-slate-900 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm border-b-4 border-black disabled:opacity-60">

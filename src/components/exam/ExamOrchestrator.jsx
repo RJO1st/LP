@@ -15,10 +15,11 @@ import { apiFetch } from "@/lib/apiFetch";
  *   - onClose: fn() — callback when exam flow completes/user exits
  */
 
-const ExamLobby = dynamic(() => import("./ExamLobby"), { ssr: false });
-const ExamRunner = dynamic(() => import("./ExamRunner"), { ssr: false });
+const ExamLobby      = dynamic(() => import("./ExamLobby"),      { ssr: false });
+const ExamBriefing   = dynamic(() => import("./ExamBriefing"),   { ssr: false });
+const ExamRunner     = dynamic(() => import("./ExamRunner"),     { ssr: false });
 const ExamMarkingScreen = dynamic(() => import("./ExamMarkingScreen"), { ssr: false });
-const ExamResults = dynamic(() => import("./ExamResults"), { ssr: false });
+const ExamResults    = dynamic(() => import("./ExamResults"),    { ssr: false });
 
 export default function ExamOrchestrator({ scholar, onClose }) {
   const [state, setState] = useState("lobby"); // "lobby" | "running" | "marking" | "results"
@@ -78,7 +79,9 @@ export default function ExamOrchestrator({ scholar, onClose }) {
       setExamQuestions(questions);
       setExamMode(mode);
 
-      setState("running");
+      // Show briefing screen before starting the timer.
+      // Review mode skips briefing (scholar has already seen this paper).
+      setState(mode === "review" ? "running" : "briefing");
     } catch (err) {
       console.error("Failed to start exam:", err);
       setExamError(err.message || "Failed to start exam. Please try again.");
@@ -159,6 +162,11 @@ export default function ExamOrchestrator({ scholar, onClose }) {
     setState("lobby");
   }, []);
 
+  // ── BRIEFING → RUNNING ──────────────────────────────────────────────────────
+  const handleBeginFromBriefing = useCallback(() => {
+    setState("running");
+  }, []);
+
   // ── RENDER STATE MACHINE ────────────────────────────────────────────────────
   if (state === "lobby") {
     return (
@@ -166,6 +174,19 @@ export default function ExamOrchestrator({ scholar, onClose }) {
         scholar={scholar}
         onStartExam={handleStartExam}
         onBack={onClose}
+      />
+    );
+  }
+
+  if (state === "briefing") {
+    return (
+      <ExamBriefing
+        paper={currentPaper}
+        questions={examQuestions}
+        mode={examMode}
+        sitting={currentSitting}
+        onBegin={handleBeginFromBriefing}
+        onBack={() => setState("lobby")}
       />
     );
   }

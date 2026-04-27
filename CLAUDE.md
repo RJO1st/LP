@@ -156,6 +156,40 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 
 ## Recent Session Work (Last 3)
 
+### April 27, 2026 (session 11) — Interactive Question Types + Misconception Selector
+
+**`src/components/game/QuizEngine.jsx` — 3 new question type renderers + misconception-targeted retry queue.**
+
+**New question type components (defined above `QuizEngine`):**
+- `OrderingQuestion` — tap-to-select-then-swap ordering (no drag events; works on mobile). Items shuffled via Fisher-Yates at question load, `origIdx` preserved for marking. Post-submit: ✓/✗ per item based on position vs `q.correct_order`.
+- `NumberLineWidget` — click/touch rail to snap to nearest tick; epsilon comparison (`< 1e-9`) for float safety; correct-position emerald marker shown on wrong submit. Tick stride auto-scales when > 11 ticks.
+- `FractionBarWidget` — click-to-toggle segments (up to 12); denominator from `q.fraction.denominator ?? q.question_data.denominator ?? 4`; post-submit colours: emerald (correct shaded), emerald-200 (correct unshaded/missed), rose (wrong shaded).
+
+**State added:** `orderingItems`, `orderingSelectedIdx`, `orderingSubmitted`, `numberLineValue`, `numberLineSubmitted`, `fractionShaded`, `fractionSubmitted`.
+
+**Submit handlers:** `handleOrderingSubmit`, `handleNumberLineSubmit`, `handleFractionSubmit` — all follow the standard pattern: `setSelected(true/false)`, `queueMistake`, `promoteMisconceptionQuestions`, `fetchConceptCard`, `recordTopicResult`.
+
+**Timer skip:** `NO_TIMER_TYPES` array extended — `['numerical_input', 'ordering', 'number_line', 'fraction_bar']` all skip the countdown so scholars have adequate interaction time.
+
+**Question data schema per type:**
+- `ordering`: `q.items` (string[]), `q.correct_order` or `q.answer` (int[])
+- `number_line`: `q.number_line.{min,max,step,correct}` or `q.answer`
+- `fraction_bar`: `q.fraction.{numerator,denominator}` or `q.answer` + `q.question_data.denominator`
+
+**Misconception selector (Item 3 completion):**
+- `misconceptionMapRef` — ref storing `{ questionId → Set<misconceptionUuid> }`. Populated by a background Supabase query on `question_misconceptions` whenever `sessionQuestions` populates. Fully fail-open; cancelled if session changes before completion.
+- `promoteMisconceptionQuestions(wrongQId)` — on wrong answer, partitions remaining unasked questions: those sharing any misconception UUID are moved to immediately after the current position (before the rest of the queue). `_isRetry` questions are never reordered. No-op when map is empty (pre-generator-run questions have no misconception data yet).
+- All 6 wrong-answer handlers wired: `handlePick`, `handleFreeTextSubmit`, `handleMultiSubmit`, `handleOrderingSubmit`, `handleNumberLineSubmit`, `handleFractionSubmit`.
+- **Priority on wrong answer:** misconception-targeted questions (promoted inline) → rest of original queue → raw `missedQuestions` retries at session end.
+
+**Also (session 11 — other items):**
+- `vercel.json`: added `GET /api/cron/daily-ops-digest` cron at `0 7 * * *`
+- `src/components/exam/ExamBriefing.jsx` (new): pre-exam briefing card with paper stats (questions/duration/marks), topic distribution bars (top 8 topics), mode-specific tips (timed/practice/topic_focus/review), "Begin Mission" CTA. Review mode shows "Open Review" instead.
+- `src/components/exam/ExamOrchestrator.jsx`: wires `ExamBriefing` between lobby and running states. `"briefing"` state added to machine; review mode skips briefing. `handleBeginFromBriefing` callback.
+- `supabase/migrations/20260427_misconceptions.sql` (new): `misconceptions` table (id, topic_slug, subject, year_band, label, description, common_trigger, remediation_hint, source) + `question_misconceptions` join table (question_id, misconception_id, relevance 0–1). RLS: authenticated SELECT only; service-role writes only. **Apply in Supabase SQL editor.**
+
+**No new API routes. No other DB changes.**
+
 ### April 27, 2026 (session 10) — Stripe GB Integration
 
 **Full Stripe checkout + webhook + callback pipeline built (awaiting UK entity + Stripe account to go live).**
@@ -210,48 +244,6 @@ Model: school mandates free accounts → 100% cohort data → parent upgrades dr
 - `src/app/dashboard/proprietor/page.jsx`: `handleExport` rewritten similarly. New `downloadingTermly` state. Button label changed to "Download Termly Report".
 
 **No DB schema changes. No new migrations.**
-
-### April 27, 2026 (session 8, continued) — Test Infrastructure (#51) + CI (#52)
-
-**Test runner: Vitest 2.x + @vitest/coverage-v8. Run: `npm test` / `npm run test:coverage`.**
-
-**Files created:**
-- `vitest.config.js` — `@/` alias mapped to `./src`; coverage for 5 key lib files (tierAccess, taraClassifier, markingEngine, security/webhook, security/cronAuth); line ≥60%, function ≥70% thresholds.
-- `src/lib/__tests__/taraClassifier.test.js` — 35 tests: 16 safeguarding_flag (plain + homoglyph obfuscation including k1ll/s3lf/@-variants/spaced-letters/KMS!), 11 off_topic_concerning (plain + homoglyph p0rn/s3x/spaced drugs), 9 on_topic (maths/english/WAEC), 3 off_topic_innocent, 2 priority-order edge cases.
-- `src/lib/__tests__/tierAccess.test.js` — 60 tests: hasFeature across all tier combos (freeGB, freeNG, ng_scholar, +waec_boost, +ai_unlimited, +family_child, uk_pro, uk_pro_exam); getLimit; canAddScholar (boundary checks); checkQuota (cap enforcement, unlimited detection, negative used guard); curriculumIsNigerian (case-insensitive, null-safe); regionFromCurriculum.
-- `src/lib/security/__tests__/webhook.test.js` — 28 tests: verifyHmac (valid/tampered body/wrong sig/wrong secret/null sig/empty sig/bad secret/non-string body/length mismatch/sha256); validateEnumValue (allowed/trimmed/disallowed/null/empty/non-string/case-sensitive); sanitiseAddons (clean/drops unknown/logs warn/dedupes/null input/empty/whitespace trim/non-string/no warn on all-valid).
-- `src/lib/__tests__/markingEngine.test.js` — 40 tests: levenshtein (0/empty/substitution/insertion/deletion/kitten→sitting); normalizeAnswer (lowercase/trim/collapse/punctuation/null/non-string); parseNumericAnswer (integer/decimal/percentage/fraction/scientific/null/non-numeric/division-by-zero/negative); isNumericMatch (exact/within-tolerance/outside/zero/negative/NaN/Infinity/custom-tolerance); markDeterministic MCQ (correct/wrong/string-index/null-correct-index/no-mark-scheme) + numeric (exact/within-tolerance/out-of-tolerance/non-parseable).
-- `.github/workflows/ci.yml` — 3 jobs: `test` (vitest run + coverage on push/PR), `lint` (next lint, continue-on-error), `build` (next build with placeholder env vars, gated on test passing). Node 22, npm ci cache.
-
-**`package.json` updated**: added `"test"`, `"test:watch"`, `"test:coverage"`, `"lint"` scripts; added `vitest` and `@vitest/coverage-v8` to devDependencies.
-
-**After cloning on a fresh machine**: `npm install` picks up vitest automatically. CI installs via `npm ci`.
-
-### April 27, 2026 (session 8) — Security + Reliability Audit: Critical + High Items
-
-**Commit `955a448` — 4 verified bugs closed:**
-
-1. **Cron timing attack (#48)**: `src/lib/security/cronAuth.js` — new shared helper `authorizedCronRequest()` using `crypto.timingSafeEqual`. Replaces naive `===` string comparison in all four assign-* cron routes (`assign-daily`, `assign-weekly`, `assign-personalised`, `assign-boss-battle`). Added `export const runtime = "nodejs"` to each (required for Node crypto module).
-
-2. **Duplicate quests on Vercel retry (#49)**: Added idempotency preflight to `assign-daily`, `assign-weekly`, `assign-personalised`. Pattern: count active quests for scholar within today's window before inserting; skip with `skippedCount++` if already assigned. `assign-boss-battle` had this guard already. `assign-daily` also improved: bulk expire now targets `expires_at < today_start` (not inline per scholar), plus `export const runtime = "nodejs"`.
-
-3. **Webhook annual+addon defense gap (#50)**: In `paystack/webhook/route.js`, after `sanitiseAddons()`, if `billing === 'annual' && addons.length > 0`: clear array, log `paystack_webhook_annual_addon_rejected` warning. Defense in depth alongside the checkout §1b guard (400 at purchase time).
-
-4. **Weekly digest Gmail spam (#54)**: `sendEmail()` in `src/lib/email.js` now accepts optional `headers` param; Brevo API `headers` key only included when non-empty. `BULK_UNSUBSCRIBE_HEADERS` constant exported: `List-Unsubscribe` (https one-click + mailto fallback) + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). Wired into weekly-digest cron `sendEmail()` call.
-
-**No DB schema changes. No new API routes.**
-
-### April 27, 2026 (session 7) — Quiz Polish: MathInput + KS1 Voice + Palette Confirmed
-
-**`src/components/game/QuizEngine.jsx` — 3 features added (commit `39ade20`):**
-
-1. **MathInput component** (KS3+ maths free-text): `<MathInput>` defined above `QuizEngine`. 12-symbol toolbar (², ³, √, π, ×, ÷, ±, ≤, ≥, ≠, ∞, °) inserts at cursor position via `selectionStart`/`selectionEnd` + `requestAnimationFrame`. Active when `qType === "free_text"` AND `isKS3Plus` (year ≥ 7) AND `isMathsSubj`. Falls back to plain `<input>` otherwise.
-
-2. **KS1 voice readout** (year ≤ 2 only): `speakQuestion` callback wraps `SpeechSynthesisUtterance` (en-GB, rate 0.88, pitch 1.05). Speech cancelled on question change via `useEffect` cleanup on `qIdx`. Toggle button (VolumeIcon / VolumeOffIcon inline SVGs) in quiz header, visible to KS1 scholars only. "Read to me" pill added in both MCQ and free_text branches below the question h3. Both SSR-safe (`typeof window !== 'undefined'` guards).
-
-3. **Question palette** — confirmed already complete in `ExamRunner.jsx`: desktop sidebar (w-64, grid-cols-5) + mobile modal (grid-cols-6). Color states: blue=current, amber=flagged, green=answered, slate=unanswered. No new code needed.
-
-**New state/constants**: `voiceEnabled`, `scholarYear`, `isKS1`, `isKS3Plus`, `isMathsSubj`. New SVGs: `VolumeIcon`, `VolumeOffIcon`. No new API calls, no DB schema changes.
 
 ### April 26, 2026 (session 6) — Concept Cards Wiring
 
@@ -427,6 +419,7 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - Paystack account activation: test end-to-end once activated — see `PAYSTACK_SMOKE_TEST.md`
 - ✅ Stripe checkout + webhook + callback routes built (April 27 session 10) — `src/app/api/stripe/` directory. Subscribe page wired. Feature-flagged on `STRIPE_SECRET_KEY`. Anti-arbitrage GB guard matches Paystack NG pattern.
 - ✅ `supabase/migrations/20260427_parents_stripe_fields.sql` — adds `stripe_subscription_id TEXT` to parents. **Apply in Supabase SQL editor.**
+- ✅ `supabase/migrations/20260427_misconceptions.sql` — `misconceptions` + `question_misconceptions` tables. **Apply in Supabase SQL editor.**
 - Paystack account activation: test end-to-end once activated — see `PAYSTACK_SMOKE_TEST.md`
 - Stripe go-live checklist (see session 10 notes above): UK entity → Stripe account → 4 price objects → 6 env vars → webhook endpoint registration → apply `20260427_parents_stripe_fields.sql`
 
@@ -513,6 +506,10 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - ✅ Formula/equation input — complete (session 7): `MathInput` component with 12-symbol toolbar; active for KS3+ maths free-text questions; cursor-position insert via selectionStart + rAF; falls back to plain input.
 - ✅ Question palette — confirmed complete (session 7): already in `ExamRunner.jsx` — desktop sidebar (grid-cols-5) + mobile modal (grid-cols-6); blue/amber/green/slate states.
 - ✅ KS1 accessibility — complete (session 7): voice readout via Web Speech API (en-GB); toggle in quiz header; "Read to me" pill on MCQ + free_text; speech cancelled on question change; SSR-safe guards.
+- ✅ Interactive question types — complete (session 11): `OrderingQuestion` (tap-swap, Fisher-Yates shuffle), `NumberLineWidget` (click-to-snap, ε comparison), `FractionBarWidget` (click-to-toggle segments). All 3 follow standard wrong-answer pipeline (queueMistake + promoteMisconceptionQuestions + fetchConceptCard). Timer skipped for all 3. Data schema: ordering uses `q.items`+`q.correct_order`; number_line uses `q.number_line.{min,max,step,correct}`; fraction_bar uses `q.fraction.{numerator,denominator}`.
+- ✅ Misconception selector — complete (session 11): `misconceptionMapRef` loaded from `question_misconceptions` table in background after session questions populate. `promoteMisconceptionQuestions` reorders remaining unasked questions sharing a misconception to immediately after current position on wrong answer. Wired into all 6 wrong-answer handlers. Fail-open — no effect until generator tags questions with misconception_ids.
+- ✅ Pre-exam briefing card — complete (session 11): `ExamBriefing.jsx` shown between lobby and timer start. Stats, topic distribution, mode tips. Review mode skips briefing. `ExamOrchestrator` wired.
+- Authoring pipeline for interactive types: generator (`generateQuestionsV2.mjs`) needs `ordering`/`number_line`/`fraction_bar` schema support in prompts + validation guards
 
 ### 🟢 Platform
 - PWA offline mode (workbox + IndexedDB) — NG priority
