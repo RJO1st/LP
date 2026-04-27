@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// __dirname is not available in ESM — derive it from import.meta.url.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Vitest configuration for LaunchPard.
