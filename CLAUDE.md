@@ -503,12 +503,11 @@ Applied SQL operations (all committed to scripts/output/, gitignored):
 - **Diagnostic** (live DB): `scripts/output/visual_gap_diagnostic.sql` — 4 queries: summary, by-subject breakdown, spot-check sample, pipeline queue health.
 - Source audit: `scripts/output/visual_reference_audit.csv` (1,678 rows, 1,013 unique questions).
 
-### 🟡 Content — Explanation Quality (15,330 stubs)
-- Script running: `node scripts/rewriteExplanations.mjs --limit=300` (British English, 300-word cap)
-- Resume safety fixed (April 26): per-batch CSV flush — Ctrl+C loses ≤ 5 questions; restart correctly skips already-done IDs
-- Consecutive-failure cooloff fixed: 3 network errors → 30 s cooloff per model; prevents flaky models looping
-- After run completes: apply `scripts/output/explanation_rewrites.sql` to DB via Supabase SQL editor
-- Remaining stubs: ~15,330 (< 80 chars); script targets avg_score < 2.9 queue first
+### 🟡 Content — Explanation Quality (4,702 stubs remaining)
+- ✅ **10,628 rewrites complete (April 28 2026)** — `scripts/output/explanation_rewrites.sql` ready (40,739 lines, BEGIN/COMMIT wrapped). Total cost: $0.02 (free model rotation).
+- **⚠️ USER ACTION REQUIRED**: paste `scripts/output/explanation_rewrites.sql` into Supabase SQL editor and run to apply 10,628 explanation rewrites to `question_bank`.
+- After applying: run `node scripts/rewriteExplanations.mjs` again to catch remaining ~4,702 stubs (script skips already-rewritten IDs via CSV dedup)
+- Resume safety: per-batch CSV flush — restart correctly skips already-done IDs; consecutive-failure cooloff (3 errors → 30 s cooloff) prevents model thrashing
 
 ### ✅ Generator Hardening (#53, April 27 2026)
 - Migration: `supabase/migrations/20260427_generator_hardening.sql` — adds `content_hash TEXT` column + partial unique index on `question_bank`; creates `generation_runs` audit table (run_id, started_at, tokens, cost, models_used, etc.).
