@@ -23,7 +23,7 @@ function sb() {
 // route via requireAdmin() / isAdminEmail() (env-driven). Kept here as a
 // best-effort redirect for non-admins who land on this URL. If you add new
 // admins, update ADMIN_EMAILS env var, not this list.
-const ADMIN_EMAILS = ["rotimi@launchpard.com", "admin@launchpard.com"];
+const ADMIN_EMAILS = ["rotimi@launchpard.com", "admin@launchpard.com", "ogunwede.r@gmail.com"];
 
 // ── NG pricing constants ─────────────────────────────────────────────────────
 const NG_PRICE = { ng_scholar: 2500, waec_boost: 1000, ai_unlimited: 500, family_child: 1000 };
